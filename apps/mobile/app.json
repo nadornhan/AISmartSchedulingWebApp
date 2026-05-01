@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Todo List",
+    "slug": "todo-list",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "todolist",
+    "assetBundlePatterns": ["**/*"]
+  }
+}
