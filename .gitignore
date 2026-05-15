@@ -1,6 +1,11 @@
 node_modules/
 dist/
 **/.vite/
+.next/
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
 .expo/
 .expo-shared/
 web-build/

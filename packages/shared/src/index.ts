@@ -12,6 +12,11 @@ export type Task = {
   updatedAt: string;
 };
 
+export type TaskInput = {
+  title: string;
+  description: string | null;
+};
+
 export const initialTaskFields = [
   'title',
   'description',

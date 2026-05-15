@@ -5,6 +5,8 @@ export type SupabaseConfig = {
   anonKey: string;
 };
 
+export type TodoListSupabaseClient = ReturnType<typeof createTodoListSupabaseClient>;
+
 export function createTodoListSupabaseClient(config: SupabaseConfig) {
   return createClient(config.url, config.anonKey, {
     auth: {
