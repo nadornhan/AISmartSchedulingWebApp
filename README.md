@@ -14,6 +14,28 @@ Todo list app with task tracking, categories, deadlines, Pomodoro focus mode, an
 
 For a more detailed explanation of the stack, data flow, and improvement roadmap, see [docs/STACK.md](docs/STACK.md).
 
+## Repository Structure
+
+```text
+frontend/
+  web/       Next.js web app and active task-management UI
+  mobile/    Expo scaffold; mobile task features are not implemented yet
+backend/
+  api/       FastAPI backend, SQLAlchemy models, schemas, auth, and task routes
+packages/
+  shared/    Shared TypeScript types and constants
+  supabase/  Shared Supabase client factory
+docs/        Architecture and stack documentation
+supabase/    Supabase migration notes and SQL
+```
+
+Development should follow this split:
+
+- Frontend UI work goes in `frontend/web`.
+- Backend API and database work goes in `backend/api`.
+- Shared frontend contracts go in `packages/shared`.
+- Supabase is used for authentication; task data is stored through FastAPI, SQLAlchemy, and PostgreSQL.
+
 ## Requirements
 
 - Node.js 22+
@@ -56,6 +78,26 @@ docker compose up --build
 The web app runs on `http://localhost:3000`, the API on `http://localhost:8000`, and PostgreSQL on `localhost:5432`.
 
 The Expo mobile app is currently a scaffold/foundation screen. It is not part of the active task-management implementation yet.
+
+## Development Workflow
+
+Start feature work from `develop`:
+
+```bash
+git checkout develop
+git pull
+git checkout -b feature/task-management
+```
+
+Build features as vertical slices when possible:
+
+```text
+frontend/web     UI, pages, components, and API client helpers
+backend/api      routes, schemas, models, services, and auth checks
+packages/shared  shared TypeScript types when frontend/backend contracts change
+```
+
+Merge finished feature branches back into `develop`. Keep `main` for stable milestone-ready code.
 
 ## Quality Checks
 

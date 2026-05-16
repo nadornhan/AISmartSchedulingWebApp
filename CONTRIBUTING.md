@@ -32,6 +32,53 @@ Merge completed feature branches back into `develop` first. Only merge `develop`
 - `feature/gamification`
 - `feature/settings-polish`
 
+## Repository Structure
+
+```text
+frontend/
+  web/       Next.js web app and active task-management UI
+  mobile/    Expo scaffold; mobile task features are not implemented yet
+backend/
+  api/       FastAPI backend, SQLAlchemy models, schemas, auth, and task routes
+packages/
+  shared/    Shared TypeScript types and constants
+  supabase/  Shared Supabase client factory
+docs/        Architecture and stack documentation
+supabase/    Supabase migration notes and SQL
+```
+
+Use this ownership model during feature work:
+
+- `frontend/web`: pages, React components, frontend state, styling, and API client helpers.
+- `backend/api`: FastAPI routes, request/response schemas, SQLAlchemy models, database sessions, and backend auth checks.
+- `packages/shared`: shared TypeScript types/constants used across frontend packages.
+- `packages/supabase`: shared Supabase client setup.
+- `frontend/mobile`: scaffold only until mobile task features are intentionally added.
+
+## Feature Development Workflow
+
+Each feature branch should produce a usable vertical slice when possible.
+
+Example task feature split:
+
+```text
+frontend/web/app/...          task page or route
+frontend/web/components/...   task UI components
+frontend/web/lib/...          task API client helper
+backend/api/app/...           task route, schema, model, or service
+packages/shared/src/...       shared task contract, if needed
+```
+
+Recommended order for feature changes:
+
+1. Define or update shared types if the contract changes.
+2. Add or update backend models, schemas, and routes.
+3. Add or update frontend API helpers.
+4. Build the UI for the feature.
+5. Run quality checks before merging.
+
+Avoid large shared-file edits unless the feature needs them. If several branches need the same shared contract, coordinate that change through `develop` first.
+
 ## Development Setup
 
 Install dependencies:
