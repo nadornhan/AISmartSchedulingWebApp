@@ -12,7 +12,7 @@ Todo list app with task tracking, categories, deadlines, Pomodoro focus mode, an
 - Container: Docker Compose
 - Mobile: Expo React Native scaffold only; task features are not implemented yet
 
-For a more detailed explanation of the stack, data flow, and improvement roadmap, see [docs/STACK.md](docs/STACK.md). For the reasoning behind this stack choice, especially SQLAlchemy ORM, see [docs/WHY_THIS_STACK.md](docs/WHY_THIS_STACK.md).
+For a more detailed explanation of the stack, data flow, improvement roadmap, and stack decision reasoning, see [STACK.md](STACK.md).
 
 ## Repository Structure
 
@@ -25,7 +25,7 @@ backend/
 packages/
   shared/    Shared TypeScript types and constants
   supabase/  Shared Supabase client factory
-docs/        Architecture and stack documentation
+STACK.md     Stack, architecture, and stack decision reasoning
 supabase/    Supabase migration notes and SQL
 ```
 

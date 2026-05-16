@@ -1,6 +1,6 @@
 # Contributing To Todo List
 
-This project is a pnpm monorepo with a Next.js web app, FastAPI backend, PostgreSQL database, SQLAlchemy ORM, Supabase Auth, and an Expo mobile scaffold. The active task-management implementation is currently web plus API; mobile task features are not implemented yet. Keep contributions aligned with the stack and architecture described in `docs/STACK.md`.
+This project is a pnpm monorepo with a Next.js web app, FastAPI backend, PostgreSQL database, SQLAlchemy ORM, Supabase Auth, and an Expo mobile scaffold. The active task-management implementation is currently web plus API; mobile task features are not implemented yet. Keep contributions aligned with the stack and architecture described in `STACK.md`.
 
 ## Branches
 
@@ -43,7 +43,7 @@ backend/
 packages/
   shared/    Shared TypeScript types and constants
   supabase/  Shared Supabase client factory
-docs/        Architecture and stack documentation
+STACK.md     Stack, architecture, and stack decision reasoning
 supabase/    Supabase migration notes and SQL
 ```
 
@@ -162,4 +162,4 @@ Update documentation when a change affects:
 - API routes or request/response contracts.
 - Branch strategy or development workflow.
 
-Use `README.md` for project entry-point information and `docs/STACK.md` for stack and architecture details.
+Use `README.md` for project entry-point information and `STACK.md` for stack and architecture details.
