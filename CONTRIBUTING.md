@@ -39,17 +39,17 @@ Install dependencies:
 ```powershell
 corepack enable
 corepack pnpm install
-python -m venv apps/api/.venv
-apps/api/.venv/Scripts/python -m pip install -e apps/api
+python -m venv backend/api/.venv
+backend/api/.venv/Scripts/python -m pip install -e backend/api
 ```
 
 Copy environment files:
 
 ```powershell
 Copy-Item .env.example .env
-Copy-Item apps/web/.env.example apps/web/.env
-Copy-Item apps/api/.env.example apps/api/.env
-Copy-Item apps/mobile/.env.example apps/mobile/.env
+Copy-Item frontend/web/.env.example frontend/web/.env
+Copy-Item backend/api/.env.example backend/api/.env
+Copy-Item frontend/mobile/.env.example frontend/mobile/.env
 ```
 
 Run locally:
@@ -76,10 +76,10 @@ corepack pnpm build
 corepack pnpm format:check
 ```
 
-If backend dev dependencies are installed, also run Python checks when changing `apps/api`:
+If backend dev dependencies are installed, also run Python checks when changing `backend/api`:
 
 ```powershell
-apps/api/.venv/Scripts/python -m ruff check apps/api
+backend/api/.venv/Scripts/python -m ruff check backend/api
 ```
 
 ## Commit Messages
@@ -100,7 +100,7 @@ Use short, descriptive commit messages:
 - Store task data through the FastAPI backend, SQLAlchemy, and PostgreSQL.
 - Keep frontend API calls behind small client helper functions.
 - Keep shared TypeScript types in workspace packages when both web and mobile need them.
-- Treat `apps/mobile` as scaffolded until mobile task screens and API integration are added.
+- Treat `frontend/mobile` as scaffolded until mobile task screens and API integration are added.
 - Avoid adding a second task-storage path unless the architecture is intentionally changed and documented.
 - Prefer feature branches that deliver a usable vertical slice across UI, API contract, backend, tests, and docs when applicable.
 

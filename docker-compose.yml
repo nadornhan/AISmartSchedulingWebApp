@@ -18,7 +18,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: backend/api/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://todo:todo@postgres:5432/todo_list}
       SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
@@ -29,12 +29,12 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./apps/api/app:/app/app
+      - ./backend/api/app:/app/app
 
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: frontend/web/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}

@@ -44,10 +44,11 @@ The active application today is the web app plus FastAPI backend. The Expo mobil
 ## Repository Layout
 
 ```text
-apps/
-  api/       FastAPI backend
-  mobile/    Expo React Native scaffold
+frontend/
   web/       Next.js web app
+  mobile/    Expo React Native scaffold
+backend/
+  api/       FastAPI backend
 packages/
   shared/    Shared TypeScript constants and task types
   supabase/  Shared Supabase client factory
@@ -57,15 +58,15 @@ supabase/
 
 ## Backend
 
-The backend lives in `apps/api`.
+The backend lives in `backend/api`.
 
 Important files:
 
-- `apps/api/app/main.py` defines the FastAPI app and task CRUD routes.
-- `apps/api/app/models.py` defines SQLAlchemy ORM models.
-- `apps/api/app/database.py` configures the database engine and sessions.
-- `apps/api/app/auth.py` validates Supabase bearer tokens.
-- `apps/api/pyproject.toml` declares Python dependencies.
+- `backend/api/app/main.py` defines the FastAPI app and task CRUD routes.
+- `backend/api/app/models.py` defines SQLAlchemy ORM models.
+- `backend/api/app/database.py` configures the database engine and sessions.
+- `backend/api/app/auth.py` validates Supabase bearer tokens.
+- `backend/api/pyproject.toml` declares Python dependencies.
 
 The API currently supports:
 
@@ -77,20 +78,20 @@ The API currently supports:
 
 ## Frontend
 
-The web app lives in `apps/web`.
+The web app lives in `frontend/web`.
 
 Important files:
 
-- `apps/web/app/page.tsx` contains the current task UI and Supabase sign-in flow.
-- `apps/web/lib/tasks.ts` contains the browser API client for task CRUD.
-- `apps/web/lib/supabase.ts` creates the browser Supabase client when environment values are present.
+- `frontend/web/app/page.tsx` contains the current task UI and Supabase sign-in flow.
+- `frontend/web/lib/tasks.ts` contains the browser API client for task CRUD.
+- `frontend/web/lib/supabase.ts` creates the browser Supabase client when environment values are present.
 
-The mobile scaffold lives in `apps/mobile`.
+The mobile scaffold lives in `frontend/mobile`.
 
 Important files:
 
-- `apps/mobile/App.tsx` contains the current mobile foundation screen.
-- `apps/mobile/src/supabase.ts` creates the mobile Supabase client when environment values are present.
+- `frontend/mobile/App.tsx` contains the current mobile foundation screen.
+- `frontend/mobile/src/supabase.ts` creates the mobile Supabase client when environment values are present.
 
 The mobile app is currently scaffolded but does not yet implement task CRUD or the main productivity workflows.
 

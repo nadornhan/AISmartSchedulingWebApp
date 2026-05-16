@@ -4,7 +4,7 @@ WORKDIR /app
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/web/package.json apps/web/package.json
+COPY frontend/web/package.json frontend/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/supabase/package.json packages/supabase/package.json
 RUN pnpm install --frozen-lockfile
@@ -22,7 +22,7 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=deps /app/frontend/web/node_modules ./frontend/web/node_modules
 COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=deps /app/packages/supabase/node_modules ./packages/supabase/node_modules
 COPY . .
@@ -37,7 +37,7 @@ RUN corepack enable
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-COPY --from=builder /app/apps/web ./apps/web
+COPY --from=builder /app/frontend/web ./frontend/web
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/node_modules ./node_modules
 

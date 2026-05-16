@@ -16,7 +16,8 @@ coverage/
 .env
 .env.*
 !.env.example
-!apps/*/.env.example
+!frontend/*/.env.example
+!backend/*/.env.example
 
 npm-debug.log*
 pnpm-debug.log*

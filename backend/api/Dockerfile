@@ -5,10 +5,10 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-COPY apps/api/pyproject.toml ./
+COPY backend/api/pyproject.toml ./
 RUN pip install --no-cache-dir .
 
-COPY apps/api/app ./app
+COPY backend/api/app ./app
 
 EXPOSE 8000
 

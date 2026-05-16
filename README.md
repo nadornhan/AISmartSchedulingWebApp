@@ -27,17 +27,17 @@ For a more detailed explanation of the stack, data flow, and improvement roadmap
 ```powershell
 corepack enable
 corepack pnpm install
-python -m venv apps/api/.venv
-apps/api/.venv/Scripts/python -m pip install -e apps/api
+python -m venv backend/api/.venv
+backend/api/.venv/Scripts/python -m pip install -e backend/api
 ```
 
 Copy the environment examples and fill in your Supabase project values. `SUPABASE_JWT_SECRET` is required by the API so it can verify Supabase access tokens.
 
 ```powershell
 Copy-Item .env.example .env
-Copy-Item apps/web/.env.example apps/web/.env
-Copy-Item apps/api/.env.example apps/api/.env
-Copy-Item apps/mobile/.env.example apps/mobile/.env
+Copy-Item frontend/web/.env.example frontend/web/.env
+Copy-Item backend/api/.env.example backend/api/.env
+Copy-Item frontend/mobile/.env.example frontend/mobile/.env
 ```
 
 ## Run Locally

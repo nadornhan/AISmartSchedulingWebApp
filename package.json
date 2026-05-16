@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.33.2",
   "scripts": {
     "dev:web": "corepack pnpm --filter @todo-list/web dev",
-    "dev:api": "cd apps/api && python -m uvicorn app.main:app --reload",
+    "dev:api": "cd backend/api && python -m uvicorn app.main:app --reload",
     "dev:mobile": "corepack pnpm --filter @todo-list/mobile start",
     "build": "corepack pnpm --filter @todo-list/web build",
     "docker:up": "docker compose up --build",
