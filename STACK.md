@@ -76,6 +76,14 @@ The API currently supports:
 - `PATCH /tasks/{task_id}`
 - `DELETE /tasks/{task_id}`
 
+Task search should be added to the task API instead of becoming a separate storage path. A typical endpoint shape is:
+
+```text
+GET /tasks?search=exam&status=active&folder_id=...
+```
+
+The API should keep filtering scoped to the authenticated user.
+
 ## Frontend
 
 The web app lives in `frontend/web`.
@@ -85,6 +93,8 @@ Important files:
 - `frontend/web/app/page.tsx` contains the current task UI and Supabase sign-in flow.
 - `frontend/web/lib/tasks.ts` contains the browser API client for task CRUD.
 - `frontend/web/lib/supabase.ts` creates the browser Supabase client when environment values are present.
+
+Task search UI should live with task management screens and components. The frontend can collect search/filter input, but backend routes should still enforce user ownership and return only authorized task rows.
 
 The mobile scaffold lives in `frontend/mobile`.
 
@@ -108,6 +118,7 @@ Next.js
 That can work for an MVP. However, this project includes planned features that can become easier to organize with a dedicated backend:
 
 - task management rules
+- task search, filtering, and sorting
 - folders and inbox behavior
 - deadlines and reminders
 - Pomodoro/focus session tracking
@@ -165,6 +176,8 @@ SQLAlchemy helps because it:
 - supports relationships between models
 - works well with PostgreSQL
 - can pair with Alembic migrations later
+
+SQLAlchemy is also useful for search and filtering because task queries can be composed safely in Python as filters are added, for example by title, status, folder, due date, or priority.
 
 For this project, SQLAlchemy models can eventually represent:
 
@@ -300,11 +313,15 @@ The current codebase does not yet include automated tests.
 
    The web app has task API helpers. Mobile should eventually use the same backend contract, ideally through a shared package.
 
-6. Plan background work.
+6. Add task search and filtering.
+
+   Start with task title/description search scoped to the current user. Later filters can include status, folder, due date, priority, overdue state, and completion state.
+
+7. Plan background work.
 
    Reminders, notification scheduling, streaks, and analytics may eventually need background jobs or scheduled workers.
 
-7. Review Supabase JWT verification.
+8. Review Supabase JWT verification.
 
    The current implementation verifies bearer tokens with `SUPABASE_JWT_SECRET`. As the app matures, review whether JWKS or another Supabase-recommended verification method is more appropriate for the deployment model.
 
