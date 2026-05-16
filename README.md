@@ -12,6 +12,8 @@ Todo list app with task tracking, categories, deadlines, Pomodoro focus mode, an
 - Container: Docker Compose
 - Mobile: Expo React Native, TypeScript
 
+For a more detailed explanation of the stack, data flow, and improvement roadmap, see [docs/STACK.md](docs/STACK.md).
+
 ## Requirements
 
 - Node.js 22+
