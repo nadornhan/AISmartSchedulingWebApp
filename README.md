@@ -86,7 +86,7 @@ Start feature work from `develop`:
 ```bash
 git checkout develop
 git pull
-git checkout -b feature/task-management-search
+git checkout -b feature/task-management
 ```
 
 Build features as vertical slices when possible:
@@ -101,14 +101,16 @@ Merge finished feature branches back into `develop`. Keep `main` for stable mile
 
 ## Team Feature Split
 
-| Member | Branch | Frontend Work | Backend Work |
+Each branch should stay focused on one feature area. Six members can own multiple branches when needed.
+
+| Member | Branches | Frontend Work | Backend Work |
 | --- | --- | --- | --- |
-| 1 | `feature/navigation-shell` | App layout, sidebar, route placeholders, responsive shell | Base router structure, health/status cleanup, shared API patterns |
+| 1 | `feature/navigation-shell`, `feature/settings-polish` | App layout, sidebar, route placeholders, responsive shell, settings UI polish | Base router structure, health/status cleanup, user preference routes later |
 | 2 | `feature/auth-account` | Login/register/sign-out UI, account page, Supabase session state | Supabase JWT verification, current-user dependency, profile/account endpoints |
-| 3 | `feature/task-management-search` | Task cards, task form, task list, complete/reopen, edit/delete UI, search input, filters | Task model, task schemas, task CRUD routes, user-owned filtering, search query support |
-| 4 | `feature/folders-inbox` | Folder list, folder form, inbox view, move tasks between inbox/folders | Folder model, folder schemas, folder CRUD routes, task folder support |
-| 5 | `feature/calendar-priority` | Calendar view, due date UI, overdue/upcoming views, priority labels | Due date fields, priority field, deadline queries, priority update/query routes |
-| 6 | `feature/focus-analytics-gamification` | Pomodoro timer, focus page, analytics dashboard, streak/tree UI | Focus session model/routes, analytics summary endpoint, streak/tree progress model/routes |
+| 3 | `feature/task-management` | Task cards, task form, task list, complete/reopen, edit/delete UI | Task model, task schemas, task CRUD routes, user-owned task filtering |
+| 4 | `feature/search-filtering`, `feature/folders-inbox` | Search input, filters, folder list, folder form, inbox view, move tasks between folders | Task search query support, folder model, folder schemas, folder CRUD routes, task folder support |
+| 5 | `feature/calendar-reminders`, `feature/priority-view` | Calendar view, due date UI, reminder UI, overdue/upcoming views, priority labels | Due date fields, reminder fields, priority field, deadline queries, priority update/query routes |
+| 6 | `feature/focus-mode`, `feature/analytics-dashboard`, `feature/gamification` | Pomodoro timer, focus page, analytics dashboard, streak/tree UI | Focus session model/routes, analytics summary endpoint, streak/tree progress model/routes |
 
 ## Quality Checks
 

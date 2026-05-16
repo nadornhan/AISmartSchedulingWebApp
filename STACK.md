@@ -313,7 +313,7 @@ The current codebase does not yet include automated tests.
 
    The web app has task API helpers. Mobile should eventually use the same backend contract, ideally through a shared package.
 
-6. Add task search and filtering.
+6. Add task search and filtering in `feature/search-filtering`.
 
    Start with task title/description search scoped to the current user. Later filters can include status, folder, due date, priority, overdue state, and completion state.
 

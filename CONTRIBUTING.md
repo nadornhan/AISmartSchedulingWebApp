@@ -14,23 +14,23 @@ Feature work should start from `develop`:
 ```bash
 git checkout develop
 git pull
-git checkout -b feature/task-management-search
+git checkout -b feature/task-management
 ```
 
 Merge completed feature branches back into `develop` first. Only merge `develop` into `main` after a stable milestone.
 
 ## Planned Feature Branches
 
-Use six active feature branches so each member owns one vertical slice across frontend and backend.
+Keep feature branches focused on one feature area. Six members can own multiple branches when needed.
 
-| Member | Branch | Frontend Ownership | Backend Ownership |
+| Member | Branches | Frontend Ownership | Backend Ownership |
 | --- | --- | --- | --- |
-| 1 | `feature/navigation-shell` | App layout, sidebar, route placeholders, responsive shell | Base router structure, health/status cleanup, shared API patterns |
+| 1 | `feature/navigation-shell`, `feature/settings-polish` | App layout, sidebar, route placeholders, responsive shell, settings UI polish | Base router structure, health/status cleanup, user preference routes later |
 | 2 | `feature/auth-account` | Login/register/sign-out UI, account page, Supabase session state | Supabase JWT verification, current-user dependency, profile/account endpoints |
-| 3 | `feature/task-management-search` | Task cards, task form, task list, complete/reopen, edit/delete UI, search input, filters | Task model, task schemas, task CRUD routes, user-owned filtering, search query support |
-| 4 | `feature/folders-inbox` | Folder list, folder form, inbox view, move tasks between inbox/folders | Folder model, folder schemas, folder CRUD routes, task folder support |
-| 5 | `feature/calendar-priority` | Calendar view, due date UI, overdue/upcoming views, priority labels | Due date fields, priority field, deadline queries, priority update/query routes |
-| 6 | `feature/focus-analytics-gamification` | Pomodoro timer, focus page, analytics dashboard, streak/tree UI | Focus session model/routes, analytics summary endpoint, streak/tree progress model/routes |
+| 3 | `feature/task-management` | Task cards, task form, task list, complete/reopen, edit/delete UI | Task model, task schemas, task CRUD routes, user-owned task filtering |
+| 4 | `feature/search-filtering`, `feature/folders-inbox` | Search input, filters, folder list, folder form, inbox view, move tasks between folders | Task search query support, folder model, folder schemas, folder CRUD routes, task folder support |
+| 5 | `feature/calendar-reminders`, `feature/priority-view` | Calendar view, due date UI, reminder UI, overdue/upcoming views, priority labels | Due date fields, reminder fields, priority field, deadline queries, priority update/query routes |
+| 6 | `feature/focus-mode`, `feature/analytics-dashboard`, `feature/gamification` | Pomodoro timer, focus page, analytics dashboard, streak/tree UI | Focus session model/routes, analytics summary endpoint, streak/tree progress model/routes |
 
 ## Repository Structure
 
@@ -69,7 +69,7 @@ backend/api/app/...           task route, schema, model, or service
 packages/shared/src/...       shared task contract, if needed
 ```
 
-Task search belongs in `feature/task-management-search`. The backend should support query parameters such as `search`, `status`, and later `folder_id`; the frontend should expose search input and filtering controls without duplicating backend authorization logic.
+Task search belongs in `feature/search-filtering`. The backend should support query parameters such as `search`, `status`, and later `folder_id`; the frontend should expose search input and filtering controls without duplicating backend authorization logic.
 
 Recommended order for feature changes:
 
