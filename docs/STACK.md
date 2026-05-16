@@ -6,9 +6,9 @@ This document explains the current technical stack, how the main parts of the sy
 
 | Area | Technology | Purpose |
 | --- | --- | --- |
-| Monorepo | pnpm workspaces | Manages web, mobile, backend, and shared packages in one repository. |
+| Monorepo | pnpm workspaces | Manages web, backend, shared packages, and the mobile scaffold in one repository. |
 | Web app | Next.js App Router, React, TypeScript, Tailwind CSS | Browser-based task management UI. |
-| Mobile app | Expo React Native, TypeScript | Mobile foundation for the same product experience. |
+| Mobile app | Expo React Native, TypeScript | Scaffold only. Mobile task features are not implemented yet. |
 | API | Python, FastAPI | Backend HTTP API for authenticated task operations. |
 | ORM | SQLAlchemy | Maps Python models to PostgreSQL tables and handles database queries. |
 | Database | PostgreSQL | Primary storage for app task data. |
@@ -39,12 +39,14 @@ User signs in with Supabase Auth
 
 This keeps account authentication managed by Supabase while application task data remains under the app backend's control.
 
+The active application today is the web app plus FastAPI backend. The Expo mobile app exists as a foundation, but it does not yet provide task management screens or task CRUD.
+
 ## Repository Layout
 
 ```text
 apps/
   api/       FastAPI backend
-  mobile/    Expo React Native app
+  mobile/    Expo React Native scaffold
   web/       Next.js web app
 packages/
   shared/    Shared TypeScript constants and task types
@@ -83,14 +85,14 @@ Important files:
 - `apps/web/lib/tasks.ts` contains the browser API client for task CRUD.
 - `apps/web/lib/supabase.ts` creates the browser Supabase client when environment values are present.
 
-The mobile app lives in `apps/mobile`.
+The mobile scaffold lives in `apps/mobile`.
 
 Important files:
 
 - `apps/mobile/App.tsx` contains the current mobile foundation screen.
 - `apps/mobile/src/supabase.ts` creates the mobile Supabase client when environment values are present.
 
-The mobile app is currently scaffolded but does not yet implement full task CRUD.
+The mobile app is currently scaffolded but does not yet implement task CRUD or the main productivity workflows.
 
 ## Data Storage
 
@@ -152,4 +154,4 @@ The current codebase does not yet include automated tests.
 
 ## Stack Assessment
 
-This is a solid stack for a productivity app with web, mobile, authentication, task management, focus sessions, analytics, and gamification. The main near-term work is not replacing the stack, but tightening the engineering foundation with migrations, tests, clearer data ownership, and shared client code.
+This is a solid stack for the current web app and backend. The mobile code should be treated as planned/scaffolded until task management screens, API integration, and mobile-specific workflows are implemented. The main near-term work is not replacing the stack, but tightening the engineering foundation with migrations, tests, clearer data ownership, and shared client code.

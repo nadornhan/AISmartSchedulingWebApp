@@ -1,6 +1,6 @@
 # Contributing To Todo List
 
-This project is a pnpm monorepo with a Next.js web app, Expo mobile app, FastAPI backend, PostgreSQL database, SQLAlchemy ORM, and Supabase Auth. Keep contributions aligned with the stack and architecture described in `docs/STACK.md`.
+This project is a pnpm monorepo with a Next.js web app, FastAPI backend, PostgreSQL database, SQLAlchemy ORM, Supabase Auth, and an Expo mobile scaffold. The active task-management implementation is currently web plus API; mobile task features are not implemented yet. Keep contributions aligned with the stack and architecture described in `docs/STACK.md`.
 
 ## Branches
 
@@ -57,7 +57,6 @@ Run locally:
 ```powershell
 corepack pnpm dev:web
 corepack pnpm dev:api
-corepack pnpm dev:mobile
 ```
 
 Run the container stack:
@@ -101,6 +100,7 @@ Use short, descriptive commit messages:
 - Store task data through the FastAPI backend, SQLAlchemy, and PostgreSQL.
 - Keep frontend API calls behind small client helper functions.
 - Keep shared TypeScript types in workspace packages when both web and mobile need them.
+- Treat `apps/mobile` as scaffolded until mobile task screens and API integration are added.
 - Avoid adding a second task-storage path unless the architecture is intentionally changed and documented.
 - Prefer feature branches that deliver a usable vertical slice across UI, API contract, backend, tests, and docs when applicable.
 

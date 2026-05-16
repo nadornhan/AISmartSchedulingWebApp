@@ -10,7 +10,7 @@ Todo list app with task tracking, categories, deadlines, Pomodoro focus mode, an
 - Database: PostgreSQL
 - Auth: Supabase Auth
 - Container: Docker Compose
-- Mobile: Expo React Native, TypeScript
+- Mobile: Expo React Native scaffold only; task features are not implemented yet
 
 For a more detailed explanation of the stack, data flow, and improvement roadmap, see [docs/STACK.md](docs/STACK.md).
 
@@ -45,7 +45,6 @@ Copy-Item apps/mobile/.env.example apps/mobile/.env
 ```powershell
 corepack pnpm dev:web
 corepack pnpm dev:api
-corepack pnpm dev:mobile
 ```
 
 Run the whole containerized stack:
@@ -55,6 +54,8 @@ docker compose up --build
 ```
 
 The web app runs on `http://localhost:3000`, the API on `http://localhost:8000`, and PostgreSQL on `localhost:5432`.
+
+The Expo mobile app is currently a scaffold/foundation screen. It is not part of the active task-management implementation yet.
 
 ## Quality Checks
 
