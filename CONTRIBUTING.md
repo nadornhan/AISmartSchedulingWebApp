@@ -57,6 +57,74 @@ Use this ownership model during feature work:
 
 Each feature branch should produce a usable vertical slice when possible.
 
+Each member should work in feature-owned folders for both frontend and backend work. Avoid putting full feature logic directly into shared files such as `frontend/web/app/page.tsx`, `backend/api/app/main.py`, `backend/api/app/models.py`, or `backend/api/app/schemas.py`. Shared files should usually only register routes, export types, or connect feature modules together.
+
+Backend feature folders should follow this pattern:
+
+```text
+backend/api/app/
+  tasks/
+    router.py
+    models.py
+    schemas.py
+    service.py
+  folders/
+    router.py
+    models.py
+    schemas.py
+    service.py
+  focus/
+    router.py
+    models.py
+    schemas.py
+    service.py
+  analytics/
+    router.py
+    schemas.py
+    service.py
+```
+
+Use backend files this way:
+
+- `router.py`: FastAPI endpoints for the feature.
+- `models.py`: SQLAlchemy models owned by the feature.
+- `schemas.py`: Pydantic request and response schemas.
+- `service.py`: business logic and database queries.
+- `main.py`: only app setup and `app.include_router(...)` calls.
+
+Frontend feature folders should follow this pattern:
+
+```text
+frontend/web/
+  app/
+    tasks/
+    folders/
+    focus/
+    analytics/
+    settings/
+  components/
+    layout/
+    tasks/
+    folders/
+    focus/
+    analytics/
+    settings/
+  lib/
+    tasks.ts
+    folders.ts
+    focus.ts
+    analytics.ts
+    settings.ts
+```
+
+Use frontend files this way:
+
+- `app/<feature>/page.tsx`: route entry point for that feature.
+- `components/<feature>/`: reusable UI components for the feature.
+- `lib/<feature>.ts`: API client helpers for that feature.
+- `components/layout/`: shared navigation and shell components.
+- `packages/shared/src`: only shared TypeScript contracts that multiple features need.
+
 Example task feature split:
 
 ```text

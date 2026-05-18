@@ -92,6 +92,8 @@ backend/api      routes, schemas, models, services, and auth checks
 packages/shared  shared TypeScript types when frontend/backend contracts change
 ```
 
+Members should keep feature work inside matching frontend and backend folders when possible, for example `frontend/web/app/tasks`, `frontend/web/components/tasks`, `frontend/web/lib/tasks.ts`, and `backend/api/app/tasks`. Shared files should stay small and mainly register routes, export types, or compose feature modules. See [CONTRIBUTING.md](CONTRIBUTING.md) for the detailed folder pattern.
+
 Merge finished feature branches back into `develop`. Keep `main` for stable milestone-ready code.
 
 ## Team Feature Split
