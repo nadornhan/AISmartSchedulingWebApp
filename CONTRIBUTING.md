@@ -1,6 +1,6 @@
 # Contributing To Todo List
 
-This project is a pnpm monorepo with a Next.js web app, FastAPI backend, PostgreSQL database, SQLAlchemy ORM, Supabase Auth, and an Expo mobile scaffold. The active task-management implementation is currently web plus API; mobile task features are not implemented yet. Keep contributions aligned with the stack and architecture described in `STACK.md`.
+This project is a pnpm monorepo with a Next.js web app, FastAPI backend, PostgreSQL database, SQLAlchemy ORM, and Supabase Auth. The active task-management implementation is web plus API. Keep contributions aligned with the stack and architecture described in `STACK.md`.
 
 ## Branches
 
@@ -25,19 +25,18 @@ Keep feature branches focused on one feature area. Six members can own multiple 
 
 | Member | Branches | Frontend Ownership | Backend Ownership |
 | --- | --- | --- | --- |
-| 1 | `feature/navigation-shell`, `feature/settings-polish` | App layout, sidebar, route placeholders, responsive shell, settings UI polish | Base router structure, health/status cleanup, user preference routes later |
+| 1 | `feature/navigation-shell`, `feature/settings-polish` | App layout, sidebar, route placeholders, responsive shell, settings UI polish | Database management, base router structure, health/status cleanup, user preference routes later |
 | 2 | `feature/auth-account` | Login/register/sign-out UI, account page, Supabase session state | Supabase JWT verification, current-user dependency, profile/account endpoints |
 | 3 | `feature/task-management` | Task cards, task form, task list, complete/reopen, edit/delete UI | Task model, task schemas, task CRUD routes, user-owned task filtering |
 | 4 | `feature/search-filtering`, `feature/folders-inbox` | Search input, filters, folder list, folder form, inbox view, move tasks between folders | Task search query support, folder model, folder schemas, folder CRUD routes, task folder support |
-| 5 | `feature/calendar-reminders`, `feature/priority-view` | Calendar view, due date UI, reminder UI, overdue/upcoming views, priority labels | Due date fields, reminder fields, priority field, deadline queries, priority update/query routes |
-| 6 | `feature/focus-mode`, `feature/analytics-dashboard`, `feature/gamification` | Pomodoro timer, focus page, analytics dashboard, streak/tree UI | Focus session model/routes, analytics summary endpoint, streak/tree progress model/routes |
+| 5 | `feature/calendar-reminders`, `feature/analytics-dashboard` | Calendar view, due date UI, reminder UI, overdue/upcoming views, analytics dashboard | Due date fields, reminder fields, deadline queries, analytics summary endpoint |
+| 6 | `feature/focus-mode`, `feature/priority-view`, `feature/gamification` | Pomodoro timer, focus page, priority labels, streak/tree UI | Focus session model/routes, priority field, priority update/query routes, streak/tree progress model/routes |
 
 ## Repository Structure
 
 ```text
 frontend/
   web/       Next.js web app and active task-management UI
-  mobile/    Expo scaffold; mobile task features are not implemented yet
 backend/
   api/       FastAPI backend, SQLAlchemy models, schemas, auth, and task routes
 packages/
@@ -51,13 +50,80 @@ Use this ownership model during feature work:
 
 - `frontend/web`: pages, React components, frontend state, styling, and API client helpers.
 - `backend/api`: FastAPI routes, request/response schemas, SQLAlchemy models, database sessions, and backend auth checks.
-- `packages/shared`: shared TypeScript types/constants used across frontend packages.
+- `packages/shared`: shared TypeScript types/constants used by the web app.
 - `packages/supabase`: shared Supabase client setup.
-- `frontend/mobile`: scaffold only until mobile task features are intentionally added.
 
 ## Feature Development Workflow
 
 Each feature branch should produce a usable vertical slice when possible.
+
+Each member should work in feature-owned folders for both frontend and backend work. Avoid putting full feature logic directly into shared files such as `frontend/web/app/page.tsx`, `backend/api/app/main.py`, `backend/api/app/models.py`, or `backend/api/app/schemas.py`. Shared files should usually only register routes, export types, or connect feature modules together.
+
+Backend feature folders should follow this pattern:
+
+```text
+backend/api/app/
+  tasks/
+    router.py
+    models.py
+    schemas.py
+    service.py
+  folders/
+    router.py
+    models.py
+    schemas.py
+    service.py
+  focus/
+    router.py
+    models.py
+    schemas.py
+    service.py
+  analytics/
+    router.py
+    schemas.py
+    service.py
+```
+
+Use backend files this way:
+
+- `router.py`: FastAPI endpoints for the feature.
+- `models.py`: SQLAlchemy models owned by the feature.
+- `schemas.py`: Pydantic request and response schemas.
+- `service.py`: business logic and database queries.
+- `main.py`: only app setup and `app.include_router(...)` calls.
+
+Frontend feature folders should follow this pattern:
+
+```text
+frontend/web/
+  app/
+    tasks/
+    folders/
+    focus/
+    analytics/
+    settings/
+  components/
+    layout/
+    tasks/
+    folders/
+    focus/
+    analytics/
+    settings/
+  lib/
+    tasks.ts
+    folders.ts
+    focus.ts
+    analytics.ts
+    settings.ts
+```
+
+Use frontend files this way:
+
+- `app/<feature>/page.tsx`: route entry point for that feature.
+- `components/<feature>/`: reusable UI components for the feature.
+- `lib/<feature>.ts`: API client helpers for that feature.
+- `components/layout/`: shared navigation and shell components.
+- `packages/shared/src`: only shared TypeScript contracts that multiple features need.
 
 Example task feature split:
 
@@ -98,7 +164,6 @@ Copy environment files:
 Copy-Item .env.example .env
 Copy-Item frontend/web/.env.example frontend/web/.env
 Copy-Item backend/api/.env.example backend/api/.env
-Copy-Item frontend/mobile/.env.example frontend/mobile/.env
 ```
 
 Run locally:
@@ -148,8 +213,7 @@ Use short, descriptive commit messages:
 - Treat Supabase as the authentication provider.
 - Store task data through the FastAPI backend, SQLAlchemy, and PostgreSQL.
 - Keep frontend API calls behind small client helper functions.
-- Keep shared TypeScript types in workspace packages when both web and mobile need them.
-- Treat `frontend/mobile` as scaffolded until mobile task screens and API integration are added.
+- Keep shared TypeScript types in workspace packages when web contracts need them.
 - Avoid adding a second task-storage path unless the architecture is intentionally changed and documented.
 - Prefer feature branches that deliver a usable vertical slice across UI, API contract, backend, tests, and docs when applicable.
 

@@ -6,9 +6,8 @@ This document explains the current technical stack, how the main parts of the sy
 
 | Area | Technology | Purpose |
 | --- | --- | --- |
-| Monorepo | pnpm workspaces | Manages web, backend, shared packages, and the mobile scaffold in one repository. |
+| Monorepo | pnpm workspaces | Manages web, backend, and shared packages in one repository. |
 | Web app | Next.js App Router, React, TypeScript, Tailwind CSS | Browser-based task management UI. |
-| Mobile app | Expo React Native, TypeScript | Scaffold only. Mobile task features are not implemented yet. |
 | API | Python, FastAPI | Backend HTTP API for authenticated task operations. |
 | ORM | SQLAlchemy | Maps Python models to PostgreSQL tables and handles database queries. |
 | Database | PostgreSQL | Primary storage for app task data. |
@@ -39,14 +38,13 @@ User signs in with Supabase Auth
 
 This keeps account authentication managed by Supabase while application task data remains under the app backend's control.
 
-The active application today is the web app plus FastAPI backend. The Expo mobile app exists as a foundation, but it does not yet provide task management screens or task CRUD.
+The active application is the web app plus FastAPI backend.
 
 ## Repository Layout
 
 ```text
 frontend/
   web/       Next.js web app
-  mobile/    Expo React Native scaffold
 backend/
   api/       FastAPI backend
 packages/
@@ -95,15 +93,6 @@ Important files:
 - `frontend/web/lib/supabase.ts` creates the browser Supabase client when environment values are present.
 
 Task search UI should live with task management screens and components. The frontend can collect search/filter input, but backend routes should still enforce user ownership and return only authorized task rows.
-
-The mobile scaffold lives in `frontend/mobile`.
-
-Important files:
-
-- `frontend/mobile/App.tsx` contains the current mobile foundation screen.
-- `frontend/mobile/src/supabase.ts` creates the mobile Supabase client when environment values are present.
-
-The mobile app is currently scaffolded but does not yet implement task CRUD or the main productivity workflows.
 
 ## Why Not Supabase Only
 
@@ -246,7 +235,6 @@ Key values:
 - `BACKEND_CORS_ORIGINS` controls which web origins can call the API.
 - `NEXT_PUBLIC_API_URL` points the web app to FastAPI.
 - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` configure web auth.
-- `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` configure mobile auth.
 
 ## When This Stack Is Worth It
 
@@ -266,6 +254,8 @@ frontend/web     UI and client behavior
 backend/api      API routes, auth checks, database logic
 packages/shared  shared TypeScript types
 ```
+
+Member 1 owns database management for the team, including coordinating schema decisions, SQLAlchemy model changes, database setup notes, and migration planning.
 
 ## Tradeoffs
 
@@ -311,7 +301,7 @@ The current codebase does not yet include automated tests.
 
 5. Add shared API client code.
 
-   The web app has task API helpers. Mobile should eventually use the same backend contract, ideally through a shared package.
+   The web app has task API helpers. As the frontend grows, shared client code can keep API contracts consistent across pages and components.
 
 6. Add task search and filtering in `feature/search-filtering`.
 
@@ -327,4 +317,4 @@ The current codebase does not yet include automated tests.
 
 ## Stack Assessment
 
-This is a solid stack for the current web app and backend. The mobile code should be treated as planned/scaffolded until task management screens, API integration, and mobile-specific workflows are implemented. The main near-term work is not replacing the stack, but tightening the engineering foundation with migrations, tests, clearer data ownership, and shared client code.
+This is a solid stack for the current web app and backend. The main near-term work is not replacing the stack, but tightening the engineering foundation with migrations, tests, clearer data ownership, and shared client code.
