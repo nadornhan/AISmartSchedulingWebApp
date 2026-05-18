@@ -267,6 +267,8 @@ backend/api      API routes, auth checks, database logic
 packages/shared  shared TypeScript types
 ```
 
+Member 1 owns database management for the team, including coordinating schema decisions, SQLAlchemy model changes, database setup notes, and migration planning.
+
 ## Tradeoffs
 
 The cost of this stack is extra setup and more moving parts:
