@@ -29,8 +29,8 @@ Keep feature branches focused on one feature area. Six members can own multiple 
 | 2 | `feature/auth-account` | Login/register/sign-out UI, account page, Supabase session state | Supabase JWT verification, current-user dependency, profile/account endpoints |
 | 3 | `feature/task-management` | Task cards, task form, task list, complete/reopen, edit/delete UI | Task model, task schemas, task CRUD routes, user-owned task filtering |
 | 4 | `feature/search-filtering`, `feature/folders-inbox` | Search input, filters, folder list, folder form, inbox view, move tasks between folders | Task search query support, folder model, folder schemas, folder CRUD routes, task folder support |
-| 5 | `feature/calendar-reminders`, `feature/priority-view` | Calendar view, due date UI, reminder UI, overdue/upcoming views, priority labels | Due date fields, reminder fields, priority field, deadline queries, priority update/query routes |
-| 6 | `feature/focus-mode`, `feature/analytics-dashboard`, `feature/gamification` | Pomodoro timer, focus page, analytics dashboard, streak/tree UI | Focus session model/routes, analytics summary endpoint, streak/tree progress model/routes |
+| 5 | `feature/calendar-reminders`, `feature/analytics-dashboard` | Calendar view, due date UI, reminder UI, overdue/upcoming views, analytics dashboard | Due date fields, reminder fields, deadline queries, analytics summary endpoint |
+| 6 | `feature/focus-mode`, `feature/priority-view`, `feature/gamification` | Pomodoro timer, focus page, priority labels, streak/tree UI | Focus session model/routes, priority field, priority update/query routes, streak/tree progress model/routes |
 
 ## Repository Structure
 
