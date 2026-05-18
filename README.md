@@ -34,6 +34,23 @@ Development should follow this split:
 - Shared frontend contracts go in `packages/shared`.
 - Supabase is used for authentication; task data is stored through FastAPI, SQLAlchemy, and PostgreSQL.
 
+## Branch Structure
+
+```text
+main
+`-- develop
+    |-- feature/navigation-shell
+    |-- feature/auth-account       rewrite in Node.js
+    |-- feature/task-management
+    |-- feature/folders-inbox
+    |-- feature/calendar-reminders
+    |-- feature/priority-view
+    |-- feature/focus-mode
+    |-- feature/analytics-dashboard
+    |-- feature/gamification
+    `-- feature/settings-polish
+```
+
 ## Requirements
 
 - Node.js 22+
@@ -103,7 +120,7 @@ Each branch should stay focused on one feature area. Six members can own multipl
 | Member | Branches | Frontend Work | Backend Work |
 | --- | --- | --- | --- |
 | 1 | `feature/navigation-shell`, `feature/settings-polish` | App layout, sidebar, route placeholders, responsive shell, settings UI polish | Database management, base router structure, health/status cleanup, user preference routes later |
-| 2 | `feature/auth-account` | Login/register/sign-out UI, account page, Supabase session state | Supabase JWT verification, current-user dependency, profile/account endpoints |
+| 2 | `feature/auth-account` | Login/register/sign-out UI, account page, Supabase session state, Node.js rewrite | Supabase JWT verification, current-user dependency, profile/account endpoints in Node.js |
 | 3 | `feature/task-management` | Task cards, task form, task list, complete/reopen, edit/delete UI | Task model, task schemas, task CRUD routes, user-owned task filtering |
 | 4 | `feature/search-filtering`, `feature/folders-inbox` | Search input, filters, folder list, folder form, inbox view, move tasks between folders | Task search query support, folder model, folder schemas, folder CRUD routes, task folder support |
 | 5 | `feature/calendar-reminders`, `feature/analytics-dashboard` | Calendar view, due date UI, reminder UI, overdue/upcoming views, analytics dashboard | Due date fields, reminder fields, deadline queries, analytics summary endpoint |
