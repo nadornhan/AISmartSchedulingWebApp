@@ -32,7 +32,7 @@ supabase/    Supabase migration notes and SQL
 main
 `-- develop
     |-- feature/navigation-shell
-    |-- feature/auth-account       rewrite in Node.js
+    |-- feature/auth-account     
     |-- feature/task-management
     |-- feature/folders-inbox
     |-- feature/calendar-reminders
