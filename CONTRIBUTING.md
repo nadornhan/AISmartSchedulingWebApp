@@ -1,6 +1,6 @@
 # Contributing To Todo List
 
-This project is a pnpm monorepo with a Next.js web app, FastAPI backend, PostgreSQL database, SQLAlchemy ORM, and Supabase Auth. The active task-management implementation is web plus API. Keep contributions aligned with the stack and architecture described in `STACK.md`.
+This project is a pnpm monorepo with a Next.js web app, backend API, PostgreSQL database, SQLAlchemy ORM where Python services are used, and either PostgreSQL-backed custom auth or Supabase Auth. The active task-management implementation is web plus API. Keep contributions aligned with the stack and architecture described in `STACK.md`.
 
 ## Branches
 
@@ -43,7 +43,7 @@ Keep feature branches focused on one feature area. Six members can own multiple 
 | Member | Branches | Frontend Ownership | Backend Ownership |
 | --- | --- | --- | --- |
 | 1 | `feature/navigation-shell`, `feature/settings-polish` | App layout, sidebar, route placeholders, responsive shell, settings UI polish | Database management, base router structure, health/status cleanup, user preference routes later |
-| 2 | `feature/auth-account` | Login/register/sign-out UI, account page, Supabase session state, Node.js rewrite | Supabase JWT verification, current-user dependency, profile/account endpoints in Node.js |
+| 2 | `feature/auth-account` | Login/register/sign-out UI, account page, auth session state, Node.js rewrite | PostgreSQL-backed auth or Supabase token verification, current-user dependency, profile/account endpoints in Node.js |
 | 3 | `feature/task-management` | Task cards, task form, task list, complete/reopen, edit/delete UI | Task model, task schemas, task CRUD routes, user-owned task filtering |
 | 4 | `feature/search-filtering`, `feature/folders-inbox` | Search input, filters, folder list, folder form, inbox view, move tasks between folders | Task search query support, folder model, folder schemas, folder CRUD routes, task folder support |
 | 5 | `feature/calendar-reminders`, `feature/analytics-dashboard` | Calendar view, due date UI, reminder UI, overdue/upcoming views, analytics dashboard | Due date fields, reminder fields, deadline queries, analytics summary endpoint |
@@ -58,9 +58,9 @@ backend/
   api/       FastAPI backend, SQLAlchemy models, schemas, auth, and task routes
 packages/
   shared/    Shared TypeScript types and constants
-  supabase/  Shared Supabase client factory
+  supabase/  Optional shared Supabase client factory if Supabase Auth is used
 STACK.md     Stack, architecture, and stack decision reasoning
-supabase/    Supabase migration notes and SQL
+supabase/    Optional Supabase migration notes and SQL
 ```
 
 Use this ownership model during feature work:
@@ -68,7 +68,7 @@ Use this ownership model during feature work:
 - `frontend/web`: pages, React components, frontend state, styling, and API client helpers.
 - `backend/api`: FastAPI routes, request/response schemas, SQLAlchemy models, database sessions, and backend auth checks.
 - `packages/shared`: shared TypeScript types/constants used by the web app.
-- `packages/supabase`: shared Supabase client setup.
+- `packages/supabase`: optional shared Supabase client setup if Supabase Auth is used.
 
 ## Feature Development Workflow
 
@@ -227,7 +227,7 @@ Use short, descriptive commit messages:
 
 ## Architecture Guidelines
 
-- Treat Supabase as the authentication provider.
+- Authentication can be PostgreSQL-backed custom auth or Supabase Auth. The `feature/auth-account` branch owns this implementation.
 - Store task data through the FastAPI backend, SQLAlchemy, and PostgreSQL.
 - Keep frontend API calls behind small client helper functions.
 - Keep shared TypeScript types in workspace packages when web contracts need them.

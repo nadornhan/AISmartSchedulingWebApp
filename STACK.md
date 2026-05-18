@@ -11,9 +11,9 @@ This document explains the current technical stack, how the main parts of the sy
 | API | Python, FastAPI | Backend HTTP API for authenticated task operations. |
 | ORM | SQLAlchemy | Maps Python models to PostgreSQL tables and handles database queries. |
 | Database | PostgreSQL | Primary storage for app task data. |
-| Authentication | Supabase Auth | User sign-in and access token issuing. |
+| Authentication | PostgreSQL-backed custom auth or Supabase Auth | User sign-in, token issuing or verification, and current-user loading. |
 | Containers | Docker Compose | Local container setup for PostgreSQL, API, and web app. |
-| Shared code | TypeScript workspace packages | Shared app constants, task types, and Supabase client creation. |
+| Shared code | TypeScript workspace packages | Shared app constants, task types, and optional Supabase client creation. |
 
 ## Architecture Overview
 
@@ -26,17 +26,26 @@ Next.js web app
   -> PostgreSQL tasks table
 ```
 
-Supabase is used for authentication:
+Authentication can be implemented in either of these ways:
 
 ```text
-User signs in with Supabase Auth
-  -> Supabase returns an access token
-  -> Frontend sends the token to FastAPI
-  -> FastAPI validates the token
+PostgreSQL-backed custom auth
+  -> backend stores users and password hashes in PostgreSQL
+  -> backend validates login credentials
+  -> backend issues a JWT
+  -> frontend sends the JWT to protected API routes
   -> API uses the token subject as the current user id
 ```
 
-This keeps account authentication managed by Supabase while application task data remains under the app backend's control.
+```text
+Supabase Auth
+  -> Supabase manages login and issues an access token
+  -> frontend sends the token to protected API routes
+  -> backend verifies the token
+  -> API uses the token subject as the current user id
+```
+
+The `feature/auth-account` branch owns the final auth implementation. PostgreSQL-backed auth is acceptable for this project and does not require Supabase.
 
 The active application is the web app plus FastAPI backend.
 
@@ -49,9 +58,9 @@ backend/
   api/       FastAPI backend
 packages/
   shared/    Shared TypeScript constants and task types
-  supabase/  Shared Supabase client factory
+  supabase/  Optional shared Supabase client factory if Supabase Auth is used
 supabase/
-  migrations/ Supabase SQL migrations currently used for auth/profile-related planning
+  migrations/ Optional Supabase SQL migrations if Supabase Auth is used
 ```
 
 ## Backend
@@ -63,7 +72,7 @@ Important files:
 - `backend/api/app/main.py` defines the FastAPI app and task CRUD routes.
 - `backend/api/app/models.py` defines SQLAlchemy ORM models.
 - `backend/api/app/database.py` configures the database engine and sessions.
-- `backend/api/app/auth.py` validates Supabase bearer tokens.
+- `backend/api/app/auth.py` or the Node.js auth module validates bearer tokens and loads the current user.
 - `backend/api/pyproject.toml` declares Python dependencies.
 
 The API currently supports:
@@ -88,23 +97,32 @@ The web app lives in `frontend/web`.
 
 Important files:
 
-- `frontend/web/app/page.tsx` contains the current task UI and Supabase sign-in flow.
+- `frontend/web/app/page.tsx` contains the current task UI and sign-in flow.
 - `frontend/web/lib/tasks.ts` contains the browser API client for task CRUD.
-- `frontend/web/lib/supabase.ts` creates the browser Supabase client when environment values are present.
+- `frontend/web/lib/supabase.ts` creates the browser Supabase client only if Supabase Auth is used.
 
 Task search UI should live with task management screens and components. The frontend can collect search/filter input, but backend routes should still enforce user ownership and return only authorized task rows.
 
-## Why Not Supabase Only
+## Auth Options
 
-A Supabase-only app would be simpler:
+PostgreSQL-backed custom auth keeps user accounts in the app database:
 
 ```text
-Next.js
-  -> Supabase Auth
-  -> Supabase Postgres
+Frontend
+  -> backend auth routes
+  -> PostgreSQL users table
+  -> backend-issued JWT
 ```
 
-That can work for an MVP. However, this project includes planned features that can become easier to organize with a dedicated backend:
+Supabase Auth is also acceptable:
+
+```text
+Frontend
+  -> Supabase Auth
+  -> backend verifies Supabase token
+```
+
+Both approaches can work. PostgreSQL-backed auth gives the team direct control over user records and is already represented by the auth progress on `feature/auth-account`. Supabase Auth reduces custom security work. The team should keep one auth path and document it before feature branches depend on it.
 
 - task management rules
 - task search, filtering, and sorting
@@ -207,22 +225,22 @@ Task data is stored in PostgreSQL through the FastAPI backend and SQLAlchemy.
 
 Supabase should be treated as the auth provider unless the architecture is intentionally changed later. The repository currently contains a Supabase migration with a `tasks` table, but the active application flow uses the app PostgreSQL database through SQLAlchemy for task storage. This should be clarified or cleaned up before the schema becomes more complex.
 
-## Supabase's Role
+## Auth Provider Role
 
-In this stack, Supabase is used for authentication.
+If PostgreSQL-backed auth is chosen, the backend owns registration, login, password hashing, JWT issuing, and current-user middleware.
 
 Flow:
 
 ```text
-User signs in with Supabase Auth
-  -> frontend receives a Supabase access token
-  -> frontend sends the token to FastAPI
-  -> FastAPI verifies the token
-  -> FastAPI uses the token subject as the current user id
-  -> task data is stored in PostgreSQL through SQLAlchemy
+User registers or logs in
+  -> backend checks PostgreSQL users table
+  -> backend returns a JWT
+  -> frontend sends the JWT to protected API routes
+  -> backend uses the token subject as the current user id
+  -> task data is stored in PostgreSQL through the backend
 ```
 
-Supabase is not the active task-storage layer in this architecture. Task data belongs to the app backend and database.
+If Supabase Auth is chosen, Supabase owns login and token issuing, while task data still belongs to the app backend and PostgreSQL database.
 
 ## Environment Variables
 
@@ -231,10 +249,10 @@ Root and app-specific `.env.example` files document the required local environme
 Key values:
 
 - `DATABASE_URL` connects the API to PostgreSQL.
-- `SUPABASE_JWT_SECRET` lets FastAPI verify Supabase access tokens.
+- `JWT_SECRET_KEY` or `SUPABASE_JWT_SECRET` is required depending on whether custom auth or Supabase Auth is used.
 - `BACKEND_CORS_ORIGINS` controls which web origins can call the API.
 - `NEXT_PUBLIC_API_URL` points the web app to FastAPI.
-- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` configure web auth.
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` configure web auth only if Supabase Auth is used.
 
 ## When This Stack Is Worth It
 
@@ -266,7 +284,7 @@ The cost of this stack is extra setup and more moving parts:
 - migrations should be added before schema changes become frequent
 - frontend and backend contracts need coordination
 
-For a very small app, Supabase-only would be faster. For this project, the current stack gives more structure for a team building multiple features in parallel.
+For a very small app, Supabase-only can be faster. For this project, PostgreSQL-backed auth is also reasonable because the team already has an auth branch and PostgreSQL database ownership.
 
 ## Quality Checks
 
@@ -287,9 +305,9 @@ The current codebase does not yet include automated tests.
 
    The backend currently creates tables from SQLAlchemy metadata at startup. That is convenient early in development, but schema changes should move to explicit migrations before the app grows.
 
-2. Clarify Supabase database usage.
+2. Finalize the auth provider.
 
-   Keep Supabase as auth-only, or intentionally move data storage to Supabase. The current preferred architecture is Supabase Auth plus app-owned PostgreSQL through FastAPI and SQLAlchemy.
+   Choose PostgreSQL-backed custom auth or Supabase Auth. Do not keep both active in feature code.
 
 3. Split backend code by feature.
 
@@ -311,9 +329,9 @@ The current codebase does not yet include automated tests.
 
    Reminders, notification scheduling, streaks, and analytics may eventually need background jobs or scheduled workers.
 
-8. Review Supabase JWT verification.
+8. Review token verification.
 
-   The current implementation verifies bearer tokens with `SUPABASE_JWT_SECRET`. As the app matures, review whether JWKS or another Supabase-recommended verification method is more appropriate for the deployment model.
+   If using custom auth, review JWT signing, expiry, password hashing, and refresh strategy. If using Supabase Auth, review whether JWKS or another Supabase-recommended verification method is more appropriate for the deployment model.
 
 ## Stack Assessment
 
