@@ -10,7 +10,6 @@ Todo list app with task tracking, categories, deadlines, Pomodoro focus mode, an
 - Database: PostgreSQL
 - Auth: Supabase Auth
 - Container: Docker Compose
-- Mobile: Expo React Native scaffold only; task features are not implemented yet
 
 For a more detailed explanation of the stack, data flow, improvement roadmap, and stack decision reasoning, see [STACK.md](STACK.md).
 
@@ -19,7 +18,6 @@ For a more detailed explanation of the stack, data flow, improvement roadmap, an
 ```text
 frontend/
   web/       Next.js web app and active task-management UI
-  mobile/    Expo scaffold; mobile task features are not implemented yet
 backend/
   api/       FastAPI backend, SQLAlchemy models, schemas, auth, and task routes
 packages/
@@ -59,7 +57,6 @@ Copy the environment examples and fill in your Supabase project values. `SUPABAS
 Copy-Item .env.example .env
 Copy-Item frontend/web/.env.example frontend/web/.env
 Copy-Item backend/api/.env.example backend/api/.env
-Copy-Item frontend/mobile/.env.example frontend/mobile/.env
 ```
 
 ## Run Locally
@@ -76,8 +73,6 @@ docker compose up --build
 ```
 
 The web app runs on `http://localhost:3000`, the API on `http://localhost:8000`, and PostgreSQL on `localhost:5432`.
-
-The Expo mobile app is currently a scaffold/foundation screen. It is not part of the active task-management implementation yet.
 
 ## Development Workflow
 

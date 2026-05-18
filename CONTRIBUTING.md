@@ -1,6 +1,6 @@
 # Contributing To Todo List
 
-This project is a pnpm monorepo with a Next.js web app, FastAPI backend, PostgreSQL database, SQLAlchemy ORM, Supabase Auth, and an Expo mobile scaffold. The active task-management implementation is currently web plus API; mobile task features are not implemented yet. Keep contributions aligned with the stack and architecture described in `STACK.md`.
+This project is a pnpm monorepo with a Next.js web app, FastAPI backend, PostgreSQL database, SQLAlchemy ORM, and Supabase Auth. The active task-management implementation is web plus API. Keep contributions aligned with the stack and architecture described in `STACK.md`.
 
 ## Branches
 
@@ -37,7 +37,6 @@ Keep feature branches focused on one feature area. Six members can own multiple 
 ```text
 frontend/
   web/       Next.js web app and active task-management UI
-  mobile/    Expo scaffold; mobile task features are not implemented yet
 backend/
   api/       FastAPI backend, SQLAlchemy models, schemas, auth, and task routes
 packages/
@@ -51,9 +50,8 @@ Use this ownership model during feature work:
 
 - `frontend/web`: pages, React components, frontend state, styling, and API client helpers.
 - `backend/api`: FastAPI routes, request/response schemas, SQLAlchemy models, database sessions, and backend auth checks.
-- `packages/shared`: shared TypeScript types/constants used across frontend packages.
+- `packages/shared`: shared TypeScript types/constants used by the web app.
 - `packages/supabase`: shared Supabase client setup.
-- `frontend/mobile`: scaffold only until mobile task features are intentionally added.
 
 ## Feature Development Workflow
 
@@ -98,7 +96,6 @@ Copy environment files:
 Copy-Item .env.example .env
 Copy-Item frontend/web/.env.example frontend/web/.env
 Copy-Item backend/api/.env.example backend/api/.env
-Copy-Item frontend/mobile/.env.example frontend/mobile/.env
 ```
 
 Run locally:
@@ -148,8 +145,7 @@ Use short, descriptive commit messages:
 - Treat Supabase as the authentication provider.
 - Store task data through the FastAPI backend, SQLAlchemy, and PostgreSQL.
 - Keep frontend API calls behind small client helper functions.
-- Keep shared TypeScript types in workspace packages when both web and mobile need them.
-- Treat `frontend/mobile` as scaffolded until mobile task screens and API integration are added.
+- Keep shared TypeScript types in workspace packages when web contracts need them.
 - Avoid adding a second task-storage path unless the architecture is intentionally changed and documented.
 - Prefer feature branches that deliver a usable vertical slice across UI, API contract, backend, tests, and docs when applicable.
 
