@@ -27,6 +27,20 @@ STACK.md     Stack, architecture, and stack decision reasoning
 supabase/    Supabase migration notes and SQL
 ```
 
+## Branch Structure
+main
+└── develop
+    ├── feature/navigation-shell
+    ├── feature/auth-account     → rewrite in Node.js
+    ├── feature/task-management
+    ├── feature/folders-inbox
+    ├── feature/calendar-reminders
+    ├── feature/priority-view
+    ├── feature/focus-mode
+    ├── feature/analytics-dashboard
+    ├── feature/gamification
+    └── feature/settings-polish
+
 Development should follow this split:
 
 - Frontend UI work goes in `frontend/web`.
