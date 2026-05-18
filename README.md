@@ -8,7 +8,7 @@ Todo list app with task tracking, categories, deadlines, Pomodoro focus mode, an
 - Web: Next.js App Router, React, TypeScript, Tailwind CSS
 - API: Python, FastAPI, SQLAlchemy
 - Database: PostgreSQL
-- Auth: Supabase Auth
+- Auth: PostgreSQL-backed custom auth or Supabase Auth
 - Container: Docker Compose
 
 For a more detailed explanation of the stack, data flow, improvement roadmap, and stack decision reasoning, see [STACK.md](STACK.md).
@@ -22,9 +22,9 @@ backend/
   api/       FastAPI backend, SQLAlchemy models, schemas, auth, and task routes
 packages/
   shared/    Shared TypeScript types and constants
-  supabase/  Shared Supabase client factory
+  supabase/  Optional shared Supabase client factory if Supabase Auth is used
 STACK.md     Stack, architecture, and stack decision reasoning
-supabase/    Supabase migration notes and SQL
+supabase/    Optional Supabase migration notes and SQL
 ```
 
 Development should follow this split:
@@ -32,7 +32,7 @@ Development should follow this split:
 - Frontend UI work goes in `frontend/web`.
 - Backend API and database work goes in `backend/api`.
 - Shared frontend contracts go in `packages/shared`.
-- Supabase is used for authentication; task data is stored through FastAPI, SQLAlchemy, and PostgreSQL.
+- Authentication may use the PostgreSQL-backed auth work from `feature/auth-account` or Supabase Auth. Task data is stored through FastAPI, SQLAlchemy, and PostgreSQL.
 
 ## Branch Structure
 
@@ -57,7 +57,7 @@ main
 - Python 3.12+
 - Docker Desktop
 - Corepack enabled
-- Supabase project for auth
+- PostgreSQL database for app data and custom auth, or a Supabase project if the team chooses Supabase Auth
 
 ## Setup
 
@@ -68,7 +68,7 @@ python -m venv backend/api/.venv
 backend/api/.venv/Scripts/python -m pip install -e backend/api
 ```
 
-Copy the environment examples and fill in your Supabase project values. `SUPABASE_JWT_SECRET` is required by the API so it can verify Supabase access tokens.
+Copy the environment examples and fill in the values for the selected auth approach. PostgreSQL-backed auth needs database and JWT secret values; Supabase Auth needs Supabase project values and token verification settings.
 
 ```powershell
 Copy-Item .env.example .env
@@ -120,7 +120,7 @@ Each branch should stay focused on one feature area. Six members can own multipl
 | Member | Branches | Frontend Work | Backend Work |
 | --- | --- | --- | --- |
 | 1 | `feature/navigation-shell`, `feature/settings-polish` | App layout, sidebar, route placeholders, responsive shell, settings UI polish | Database management, base router structure, health/status cleanup, user preference routes later |
-| 2 | `feature/auth-account` | Login/register/sign-out UI, account page, Supabase session state, Node.js rewrite | Supabase JWT verification, current-user dependency, profile/account endpoints in Node.js |
+| 2 | `feature/auth-account` | Login/register/sign-out UI, account page, auth session state, Node.js rewrite | PostgreSQL-backed auth or Supabase token verification, current-user dependency, profile/account endpoints in Node.js |
 | 3 | `feature/task-management` | Task cards, task form, task list, complete/reopen, edit/delete UI | Task model, task schemas, task CRUD routes, user-owned task filtering |
 | 4 | `feature/search-filtering`, `feature/folders-inbox` | Search input, filters, folder list, folder form, inbox view, move tasks between folders | Task search query support, folder model, folder schemas, folder CRUD routes, task folder support |
 | 5 | `feature/calendar-reminders`, `feature/analytics-dashboard` | Calendar view, due date UI, reminder UI, overdue/upcoming views, analytics dashboard | Due date fields, reminder fields, deadline queries, analytics summary endpoint |
@@ -135,6 +135,6 @@ corepack pnpm build
 corepack pnpm format:check
 ```
 
-## Supabase
+## Auth
 
-Supabase remains the auth provider. The frontend signs users in with Supabase email links and sends the Supabase access token to FastAPI. Task data now lives in the app PostgreSQL database through SQLAlchemy.
+Authentication does not have to use Supabase. The `feature/auth-account` branch may implement custom PostgreSQL-backed auth with users, password hashes, JWT issuing, login, registration, and current-user middleware. If the team keeps Supabase Auth instead, the frontend sends the Supabase access token to the backend for verification. In both approaches, application task data lives in PostgreSQL through the backend.
