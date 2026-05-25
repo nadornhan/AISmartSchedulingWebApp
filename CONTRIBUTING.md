@@ -7,29 +7,60 @@ This project uses a feature-branch workflow. Six members can each own one or mor
 - `main` is stable milestone/demo-ready code.
 - `develop` is the integration branch for active work.
 - `feature/*` branches are for focused feature work.
-- Start all feature work from latest `develop`.
+- Keep feature branches updated with latest `develop`.
 - Merge completed feature branches back into `develop`.
 - Merge `develop` into `main` only after the milestone is stable.
-
-```bash
-git checkout develop
-git pull
-git checkout -b feature/task-management
-```
 
 ## Member Branch Workflow
 
 Each member should work on their assigned feature branch, not directly on `develop`.
 
-For a new feature branch:
+The normal flow is:
 
-```powershell
-git checkout develop
-git pull origin develop
-git checkout -b feature/task-management
+```text
+develop -> feature branch -> merge back into develop -> later main
 ```
 
-Then work inside the matching feature folders, commit, and push the branch:
+Step 1: Get the latest remote branch information.
+
+```powershell
+git fetch origin
+```
+
+Step 2: Go to your assigned feature branch.
+
+If the branch already exists locally:
+
+```powershell
+git checkout feature/task-management
+git pull origin feature/task-management
+```
+
+If the branch exists on GitHub but not on your computer yet:
+
+```powershell
+git checkout -b feature/task-management origin/feature/task-management
+```
+
+Step 3: Bring the latest shared scaffold and docs from `develop` into your feature branch.
+
+```powershell
+git merge origin/develop
+git push origin feature/task-management
+```
+
+Step 4: Work inside your assigned feature folders.
+
+```text
+frontend/web/app/tasks/
+frontend/web/components/tasks/
+frontend/web/lib/tasks.ts
+backend/api/app/tasks/
+```
+
+Replace `tasks` with your assigned feature area, such as `auth`, `folders`, `calendar`, `analytics`, `focus`, `priority`, `gamification`, or `settings`.
+
+Step 5: Commit and push your feature work.
 
 ```powershell
 git add .
@@ -37,40 +68,15 @@ git commit -m "feat: add task list UI"
 git push origin feature/task-management
 ```
 
-For an existing feature branch that is already on GitHub, check out that branch and merge the latest `develop` before continuing work:
+Step 6: When the feature is ready, merge it back into `develop`.
 
-```powershell
-git fetch origin
-git checkout feature/task-management
-git pull origin feature/task-management
-git merge origin/develop
-git push origin feature/task-management
-```
-
-If the feature branch exists on GitHub but not on your computer yet:
-
-```powershell
-git fetch origin
-git checkout -b feature/task-management origin/feature/task-management
-git merge origin/develop
-git push origin feature/task-management
-```
-
-Then commit and push feature work:
-
-```powershell
-git add .
-git commit -m "feat: add task CRUD endpoints"
-git push origin feature/task-management
-```
-
-The normal flow is:
+Usually this should happen through a GitHub pull request:
 
 ```text
-develop -> feature branch -> merge back into develop
+feature/task-management -> develop
 ```
 
-Do not push unfinished feature work directly to `develop`. Use `develop` for shared integration after a feature branch is ready.
+Do not code directly on `main`. Do not push unfinished feature work directly to `develop`. Use `develop` for shared integration after a feature branch is ready.
 
 ## Current Feature Branches
 
