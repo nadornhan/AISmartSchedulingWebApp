@@ -117,14 +117,14 @@ Merge finished feature branches back into `develop`. Keep `main` for stable mile
 
 Each branch should stay focused on one feature area. Six members can own multiple branches when needed.
 
-| Member | Branches | Frontend Work | Backend Work |
-| --- | --- | --- | --- |
-| 1 | `feature/navigation-shell`, `feature/settings-polish` | App layout, sidebar, route placeholders, responsive shell, settings UI polish | Database management, base router structure, health/status cleanup, user preference routes later |
-| 2 | `feature/auth-account` | Login/register/sign-out UI, account page, auth session state, Node.js rewrite | PostgreSQL-backed auth or Supabase token verification, current-user dependency, profile/account endpoints in Node.js |
-| 3 | `feature/task-management` | Task cards, task form, task list, complete/reopen, edit/delete UI | Task model, task schemas, task CRUD routes, user-owned task filtering |
-| 4 | `feature/search-filtering`, `feature/folders-inbox` | Search input, filters, folder list, folder form, inbox view, move tasks between folders | Task search query support, folder model, folder schemas, folder CRUD routes, task folder support |
-| 5 | `feature/calendar-reminders`, `feature/analytics-dashboard` | Calendar view, due date UI, reminder UI, overdue/upcoming views, analytics dashboard | Due date fields, reminder fields, deadline queries, analytics summary endpoint |
-| 6 | `feature/focus-mode`, `feature/priority-view`, `feature/gamification` | Pomodoro timer, focus page, priority labels, streak/tree UI | Focus session model/routes, priority field, priority update/query routes, streak/tree progress model/routes |
+| Member | Branches                                                              | Frontend Work                                                                           | Backend Work                                                                                                         |
+| ------ | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 1      | `feature/navigation-shell`, `feature/settings-polish`                 | App layout, sidebar, route placeholders, responsive shell, settings UI polish           | Database management, base router structure, health/status cleanup, user preference routes later                      |
+| 2      | `feature/auth-account`                                                | Login/register/sign-out UI, account page, auth session state, Node.js rewrite           | PostgreSQL-backed auth or Supabase token verification, current-user dependency, profile/account endpoints in Node.js |
+| 3      | `feature/task-management`                                             | Task cards, task form, task list, complete/reopen, edit/delete UI                       | Task model, task schemas, task CRUD routes, user-owned task filtering                                                |
+| 4      | `feature/search-filtering`, `feature/folders-inbox`                   | Search input, filters, folder list, folder form, inbox view, move tasks between folders | Task search query support, folder model, folder schemas, folder CRUD routes, task folder support                     |
+| 5      | `feature/calendar-reminders`, `feature/analytics-dashboard`           | Calendar view, due date UI, reminder UI, overdue/upcoming views, analytics dashboard    | Due date fields, reminder fields, deadline queries, analytics summary endpoint                                       |
+| 6      | `feature/focus-mode`, `feature/priority-view`, `feature/gamification` | Pomodoro timer, focus page, priority labels, streak/tree UI                             | Focus session model/routes, priority field, priority update/query routes, streak/tree progress model/routes          |
 
 ## Quality Checks
 
