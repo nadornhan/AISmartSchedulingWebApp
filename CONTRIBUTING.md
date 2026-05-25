@@ -17,6 +17,51 @@ git pull
 git checkout -b feature/task-management
 ```
 
+## Member Branch Workflow
+
+Each member should work on their assigned feature branch, not directly on `develop`.
+
+For a new feature branch:
+
+```powershell
+git checkout develop
+git pull origin develop
+git checkout -b feature/task-management
+```
+
+Then work inside the matching feature folders, commit, and push the branch:
+
+```powershell
+git add .
+git commit -m "feat: add task list UI"
+git push origin feature/task-management
+```
+
+For an existing feature branch, update it with the latest shared scaffold from `develop` before continuing work:
+
+```powershell
+git checkout develop
+git pull origin develop
+git checkout feature/task-management
+git merge develop
+```
+
+Then commit and push feature work:
+
+```powershell
+git add .
+git commit -m "feat: add task CRUD endpoints"
+git push origin feature/task-management
+```
+
+The normal flow is:
+
+```text
+develop -> feature branch -> merge back into develop
+```
+
+Do not push unfinished feature work directly to `develop`. Use `develop` for shared integration after a feature branch is ready.
+
 ## Current Feature Branches
 
 ```text
