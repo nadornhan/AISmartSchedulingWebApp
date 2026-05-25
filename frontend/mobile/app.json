@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Todo List",
-    "slug": "todo-list",
+    "name": "AI Smart Scheduling",
+    "slug": "ai-smart-scheduling",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",

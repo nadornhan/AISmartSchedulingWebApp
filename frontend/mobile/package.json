@@ -1,5 +1,5 @@
 {
-  "name": "@todo-list/mobile",
+  "name": "@ai-smart-scheduling/mobile",
   "version": "0.1.0",
   "private": true,
   "main": "expo/AppEntry.js",
@@ -11,13 +11,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@todo-list/shared": "workspace:*",
-    "@todo-list/supabase": "workspace:*",
     "expo": "^54.0.30",
     "expo-status-bar": "~3.0.9",
     "react": "^19.2.3",
-    "react-native": "^0.82.1",
-    "react-native-url-polyfill": "^3.0.0"
+    "react-native": "^0.82.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.7",
