@@ -13,6 +13,21 @@ Todo list and smart scheduling web app with task tracking, folders, deadlines, f
 
 See [STACK.md](STACK.md) for architecture and stack decisions.
 
+## Current Development Scope
+
+Start with frontend screens and FastAPI endpoints. A deployed database and Docker setup are not required for the first development pass.
+
+Use this scope first:
+
+```text
+Frontend pages/components
+Frontend API helpers
+FastAPI routers/schemas/services
+Temporary in-memory data or mock data
+```
+
+Add PostgreSQL, migrations, and Docker workflow after endpoint shapes and feature flows are stable.
+
 ## Repository Structure
 
 ```text

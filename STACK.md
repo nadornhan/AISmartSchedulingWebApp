@@ -37,6 +37,26 @@ Next.js web app
 
 That is acceptable as long as the frontend talks to stable API endpoints and does not depend on the temporary storage implementation.
 
+## Current Development Scope
+
+The first development pass should focus on usable frontend screens and FastAPI endpoint contracts.
+
+In scope now:
+
+- Next.js pages and reusable components.
+- Frontend API helper files in `frontend/web/lib`.
+- FastAPI routers, schemas, and services.
+- Temporary in-memory data, local SQLite, or frontend mock data.
+
+Out of scope until feature flows stabilize:
+
+- Required deployed PostgreSQL setup.
+- Required Docker workflow.
+- Full migration system.
+- Production auth hardening.
+
+PostgreSQL and Docker remain part of the target stack, but they should not block early frontend and endpoint work.
+
 ## Auth Options
 
 The team should choose one auth path before final integration.
