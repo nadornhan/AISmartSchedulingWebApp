@@ -1,15 +1,11 @@
 [project]
-name = "todo-list-api"
+name = "smart-scheduling-api"
 version = "0.1.0"
-description = "FastAPI backend for Todo List"
+description = "FastAPI backend scaffold for AI Smart Scheduling"
 requires-python = ">=3.12"
 dependencies = [
-  "fastapi>=0.124.0",
+  "fastapi[standard]>=0.124.0",
   "uvicorn[standard]>=0.38.0",
-  "sqlalchemy>=2.0.45",
-  "psycopg[binary]>=3.3.2",
-  "pydantic-settings>=2.12.0",
-  "python-jose[cryptography]>=3.5.0",
 ]
 
 [project.optional-dependencies]
