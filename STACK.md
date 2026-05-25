@@ -4,16 +4,16 @@ This document explains the current technical stack, how the main parts of the sy
 
 ## Current Stack
 
-| Area           | Technology                                          | Purpose                                                                  |
-| -------------- | --------------------------------------------------- | ------------------------------------------------------------------------ |
-| Monorepo       | pnpm workspaces                                     | Manages web, backend, and shared packages in one repository.             |
-| Web app        | Next.js App Router, React, TypeScript, Tailwind CSS | Browser-based task management UI.                                        |
-| API            | Python, FastAPI                                     | Backend HTTP API for authenticated task operations.                      |
-| ORM            | SQLAlchemy                                          | Maps Python models to PostgreSQL tables and handles database queries.    |
-| Database       | PostgreSQL                                          | Primary storage for app task data.                                       |
-| Authentication | PostgreSQL-backed custom auth or Supabase Auth      | User sign-in, token issuing or verification, and current-user loading.   |
-| Containers     | Docker Compose                                      | Local container setup for PostgreSQL, API, and web app.                  |
-| Shared code    | TypeScript workspace packages                       | Shared app constants, task types, and optional Supabase client creation. |
+| Area | Technology | Purpose |
+| --- | --- | --- |
+| Monorepo | pnpm workspaces | Manages web, backend, and shared packages in one repository. |
+| Web app | Next.js App Router, React, TypeScript, Tailwind CSS | Browser-based task management UI. |
+| API | Python, FastAPI | Backend HTTP API for authenticated task operations. |
+| ORM | SQLAlchemy | Maps Python models to PostgreSQL tables and handles database queries. |
+| Database | PostgreSQL | Primary storage for app task data. |
+| Authentication | PostgreSQL-backed custom auth or Supabase Auth | User sign-in, token issuing or verification, and current-user loading. |
+| Containers | Docker Compose | Local container setup for PostgreSQL, API, and web app. |
+| Shared code | TypeScript workspace packages | Shared app constants, task types, and optional Supabase client creation. |
 
 ## Architecture Overview
 
