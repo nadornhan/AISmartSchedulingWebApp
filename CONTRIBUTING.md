@@ -21,7 +21,11 @@ The normal flow is:
 develop -> feature branch -> merge back into develop -> later main
 ```
 
-Step 1: Get the latest remote branch information.
+### Safe Update Commands
+
+Use these commands to download remote changes and update your local feature branch. These commands do not push anything.
+
+Step 1: Download the latest branch information.
 
 ```powershell
 git fetch origin
@@ -46,8 +50,9 @@ Step 3: Bring the latest shared scaffold and docs from `develop` into your featu
 
 ```powershell
 git merge origin/develop
-git push origin feature/task-management
 ```
+
+At this point, your local feature branch has the latest `develop` changes. If Git reports conflicts, fix the conflicts, then commit the merge before continuing.
 
 Step 4: Work inside your assigned feature folders.
 
@@ -60,7 +65,9 @@ backend/api/app/tasks/
 
 Replace `tasks` with your assigned feature area, such as `auth`, `folders`, `calendar`, `analytics`, `focus`, `priority`, `gamification`, or `settings`.
 
-Step 5: Commit and push your feature work.
+### Safe Push Commands
+
+Only push your assigned feature branch. Replace `feature/task-management` with your own feature branch name.
 
 ```powershell
 git add .
@@ -68,7 +75,15 @@ git commit -m "feat: add task list UI"
 git push origin feature/task-management
 ```
 
-Step 6: When the feature is ready, merge it back into `develop`.
+If you only merged the latest `develop` into your feature branch and made no other code changes, do not create another commit. Push only your feature branch:
+
+```powershell
+git push origin feature/task-management
+```
+
+### Merge Back To Develop
+
+When the feature is ready, merge it back into `develop`.
 
 Usually this should happen through a GitHub pull request:
 
@@ -76,7 +91,35 @@ Usually this should happen through a GitHub pull request:
 feature/task-management -> develop
 ```
 
-Do not code directly on `main`. Do not push unfinished feature work directly to `develop`. Use `develop` for shared integration after a feature branch is ready.
+### Commands To Avoid
+
+Do not code directly on `main`.
+
+Do not push to `main`:
+
+```powershell
+git push origin main
+```
+
+Do not push unfinished feature work directly to `develop`:
+
+```powershell
+git push origin develop
+```
+
+Do not use a plain push if you are unsure which branch is active:
+
+```powershell
+git push
+```
+
+Before pushing, check your current branch:
+
+```powershell
+git branch --show-current
+```
+
+The branch name should be your assigned `feature/*` branch.
 
 ## Current Feature Branches
 
