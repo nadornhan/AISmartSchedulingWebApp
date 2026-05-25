@@ -37,13 +37,23 @@ git commit -m "feat: add task list UI"
 git push origin feature/task-management
 ```
 
-For an existing feature branch, update it with the latest shared scaffold from `develop` before continuing work:
+For an existing feature branch that is already on GitHub, check out that branch and merge the latest `develop` before continuing work:
 
 ```powershell
-git checkout develop
-git pull origin develop
+git fetch origin
 git checkout feature/task-management
-git merge develop
+git pull origin feature/task-management
+git merge origin/develop
+git push origin feature/task-management
+```
+
+If the feature branch exists on GitHub but not on your computer yet:
+
+```powershell
+git fetch origin
+git checkout -b feature/task-management origin/feature/task-management
+git merge origin/develop
+git push origin feature/task-management
 ```
 
 Then commit and push feature work:
