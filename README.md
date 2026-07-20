@@ -7,8 +7,8 @@ Todo list and smart scheduling web app with task tracking, folders, deadlines, f
 - Monorepo: pnpm workspaces
 - Web: Next.js App Router, React, TypeScript, Tailwind CSS
 - API: Python, FastAPI
-- Database: PostgreSQL later, with temporary in-memory or local storage allowed during early endpoint/frontend work
-- Auth: PostgreSQL-backed custom auth or Supabase Auth
+- Database: PostgreSQL 16 with SQLAlchemy 2 and Alembic migrations
+- Auth: FastAPI-managed JWT with PostgreSQL-backed users
 - Container: Docker Compose
 
 See [STACK.md](STACK.md) for architecture and stack decisions.
@@ -26,7 +26,7 @@ FastAPI routers/schemas/services
 Temporary in-memory data or mock data
 ```
 
-Add PostgreSQL, migrations, and Docker workflow after endpoint shapes and feature flows are stable.
+The PostgreSQL, SQLAlchemy, Alembic, and Docker foundation is available. Feature branches may integrate it after their endpoint shapes and feature flows are stable.
 
 ## Repository Structure
 
@@ -84,14 +84,14 @@ Merge completed feature branches into `develop`. Merge `develop` into `main` onl
 
 Six members can own multiple feature branches. The branch name should describe the feature, not the person.
 
-| Member | Branches | Primary folders |
-| --- | --- | --- |
-| 1 | `feature/navigation-shell`, `feature/settings-polish` | `frontend/web/components/layout`, `frontend/web/app/settings`, `frontend/web/components/settings`, `backend/api/app/settings` |
-| 2 | `feature/auth-account` | `frontend/web/app/auth`, `frontend/web/components/auth`, `frontend/web/lib/auth.ts`, `backend/api/app/auth` |
-| 3 | `feature/task-management` | `frontend/web/app/tasks`, `frontend/web/components/tasks`, `frontend/web/lib/tasks.ts`, `backend/api/app/tasks` |
-| 4 | `feature/folders-inbox` | `frontend/web/app/folders`, `frontend/web/components/folders`, `frontend/web/lib/folders.ts`, `backend/api/app/folders` |
-| 5 | `feature/calendar-reminders`, `feature/analytics-dashboard` | `frontend/web/app/calendar`, `frontend/web/app/analytics`, `frontend/web/components/calendar`, `frontend/web/components/analytics`, `backend/api/app/calendar`, `backend/api/app/analytics` |
-| 6 | `feature/focus-mode`, `feature/priority-view`, `feature/gamification` | `frontend/web/app/focus`, `frontend/web/app/priority`, `frontend/web/app/gamification`, `backend/api/app/focus`, `backend/api/app/priority`, `backend/api/app/gamification` |
+| Member | Branches                                                              | Primary folders                                                                                                                                                                             |
+| ------ | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1      | `feature/navigation-shell`, `feature/settings-polish`                 | `frontend/web/components/layout`, `frontend/web/app/settings`, `frontend/web/components/settings`, `backend/api/app/settings`                                                               |
+| 2      | `feature/auth-account`                                                | `frontend/web/app/auth`, `frontend/web/components/auth`, `frontend/web/lib/auth.ts`, `backend/api/app/auth`                                                                                 |
+| 3      | `feature/task-management`                                             | `frontend/web/app/tasks`, `frontend/web/components/tasks`, `frontend/web/lib/tasks.ts`, `backend/api/app/tasks`                                                                             |
+| 4      | `feature/folders-inbox`                                               | `frontend/web/app/folders`, `frontend/web/components/folders`, `frontend/web/lib/folders.ts`, `backend/api/app/folders`                                                                     |
+| 5      | `feature/calendar-reminders`, `feature/analytics-dashboard`           | `frontend/web/app/calendar`, `frontend/web/app/analytics`, `frontend/web/components/calendar`, `frontend/web/components/analytics`, `backend/api/app/calendar`, `backend/api/app/analytics` |
+| 6      | `feature/focus-mode`, `feature/priority-view`, `feature/gamification` | `frontend/web/app/focus`, `frontend/web/app/priority`, `frontend/web/app/gamification`, `backend/api/app/focus`, `backend/api/app/priority`, `backend/api/app/gamification`                 |
 
 Search and filtering should be implemented inside the relevant feature branch, usually `feature/task-management` for task search or `feature/folders-inbox` for folder/inbox filtering. Create a separate `feature/search-filtering` branch only if the team decides that work is large enough to split.
 
@@ -99,9 +99,9 @@ Search and filtering should be implemented inside the relevant feature branch, u
 
 - Node.js 22+
 - Python 3.12+
-- Docker Desktop if running containers
+- Docker Desktop for the local PostgreSQL workflow
 - Corepack enabled
-- PostgreSQL later for persistent app data and custom auth, unless the team chooses Supabase Auth
+- PostgreSQL 16 for persistent application data and custom authentication
 
 ## Setup
 
@@ -119,6 +119,57 @@ Copy-Item .env.example .env
 Copy-Item frontend/web/.env.example frontend/web/.env
 Copy-Item backend/api/.env.example backend/api/.env
 ```
+
+## Database Setup
+
+The backend uses PostgreSQL 16, SQLAlchemy 2, psycopg, and Alembic.
+
+Create the backend environment file:
+
+```powershell
+Copy-Item backend/api/.env.example backend/api/.env
+```
+
+Start PostgreSQL:
+
+```powershell
+docker compose up -d postgres
+docker compose ps
+```
+
+The local backend connects through:
+
+```text
+postgresql+psycopg://smart_scheduler:smart_scheduler_dev@localhost:5433/smart_scheduling
+```
+
+When the API runs inside Docker Compose, it connects to the `postgres` service on port `5432`.
+
+Check the current migration state:
+
+```powershell
+cd backend/api
+.\.venv\Scripts\python.exe -m alembic current
+.\.venv\Scripts\python.exe -m alembic check
+```
+
+Apply all migrations:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+```
+
+Create a migration after adding or changing SQLAlchemy models:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic revision --autogenerate -m "describe schema change"
+```
+
+Review every generated migration before applying or committing it. Do not use `Base.metadata.create_all()` as the production migration workflow.
+
+Database models should inherit from the shared `app.database.Base`. Request handlers should receive sessions through `Depends(get_db)`.
+
+User-owned tables should use a non-null UUID `user_id` foreign key referencing `users.id` with `ON DELETE CASCADE`. Protected endpoints must derive the current user ID from the validated JWT `sub` claim rather than accepting `user_id` from request bodies or query parameters.
 
 ## Run Locally
 
