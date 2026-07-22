@@ -6,6 +6,7 @@ from app.auth.dependencies import CurrentUser, DatabaseSession
 from app.tasks import service
 from app.tasks.models import Task
 from app.tasks.schemas import TaskCreate, TaskResponse, TaskUpdate
+from app.projects import service as project_service
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -14,8 +15,22 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 def list_tasks(
     db: DatabaseSession,
     current_user: CurrentUser,
+    project_id: uuid.UUID | None = None,
 ) -> list[Task]:
-    return service.list_tasks(db, current_user.id)
+    if project_id is not None:
+        project = project_service.get_project_by_id(
+            db,
+            project_id,
+            current_user.id,
+        )
+
+        if project is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+
+    return service.list_tasks(db, current_user.id, project_id)
 
 
 @router.post(
@@ -28,6 +43,18 @@ def create_task(
     db: DatabaseSession,
     current_user: CurrentUser,
 ) -> Task:
+    if task_data.project_id is not None:
+        project = project_service.get_project_by_id(
+            db,
+            task_data.project_id,
+            current_user.id,
+        )
+
+        if project is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
     return service.create_task(db, current_user.id, task_data)
 
 
@@ -45,6 +72,18 @@ def update_task(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Task not found",
         )
+    if task_data.project_id is not None:
+        project = project_service.get_project_by_id(
+            db,
+            task_data.project_id,
+            current_user.id,
+        )
+
+        if project is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
 
     return service.update_task(db, task, task_data)
 
