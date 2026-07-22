@@ -7,12 +7,18 @@ from app.tasks.models import Task
 from app.tasks.schemas import TaskCreate, TaskUpdate
 
 
-def list_tasks(db: Session, user_id: uuid.UUID) -> list[Task]:
-    statement = (
-        select(Task)
-        .where(Task.user_id == user_id)
-        .order_by(Task.created_at.desc())
-    )
+def list_tasks(
+    db: Session,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID | None = None,
+) -> list[Task]:
+    statement = select(Task).where(Task.user_id == user_id)
+
+    if project_id is not None:
+        statement = statement.where(Task.project_id == project_id)
+
+    statement = statement.order_by(Task.created_at.desc())
+
     return list(db.scalars(statement).all())
 
 

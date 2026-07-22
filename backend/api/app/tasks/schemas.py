@@ -9,12 +9,14 @@ from app.tasks.models import TaskStatus
 class TaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     description: str | None = None
+    project_id: uuid.UUID | None = None
 
 
 class TaskUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     status: TaskStatus | None = None
+    project_id: uuid.UUID | None = None
 
 
 class TaskResponse(BaseModel):
@@ -22,6 +24,7 @@ class TaskResponse(BaseModel):
 
     id: uuid.UUID
     user_id: uuid.UUID
+    project_id: uuid.UUID | None
     title: str
     description: str | None
     status: TaskStatus
