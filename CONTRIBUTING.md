@@ -356,3 +356,63 @@ Use short, descriptive commit messages:
 ## Documentation
 
 Update docs when a change affects setup, environment variables, data storage, auth flow, API contracts, branch strategy, or folder ownership.
+
+## Frontend API Integration
+
+All frontend members must follow these conventions. Do not implement separate API-calling patterns in individual components.
+
+### Shared API Client
+
+All API requests must use the shared client:
+
+```text
+frontend/web/src/lib/api-client.ts
+```
+
+Do not create another Axios instance, fetch wrapper, or API client without team agreement.
+
+### API Base URL
+
+Read the backend URL from the environment variable:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+Do not hard-code backend URLs in the source code. Local `.env` files must not be committed.
+
+### JWT Authentication
+
+The shared API client must automatically send the JWT access token:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+Components must not manually retrieve the token or construct this header.
+
+### HTTP Error Handling
+
+Use consistent behaviour for common API errors:
+
+| Status | Required behaviour |
+|---|---|
+| `401` | Clear the invalid session and redirect to login |
+| `403` | Keep the session and display a permission error |
+| `404` | Display a not-found state |
+| `422` | Display validation errors beside the relevant fields |
+| `500` | Display a general error message and provide a retry option |
+
+Do not expose stack traces or internal backend error details to users.
+
+### Loading and Error States
+
+Every API operation must provide user feedback:
+
+- Disable submit buttons while a request is running.
+- Prevent duplicate submissions.
+- Show a spinner, loading text, or skeleton.
+- Show field errors below the relevant inputs.
+- Show form errors inside the form.
+- Provide a `Try again` action for page-level errors.
+- Do not use only `console.log()` or `alert()` for errors.
