@@ -13,6 +13,126 @@ Todo list and smart scheduling web app with task tracking, folders, deadlines, f
 
 See [STACK.md](STACK.md) for architecture and stack decisions.
 
+## Design Theme
+
+The product uses a dark green productivity theme. Use these tokens as the shared source of truth for frontend UI work so feature pages stay visually consistent with the navigation shell.
+
+### Core Palette
+
+| Token | Hex | Usage |
+| ----- | --- | ----- |
+| `--bg` | `#07100F` | App background and full-page dashboard shell |
+| `--surface` | `#0D1718` | Sidebar, header, panels, and low-emphasis surfaces |
+| `--card` | `#121E20` | Standard cards, list rows, inputs, and tool panels |
+| `--card-raised` | `#182629` | Elevated cards, popovers, dropdowns, modals, and hover layers |
+| `--border` | `#243438` | Dividers, card borders, input outlines, and subtle separators |
+| `--text-main` | `#F4F7F6` | Primary headings, important labels, and high-emphasis text |
+| `--text-secondary` | `#A7B2B0` | Body copy, secondary labels, descriptions, and inactive nav text |
+| `--text-muted` | `#6F7E82` | Metadata, timestamps, placeholders, helper text, and disabled UI |
+| `--primary` | `#24D38A` | Primary actions, active navigation, success accents, and progress bars |
+| `--primary-hover` | `#35E89B` | Hover state for primary buttons and active controls |
+| `--primary-dark` | `#117B55` | Pressed states, dark accents, and high-contrast green surfaces |
+| `--primary-soft` | `#12382D` | Soft selected states, badges, pill backgrounds, and subtle green panels |
+
+### Extended Palette
+
+| Token | Hex | Usage |
+| ----- | --- | ----- |
+| `--blue` | `#3B82F6` | Calendar events, informational states, personal folders, and neutral charts |
+| `--purple` | `#7C5CFF` | Gamification, achievements, streaks, and premium/highlight moments |
+| `--orange` | `#F59E3D` | Medium priority, due-soon warnings, reminders, and attention states |
+| `--red` | `#FF5C6C` | High priority, destructive actions, overdue tasks, and error states |
+| `--yellow` | `#FACC4C` | Study folders, highlights, streak rewards, and celebratory badges |
+
+### Recommended CSS Tokens
+
+```css
+:root {
+  --bg: #07100F;
+  --surface: #0D1718;
+  --card: #121E20;
+  --card-raised: #182629;
+  --border: #243438;
+
+  --text-main: #F4F7F6;
+  --text-secondary: #A7B2B0;
+  --text-muted: #6F7E82;
+
+  --primary: #24D38A;
+  --primary-hover: #35E89B;
+  --primary-dark: #117B55;
+  --primary-soft: #12382D;
+
+  --blue: #3B82F6;
+  --purple: #7C5CFF;
+  --orange: #F59E3D;
+  --red: #FF5C6C;
+  --yellow: #FACC4C;
+}
+```
+
+### UI Usage Guide
+
+| UI element | Recommended tokens |
+| ---------- | ------------------ |
+| Page background | `--bg` |
+| Sidebar and header | `--surface` |
+| Cards and list rows | `--card` |
+| Dropdowns, modals, active hover surfaces | `--card-raised` |
+| Borders and dividers | `--border` |
+| Primary buttons and active nav items | `--primary`, `--primary-hover` |
+| Selected but low-emphasis states | `--primary-soft` |
+| Main headings | `--text-main` |
+| Supporting copy | `--text-secondary` |
+| Disabled or low-emphasis metadata | `--text-muted` |
+| High priority/error/destructive | `--red` |
+| Medium priority/warning | `--orange` |
+| Low priority/info | `--blue` |
+| Rewards/gamification | `--purple`, `--yellow` |
+
+## Feature File Ownership
+
+Feature branches should change only their own page, components, frontend API helpers, and backend feature module. Shared dashboard shell files should stay owned by `feature/navigation-shell` unless the team explicitly agrees to update the global navigation or theme.
+
+### Recommended Feature Scope
+
+For a feature such as Calendar, work inside:
+
+```text
+frontend/web/app/(dashboard)/calendar/page.tsx
+frontend/web/components/calendar/
+frontend/web/lib/calendar.ts
+backend/api/app/calendar/
+```
+
+Use the same pattern for other features:
+
+```text
+frontend/web/app/(dashboard)/<feature>/page.tsx
+frontend/web/components/<feature>/
+frontend/web/lib/<feature>.ts
+backend/api/app/<feature>/
+```
+
+Feature pages should render only their page-specific content. Do not create separate sidebars, headers, or page-level dashboard wrappers inside feature pages because the shared dashboard layout already provides them.
+
+### Shared Files To Avoid In Feature Branches
+
+Avoid changing these files from feature branches unless the change is intentionally global:
+
+```text
+frontend/web/app/(dashboard)/layout.tsx
+frontend/web/components/layout/dashboard-shell.tsx
+frontend/web/components/layout/sidebar.tsx
+frontend/web/components/layout/header.tsx
+frontend/web/components/layout/icons.tsx
+frontend/web/app/globals.css
+frontend/web/tailwind.config.ts
+README.md
+```
+
+If a feature needs a new navigation link, a new global color token, or a shared header/sidebar behavior, coordinate it with `feature/navigation-shell` first to avoid duplicate UI and merge conflicts.
+
 ## Current Development Scope
 
 Start with frontend screens and FastAPI endpoints. A deployed database and Docker setup are not required for the first development pass.
