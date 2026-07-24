@@ -1,9 +1,9 @@
 import enum
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -13,8 +13,16 @@ if TYPE_CHECKING:
 
 
 class TaskStatus(str, enum.Enum):
-    ACTIVE = "active"
-    COMPLETED = "completed"
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+
+
+class TaskPriority(str, enum.Enum):
+    NO_PRIORITY = "no_priority"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
 
 
 class Task(Base):
@@ -46,11 +54,41 @@ class Task(Base):
         Enum(
             TaskStatus,
             name="task_status",
-            values_callable=lambda enum_class: [item.value for item in enum_class],
+            values_callable=lambda enum_class: [
+                item.value for item in enum_class
+            ],
         ),
-        default=TaskStatus.ACTIVE,
-        server_default=TaskStatus.ACTIVE.value,
+        default=TaskStatus.PENDING,
+        server_default=TaskStatus.PENDING.value,
         nullable=False,
+    )
+    priority: Mapped[TaskPriority] = mapped_column(
+        Enum(
+            TaskPriority,
+            name="task_priority",
+            values_callable=lambda enum_class: [
+                item.value for item in enum_class
+            ],
+        ),
+        default=TaskPriority.NO_PRIORITY,
+        server_default=TaskPriority.NO_PRIORITY.value,
+        nullable=False,
+    )
+    due_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    estimated_duration: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    scheduled_start: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    scheduled_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -66,3 +104,16 @@ class Task(Base):
     project: Mapped["Project | None"] = relationship(
         back_populates="tasks",
     )
+    @property
+    def display_status(self) -> str:
+        if self.due_date is None or self.status == TaskStatus.DONE:
+            return self.status.value
+
+        due_date = self.due_date
+        if due_date.tzinfo is None:
+            due_date = due_date.replace(tzinfo=timezone.utc)
+
+        if due_date < datetime.now(timezone.utc):
+            return "overdue"
+
+        return self.status.value

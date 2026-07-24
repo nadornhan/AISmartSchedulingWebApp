@@ -101,7 +101,7 @@ def test_create_task_with_project(
     assert task["title"] == "Complete assignment"
     assert task["description"] == "Finish the backend tests"
     assert task["project_id"] == project["id"]
-    assert task["status"] == "active"
+    assert task["status"] == "pending"
     assert task["id"]
     assert task["user_id"]
 
@@ -264,3 +264,138 @@ def test_deleting_project_sets_task_project_id_to_null(
 
     assert len(matching_tasks) == 1
     assert matching_tasks[0]["project_id"] is None
+
+
+def test_create_task_with_new_fields_and_project_summary(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    project = create_project(client, auth_headers, "University")
+
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Prepare presentation",
+            "project_id": project["id"],
+            "priority": "high",
+            "due_date": "2030-08-10T12:00:00Z",
+            "estimated_duration": 90,
+            "scheduled_start": "2030-08-10T09:00:00Z",
+            "scheduled_end": "2030-08-10T10:30:00Z",
+        },
+    )
+
+    assert response.status_code == 201
+
+    task = response.json()
+
+    assert task["status"] == "pending"
+    assert task["priority"] == "high"
+    assert task["estimated_duration"] == 90
+    assert task["due_date"] == "2030-08-10T12:00:00Z"
+    assert task["scheduled_start"] == "2030-08-10T09:00:00Z"
+    assert task["scheduled_end"] == "2030-08-10T10:30:00Z"
+    assert task["project"]["id"] == project["id"]
+    assert task["project"]["name"] == "University"
+    assert task["project"]["color"] == project["color"]
+
+
+def test_past_due_task_is_returned_as_overdue(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Late task",
+            "due_date": "2020-01-01T00:00:00Z",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["status"] == "overdue"
+
+
+def test_done_task_is_not_returned_as_overdue(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    task = create_task(client, auth_headers, "Completed late task")
+
+    response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={
+            "status": "done",
+            "due_date": "2020-01-01T00:00:00Z",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "done"
+
+
+def test_reject_invalid_schedule_on_create(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Invalid schedule",
+            "scheduled_start": "2030-08-10T10:00:00Z",
+            "scheduled_end": "2030-08-10T09:00:00Z",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_reject_invalid_schedule_when_patching_one_time(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Scheduled task",
+            "scheduled_start": "2030-08-10T09:00:00Z",
+            "scheduled_end": "2030-08-10T10:00:00Z",
+        },
+    )
+
+    assert response.status_code == 201
+    task = response.json()
+
+    patch_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={
+            "scheduled_start": "2030-08-10T11:00:00Z",
+        },
+    )
+
+    assert patch_response.status_code == 422
+    assert (
+        patch_response.json()["detail"]
+        == "scheduled_end must be later than scheduled_start"
+    )
+
+
+def test_cannot_set_overdue_status_directly(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    task = create_task(client, auth_headers, "Status test")
+
+    response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"status": "overdue"},
+    )
+
+    assert response.status_code == 422
