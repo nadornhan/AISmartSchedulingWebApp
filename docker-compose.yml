@@ -26,6 +26,9 @@ services:
       dockerfile: backend/api/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql+psycopg://smart_scheduler:smart_scheduler_dev@postgres:5432/smart_scheduling}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
     ports:
       - '8000:8000'
     volumes:
