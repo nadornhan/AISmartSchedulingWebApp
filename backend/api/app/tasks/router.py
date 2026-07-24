@@ -85,7 +85,13 @@ def update_task(
                 detail="Project not found",
             )
 
-    return service.update_task(db, task, task_data)
+    try:
+        return service.update_task(db, task, task_data)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
 
 @router.delete(
