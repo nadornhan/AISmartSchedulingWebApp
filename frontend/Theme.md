@@ -110,7 +110,7 @@ Use slight negative letter spacing only for headings and large numbers.
 ### Main page
 
 ```css
-background: #040c14;
+background: #000306;
 ```
 
 Optional subtle lighting:
