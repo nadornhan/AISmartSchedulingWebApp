@@ -14,6 +14,19 @@ class TaskDisplayStatus(str, enum.Enum):
     OVERDUE = "overdue"
 
 
+class TaskSortBy(str, enum.Enum):
+    CREATED_AT = "created_at"
+    UPDATED_AT = "updated_at"
+    TITLE = "title"
+    DUE_DATE = "due_date"
+    PRIORITY = "priority"
+
+
+class SortOrder(str, enum.Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+
 class ProjectSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -94,3 +107,11 @@ class TaskResponse(BaseModel):
     scheduled_end: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class TaskListResponse(BaseModel):
+    items: list[TaskResponse]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
