@@ -77,7 +77,7 @@ Use slight negative letter spacing only for headings and large numbers.
 ```css
 :root {
   /* Backgrounds */
-  --bg-page: #040c14;
+  --bg-page: #000306;
   --bg-sidebar: #050e16;
   --bg-surface: #0a151e;
   --bg-surface-raised: #0d1a24;
@@ -110,7 +110,7 @@ Use slight negative letter spacing only for headings and large numbers.
 ### Main page
 
 ```css
-background: #040c14;
+background: #000306;
 ```
 
 Optional subtle lighting:
