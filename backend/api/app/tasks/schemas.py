@@ -1,22 +1,91 @@
+import enum
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.tasks.models import TaskStatus
+from app.tasks.models import TaskPriority, TaskStatus
+
+
+class TaskDisplayStatus(str, enum.Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+    OVERDUE = "overdue"
+
+
+class TaskSortBy(str, enum.Enum):
+    CREATED_AT = "created_at"
+    UPDATED_AT = "updated_at"
+    TITLE = "title"
+    DUE_DATE = "due_date"
+    PRIORITY = "priority"
+
+
+class SortOrder(str, enum.Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+
+class ProjectSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    color: str
 
 
 class TaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     description: str | None = None
     project_id: uuid.UUID | None = None
+    priority: TaskPriority = TaskPriority.NO_PRIORITY
+    due_date: datetime | None = None
+    estimated_duration: int | None = Field(default=None, gt=0)
+    scheduled_start: datetime | None = None
+    scheduled_end: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_schedule(self) -> "TaskCreate":
+        if (
+            self.scheduled_start is not None
+            and self.scheduled_end is not None
+            and self.scheduled_end <= self.scheduled_start
+        ):
+            raise ValueError(
+                "scheduled_end must be later than scheduled_start"
+            )
+
+        return self
 
 
 class TaskUpdate(BaseModel):
-    title: str | None = Field(default=None, min_length=1, max_length=255)
+    title: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+    )
     description: str | None = None
     status: TaskStatus | None = None
     project_id: uuid.UUID | None = None
+    priority: TaskPriority | None = None
+    due_date: datetime | None = None
+    estimated_duration: int | None = Field(default=None, gt=0)
+    scheduled_start: datetime | None = None
+    scheduled_end: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_schedule(self) -> "TaskUpdate":
+        if (
+            self.scheduled_start is not None
+            and self.scheduled_end is not None
+            and self.scheduled_end <= self.scheduled_start
+        ):
+            raise ValueError(
+                "scheduled_end must be later than scheduled_start"
+            )
+
+        return self
 
 
 class TaskResponse(BaseModel):
@@ -25,8 +94,24 @@ class TaskResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     project_id: uuid.UUID | None
+    project: ProjectSummary | None
     title: str
     description: str | None
-    status: TaskStatus
+    status: TaskDisplayStatus = Field(
+        validation_alias="display_status",
+    )
+    priority: TaskPriority
+    due_date: datetime | None
+    estimated_duration: int | None
+    scheduled_start: datetime | None
+    scheduled_end: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class TaskListResponse(BaseModel):
+    items: list[TaskResponse]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
