@@ -1,11 +1,23 @@
-import { PagePlaceholder } from '../_components/page-placeholder';
+import { TaskBoard } from '../../../components/tasks/task-board';
+import type { TaskPriority, TaskStatus } from '../../../lib/tasks';
 
-export default function TasksPage() {
+type TasksPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function firstValue(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
+}
+
+export default async function TasksPage({ searchParams }: TasksPageProps) {
+  const params = await searchParams;
+
   return (
-    <PagePlaceholder
-      eyebrow="Task management"
-      items={['Task list', 'Status filters', 'Bulk actions']}
-      summary="All task-specific UI stays in this page content area and reuses the shared navigation shell."
+    <TaskBoard
+      initialPriority={firstValue(params.priority) as TaskPriority | ''}
+      initialProjectId={firstValue(params.project_id)}
+      initialStatus={firstValue(params.status) as TaskStatus | ''}
+      search={firstValue(params.search)}
     />
   );
 }

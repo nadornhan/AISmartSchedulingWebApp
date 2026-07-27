@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
 import {
   CalendarIcon,
@@ -73,19 +73,22 @@ function BrandMark() {
 function SectionTitle({
   children,
   actionLabel,
+  onAction,
 }: Readonly<{
   children: ReactNode;
   actionLabel?: string;
+  onAction?: () => void;
 }>) {
   return (
     <div className="mb-4 flex items-center justify-between px-3">
       <p className="text-xs font-semibold uppercase tracking-[0.02em] text-dashboard-muted">
         {children}
       </p>
-      {actionLabel ? (
+      {actionLabel && onAction ? (
         <button
           aria-label={actionLabel}
           className="grid h-9 w-9 place-items-center rounded-full border border-dashboard-border bg-dashboard-surface text-dashboard-text transition hover:border-dashboard-accent/60 hover:text-dashboard-accent"
+          onClick={onAction}
           type="button"
         >
           <PlusIcon className="h-5 w-5" />
@@ -143,8 +146,19 @@ function NavLink({
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const foldersActive = pathname === '/folders' || pathname.startsWith('/folders/');
   const settingsActive = pathname === '/settings' || pathname.startsWith('/settings/');
+
+  function openCreateFolderModal() {
+    if (foldersActive) {
+      window.dispatchEvent(new Event('open-create-folder'));
+      return;
+    }
+
+    router.push('/folders#create-folder');
+    onNavigate?.();
+  }
 
   return (
     <aside
@@ -182,7 +196,9 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         </section>
 
         <section>
-          <SectionTitle actionLabel="Add folder">Projects / Folders</SectionTitle>
+          <SectionTitle actionLabel="Add folder" onAction={openCreateFolderModal}>
+            Projects / Folders
+          </SectionTitle>
           <div className="space-y-1.5">
             <NavLink
               active={foldersActive}
@@ -206,7 +222,11 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 </Link>
               ))}
 
-              <button className="mt-1 flex h-11 w-full items-center gap-4 rounded-lg px-3 text-left text-[15px] font-medium text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-accent" type="button">
+              <button
+                className="mt-1 flex h-11 w-full items-center gap-4 rounded-lg px-3 text-left text-[15px] font-medium text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+                onClick={openCreateFolderModal}
+                type="button"
+              >
                 <PlusIcon className="h-5 w-5 shrink-0" />
                 <span>New Folder</span>
               </button>
