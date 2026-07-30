@@ -18,6 +18,7 @@ import {
   TasksIcon,
 } from './icons';
 
+import { useEffect, useRef } from 'react';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -146,12 +147,41 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const foldersActive = pathname === '/folders' || pathname.startsWith('/folders/');
   const settingsActive = pathname === '/settings' || pathname.startsWith('/settings/');
+  const sidebarRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const sidebar = sidebarRef.current;
+
+    if (!sidebar) return;
+
+    let scrollTimeout: ReturnType<typeof setTimeout>;
+
+    const handleScroll = () => {
+      sidebar.classList.add('is-scrolling');
+
+      clearTimeout(scrollTimeout);
+
+      scrollTimeout = setTimeout(() => {
+        sidebar.classList.remove('is-scrolling');
+      }, 500);
+    };
+
+    sidebar.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      sidebar.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, []);
+
+  // ...
 
   return (
     <aside
+      ref={sidebarRef}
       className={cn(
-        'flex h-dvh w-80 flex-col overflow-y-auto border-r border-dashboard-border bg-[#03101a]/95 px-6 py-7 text-dashboard-text shadow-panel backdrop-blur-xl',
-        className,
+    'accent-scrollbar flex h-dvh w-80 flex-col overflow-y-auto border-r border-dashboard-border bg-[#03101a]/95 px-6 py-7 text-dashboard-text shadow-panel backdrop-blur-xl',
+    className,
       )}
     >
       <div className="mb-8 flex items-center gap-3">
