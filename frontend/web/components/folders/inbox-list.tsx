@@ -126,16 +126,22 @@ export function InboxList({
                 </span>
                 <select
                   aria-label={`Move ${task.title} to folder`}
-                  className="h-10 w-40 rounded-lg border border-dashboard-border bg-dashboard-bg/35 px-3 text-sm text-dashboard-muted outline-none focus:border-dashboard-accent disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-10 w-40 rounded-lg border border-dashboard-border bg-dashboard-raised px-3 text-sm text-dashboard-muted outline-none focus:border-dashboard-accent disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={!onMoveToFolder || folders.length === 0}
                   onChange={(event) => {
                     if (event.target.value) onMoveToFolder?.(task, event.target.value);
                   }}
                   value=""
                 >
-                  <option value="">Move to folder</option>
+                  <option disabled hidden value="">
+                    Move to folder
+                  </option>
                   {folders.map((folder) => (
-                    <option key={folder.id} value={folder.id}>
+                    <option
+                      className="bg-dashboard-raised text-dashboard-text"
+                      key={folder.id}
+                      value={folder.id}
+                    >
                       {folder.name}
                     </option>
                   ))}
