@@ -113,10 +113,10 @@
   --dashboard-accent-rgb: 53 227 181;
   --dashboard-accent-strong-rgb: 32 201 157;
   --dashboard-danger: var(--red);
-  --dashboard-warning: var(--yellow);
+  --dashboard-warning: var(--orange);
   --dashboard-info: var(--blue);
   --dashboard-danger-rgb: 240 76 85;
-  --dashboard-warning-rgb: 255 194 41;
+  --dashboard-warning-rgb: 245 160 25;
   --dashboard-info-rgb: 78 142 255;
 }
 

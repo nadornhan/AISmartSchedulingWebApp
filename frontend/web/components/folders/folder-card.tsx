@@ -20,7 +20,7 @@ type FolderCardProps = {
 
 const priorityStyles: Record<FolderTaskPreview['priority'], string> = {
   no_priority: 'bg-dashboard-surface text-dashboard-muted',
-  low: 'bg-dashboard-accent-soft text-dashboard-accent',
+  low: 'bg-dashboard-info/15 text-dashboard-info',
   medium: 'bg-dashboard-warning/15 text-dashboard-warning',
   high: 'bg-dashboard-danger/15 text-dashboard-danger',
 };

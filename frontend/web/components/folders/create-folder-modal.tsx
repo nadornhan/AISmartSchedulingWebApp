@@ -4,7 +4,14 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { createFolder, type Folder } from '../../lib/folders';
 import { FolderIcon, PlusIcon } from '../layout/icons';
 
-const folderColors = ['#22F0B1', '#3B82F6', '#8B5CF6', '#FF4D6D', '#FFD21F', '#22D3EE'];
+const folderColors = [
+  '#35E3B5',
+  '#4E8EFF',
+  '#9767F4',
+  '#F04C55',
+  '#FFC229',
+  '#F5A019',
+];
 
 type CreateFolderModalProps = {
   isOpen: boolean;

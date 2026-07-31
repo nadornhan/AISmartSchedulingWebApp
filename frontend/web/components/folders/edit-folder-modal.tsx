@@ -3,7 +3,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Folder } from '../../lib/folders';
 
-const colors = ['#22F0B1', '#3B82F6', '#8B5CF6', '#FF5757', '#FFD21F', '#22D3EE'];
+const colors = [
+  '#35E3B5',
+  '#4E8EFF',
+  '#9767F4',
+  '#F04C55',
+  '#FFC229',
+  '#F5A019',
+];
 
 type EditFolderModalProps = {
   folder: Folder | null;
