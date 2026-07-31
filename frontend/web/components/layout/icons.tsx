@@ -171,3 +171,75 @@ export function MenuIcon(props: IconProps) {
     </IconBase>
   );
 }
+
+export function CheckIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="m5 12 4 4L19 6" />
+    </IconBase>
+  );
+}
+
+export function EditIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
+    </IconBase>
+  );
+}
+
+export function MoreIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="12" cy="5" fill="currentColor" r="1" stroke="none" />
+      <circle cx="12" cy="12" fill="currentColor" r="1" stroke="none" />
+      <circle cx="12" cy="19" fill="currentColor" r="1" stroke="none" />
+    </IconBase>
+  );
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M4 7h16" />
+      <path d="M9 11v6" />
+      <path d="M15 11v6" />
+      <path d="m6 7 1 14h10l1-14" />
+      <path d="M9 7V4h6v3" />
+    </IconBase>
+  );
+}
+
+export function MoveIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 3v18" />
+      <path d="m8 7 4-4 4 4" />
+      <path d="m8 17 4 4 4-4" />
+      <path d="M3 12h18" />
+      <path d="m7 8-4 4 4 4" />
+      <path d="m17 8 4 4-4 4" />
+    </IconBase>
+  );
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="m6 6 12 12" />
+      <path d="M18 6 6 18" />
+    </IconBase>
+  );
+}
+
+export function SortIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M8 4v16" />
+      <path d="m4 8 4-4 4 4" />
+      <path d="M16 20V4" />
+      <path d="m12 16 4 4 4-4" />
+    </IconBase>
+  );
+}

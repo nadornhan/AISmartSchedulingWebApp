@@ -18,6 +18,7 @@ import {
   TasksIcon,
 } from './icons';
 
+
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
 type NavItem = {
@@ -113,10 +114,10 @@ function NavLink({
     <Link
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group flex h-12 items-center gap-4 rounded-lg px-3 text-[15px] font-medium transition',
+        'group flex h-12 items-center gap-4 rounded-lg px-3 text-[15px] font-normal transition-shadow',
         active
-          ? 'bg-gradient-to-r from-dashboard-accent/95 to-dashboard-accent-strong/70 text-dashboard-text shadow-glow'
-          : 'text-dashboard-muted hover:bg-dashboard-surface hover:text-dashboard-text',
+          ? 'border-l-4 border-l-dashboard-accent bg-dashboard-accent/20 text-dashboard-accent'
+          : 'border border-transparent text-dashboard-muted hover:border-dashboard-border hover:bg-dashboard-surface hover:text-dashboard-accent',
       )}
       href={item.href}
       onClick={onNavigate}
@@ -124,7 +125,7 @@ function NavLink({
       <Icon
         className={cn(
           'h-5 w-5 shrink-0 transition',
-          active ? 'text-dashboard-text' : 'text-dashboard-muted group-hover:text-dashboard-accent',
+          active ? 'text-dashboard-accent' : 'text-dashboard-muted group-hover:text-dashboard-accent',
         )}
       />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -169,16 +170,57 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
     >
       <div className="mb-8 flex items-center gap-3">
         <BrandMark />
-        <span className="text-3xl font-semibold leading-none tracking-normal">Chrono</span>
+        <span className="font-poppins text-3xl mt-1 font-medium leading-none tracking-normal">Chrono</span>
       </div>
 
-      <button className="mb-10 flex h-14 items-center justify-between rounded-lg bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-6 text-base font-semibold text-white shadow-glow transition hover:brightness-110" type="button">
-        <span className="flex items-center gap-4">
-          <PlusIcon className="h-6 w-6" />
-          Add task
-        </span>
-        <ChevronDownIcon className="h-5 w-5" />
-      </button>
+      <div className="group relative mb-10">
+        <div className="flex h-14 overflow-hidden rounded-xl border border-dashboard-accent/60 bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong text-white shadow-glow transition hover:brightness-110">
+          {/* Main Add Task button */}
+          <button
+            className="flex flex-1 items-center justify-center gap-3 px-6 text-base font-normal"
+            type="button"
+          >
+            <PlusIcon className="h-6 w-6" />
+            <span>Add Task</span>
+          </button>
+
+          {/* Dropdown trigger */}
+          <button
+            aria-label="Open add task menu"
+            className="grid w-[72px] place-items-center border-l border-white/10 transition hover:bg-white/10"
+            type="button"
+          >
+            <ChevronDownIcon className="h-6 w-6 transition-transform duration-200 group-hover:rotate-180" />
+          </button>
+        </div>
+
+        {/* Future dropdown */}
+        <div
+          className="
+            invisible absolute left-0 right-0 top-full z-50 mt-2
+            translate-y-1 rounded-xl border border-dashboard-border
+            bg-[#071923] p-2 opacity-0 shadow-panel
+            transition-all duration-200
+            group-hover:visible group-hover:translate-y-0 group-hover:opacity-100
+          "
+        >
+          <button
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+            type="button"
+          >
+            <TasksIcon className="h-5 w-5" />
+            Create task
+          </button>
+
+          <button
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+            type="button"
+          >
+            <FolderIcon className="h-5 w-5" />
+            Create task in folder
+          </button>
+        </div>
+      </div>
 
       <nav aria-label="Main navigation" className="space-y-8">
         <section>
@@ -209,12 +251,12 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             <div className="pt-1">
               {folders.map((folder) => (
                 <Link
-                  className="group flex h-11 items-center gap-4 rounded-lg px-3 text-[15px] font-medium text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-text"
+                  className="group flex h-11 items-center gap-4 rounded-lg px-3 text-[15px] font-normal text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-text"
                   href={`/folders?folder=${encodeURIComponent(folder.name.toLowerCase())}`}
                   key={folder.name}
                   onClick={onNavigate}
                 >
-                  <span className={cn('h-5 w-5 shrink-0 rounded-full', folder.color)} />
+                  <span className={cn('h-3 w-3 shrink-0 rounded-full', folder.color)} />
                   <span className="min-w-0 flex-1 truncate">{folder.name}</span>
                   <span className="rounded-full bg-dashboard-surface px-2.5 py-1 text-sm font-semibold leading-none text-dashboard-text group-hover:text-dashboard-accent">
                     {folder.count}
@@ -236,12 +278,19 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       </nav>
 
       <div className="mt-auto pt-8">
-        <div className="mb-6 overflow-hidden rounded-lg border border-dashboard-border bg-dashboard-surface/80 p-5">
-          <p className="text-base font-semibold text-dashboard-text">Keep going!</p>
-          <p className="mt-3 text-sm leading-6 text-dashboard-muted">
+        <div
+          className="mb-6 overflow-hidden rounded-2xl border border-dashboard-border p-6 aspect-[4.2/3]"
+          style={{
+            backgroundImage: "url('/sidebar.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <p className="text-base font-semibold text-dashboard-text">Keep going!🚀</p>
+
+          <p className="mt-1 pr-10 text-sm leading-5 text-dashboard-muted">
             Small progress every day leads to big results.
           </p>
-          <div className="mt-6 h-20 rounded-lg bg-gradient-to-br from-dashboard-accent-soft via-transparent to-dashboard-accent/30" />
         </div>
 
         <Link
