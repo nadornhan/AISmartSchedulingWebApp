@@ -14,27 +14,53 @@ class User(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
+
     email: Mapped[str] = mapped_column(
         String(320),
         unique=True,
         index=True,
         nullable=False,
     )
+
+    first_name: Mapped[str] = mapped_column(
+        String(100),
+        default="",
+        server_default="",
+        nullable=False,
+    )
+
+    last_name: Mapped[str] = mapped_column(
+        String(100),
+        default="",
+        server_default="",
+        nullable=False,
+    )
+
+    role: Mapped[str] = mapped_column(
+        String(32),
+        default="student",
+        server_default="student",
+        nullable=False,
+    )
+
     password_hash: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
     )
+
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
         server_default="true",
         nullable=False,
     )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
     )
+    
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

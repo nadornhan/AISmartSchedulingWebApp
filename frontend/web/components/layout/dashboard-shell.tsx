@@ -1,7 +1,10 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
+import { clearSession, getCachedCurrentUser, getCurrentUser } from '../../lib/auth';
+import type { UserResponse } from '../../lib/auth';
 import { Header } from './header';
 import { Sidebar } from './sidebar';
 
@@ -69,16 +72,54 @@ function getRouteMeta(pathname: string): RouteMeta {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const meta = getRouteMeta(pathname);
+  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const cachedUser = getCachedCurrentUser();
+
+    if (cachedUser) {
+      setCurrentUser(cachedUser);
+    }
+
+    getCurrentUser()
+      .then((user) => {
+        if (isMounted) {
+          setCurrentUser(user);
+        }
+      })
+      .catch(() => {
+        clearSession();
+        router.replace('/login');
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsCheckingSession(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
 
   return (
     <div className="min-h-dvh bg-dashboard-bg text-dashboard-text lg:flex">
       <Sidebar className="max-lg:h-auto max-lg:w-full max-lg:border-b max-lg:border-r-0 max-lg:px-4 max-lg:py-5" />
 
       <div className="min-w-0 flex-1">
-        <Header subtitle={meta.subtitle} title={meta.title} />
+        <Header subtitle={meta.subtitle} title={meta.title} user={currentUser} />
         <main className="min-h-[calc(100dvh-7rem)] px-6 py-8 lg:px-10 xl:px-12">
-          {children}
+          {isCheckingSession && !currentUser ? (
+            <div className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted">
+              Checking your session...
+            </div>
+          ) : (
+            children
+          )}
         </main>
       </div>
     </div>

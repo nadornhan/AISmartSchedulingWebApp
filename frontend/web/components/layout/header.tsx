@@ -1,16 +1,18 @@
 import { BellIcon, ChevronDownIcon, SearchIcon } from './icons';
+import type { UserResponse } from '../../lib/auth';
 
 type HeaderProps = {
   title: string;
   subtitle?: string;
   className?: string;
+  user?: UserResponse | null;
 };
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }
 
-export function Header({ title, subtitle, className }: HeaderProps) {
+export function Header({ title, subtitle, className, user }: HeaderProps) {
   return (
     <header
       className={cn(
@@ -30,13 +32,13 @@ export function Header({ title, subtitle, className }: HeaderProps) {
 
         <div className="hidden shrink-0 items-center gap-6 md:flex">
           <SearchBox />
-          <HeaderActions />
+          <HeaderActions user={user} />
         </div>
       </div>
 
       <div className="flex items-center gap-4 md:hidden">
         <SearchBox compact />
-        <HeaderActions compact />
+        <HeaderActions compact user={user} />
       </div>
     </header>
   );
@@ -61,7 +63,26 @@ function SearchBox({ compact = false }: Readonly<{ compact?: boolean }>) {
   );
 }
 
-function HeaderActions({ compact = false }: Readonly<{ compact?: boolean }>) {
+function getUserInitials(user?: UserResponse | null) {
+  if (!user) {
+    return '...';
+  }
+
+  const firstInitial = user.first_name.trim()[0];
+  const lastInitial = user.last_name.trim()[0];
+
+  return `${firstInitial ?? ''}${lastInitial ?? ''}`.toUpperCase() || user.email.slice(0, 2).toUpperCase();
+}
+
+function HeaderActions({
+  compact = false,
+  user,
+}: Readonly<{
+  compact?: boolean;
+  user?: UserResponse | null;
+}>) {
+  const initials = getUserInitials(user);
+
   return (
     <div className={cn('flex items-center', compact ? 'gap-3' : 'gap-6')}>
       <button
@@ -81,7 +102,7 @@ function HeaderActions({ compact = false }: Readonly<{ compact?: boolean }>) {
         type="button"
       >
         <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border border-dashboard-border-strong bg-gradient-to-br from-dashboard-muted to-dashboard-surface text-sm font-semibold text-dashboard-bg">
-          MN
+          {initials}
         </span>
         <ChevronDownIcon className="hidden h-5 w-5 shrink-0 sm:block" />
       </button>

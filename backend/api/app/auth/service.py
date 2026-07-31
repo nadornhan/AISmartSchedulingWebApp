@@ -15,6 +15,9 @@ def get_user_by_email(db: Session, email: str) -> User | None:
 def create_user(db: Session, user_data: UserRegister) -> User:
     user = User(
         email=str(user_data.email).lower(),
+        first_name=user_data.first_name.strip(),
+        last_name=user_data.last_name.strip(),
+        role=user_data.role.strip() or "student",
         password_hash=hash_password(user_data.password),
     )
 
