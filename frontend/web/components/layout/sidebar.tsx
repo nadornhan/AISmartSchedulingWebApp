@@ -18,6 +18,7 @@ import {
   TasksIcon,
 } from './icons';
 
+import { useEffect, useRef } from 'react';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -74,24 +75,32 @@ function BrandMark() {
 function SectionTitle({
   children,
   actionLabel,
+  href,
+  onNavigate,
 }: Readonly<{
   children: ReactNode;
   actionLabel?: string;
+  href?: string;
+  onNavigate?: () => void;
 }>) {
+  const titleClassName =
+    'text-[13px] font-normal uppercase tracking-[0.02em] text-dashboard-muted transition hover:text-dashboard-accent';
+
   return (
-    <div className="mb-4 flex items-center justify-between px-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.02em] text-dashboard-muted">
-        {children}
-      </p>
-      {actionLabel ? (
-        <button
-          aria-label={actionLabel}
-          className="grid h-9 w-9 place-items-center rounded-full border border-dashboard-border bg-dashboard-surface text-dashboard-text transition hover:border-dashboard-accent/60 hover:text-dashboard-accent"
-          type="button"
+    <div className="mb-2 flex items-center justify-between px-3">
+      {href ? (
+        <Link
+          href={href}
+          onClick={onNavigate}
+          className={titleClassName}
         >
-          <PlusIcon className="h-5 w-5" />
-        </button>
-      ) : null}
+          {children}
+        </Link>
+      ) : (
+        <p className={titleClassName}>
+          {children}
+        </p>
+      )}
     </div>
   );
 }
@@ -129,7 +138,7 @@ function NavLink({
       {item.badge ? (
         <span
           className={cn(
-            'rounded-full px-3 py-1 text-sm font-semibold leading-none',
+            'rounded-full px-3 py-1 text-sm font-medium leading-none',
             active
               ? 'bg-dashboard-bg/25 text-dashboard-text'
               : 'bg-dashboard-accent-soft text-dashboard-accent',
@@ -146,12 +155,41 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const foldersActive = pathname === '/folders' || pathname.startsWith('/folders/');
   const settingsActive = pathname === '/settings' || pathname.startsWith('/settings/');
+  const sidebarRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const sidebar = sidebarRef.current;
+
+    if (!sidebar) return;
+
+    let scrollTimeout: ReturnType<typeof setTimeout>;
+
+    const handleScroll = () => {
+      sidebar.classList.add('is-scrolling');
+
+      clearTimeout(scrollTimeout);
+
+      scrollTimeout = setTimeout(() => {
+        sidebar.classList.remove('is-scrolling');
+      }, 500);
+    };
+
+    sidebar.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      sidebar.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, []);
+
+  // ...
 
   return (
     <aside
+      ref={sidebarRef}
       className={cn(
-        'flex h-dvh w-80 flex-col overflow-y-auto border-r border-dashboard-border bg-[#03101a]/95 px-6 py-7 text-dashboard-text shadow-panel backdrop-blur-xl',
-        className,
+    'accent-scrollbar flex h-dvh w-80 flex-col overflow-y-auto border-r border-dashboard-border bg-[#03101a]/95 px-6 py-5 text-dashboard-text shadow-panel backdrop-blur-xl',
+    className,
       )}
     >
       <div className="mb-8 flex items-center gap-3">
@@ -160,20 +198,20 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       </div>
 
       <div className="group relative mb-10">
-        <div className="flex h-14 overflow-hidden rounded-xl border border-dashboard-accent/60 bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong text-white shadow-glow transition hover:brightness-110">
+        <div className="flex h-14 overflow-hidden rounded-xl border border-dashboard-accent/60 bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong text-white transition hover:brightness-110">
           {/* Main Add Task button */}
           <button
             className="flex flex-1 items-center justify-center gap-3 px-6 text-base font-normal"
             type="button"
           >
-            <PlusIcon className="h-6 w-6" />
+            <PlusIcon className="h-6 w-6 mb-1" />
             <span>Add Task</span>
           </button>
 
           {/* Dropdown trigger */}
           <button
             aria-label="Open add task menu"
-            className="grid w-[72px] place-items-center border-l border-white/10 transition hover:bg-white/10"
+            className="grid w-[64px] place-items-center border-l border-white/30 transition hover:bg-white/10"
             type="button"
           >
             <ChevronDownIcon className="h-6 w-6 transition-transform duration-200 group-hover:rotate-180" />
@@ -223,15 +261,9 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </div>
         </section>
 
-        <section>
-          <SectionTitle actionLabel="Add folder">Projects / Folders</SectionTitle>
+        <section className="border-t border-[#AAAAAA]/20 pt-6">
+          <SectionTitle href="/folders"actionLabel="Add folder">Projects / Folders</SectionTitle>
           <div className="space-y-1.5">
-            <NavLink
-              active={foldersActive}
-              item={{ href: '/folders', label: 'Folders', icon: FolderIcon }}
-              onNavigate={onNavigate}
-            />
-
             <div className="pt-1">
               {folders.map((folder) => (
                 <Link
@@ -242,7 +274,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 >
                   <span className={cn('h-3 w-3 shrink-0 rounded-full', folder.color)} />
                   <span className="min-w-0 flex-1 truncate">{folder.name}</span>
-                  <span className="rounded-full bg-dashboard-surface px-2.5 py-1 text-sm font-semibold leading-none text-dashboard-text group-hover:text-dashboard-accent">
+                  <span className="rounded-full bg-dashboard-surface px-2.5 py-1 text-sm font-medium leading-none text-dashboard-text group-hover:text-dashboard-accent">
                     {folder.count}
                   </span>
                 </Link>
