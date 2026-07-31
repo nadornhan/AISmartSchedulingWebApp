@@ -3,31 +3,121 @@
 @tailwind utilities;
 
 :root {
-  --dashboard-bg: #020b12;
-  --dashboard-surface: #07131d;
-  --dashboard-surface-raised: #0a1722;
-  --dashboard-bg-rgb: 2 11 18;
-  --dashboard-surface-rgb: 7 19 29;
-  --dashboard-surface-raised-rgb: 10 23 34;
-  --dashboard-border: rgba(148, 163, 184, 0.16);
-  --dashboard-border-strong: rgba(148, 163, 184, 0.28);
-  --dashboard-text: #f7fafc;
-  --dashboard-muted: #a8b3be;
-  --dashboard-subtle: #6f7e89;
-  --dashboard-accent: #22f0b1;
-  --dashboard-accent-strong: #16c995;
-  --dashboard-accent-soft: rgba(34, 240, 177, 0.16);
-  --dashboard-text-rgb: 247 250 252;
-  --dashboard-muted-rgb: 168 179 190;
-  --dashboard-subtle-rgb: 111 126 137;
-  --dashboard-accent-rgb: 34 240 177;
-  --dashboard-accent-strong-rgb: 22 201 149;
-  --dashboard-danger: #ff5757;
-  --dashboard-warning: #ffd21f;
-  --dashboard-info: #3b82f6;
-  --dashboard-danger-rgb: 255 87 87;
-  --dashboard-warning-rgb: 255 210 31;
-  --dashboard-info-rgb: 59 130 246;
+  /* Canonical tokens from frontend/Theme.md. */
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --bg-page: #040c14;
+  --bg-sidebar: #050e16;
+  --bg-surface: #0a151e;
+  --bg-surface-raised: #0d1a24;
+  --bg-surface-hover: #11222c;
+  --bg-input: #0a141d;
+
+  --border-subtle: #172630;
+  --border-default: #1c2d37;
+  --border-strong: #29404b;
+  --border-active: rgba(53, 227, 181, 0.35);
+
+  --text-primary: #f4f7f6;
+  --text-secondary: #a3adb2;
+  --text-muted: #6e7d84;
+  --text-placeholder: #627179;
+  --text-disabled: #46545b;
+
+  --accent: #35e3b5;
+  --accent-hover: #4eebc1;
+  --accent-pressed: #20c99d;
+  --accent-dark: #148b70;
+  --accent-soft: rgba(53, 227, 181, 0.12);
+  --accent-border: rgba(53, 227, 181, 0.28);
+
+  --green-300: #65ebc9;
+  --green-400: #35e3b5;
+  --green-500: #20cfa2;
+  --green-600: #149a79;
+  --green-700: #0e654f;
+  --green-bg-soft: rgba(53, 227, 181, 0.1);
+  --green-bg-medium: rgba(53, 227, 181, 0.16);
+  --green-border: rgba(53, 227, 181, 0.28);
+
+  --purple: #9767f4;
+  --purple-light: #b18aff;
+  --purple-dark: #6742c5;
+  --purple-soft: rgba(151, 103, 244, 0.13);
+  --purple-border: rgba(151, 103, 244, 0.28);
+
+  --orange: #f5a019;
+  --orange-light: #ffb648;
+  --orange-dark: #b96f08;
+  --orange-soft: rgba(245, 160, 25, 0.13);
+  --orange-border: rgba(245, 160, 25, 0.28);
+
+  --red: #f04c55;
+  --red-light: #ff6972;
+  --red-dark: #b92e37;
+  --red-soft: rgba(240, 76, 85, 0.13);
+  --red-border: rgba(240, 76, 85, 0.28);
+
+  --blue: #4e8eff;
+  --blue-light: #78aaff;
+  --blue-dark: #2860c5;
+  --blue-soft: rgba(78, 142, 255, 0.13);
+  --blue-border: rgba(78, 142, 255, 0.28);
+
+  --yellow: #ffc229;
+  --yellow-soft: rgba(255, 194, 41, 0.13);
+  --progress-track: #1b2932;
+
+  --tracking-heading: -0.025em;
+  --tracking-body: -0.01em;
+  --tracking-label: 0;
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --input-height-desktop: 44px;
+  --input-height-mobile: 48px;
+
+  /* Backwards-compatible aliases used by the current Tailwind configuration. */
+  --dashboard-bg: var(--bg-page);
+  --dashboard-surface: var(--bg-surface);
+  --dashboard-surface-raised: var(--bg-surface-raised);
+  --dashboard-bg-rgb: 4 12 20;
+  --dashboard-surface-rgb: 10 21 30;
+  --dashboard-surface-raised-rgb: 13 26 36;
+  --dashboard-border: var(--border-subtle);
+  --dashboard-border-strong: var(--border-strong);
+  --dashboard-text: var(--text-primary);
+  --dashboard-muted: var(--text-secondary);
+  --dashboard-subtle: var(--text-muted);
+  --dashboard-accent: var(--accent);
+  --dashboard-accent-strong: var(--accent-pressed);
+  --dashboard-accent-soft: var(--accent-soft);
+  --dashboard-text-rgb: 244 247 246;
+  --dashboard-muted-rgb: 163 173 178;
+  --dashboard-subtle-rgb: 110 125 132;
+  --dashboard-accent-rgb: 53 227 181;
+  --dashboard-accent-strong-rgb: 32 201 157;
+  --dashboard-danger: var(--red);
+  --dashboard-warning: var(--yellow);
+  --dashboard-info: var(--blue);
+  --dashboard-danger-rgb: 240 76 85;
+  --dashboard-warning-rgb: 255 194 41;
+  --dashboard-info-rgb: 78 142 255;
 }
 
 * {
@@ -43,11 +133,9 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgba(34, 240, 177, 0.1), transparent 28rem),
-    linear-gradient(135deg, #020811 0%, #020b12 46%, #03111b 100%);
+    radial-gradient(circle at 65% 15%, rgba(53, 227, 181, 0.045), transparent 34%), var(--bg-page);
   color: var(--dashboard-text);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -73,7 +161,7 @@ button {
 }
 
 ::selection {
-  background: rgba(34, 240, 177, 0.28);
+  background: var(--accent-border);
   color: var(--dashboard-text);
 }
 
@@ -119,4 +207,3 @@ button {
   border: 0 !important;
   -webkit-appearance: none !important;
 }
-
