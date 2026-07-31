@@ -22,7 +22,7 @@ export function Header({ title, subtitle, className, user }: HeaderProps) {
     >
       <div className="flex items-start justify-between gap-6">
         <div className="min-w-0">
-          <h1 className="truncate text-4xl font-semibold leading-tight tracking-normal text-dashboard-text">
+          <h1 className="truncate font-poppins text-3xl font-medium leading-tight tracking-normal text-dashboard-text">
             {title}
           </h1>
           {subtitle ? (
