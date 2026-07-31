@@ -32,14 +32,14 @@ export function SchedulingWeights({ value, onChange }: SchedulingWeightsProps) {
         {weights.map((weight) => (
           <div className="grid gap-2" key={weight.label}>
             <div className="flex items-center justify-between gap-4 text-sm">
-              <label className="font-medium text-slate-700" htmlFor={weight.key}>
+              <label className="font-medium text-dashboard-text" htmlFor={weight.key}>
                 {weight.label}
               </label>
-              <span className="text-slate-500">{value[weight.key]}%</span>
+              <span className="text-dashboard-muted">{value[weight.key]}%</span>
             </div>
             <input
               aria-valuetext={`${value[weight.key]} percent`}
-              className="accent-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              className="accent-dashboard-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
               id={weight.key}
               max="100"
               min="0"
