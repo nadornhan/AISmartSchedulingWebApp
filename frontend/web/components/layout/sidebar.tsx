@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
 import {
   CalendarIcon,
@@ -75,32 +75,39 @@ function BrandMark() {
 function SectionTitle({
   children,
   actionLabel,
+  onAction,
   href,
   onNavigate,
 }: Readonly<{
   children: ReactNode;
   actionLabel?: string;
+  onAction?: () => void;
   href?: string;
   onNavigate?: () => void;
 }>) {
-  const titleClassName =
+    const titleClassName =
     'text-[13px] font-normal uppercase tracking-[0.02em] text-dashboard-muted transition hover:text-dashboard-accent';
 
   return (
     <div className="mb-2 flex items-center justify-between px-3">
       {href ? (
-        <Link
-          href={href}
-          onClick={onNavigate}
-          className={titleClassName}
-        >
+        <Link href={href} onClick={onNavigate} className={titleClassName}>
           {children}
         </Link>
       ) : (
-        <p className={titleClassName}>
-          {children}
-        </p>
+        <p className={titleClassName}>{children}</p>
       )}
+
+      {actionLabel && onAction ? (
+        <button
+          aria-label={actionLabel}
+          className="grid h-9 w-9 place-items-center rounded-full border border-dashboard-border bg-dashboard-surface text-dashboard-text transition hover:border-dashboard-accent/60 hover:text-dashboard-accent"
+          onClick={onAction}
+          type="button"
+        >
+          <PlusIcon className="h-5 w-5" />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -153,6 +160,7 @@ function NavLink({
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const foldersActive = pathname === '/folders' || pathname.startsWith('/folders/');
   const settingsActive = pathname === '/settings' || pathname.startsWith('/settings/');
   const sidebarRef = useRef<HTMLElement>(null);
@@ -183,6 +191,16 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   }, []);
 
   // ...
+
+  function openCreateFolderModal() {
+    if (foldersActive) {
+      window.dispatchEvent(new Event('open-create-folder'));
+      return;
+    }
+
+    router.push('/folders#create-folder');
+    onNavigate?.();
+  }
 
   return (
     <aside
@@ -261,6 +279,15 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </div>
         </section>
 
+<section className="border-t border-[#AAAAAA]/20 pt-6">
+  <SectionTitle
+    actionLabel="Add folder"
+    href="/folders"
+    onAction={openCreateFolderModal}
+    onNavigate={onNavigate}
+  >
+    Projects / Folders
+  </SectionTitle>
         <section className="border-t border-[#AAAAAA]/20 pt-6">
           <SectionTitle href="/folders"actionLabel="Add folder">Projects / Folders</SectionTitle>
           <div className="space-y-1.5">
@@ -280,7 +307,11 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 </Link>
               ))}
 
-              <button className="mt-1 flex h-11 w-full items-center gap-4 rounded-lg px-3 text-left text-[15px] font-medium text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-accent" type="button">
+              <button
+                className="mt-1 flex h-11 w-full items-center gap-4 rounded-lg px-3 text-left text-[15px] font-medium text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+                onClick={openCreateFolderModal}
+                type="button"
+              >
                 <PlusIcon className="h-5 w-5 shrink-0" />
                 <span>New Folder</span>
               </button>
