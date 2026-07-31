@@ -212,7 +212,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
     >
       <div className="mb-8 flex items-center gap-3">
         <BrandMark />
-        <span className="font-poppins text-3xl mt-1 font-medium leading-none tracking-normal">Chrono</span>
+        <span className="font-poppins text-[28px] mt-2 font-medium leading-none tracking-normal">Chrono</span>
       </div>
 
       <div className="group relative mb-10">

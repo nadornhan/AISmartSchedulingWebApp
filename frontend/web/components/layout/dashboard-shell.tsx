@@ -33,7 +33,7 @@ const routeMeta: Record<string, RouteMeta> = {
   },
   '/priority': {
     title: 'Priority View',
-    subtitle: 'See what needs your attention first.',
+    subtitle: 'Focus on what matters most.',
   },
   '/focus': {
     title: 'Focus Mode',

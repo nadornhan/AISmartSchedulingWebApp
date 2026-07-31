@@ -14,8 +14,11 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'AI Smart Scheduling',
+  title: 'Chrono - Start Focus Session',
   description: 'AI Smart Scheduling web scaffold',
+  icons: {
+    icon: '/chrono-logo.svg',
+  },
 };
 
 export default function RootLayout({
