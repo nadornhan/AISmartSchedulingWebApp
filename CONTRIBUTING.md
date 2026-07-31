@@ -1,31 +1,133 @@
 # Contributing To Todo List
 
-This project is a pnpm monorepo with a Next.js web app, backend API, PostgreSQL database, SQLAlchemy ORM where Python services are used, and either PostgreSQL-backed custom auth or Supabase Auth. The active task-management implementation is web plus API. Keep contributions aligned with the stack and architecture described in `STACK.md`.
+This project uses a feature-branch workflow. Six members can each own one or more feature branches, but branches should be named by feature, not by member.
 
-## Branches
+## Branch Rules
 
-Permanent branches:
-
-- `main` is the stable branch for milestone-ready code.
+- `main` is stable milestone/demo-ready code.
 - `develop` is the integration branch for active work.
+- `feature/*` branches are for focused feature work.
+- Keep feature branches updated with latest `develop`.
+- Merge completed feature branches back into `develop`.
+- Merge `develop` into `main` only after the milestone is stable.
 
-Feature work should start from `develop`:
+## Member Branch Workflow
 
-```bash
-git checkout develop
-git pull
-git checkout -b feature/task-management
+Each member should work on their assigned feature branch, not directly on `develop`.
+
+The normal flow is:
+
+```text
+develop -> feature branch -> merge back into develop -> later main
 ```
 
-Merge completed feature branches back into `develop` first. Only merge `develop` into `main` after a stable milestone.
+### Safe Update Commands
 
-## Branch Structure
+Use these commands to download remote changes and update your local feature branch. These commands do not push anything.
+
+Step 1: Download the latest branch information.
+
+```powershell
+git fetch origin
+```
+
+Step 2: Go to your assigned feature branch.
+
+If the branch already exists locally:
+
+```powershell
+git checkout feature/task-management
+git pull origin feature/task-management
+```
+
+If the branch exists on GitHub but not on your computer yet:
+
+```powershell
+git checkout -b feature/task-management origin/feature/task-management
+```
+
+Step 3: Bring the latest shared scaffold and docs from `develop` into your feature branch.
+
+```powershell
+git merge origin/develop
+```
+
+At this point, your local feature branch has the latest `develop` changes. If Git reports conflicts, fix the conflicts, then commit the merge before continuing.
+
+Step 4: Work inside your assigned feature folders.
+
+```text
+frontend/web/app/tasks/
+frontend/web/components/tasks/
+frontend/web/lib/tasks.ts
+backend/api/app/tasks/
+```
+
+Replace `tasks` with your assigned feature area, such as `auth`, `folders`, `calendar`, `analytics`, `focus`, `priority`, `gamification`, or `settings`.
+
+### Safe Push Commands
+
+Only push your assigned feature branch. Replace `feature/task-management` with your own feature branch name.
+
+```powershell
+git add .
+git commit -m "feat: add task list UI"
+git push origin feature/task-management
+```
+
+If you only merged the latest `develop` into your feature branch and made no other code changes, do not create another commit. Push only your feature branch:
+
+```powershell
+git push origin feature/task-management
+```
+
+### Merge Back To Develop
+
+When the feature is ready, merge it back into `develop`.
+
+Usually this should happen through a GitHub pull request:
+
+```text
+feature/task-management -> develop
+```
+
+### Commands To Avoid
+
+Do not code directly on `main`.
+
+Do not push to `main`:
+
+```powershell
+git push origin main
+```
+
+Do not push unfinished feature work directly to `develop`:
+
+```powershell
+git push origin develop
+```
+
+Do not use a plain push if you are unsure which branch is active:
+
+```powershell
+git push
+```
+
+Before pushing, check your current branch:
+
+```powershell
+git branch --show-current
+```
+
+The branch name should be your assigned `feature/*` branch.
+
+## Current Feature Branches
 
 ```text
 main
 `-- develop
     |-- feature/navigation-shell
-    |-- feature/auth-account       rewrite in Node.js
+    |-- feature/auth-account
     |-- feature/task-management
     |-- feature/folders-inbox
     |-- feature/calendar-reminders
@@ -36,137 +138,172 @@ main
     `-- feature/settings-polish
 ```
 
-## Planned Feature Branches
+Do not create member branches such as `feature/minh-work` or `andy-branch`. Assign members to feature branches instead.
 
-Keep feature branches focused on one feature area. Six members can own multiple branches when needed.
+## Six-Member Ownership Plan
 
-| Member | Branches | Frontend Ownership | Backend Ownership |
+| Member | Branches | Frontend ownership | Backend ownership |
 | --- | --- | --- | --- |
-| 1 | `feature/navigation-shell`, `feature/settings-polish` | App layout, sidebar, route placeholders, responsive shell, settings UI polish | Database management, base router structure, health/status cleanup, user preference routes later |
-| 2 | `feature/auth-account` | Login/register/sign-out UI, account page, auth session state, Node.js rewrite | PostgreSQL-backed auth or Supabase token verification, current-user dependency, profile/account endpoints in Node.js |
-| 3 | `feature/task-management` | Task cards, task form, task list, complete/reopen, edit/delete UI | Task model, task schemas, task CRUD routes, user-owned task filtering |
-| 4 | `feature/search-filtering`, `feature/folders-inbox` | Search input, filters, folder list, folder form, inbox view, move tasks between folders | Task search query support, folder model, folder schemas, folder CRUD routes, task folder support |
-| 5 | `feature/calendar-reminders`, `feature/analytics-dashboard` | Calendar view, due date UI, reminder UI, overdue/upcoming views, analytics dashboard | Due date fields, reminder fields, deadline queries, analytics summary endpoint |
-| 6 | `feature/focus-mode`, `feature/priority-view`, `feature/gamification` | Pomodoro timer, focus page, priority labels, streak/tree UI | Focus session model/routes, priority field, priority update/query routes, streak/tree progress model/routes |
+| 1 | `feature/navigation-shell`, `feature/settings-polish` | Layout shell, sidebar, route placeholders, responsive navigation, settings UI | Base app wiring, health/status cleanup, settings/preferences endpoints |
+| 2 | `feature/auth-account` | Login, register, sign out, account/profile UI, auth session state | Auth routes, password hashing or Supabase token verification, current-user dependency |
+| 3 | `feature/task-management` | Task list, task cards, task form, complete/reopen, edit/delete | Task schemas, task service, task CRUD endpoints, user-owned task filtering |
+| 4 | `feature/folders-inbox` | Folder list, inbox view, folder form, move tasks between folders, folder filters | Folder schemas, folder service, folder CRUD, task folder support |
+| 5 | `feature/calendar-reminders`, `feature/analytics-dashboard` | Calendar view, due dates, reminders, overdue/upcoming views, analytics dashboard | Deadline/reminder fields, reminder endpoints, analytics summary endpoints |
+| 6 | `feature/focus-mode`, `feature/priority-view`, `feature/gamification` | Pomodoro/focus UI, priority labels/views, streak/tree progress UI | Focus sessions, priority fields/endpoints, gamification progress endpoints |
 
-## Repository Structure
+Search and filtering should live inside the feature that owns the screen. Task search belongs with `feature/task-management`; folder/inbox filtering belongs with `feature/folders-inbox`. Only create `feature/search-filtering` if the team intentionally splits that work.
+
+## Knowledge Before Development
+
+Each member should check these topics before coding their feature.
+
+Core tech:
+
+- Git branch workflow: `develop`, `feature/*`, merge from `develop`, push feature branch.
+- TypeScript basics: types, interfaces, props, async functions.
+- React basics: components, props, state, forms, conditional rendering, lists.
+- Next.js App Router: `app/<route>/page.tsx`, layouts, and client components with `"use client"`.
+- Tailwind CSS: utility classes, responsive classes, flex, and grid.
+- FastAPI basics: `APIRouter`, route decorators, request bodies, query params, and status codes.
+- Pydantic schemas: request validation and response shapes.
+- HTTP/API basics: `GET`, `POST`, `PATCH`, `DELETE`, JSON, query params, and error responses.
+
+Project architecture:
+
+- Pages live in `frontend/web/app/<feature>/page.tsx`.
+- Reusable UI lives in `frontend/web/components/<feature>/`.
+- Frontend API calls live in `frontend/web/lib/<feature>.ts`.
+- Backend endpoints live in `backend/api/app/<feature>/router.py`.
+- Backend request/response schemas live in `backend/api/app/<feature>/schemas.py`.
+- Backend logic and temporary storage live in `backend/api/app/<feature>/service.py`.
+- `backend/api/app/main.py` should only configure the app and register routers.
+- Shared TypeScript contracts go in `packages/shared` only when multiple features need them.
+
+Techniques to know:
+
+- Component decomposition: page to feature component to smaller controls, cards, and forms.
+- Controlled forms in React.
+- Fetching API data from the frontend.
+- Loading, empty, success, and error UI states.
+- API error handling.
+- Basic CRUD flow: list, create, edit, delete, and toggle status.
+- Keeping frontend and backend request/response contracts consistent.
+- Keeping feature logic out of shared/global files unless it is truly shared.
+
+Feature-specific checks:
+
+- Auth: JWT basics, password hashing, login/register flow, current user.
+- Tasks: CRUD, task status, active/completed filtering.
+- Folders: folder assignment, inbox behavior, moving tasks between folders.
+- Calendar/reminders: date/time handling, overdue and upcoming logic.
+- Analytics: counting, grouping, and summarizing task/focus data.
+- Focus: timer state, start/pause/reset, focus session records.
+- Priority: priority values, sorting, and filtering.
+- Gamification: streak logic, progress counters, achievement conditions.
+- Navigation/settings: layout shell, active route detection, shared UI consistency.
+
+Current development scope:
+
+- Build frontend and FastAPI endpoints first.
+- Do not require Docker for day-to-day early development.
+- Do not require a deployed database for the first pass.
+- Use in-memory data, local SQLite, or mock data temporarily.
+- Keep endpoint shapes stable so PostgreSQL can replace temporary storage later.
+
+## Folder Rules
+
+Keep feature work inside matching frontend and backend folders.
 
 ```text
-frontend/
-  web/       Next.js web app and active task-management UI
-backend/
-  api/       FastAPI backend, SQLAlchemy models, schemas, auth, and task routes
-packages/
-  shared/    Shared TypeScript types and constants
-  supabase/  Optional shared Supabase client factory if Supabase Auth is used
-STACK.md     Stack, architecture, and stack decision reasoning
-supabase/    Optional Supabase migration notes and SQL
+frontend/web/app/<feature>/page.tsx
+frontend/web/components/<feature>/
+frontend/web/lib/<feature>.ts
+
+backend/api/app/<feature>/
+  router.py
+  models.py
+  schemas.py
+  service.py
 ```
 
-Use this ownership model during feature work:
+Use files this way:
 
-- `frontend/web`: pages, React components, frontend state, styling, and API client helpers.
-- `backend/api`: FastAPI routes, request/response schemas, SQLAlchemy models, database sessions, and backend auth checks.
-- `packages/shared`: shared TypeScript types/constants used by the web app.
-- `packages/supabase`: optional shared Supabase client setup if Supabase Auth is used.
+- `app/<feature>/page.tsx`: route entry point.
+- `components/<feature>/`: reusable UI for that feature.
+- `lib/<feature>.ts`: frontend API helper functions.
+- `router.py`: FastAPI endpoints.
+- `models.py`: database models when persistence is added.
+- `schemas.py`: request and response schemas.
+- `service.py`: business logic and storage/query code.
 
-## Feature Development Workflow
+Shared files should mostly connect feature modules together:
 
-Each feature branch should produce a usable vertical slice when possible.
+- `frontend/web/app/layout.tsx`: root layout only.
+- `frontend/web/app/globals.css`: global styling only.
+- `backend/api/app/main.py`: app setup and `include_router(...)` calls.
+- `packages/shared/src`: shared TypeScript contracts used by multiple features.
 
-Each member should work in feature-owned folders for both frontend and backend work. Avoid putting full feature logic directly into shared files such as `frontend/web/app/page.tsx`, `backend/api/app/main.py`, `backend/api/app/models.py`, or `backend/api/app/schemas.py`. Shared files should usually only register routes, export types, or connect feature modules together.
-
-Backend feature folders should follow this pattern:
-
-```text
-backend/api/app/
-  tasks/
-    router.py
-    models.py
-    schemas.py
-    service.py
-  folders/
-    router.py
-    models.py
-    schemas.py
-    service.py
-  focus/
-    router.py
-    models.py
-    schemas.py
-    service.py
-  analytics/
-    router.py
-    schemas.py
-    service.py
-```
-
-Use backend files this way:
-
-- `router.py`: FastAPI endpoints for the feature.
-- `models.py`: SQLAlchemy models owned by the feature.
-- `schemas.py`: Pydantic request and response schemas.
-- `service.py`: business logic and database queries.
-- `main.py`: only app setup and `app.include_router(...)` calls.
-
-Frontend feature folders should follow this pattern:
+## Feature Folder Map
 
 ```text
 frontend/web/
   app/
+    auth/
     tasks/
     folders/
-    focus/
+    calendar/
     analytics/
+    focus/
+    priority/
+    gamification/
     settings/
   components/
     layout/
+    auth/
     tasks/
     folders/
-    focus/
+    calendar/
     analytics/
+    focus/
+    priority/
+    gamification/
     settings/
   lib/
+    auth.ts
     tasks.ts
     folders.ts
-    focus.ts
+    calendar.ts
     analytics.ts
+    focus.ts
+    priority.ts
+    gamification.ts
     settings.ts
+
+backend/api/app/
+  auth/
+  tasks/
+  folders/
+  calendar/
+  analytics/
+  focus/
+  priority/
+  gamification/
+  settings/
 ```
 
-Use frontend files this way:
+## Development Order
 
-- `app/<feature>/page.tsx`: route entry point for that feature.
-- `components/<feature>/`: reusable UI components for the feature.
-- `lib/<feature>.ts`: API client helpers for that feature.
-- `components/layout/`: shared navigation and shell components.
-- `packages/shared/src`: only shared TypeScript contracts that multiple features need.
+For each feature:
 
-Example task feature split:
+1. Define the endpoint contract and any shared types.
+2. Add backend schemas/routes/services.
+3. Add frontend API helpers.
+4. Build the UI.
+5. Run checks before merging.
 
-```text
-frontend/web/app/...          task page or route
-frontend/web/components/...   task UI components
-frontend/web/lib/...          task API client helper
-backend/api/app/...           task route, schema, model, or service
-packages/shared/src/...       shared task contract, if needed
-```
+During early frontend and endpoint work, a real deployed database is not required. In-memory data or local SQLite can be used temporarily, but keep endpoint shapes stable so PostgreSQL can replace the temporary storage later.
 
-Task search belongs in `feature/search-filtering`. The backend should support query parameters such as `search`, `status`, and later `folder_id`; the frontend should expose search input and filtering controls without duplicating backend authorization logic.
-
-Recommended order for feature changes:
-
-1. Define or update shared types if the contract changes.
-2. Add or update backend models, schemas, and routes.
-3. Add or update frontend API helpers.
-4. Build the UI for the feature.
-5. Run quality checks before merging.
-
-Avoid large shared-file edits unless the feature needs them. If several branches need the same shared contract, coordinate that change through `develop` first.
-
-## Development Setup
-
-Install dependencies:
+## Setup
 
 ```powershell
 corepack enable
@@ -175,30 +312,22 @@ python -m venv backend/api/.venv
 backend/api/.venv/Scripts/python -m pip install -e backend/api
 ```
 
-Copy environment files:
-
 ```powershell
 Copy-Item .env.example .env
 Copy-Item frontend/web/.env.example frontend/web/.env
 Copy-Item backend/api/.env.example backend/api/.env
 ```
 
-Run locally:
+## Run Locally
 
 ```powershell
 corepack pnpm dev:web
 corepack pnpm dev:api
 ```
 
-Run the container stack:
-
-```powershell
-docker compose up --build
-```
-
 ## Quality Checks
 
-Run these before opening or merging changes:
+Before merging:
 
 ```powershell
 corepack pnpm lint
@@ -207,7 +336,7 @@ corepack pnpm build
 corepack pnpm format:check
 ```
 
-If backend dev dependencies are installed, also run Python checks when changing `backend/api`:
+For backend changes:
 
 ```powershell
 backend/api/.venv/Scripts/python -m ruff check backend/api
@@ -218,31 +347,72 @@ backend/api/.venv/Scripts/python -m ruff check backend/api
 Use short, descriptive commit messages:
 
 - `feat: add sidebar navigation`
-- `feat: add inbox task capture`
-- `feat: add pomodoro timer view`
+- `feat: add task CRUD endpoints`
+- `feat: add calendar reminder view`
 - `fix: correct active sidebar state`
-- `style: polish focus mode layout`
-- `refactor: split task card component`
-- `docs: update stack documentation`
-
-## Architecture Guidelines
-
-- Authentication can be PostgreSQL-backed custom auth or Supabase Auth. The `feature/auth-account` branch owns this implementation.
-- Store task data through the FastAPI backend, SQLAlchemy, and PostgreSQL.
-- Keep frontend API calls behind small client helper functions.
-- Keep shared TypeScript types in workspace packages when web contracts need them.
-- Avoid adding a second task-storage path unless the architecture is intentionally changed and documented.
-- Prefer feature branches that deliver a usable vertical slice across UI, API contract, backend, tests, and docs when applicable.
+- `refactor: split task service`
+- `docs: update branch workflow`
 
 ## Documentation
 
-Update documentation when a change affects:
+Update docs when a change affects setup, environment variables, data storage, auth flow, API contracts, branch strategy, or folder ownership.
 
-- Setup commands.
-- Environment variables.
-- Data storage.
-- Authentication flow.
-- API routes or request/response contracts.
-- Branch strategy or development workflow.
+## Frontend API Integration
 
-Use `README.md` for project entry-point information and `STACK.md` for stack and architecture details.
+All frontend members must follow these conventions. Do not implement separate API-calling patterns in individual components.
+
+### Shared API Client
+
+All API requests must use the shared client:
+
+```text
+frontend/web/src/lib/api-client.ts
+```
+
+Do not create another Axios instance, fetch wrapper, or API client without team agreement.
+
+### API Base URL
+
+Read the backend URL from the environment variable:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+Do not hard-code backend URLs in the source code. Local `.env` files must not be committed.
+
+### JWT Authentication
+
+The shared API client must automatically send the JWT access token:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+Components must not manually retrieve the token or construct this header.
+
+### HTTP Error Handling
+
+Use consistent behaviour for common API errors:
+
+| Status | Required behaviour |
+|---|---|
+| `401` | Clear the invalid session and redirect to login |
+| `403` | Keep the session and display a permission error |
+| `404` | Display a not-found state |
+| `422` | Display validation errors beside the relevant fields |
+| `500` | Display a general error message and provide a retry option |
+
+Do not expose stack traces or internal backend error details to users.
+
+### Loading and Error States
+
+Every API operation must provide user feedback:
+
+- Disable submit buttons while a request is running.
+- Prevent duplicate submissions.
+- Show a spinner, loading text, or skeleton.
+- Show field errors below the relevant inputs.
+- Show form errors inside the form.
+- Provide a `Try again` action for page-level errors.
+- Do not use only `console.log()` or `alert()` for errors.

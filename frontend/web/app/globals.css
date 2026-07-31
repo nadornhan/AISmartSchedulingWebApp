@@ -2,11 +2,208 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Canonical tokens from frontend/Theme.md. */
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --bg-page: #040c14;
+  --bg-sidebar: #050e16;
+  --bg-surface: #0a151e;
+  --bg-surface-raised: #0d1a24;
+  --bg-surface-hover: #11222c;
+  --bg-input: #0a141d;
+
+  --border-subtle: #172630;
+  --border-default: #1c2d37;
+  --border-strong: #29404b;
+  --border-active: rgba(53, 227, 181, 0.35);
+
+  --text-primary: #f4f7f6;
+  --text-secondary: #a3adb2;
+  --text-muted: #6e7d84;
+  --text-placeholder: #627179;
+  --text-disabled: #46545b;
+
+  --accent: #35e3b5;
+  --accent-hover: #4eebc1;
+  --accent-pressed: #20c99d;
+  --accent-dark: #148b70;
+  --accent-soft: rgba(53, 227, 181, 0.12);
+  --accent-border: rgba(53, 227, 181, 0.28);
+
+  --green-300: #65ebc9;
+  --green-400: #35e3b5;
+  --green-500: #20cfa2;
+  --green-600: #149a79;
+  --green-700: #0e654f;
+  --green-bg-soft: rgba(53, 227, 181, 0.1);
+  --green-bg-medium: rgba(53, 227, 181, 0.16);
+  --green-border: rgba(53, 227, 181, 0.28);
+
+  --purple: #9767f4;
+  --purple-light: #b18aff;
+  --purple-dark: #6742c5;
+  --purple-soft: rgba(151, 103, 244, 0.13);
+  --purple-border: rgba(151, 103, 244, 0.28);
+
+  --orange: #f5a019;
+  --orange-light: #ffb648;
+  --orange-dark: #b96f08;
+  --orange-soft: rgba(245, 160, 25, 0.13);
+  --orange-border: rgba(245, 160, 25, 0.28);
+
+  --red: #f04c55;
+  --red-light: #ff6972;
+  --red-dark: #b92e37;
+  --red-soft: rgba(240, 76, 85, 0.13);
+  --red-border: rgba(240, 76, 85, 0.28);
+
+  --blue: #4e8eff;
+  --blue-light: #78aaff;
+  --blue-dark: #2860c5;
+  --blue-soft: rgba(78, 142, 255, 0.13);
+  --blue-border: rgba(78, 142, 255, 0.28);
+
+  --yellow: #ffc229;
+  --yellow-soft: rgba(255, 194, 41, 0.13);
+  --progress-track: #1b2932;
+
+  --tracking-heading: -0.025em;
+  --tracking-body: -0.01em;
+  --tracking-label: 0;
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --input-height-desktop: 44px;
+  --input-height-mobile: 48px;
+
+  /* Backwards-compatible aliases used by the current Tailwind configuration. */
+  --dashboard-bg: var(--bg-page);
+  --dashboard-surface: var(--bg-surface);
+  --dashboard-surface-raised: var(--bg-surface-raised);
+  --dashboard-bg-rgb: 4 12 20;
+  --dashboard-surface-rgb: 10 21 30;
+  --dashboard-surface-raised-rgb: 13 26 36;
+  --dashboard-border: var(--border-subtle);
+  --dashboard-border-strong: var(--border-strong);
+  --dashboard-text: var(--text-primary);
+  --dashboard-muted: var(--text-secondary);
+  --dashboard-subtle: var(--text-muted);
+  --dashboard-accent: var(--accent);
+  --dashboard-accent-strong: var(--accent-pressed);
+  --dashboard-accent-soft: var(--accent-soft);
+  --dashboard-text-rgb: 244 247 246;
+  --dashboard-muted-rgb: 163 173 178;
+  --dashboard-subtle-rgb: 110 125 132;
+  --dashboard-accent-rgb: 53 227 181;
+  --dashboard-accent-strong-rgb: 32 201 157;
+  --dashboard-danger: var(--red);
+  --dashboard-warning: var(--yellow);
+  --dashboard-info: var(--blue);
+  --dashboard-danger-rgb: 240 76 85;
+  --dashboard-warning-rgb: 255 194 41;
+  --dashboard-info-rgb: 78 142 255;
+}
+
 * {
   box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--dashboard-bg);
 }
 
 body {
   min-height: 100vh;
   margin: 0;
+  background:
+    radial-gradient(circle at 65% 15%, rgba(53, 227, 181, 0.045), transparent 34%), var(--bg-page);
+  color: var(--dashboard-text);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-geist), sans-serif;
+}
+
+
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--accent-border);
+  color: var(--dashboard-text);
+}
+
+.font-poppins {
+  font-family: var(--font-poppins), sans-serif;
+}
+
+.accent-scrollbar {
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.accent-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.accent-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.accent-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.accent-scrollbar.is-scrolling::-webkit-scrollbar-thumb {
+  background: var(--dashboard-accent);
+}
+
+.accent-scrollbar::-webkit-scrollbar-button:vertical:decrement,
+.accent-scrollbar::-webkit-scrollbar-button:vertical:increment,
+.accent-scrollbar::-webkit-scrollbar-button:vertical:start:decrement,
+.accent-scrollbar::-webkit-scrollbar-button:vertical:end:increment,
+.accent-scrollbar::-webkit-scrollbar-button:single-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  -webkit-appearance: none !important;
 }
