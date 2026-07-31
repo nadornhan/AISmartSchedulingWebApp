@@ -84,15 +84,21 @@ function SearchBox({ compact = false }: Readonly<{ compact?: boolean }>) {
   );
 }
 
-function getUserInitials(user?: UserResponse | null) {
-  if (!user) {
-    return '...';
-  }
+function getUserInitials(
+  user?: {
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+  } | null,
+) {
+  const firstName = user?.first_name?.trim() ?? "";
+  const lastName = user?.last_name?.trim() ?? "";
+  const email = user?.email?.trim() ?? "";
 
-  const firstInitial = user.first_name.trim()[0];
-  const lastInitial = user.last_name.trim()[0];
+  const initials =
+    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 
-  return `${firstInitial ?? ''}${lastInitial ?? ''}`.toUpperCase() || user.email.slice(0, 2).toUpperCase();
+  return initials || email.slice(0, 2).toUpperCase() || "U";
 }
 
 function HeaderActions({

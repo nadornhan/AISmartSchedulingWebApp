@@ -45,6 +45,12 @@ const generalNavItems: NavItem[] = [
   { href: '/gamification', label: 'Gamification', icon: GamificationIcon },
 ];
 
+const foldersNavItem: NavItem = {
+  href: '/folders',
+  label: 'Folders',
+  icon: FolderIcon,
+};
+
 const folders = [
   { name: 'Work', count: 8, color: 'bg-dashboard-danger' },
   { name: 'Personal', count: 5, color: 'bg-dashboard-info' },
@@ -85,7 +91,7 @@ function SectionTitle({
   href?: string;
   onNavigate?: () => void;
 }>) {
-    const titleClassName =
+  const titleClassName =
     'text-[13px] font-normal uppercase tracking-[0.02em] text-dashboard-muted transition hover:text-dashboard-accent';
 
   return (
@@ -206,8 +212,8 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
     <aside
       ref={sidebarRef}
       className={cn(
-    'accent-scrollbar flex h-dvh w-80 flex-col overflow-y-auto border-r border-dashboard-border bg-[#03101a]/95 px-6 py-5 text-dashboard-text shadow-panel backdrop-blur-xl',
-    className,
+        'accent-scrollbar flex h-dvh w-80 flex-col overflow-y-auto border-r border-dashboard-border bg-[#03101a]/95 px-6 py-5 text-dashboard-text shadow-panel backdrop-blur-xl',
+        className,
       )}
     >
       <div className="mb-8 flex items-center gap-3">
@@ -279,18 +285,12 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </div>
         </section>
 
-<section className="border-t border-[#AAAAAA]/20 pt-6">
-  <SectionTitle
-    actionLabel="Add folder"
-    href="/folders"
-    onAction={openCreateFolderModal}
-    onNavigate={onNavigate}
-  >
-    Projects / Folders
-  </SectionTitle>
         <section className="border-t border-[#AAAAAA]/20 pt-6">
-          <SectionTitle href="/folders"actionLabel="Add folder">Projects / Folders</SectionTitle>
+          <SectionTitle actionLabel="Add folder" onAction={openCreateFolderModal}>
+            Projects / Folders
+          </SectionTitle>
           <div className="space-y-1.5">
+            <NavLink active={foldersActive} item={foldersNavItem} onNavigate={onNavigate} />
             <div className="pt-1">
               {folders.map((folder) => (
                 <Link
