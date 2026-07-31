@@ -1,3 +1,7 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useState, type FormEvent } from 'react';
 import { BellIcon, ChevronDownIcon, SearchIcon } from './icons';
 import type { UserResponse } from '../../lib/auth';
 
@@ -45,21 +49,38 @@ export function Header({ title, subtitle, className, user }: HeaderProps) {
 }
 
 function SearchBox({ compact = false }: Readonly<{ compact?: boolean }>) {
+  const router = useRouter();
+  const [search, setSearch] = useState('');
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = search.trim();
+    router.push(query ? `/tasks?search=${encodeURIComponent(query)}` : '/tasks');
+  }
+
   return (
-    <label
+    <form
       className={cn(
         'flex h-14 items-center rounded-lg border border-dashboard-border bg-dashboard-surface/55 text-dashboard-muted shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition focus-within:border-dashboard-accent/60',
         compact ? 'min-w-0 flex-1 px-4' : 'w-[420px] px-5',
       )}
+      onSubmit={handleSubmit}
+      role="search"
     >
       <SearchIcon className="h-5 w-5 shrink-0" />
-      <span className="sr-only">Search tasks</span>
+      <label className="sr-only" htmlFor={compact ? 'mobile-task-search' : 'desktop-task-search'}>
+        Search tasks
+      </label>
       <input
         className="min-w-0 flex-1 border-0 bg-transparent pl-4 text-base font-medium text-dashboard-text outline-none placeholder:text-dashboard-muted"
+        id={compact ? 'mobile-task-search' : 'desktop-task-search'}
+        onChange={(event) => setSearch(event.target.value)}
         placeholder="Search tasks..."
         type="search"
+        value={search}
       />
-    </label>
+      <kbd className="hidden rounded bg-dashboard-raised px-2 py-1 text-xs sm:block">⌘K</kbd>
+    </form>
   );
 }
 

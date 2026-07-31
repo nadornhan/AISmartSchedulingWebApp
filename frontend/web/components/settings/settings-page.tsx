@@ -51,14 +51,14 @@ export function SettingsPage() {
   const [schedulingWeights, setSchedulingWeights] = useState(initialSchedulingWeights);
 
   return (
-    <div className="mx-auto grid max-w-7xl gap-6">
+    <div className="mx-auto grid w-full max-w-7xl gap-6">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
-        <div className="grid gap-6">
+        <div className="grid min-w-0 gap-6">
           <ProfileSettings onChange={setProfile} value={profile} />
           <WorkPreferences onChange={setWorkPreferences} value={workPreferences} />
           <NotificationSettings onChange={setNotifications} value={notifications} />
         </div>
-        <aside className="grid content-start gap-6">
+        <aside className="grid min-w-0 content-start gap-6">
           <SchedulingWeights onChange={setSchedulingWeights} value={schedulingWeights} />
           <AccountActions />
         </aside>
