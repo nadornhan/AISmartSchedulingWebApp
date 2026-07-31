@@ -25,21 +25,21 @@ export function AccountActions() {
       title="Account Actions"
       description="Manage access, exports, and destructive account operations."
     >
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-dashboard-border">
         {actions.map((action) => (
           <div className="flex items-center justify-between gap-4 py-3" key={action.label}>
             <p
               className={`min-w-0 text-sm font-medium ${
-                action.destructive ? 'text-red-600' : 'text-slate-950'
+                action.destructive ? 'text-[var(--red-light)]' : 'text-dashboard-text'
               }`}
             >
               {action.label}
             </p>
             <button
-              className={`shrink-0 rounded-lg border px-3 py-1.5 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+              className={`shrink-0 rounded-[var(--radius-sm)] border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
                 action.destructive
-                  ? 'border-red-200 bg-red-50 text-red-600 focus-visible:outline-red-600'
-                  : 'border-slate-200 bg-slate-50 text-slate-700 focus-visible:outline-emerald-600'
+                  ? 'border-[var(--red-border)] bg-[var(--red-soft)] text-[var(--red-light)] hover:border-[var(--red-light)] focus-visible:outline-[var(--red)]'
+                  : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted hover:border-dashboard-border-strong hover:text-dashboard-text focus-visible:outline-dashboard-accent'
               }`}
               type="button"
             >
