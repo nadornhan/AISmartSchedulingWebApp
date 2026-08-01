@@ -49,10 +49,19 @@ export async function apiRequest<T>(path: string, init: ApiRequestOptions = {}):
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(getApiUrl(path), {
-    ...requestInit,
-    headers,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(getApiUrl(path), {
+      ...requestInit,
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      `Cannot reach the API at ${API_URL}. Make sure the backend is running and up to date.`,
+      0,
+    );
+  }
 
   if (response.ok) {
     if (response.status === 204) return undefined as T;

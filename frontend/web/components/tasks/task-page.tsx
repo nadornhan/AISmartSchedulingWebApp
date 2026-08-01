@@ -805,11 +805,25 @@ function CreateTaskModal({
     const formData = new FormData(event.currentTarget);
     const projectId = String(formData.get('project') || '');
     const dueDate = String(formData.get('dueDate') || '');
-    const dueTime = String(formData.get('dueTime') || '');
+    const dueTime = String(formData.get('dueTime') || '').trim();
     const description = String(formData.get('description') || '').trim();
-    const dueDateTime = dueDate
-      ? new Date(`${dueDate}T${dueTime || '23:59'}:00`).toISOString()
-      : null;
+    let dueDateTime: string | null = null;
+
+    if (dueDate) {
+      const normalizedTime = dueTime
+        ? dueTime.length === 5
+          ? `${dueTime}:00`
+          : dueTime
+        : '23:59:00';
+      const parsedDueDate = new Date(`${dueDate}T${normalizedTime}`);
+
+      if (Number.isNaN(parsedDueDate.getTime())) {
+        setSubmitError('Please enter a valid due date and time.');
+        return;
+      }
+
+      dueDateTime = parsedDueDate.toISOString();
+    }
 
     try {
       await onCreate({
