@@ -67,19 +67,12 @@ export function CreateFolderModal({
       return;
     }
 
-    const accessToken = window.localStorage.getItem('access_token');
-    if (!accessToken) {
-      setError('Please sign in before creating a folder.');
-      return;
-    }
-
     setError(null);
     setIsSubmitting(true);
 
     try {
       const folder = await createFolder(
         { name: folderName, color },
-        { accessToken },
       );
       onCreated?.(folder);
       setName('');

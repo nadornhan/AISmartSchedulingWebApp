@@ -2,6 +2,10 @@ const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').rep
 
 const ACCESS_TOKEN_KEY = 'chrono_access_token';
 
+export type ApiRequestOptions = RequestInit & {
+  auth?: boolean;
+};
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -27,19 +31,23 @@ export function clearAccessToken() {
   localStorage.removeItem('access_token');
 }
 
-export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function apiRequest<T>(
+  path: string,
+  init: ApiRequestOptions = {},
+): Promise<T> {
+  const { auth = true, ...requestInit } = init;
   const token = getAccessToken();
-  const headers = new Headers(init.headers);
+  const headers = new Headers(requestInit.headers);
 
-  if (init.body && !headers.has('Content-Type')) {
+  if (requestInit.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  if (token) {
+  if (auth && token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
   const response = await fetch(`${API_URL}${path}`, {
-    ...init,
+    ...requestInit,
     headers,
   });
 

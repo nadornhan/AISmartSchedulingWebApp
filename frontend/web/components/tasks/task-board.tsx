@@ -82,13 +82,6 @@ export function TaskBoard({
       return;
     }
 
-    const accessToken = window.localStorage.getItem('access_token');
-    if (!accessToken) {
-      setError('Please sign in to load tasks.');
-      setIsLoading(false);
-      return;
-    }
-    const authenticatedToken = accessToken;
     const controller = new AbortController();
 
     async function loadData() {
@@ -96,7 +89,7 @@ export function TaskBoard({
         setIsLoading(true);
         setError(null);
         const [folderResult, taskResult] = await Promise.all([
-          getFolders({ accessToken: authenticatedToken, signal: controller.signal }),
+          getFolders({ signal: controller.signal }),
           getTasks(
             {
               search: search || undefined,
@@ -109,7 +102,7 @@ export function TaskBoard({
               inbox: initialProjectId === 'inbox',
               pageSize: 100,
             },
-            { accessToken: authenticatedToken, signal: controller.signal },
+            { signal: controller.signal },
           ),
         ]);
         setFolders(folderResult);
