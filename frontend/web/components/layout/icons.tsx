@@ -233,6 +233,16 @@ export function CloseIcon(props: IconProps) {
   );
 }
 
+export function SignOutIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M10 17l5-5-5-5" />
+      <path d="M15 12H3" />
+      <path d="M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5" />
+    </IconBase>
+  );
+}
+
 export function SortIcon(props: IconProps) {
   return (
     <IconBase {...props}>

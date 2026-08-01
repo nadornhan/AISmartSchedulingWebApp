@@ -49,6 +49,11 @@ class User(Base):
         nullable=False,
     )
 
+    avatar_path: Mapped[str | None] = mapped_column(
+        String(512),
+        nullable=True,
+    )
+
     password_hash: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
@@ -73,3 +78,10 @@ class User(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+    @property
+    def avatar_url(self) -> str | None:
+        if self.avatar_path is None:
+            return None
+
+        return f"/media/{self.avatar_path}"

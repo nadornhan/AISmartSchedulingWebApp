@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import { emitProjectDataChanged, emitTaskDataChanged } from './data-events';
 
 export type Folder = {
   id: string;
@@ -7,8 +8,8 @@ export type Folder = {
   color: string;
   created_at: string;
   updated_at: string;
-  task_count?: number;
-  completed_task_count?: number;
+  task_count: number;
+  completed_task_count: number;
 };
 
 export type CreateFolderInput = {
@@ -29,9 +30,7 @@ type FolderRequestOptions = RequestOptions & {
   folderId: string;
 };
 
-export async function getFolders({
-  signal,
-}: RequestOptions = {}): Promise<Folder[]> {
+export async function getFolders({ signal }: RequestOptions = {}): Promise<Folder[]> {
   return apiRequest<Folder[]>('/projects', {
     signal,
   });
@@ -41,7 +40,7 @@ export async function createFolder(
   input: CreateFolderInput,
   { signal }: RequestOptions = {},
 ): Promise<Folder> {
-  return apiRequest<Folder>('/projects', {
+  const folder = await apiRequest<Folder>('/projects', {
     method: 'POST',
     body: JSON.stringify({
       name: input.name.trim(),
@@ -49,13 +48,15 @@ export async function createFolder(
     }),
     signal,
   });
+  emitProjectDataChanged();
+  return folder;
 }
 
 export async function updateFolder(
   input: UpdateFolderInput,
   { folderId, signal }: FolderRequestOptions,
 ): Promise<Folder> {
-  return apiRequest<Folder>(`/projects/${folderId}`, {
+  const folder = await apiRequest<Folder>(`/projects/${folderId}`, {
     method: 'PATCH',
     body: JSON.stringify({
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
@@ -63,14 +64,16 @@ export async function updateFolder(
     }),
     signal,
   });
+  emitProjectDataChanged();
+  emitTaskDataChanged();
+  return folder;
 }
 
-export async function deleteFolder({
-  folderId,
-  signal,
-}: FolderRequestOptions): Promise<void> {
-  return apiRequest<void>(`/projects/${folderId}`, {
+export async function deleteFolder({ folderId, signal }: FolderRequestOptions): Promise<void> {
+  await apiRequest<void>(`/projects/${folderId}`, {
     method: 'DELETE',
     signal,
   });
+  emitProjectDataChanged();
+  emitTaskDataChanged();
 }

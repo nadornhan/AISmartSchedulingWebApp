@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.notifications import service as notification_service
 from app.tasks.models import Task, TaskPriority, TaskStatus
 from app.tasks.schemas import (
     SortOrder,
@@ -122,6 +123,12 @@ def create_task(
     )
 
     db.add(task)
+    db.flush()
+    notification_service.create_task_notification(
+        db,
+        user_id=user_id,
+        task=task,
+    )
     db.commit()
     db.refresh(task)
 
