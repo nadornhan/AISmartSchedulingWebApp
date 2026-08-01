@@ -1,11 +1,5 @@
-import { PagePlaceholder } from '../_components/page-placeholder';
+import { CalendarPage } from '../../../components/calendar/calendar-page';
 
-export default function CalendarPage() {
-  return (
-    <PagePlaceholder
-      eyebrow="Schedule"
-      items={['Month view', 'Upcoming deadlines', 'Reminder blocks']}
-      summary="Calendar-specific scheduling content belongs here without reimplementing the dashboard chrome."
-    />
-  );
+export default function CalendarRoute() {
+  return <CalendarPage />;
 }
