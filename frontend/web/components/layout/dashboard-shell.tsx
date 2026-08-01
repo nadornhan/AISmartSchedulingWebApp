@@ -40,7 +40,7 @@ const routeMeta: Record<string, RouteMeta> = {
   },
   '/focus': {
     title: 'Focus Mode',
-    subtitle: 'Protect deep work sessions and reduce context switching.',
+    subtitle: 'Stay focused. Beat distraction. Get things done.',
   },
   '/analytics': {
     title: 'Insights',
