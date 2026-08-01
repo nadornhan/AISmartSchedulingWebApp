@@ -118,6 +118,7 @@ def create_task(
 ) -> Task:
     task = Task(
         user_id=user_id,
+        status=TaskStatus.PENDING,
         **task_data.model_dump(),
     )
 
