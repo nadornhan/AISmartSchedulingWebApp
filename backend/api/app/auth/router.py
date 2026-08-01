@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import CurrentUser
 from app.auth.schemas import (
     TokenResponse,
     UserLogin,
@@ -11,16 +12,23 @@ from app.auth.schemas import (
 )
 from app.auth.security import create_access_token
 from app.auth.service import (
+    DuplicateUserEmailError,
     authenticate_user,
     create_user,
     get_user_by_email,
 )
 from app.database import get_db
-from app.auth.dependencies import CurrentUser
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 DatabaseSession = Annotated[Session, Depends(get_db)]
+
+
+def duplicate_email_error() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="An account with this email already exists",
+    )
 
 
 @router.post(
@@ -35,12 +43,12 @@ def register(
     existing_user = get_user_by_email(db, str(user_data.email))
 
     if existing_user is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists",
-        )
+        raise duplicate_email_error()
 
-    return create_user(db, user_data)
+    try:
+        return create_user(db, user_data)
+    except DuplicateUserEmailError:
+        raise duplicate_email_error() from None
 
 
 @router.post("/login", response_model=TokenResponse)

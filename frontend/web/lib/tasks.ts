@@ -85,7 +85,6 @@ export type TaskUpdateInput = Partial<TaskCreateInput> & {
 export type UpdateTaskInput = TaskUpdateInput;
 
 type RequestOptions = {
-  accessToken?: string;
   signal?: AbortSignal;
 };
 

@@ -3,7 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { UserRole, registerAndSignIn } from '../../lib/auth';
+import { RegistrationRole, registerAndSignIn } from '../../lib/auth';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function RegisterPage() {
     const lastName = String(formData.get('lastName') ?? '');
     const email = String(formData.get('email') ?? '');
     const password = String(formData.get('password') ?? '');
-    const role = String(formData.get('role') ?? 'student') as UserRole;
+    const role = String(formData.get('role') ?? 'student') as RegistrationRole;
 
     try {
       if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim()) {

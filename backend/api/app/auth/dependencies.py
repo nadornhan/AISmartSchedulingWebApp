@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Callable
 from typing import Annotated
 
 import jwt
@@ -50,3 +51,21 @@ def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def require_roles(*allowed_roles: str) -> Callable[[CurrentUser], User]:
+    allowed_role_set = set(allowed_roles)
+
+    def dependency(current_user: CurrentUser) -> User:
+        if current_user.role not in allowed_role_set:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+            )
+
+        return current_user
+
+    return dependency
+
+
+RequireAdmin = Annotated[User, Depends(require_roles("admin"))]

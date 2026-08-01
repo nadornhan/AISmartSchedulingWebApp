@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+import { apiRequest } from './api';
 
 export type Folder = {
   id: string;
@@ -22,7 +22,6 @@ export type UpdateFolderInput = {
 };
 
 type RequestOptions = {
-  accessToken: string;
   signal?: AbortSignal;
 };
 
@@ -30,97 +29,48 @@ type FolderRequestOptions = RequestOptions & {
   folderId: string;
 };
 
-export class FolderApiError extends Error {
-  status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = 'FolderApiError';
-    this.status = status;
-  }
-}
-
-function getHeaders(accessToken: string, hasBody = false): HeadersInit {
-  return {
-    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-    Authorization: `Bearer ${accessToken}`,
-  };
-}
-
-async function getErrorMessage(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as { detail?: string };
-    return body.detail ?? 'Folder request failed';
-  } catch {
-    return 'Folder request failed';
-  }
-}
-
-async function requireSuccessfulResponse(response: Response): Promise<void> {
-  if (!response.ok) {
-    throw new FolderApiError(await getErrorMessage(response), response.status);
-  }
-}
-
 export async function getFolders({
-  accessToken,
   signal,
-}: RequestOptions): Promise<Folder[]> {
-  const response = await fetch(`${API_URL}/projects`, {
-    headers: getHeaders(accessToken),
+}: RequestOptions = {}): Promise<Folder[]> {
+  return apiRequest<Folder[]>('/projects', {
     signal,
   });
-
-  await requireSuccessfulResponse(response);
-  return (await response.json()) as Folder[];
 }
 
 export async function createFolder(
   input: CreateFolderInput,
-  { accessToken, signal }: RequestOptions,
+  { signal }: RequestOptions = {},
 ): Promise<Folder> {
-  const response = await fetch(`${API_URL}/projects`, {
+  return apiRequest<Folder>('/projects', {
     method: 'POST',
-    headers: getHeaders(accessToken, true),
     body: JSON.stringify({
       name: input.name.trim(),
       ...(input.color ? { color: input.color } : {}),
     }),
     signal,
   });
-
-  await requireSuccessfulResponse(response);
-  return (await response.json()) as Folder;
 }
 
 export async function updateFolder(
   input: UpdateFolderInput,
-  { accessToken, folderId, signal }: FolderRequestOptions,
+  { folderId, signal }: FolderRequestOptions,
 ): Promise<Folder> {
-  const response = await fetch(`${API_URL}/projects/${folderId}`, {
+  return apiRequest<Folder>(`/projects/${folderId}`, {
     method: 'PATCH',
-    headers: getHeaders(accessToken, true),
     body: JSON.stringify({
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
       ...(input.color !== undefined ? { color: input.color } : {}),
     }),
     signal,
   });
-
-  await requireSuccessfulResponse(response);
-  return (await response.json()) as Folder;
 }
 
 export async function deleteFolder({
-  accessToken,
   folderId,
   signal,
 }: FolderRequestOptions): Promise<void> {
-  const response = await fetch(`${API_URL}/projects/${folderId}`, {
+  return apiRequest<void>(`/projects/${folderId}`, {
     method: 'DELETE',
-    headers: getHeaders(accessToken),
     signal,
   });
-
-  await requireSuccessfulResponse(response);
 }

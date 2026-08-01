@@ -62,15 +62,6 @@ export default function FoldersPage() {
   useEffect(() => {
     if (useSeedData) return;
 
-    const accessToken = window.localStorage.getItem('access_token');
-
-    if (!accessToken) {
-      setLoadError('Please sign in to view your folders.');
-      setIsLoading(false);
-      return;
-    }
-
-    const authenticatedToken = accessToken;
     const controller = new AbortController();
 
     async function loadFolders() {
@@ -78,7 +69,6 @@ export default function FoldersPage() {
         setLoadError(null);
         setIsLoading(true);
         const result = await getFolders({
-          accessToken: authenticatedToken,
           signal: controller.signal,
         });
         const [folderTaskResults, inboxResult] = await Promise.all([
@@ -86,13 +76,13 @@ export default function FoldersPage() {
             result.map((folder) =>
               getTasks(
                 { projectId: folder.id, pageSize: 100 },
-                { accessToken: authenticatedToken, signal: controller.signal },
+                { signal: controller.signal },
               ),
             ),
           ),
           getTasks(
             { inbox: true },
-            { accessToken: authenticatedToken, signal: controller.signal },
+            { signal: controller.signal },
           ),
         ]);
         const nextTasksByFolder: TasksByFolder = {};
@@ -145,23 +135,13 @@ export default function FoldersPage() {
     }
   }, []);
 
-  function requireToken(): string | null {
-    const token = window.localStorage.getItem('access_token');
-    if (!token) setActionError('Please sign in to change folders or tasks.');
-    return token;
-  }
-
   async function handleEditFolder(folder: Folder, values: { name: string; color: string }) {
     setActionError(null);
     setIsMutating(true);
     try {
       const updated = useSeedData
         ? { ...folder, ...values, updated_at: new Date().toISOString() }
-        : await (async () => {
-            const token = requireToken();
-            if (!token) throw new Error('Please sign in to edit this folder.');
-            return updateFolder(values, { accessToken: token, folderId: folder.id });
-          })();
+        : await updateFolder(values, { folderId: folder.id });
       setFolders((current) =>
         current.map((item) =>
           item.id === folder.id
@@ -182,9 +162,7 @@ export default function FoldersPage() {
     setIsMutating(true);
     try {
       if (!useSeedData) {
-        const token = requireToken();
-        if (!token) throw new Error('Please sign in to delete this folder.');
-        await deleteFolder({ accessToken: token, folderId: folder.id });
+        await deleteFolder({ folderId: folder.id });
       }
       const displacedTasks = tasksByFolder[folder.id] ?? [];
       setInboxTasks((current) => [
@@ -209,9 +187,7 @@ export default function FoldersPage() {
     setActionError(null);
     try {
       if (!useSeedData) {
-        const token = requireToken();
-        if (!token) return;
-        await updateTask(task.id, { project_id: folderId }, { accessToken: token });
+        await updateTask(task.id, { project_id: folderId });
       }
       setInboxTasks((current) => current.filter((item) => item.id !== task.id));
       setTasksByFolder((current) => ({
@@ -258,12 +234,9 @@ export default function FoldersPage() {
         onMoveTask={async (sourceFolder, task, destinationFolderId) => {
           try {
             if (!useSeedData) {
-              const token = requireToken();
-              if (!token) return;
               await updateTask(
                 task.id,
                 { project_id: destinationFolderId },
-                { accessToken: token },
               );
             }
 
@@ -324,9 +297,7 @@ export default function FoldersPage() {
           const nextStatus = task.status === 'done' ? 'pending' : 'done';
           try {
             if (!useSeedData) {
-              const token = requireToken();
-              if (!token) return;
-              await updateTask(task.id, { status: nextStatus }, { accessToken: token });
+              await updateTask(task.id, { status: nextStatus });
             }
             setTasksByFolder((current) => ({
               ...current,
@@ -367,9 +338,7 @@ export default function FoldersPage() {
         onRemove={async (task) => {
           try {
             if (!useSeedData) {
-              const token = requireToken();
-              if (!token) return;
-              await deleteTask(task.id, { accessToken: token });
+              await deleteTask(task.id);
             }
             setInboxTasks((current) => current.filter((item) => item.id !== task.id));
           } catch (error) {
@@ -380,9 +349,7 @@ export default function FoldersPage() {
           const nextStatus = task.status === 'done' ? 'pending' : 'done';
           try {
             if (!useSeedData) {
-              const token = requireToken();
-              if (!token) return;
-              await updateTask(task.id, { status: nextStatus }, { accessToken: token });
+              await updateTask(task.id, { status: nextStatus });
             }
             setInboxTasks((current) =>
               current.map((item) =>
