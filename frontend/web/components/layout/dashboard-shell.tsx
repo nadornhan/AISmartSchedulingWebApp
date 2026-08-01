@@ -78,6 +78,18 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true') {
+      setCurrentUser({
+        id: 'local-test-user',
+        email: 'tester@localhost',
+        first_name: 'Local',
+        last_name: 'Tester',
+        role: 'student',
+      });
+      setIsCheckingSession(false);
+      return;
+    }
+
     let isMounted = true;
     const cachedUser = getCachedCurrentUser();
 
