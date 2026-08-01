@@ -3,7 +3,12 @@ import { apiRequest } from './api';
 export type TaskStatusValue = 'pending' | 'in_progress' | 'done';
 export type TaskDisplayStatusValue = TaskStatusValue | 'overdue';
 export type TaskPriorityValue = 'no_priority' | 'low' | 'medium' | 'high';
-export type TaskSortValue = 'created_at' | 'updated_at' | 'title' | 'due_date' | 'priority';
+export type TaskSortValue =
+  | 'created_at'
+  | 'updated_at'
+  | 'title'
+  | 'due_date'
+  | 'priority';
 
 // Compatibility aliases used by the folders/inbox feature.
 export type TaskStatus = TaskDisplayStatusValue;
@@ -45,6 +50,8 @@ export type TaskListResponse = {
   total: number;
   total_pages: number;
 };
+
+type TaskListApiResponse = TaskListResponse | TaskResponse[];
 
 export type TaskListParams = {
   status?: TaskDisplayStatusValue;
@@ -88,21 +95,61 @@ function taskQuery(params: TaskListParams): string {
   if (params.status) query.set('status', params.status);
   if (params.priority) query.set('priority', params.priority);
   if (params.projectId) query.set('project_id', params.projectId);
-  if (params.search?.trim()) query.set('search', params.search.trim());
+  if (params.search?.trim()) {
+    query.set('search', params.search.trim());
+  }
   if (params.dueFrom) query.set('due_from', params.dueFrom);
   if (params.dueTo) query.set('due_to', params.dueTo);
   if (params.sortBy) query.set('sort_by', params.sortBy);
   if (params.sortOrder) query.set('sort_order', params.sortOrder);
   if (params.page) query.set('page', String(params.page));
-  if (params.pageSize) query.set('page_size', String(params.pageSize));
+  if (params.pageSize) {
+    query.set('page_size', String(params.pageSize));
+  }
 
   return query.size ? `?${query.toString()}` : '';
 }
 
-export function listTasks(params: TaskListParams = {}, options: RequestOptions = {}) {
-  return apiRequest<TaskListResponse>(`/tasks${taskQuery(params)}`, {
-    signal: options.signal,
-  });
+function isTaskListResponse(
+  response: TaskListApiResponse,
+): response is TaskListResponse {
+  return (
+    !Array.isArray(response) &&
+    Array.isArray(response.items)
+  );
+}
+
+export async function listTasks(
+  params: TaskListParams = {},
+  options: RequestOptions = {},
+): Promise<TaskListResponse> {
+  const response = await apiRequest<TaskListApiResponse>(
+    `/tasks${taskQuery(params)}`,
+    {
+      signal: options.signal,
+    },
+  );
+
+  // Compatibility with the older deployed backend,
+  // which returns TaskResponse[] directly.
+  if (Array.isArray(response)) {
+    return {
+      items: response,
+      page: 1,
+      page_size: response.length,
+      total: response.length,
+      total_pages: response.length > 0 ? 1 : 0,
+    };
+  }
+
+  // The current backend should return TaskListResponse.
+  if (!isTaskListResponse(response)) {
+    throw new Error(
+      'Invalid task list response from the server.',
+    );
+  }
+
+  return response;
 }
 
 export async function getTasks(
@@ -117,9 +164,14 @@ export async function getTasks(
     options,
   );
 
-  if (!params.inbox) return result;
+  if (!params.inbox) {
+    return result;
+  }
 
-  const items = result.items.filter((task) => task.project_id === null);
+  const items = result.items.filter(
+    (task) => task.project_id === null,
+  );
+
   return {
     ...result,
     items,
@@ -128,7 +180,10 @@ export async function getTasks(
   };
 }
 
-export function createTask(input: TaskCreateInput, options: RequestOptions = {}) {
+export function createTask(
+  input: TaskCreateInput,
+  options: RequestOptions = {},
+) {
   return apiRequest<TaskResponse>('/tasks', {
     method: 'POST',
     body: JSON.stringify(input),
@@ -148,9 +203,19 @@ export function updateTask(
   });
 }
 
-export function deleteTask(taskId: string): Promise<void>;
-export function deleteTask(taskId: string, options: RequestOptions): Promise<void>;
-export function deleteTask(taskId: string, options: RequestOptions = {}) {
+export function deleteTask(
+  taskId: string,
+): Promise<void>;
+
+export function deleteTask(
+  taskId: string,
+  options: RequestOptions,
+): Promise<void>;
+
+export function deleteTask(
+  taskId: string,
+  options: RequestOptions = {},
+) {
   return apiRequest<void>(`/tasks/${taskId}`, {
     method: 'DELETE',
     signal: options.signal,
