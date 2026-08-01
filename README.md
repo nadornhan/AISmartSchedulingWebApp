@@ -279,6 +279,37 @@ Apply all migrations:
 .\.venv\Scripts\python.exe -m alembic upgrade head
 ```
 
+Create the shared local test account after the API is running:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri http://localhost:8000/auth/register `
+  -ContentType "application/json" `
+  -Body '{
+    "email": "alex@example.com",
+    "password": "TestPassword123",
+    "first_name": "Alex",
+    "last_name": "Johnson",
+    "role": "student"
+  }'
+```
+
+On macOS or Linux:
+
+```bash
+curl -X POST http://localhost:8000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "alex@example.com",
+    "password": "TestPassword123",
+    "first_name": "Alex",
+    "last_name": "Johnson",
+    "role": "student"
+  }'
+```
+
+If the API returns `409 Email already registered`, the account already exists in the local database. Use `alex@example.com` and `TestPassword123` to log in.
+
 Create a migration after adding or changing SQLAlchemy models:
 
 ```powershell
