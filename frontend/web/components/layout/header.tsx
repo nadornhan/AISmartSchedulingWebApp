@@ -1,9 +1,20 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { HeaderDropdown } from './header-dropdown';
 import { BellIcon, ChevronDownIcon, SearchIcon } from './icons';
+import { NotificationDropdown, type NotificationDropdownItem } from './notification-dropdown';
+import { ProfileMenu } from './profile-menu';
 import type { UserResponse } from '../../lib/auth';
+import { onTaskDataChanged } from '../../lib/data-events';
+import {
+  listNotifications,
+  markNotificationsRead,
+  type NotificationListResponse,
+  type NotificationResponse,
+} from '../../lib/notifications';
+import { UserAvatar } from '../shared/user-avatar';
 
 type HeaderProps = {
   title: string;
@@ -20,7 +31,7 @@ export function Header({ title, subtitle, className, user }: HeaderProps) {
   return (
     <header
       className={cn(
-        'flex min-h-28 flex-col gap-6 border-b border-dashboard-border bg-dashboard-bg/75 px-6 py-6 backdrop-blur-xl lg:px-10 xl:px-12',
+        'relative z-[100] flex min-h-28 flex-col gap-6 border-b border-dashboard-border bg-dashboard-bg/75 px-6 py-6 backdrop-blur-xl lg:px-10 xl:px-12',
         className,
       )}
     >
@@ -79,26 +90,8 @@ function SearchBox({ compact = false }: Readonly<{ compact?: boolean }>) {
         type="search"
         value={search}
       />
-      <kbd className="hidden rounded bg-dashboard-raised px-2 py-1 text-xs sm:block">⌘K</kbd>
     </form>
   );
-}
-
-function getUserInitials(
-  user?: {
-    first_name?: string | null;
-    last_name?: string | null;
-    email?: string | null;
-  } | null,
-) {
-  const firstName = user?.first_name?.trim() ?? "";
-  const lastName = user?.last_name?.trim() ?? "";
-  const email = user?.email?.trim() ?? "";
-
-  const initials =
-    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-
-  return initials || email.slice(0, 2).toUpperCase() || "U";
 }
 
 function HeaderActions({
@@ -108,31 +101,177 @@ function HeaderActions({
   compact?: boolean;
   user?: UserResponse | null;
 }>) {
-  const initials = getUserInitials(user);
+  const router = useRouter();
+  const pathname = usePathname();
+  const [openMenu, setOpenMenu] = useState<'notifications' | 'profile' | null>(null);
+  const [notifications, setNotifications] = useState<NotificationListResponse>({
+    items: [],
+    unread_count: 0,
+  });
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const notificationButtonRef = useRef<HTMLButtonElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
+
+  const refreshNotifications = useCallback(async (signal?: AbortSignal) => {
+    try {
+      setNotificationsError(null);
+      const response = await listNotifications(5, { signal });
+      setNotifications(response);
+      return response;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return null;
+      }
+
+      setNotificationsError(
+        error instanceof Error ? error.message : 'Unable to load notifications.',
+      );
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    setOpenMenu(null);
+  }, [pathname]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void refreshNotifications(controller.signal);
+
+    return () => controller.abort();
+  }, [refreshNotifications]);
+
+  useEffect(
+    () =>
+      onTaskDataChanged(() => {
+        void refreshNotifications();
+      }),
+    [refreshNotifications],
+  );
+
+  useEffect(() => {
+    if (openMenu !== 'notifications') return;
+
+    const controller = new AbortController();
+
+    async function loadAndMarkDisplayed() {
+      setNotificationsLoading(true);
+      const response = await refreshNotifications(controller.signal);
+      const unreadIds =
+        response?.items.filter((item) => !item.is_read).map((item) => item.id) ?? [];
+
+      if (unreadIds.length > 0) {
+        try {
+          const nextNotifications = await markNotificationsRead(unreadIds, {
+            signal: controller.signal,
+          });
+          setNotifications(nextNotifications);
+        } catch (error) {
+          if (!(error instanceof DOMException && error.name === 'AbortError')) {
+            setNotificationsError(
+              error instanceof Error ? error.message : 'Unable to update notifications.',
+            );
+          }
+        }
+      }
+
+      if (!controller.signal.aborted) {
+        setNotificationsLoading(false);
+      }
+    }
+
+    void loadAndMarkDisplayed();
+
+    return () => controller.abort();
+  }, [openMenu, refreshNotifications]);
+
+  function notificationDescription(notification: NotificationResponse) {
+    const details = [
+      notification.task?.project_name,
+      notification.task?.priority,
+      notification.task?.status,
+    ].filter(Boolean);
+
+    return details.length > 0 ? details.join(' / ') : undefined;
+  }
+
+  const notificationItems: NotificationDropdownItem[] = notifications.items.map((notification) => ({
+    id: notification.id,
+    title: notification.message ?? notification.title,
+    description: notificationDescription(notification),
+    createdAt: notification.created_at,
+    isRead: notification.is_read,
+    onSelect: () => {
+      const projectId = notification.task?.project_id;
+      router.push(projectId ? `/tasks?project_id=${encodeURIComponent(projectId)}` : '/tasks');
+    },
+  }));
 
   return (
-    <div className={cn('flex items-center', compact ? 'gap-3' : 'gap-6')}>
+    <div className={cn('relative flex items-center', compact ? 'gap-3' : 'gap-6')}>
       <button
+        aria-expanded={openMenu === 'notifications'}
+        aria-haspopup="dialog"
         aria-label="Notifications"
         className="relative grid h-12 w-12 place-items-center rounded-full text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+        onClick={() =>
+          setOpenMenu((current) => (current === 'notifications' ? null : 'notifications'))
+        }
+        ref={notificationButtonRef}
         type="button"
       >
         <BellIcon className="h-6 w-6" />
-        <span className="absolute right-1.5 top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-dashboard-accent px-1 text-xs font-bold leading-none text-dashboard-bg">
-          2
-        </span>
+        {notifications.unread_count > 0 ? (
+          <span className="absolute right-1.5 top-1.5 min-w-5 rounded-full bg-dashboard-danger px-1.5 text-center text-xs font-semibold leading-5 text-white">
+            {notifications.unread_count > 99 ? '99+' : notifications.unread_count}
+          </span>
+        ) : null}
       </button>
 
       <button
+        aria-expanded={openMenu === 'profile'}
+        aria-haspopup="dialog"
         aria-label="Open profile menu"
         className="flex items-center gap-3 rounded-full text-dashboard-muted transition hover:text-dashboard-text"
+        onClick={() => setOpenMenu((current) => (current === 'profile' ? null : 'profile'))}
+        ref={profileButtonRef}
         type="button"
       >
-        <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border border-dashboard-border-strong bg-gradient-to-br from-dashboard-muted to-dashboard-surface text-sm font-semibold text-dashboard-bg">
-          {initials}
-        </span>
+        <UserAvatar
+          avatarUrl={user?.avatar_url}
+          className="h-12 w-12"
+          email={user?.email}
+          firstName={user?.first_name}
+          lastName={user?.last_name}
+        />
         <ChevronDownIcon className="hidden h-5 w-5 shrink-0 sm:block" />
       </button>
+
+      {openMenu === 'notifications' ? (
+        <HeaderDropdown
+          label="Notifications"
+          onClose={() => setOpenMenu(null)}
+          triggerRef={notificationButtonRef}
+        >
+          <NotificationDropdown
+            error={notificationsError}
+            isLoading={notificationsLoading}
+            items={notificationItems}
+            onClose={() => setOpenMenu(null)}
+          />
+        </HeaderDropdown>
+      ) : null}
+
+      {openMenu === 'profile' ? (
+        <HeaderDropdown
+          label="Profile menu"
+          onClose={() => setOpenMenu(null)}
+          triggerRef={profileButtonRef}
+        >
+          <ProfileMenu onClose={() => setOpenMenu(null)} user={user} />
+        </HeaderDropdown>
+      ) : null}
     </div>
   );
 }

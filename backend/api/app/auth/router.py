@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import CurrentUser
@@ -12,16 +12,20 @@ from app.auth.schemas import (
 )
 from app.auth.security import create_access_token
 from app.auth.service import (
+    AvatarUploadError,
     DuplicateUserEmailError,
     authenticate_user,
     create_user,
+    delete_user_avatar,
     get_user_by_email,
+    save_user_avatar,
 )
 from app.database import get_db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 DatabaseSession = Annotated[Session, Depends(get_db)]
+AvatarUpload = Annotated[UploadFile, File()]
 
 
 def duplicate_email_error() -> HTTPException:
@@ -77,3 +81,26 @@ def login(
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: CurrentUser) -> UserResponse:
     return current_user
+
+
+@router.post("/me/avatar", response_model=UserResponse)
+async def upload_me_avatar(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    avatar: AvatarUpload,
+) -> UserResponse:
+    try:
+        return await save_user_avatar(db, current_user, avatar)
+    except AvatarUploadError as error:
+        raise HTTPException(
+            status_code=error.status_code,
+            detail=str(error),
+        ) from error
+
+
+@router.delete("/me/avatar", response_model=UserResponse)
+def delete_me_avatar(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> UserResponse:
+    return delete_user_avatar(db, current_user)

@@ -1,10 +1,8 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
-import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
-import { clearSession, getCachedCurrentUser, getCurrentUser } from '../../lib/auth';
-import type { UserResponse } from '../../lib/auth';
+import { usePathname } from 'next/navigation';
+import { Suspense, type ReactNode } from 'react';
+import { CurrentUserProvider, useCurrentUser } from '../auth/current-user-provider';
 import { Header } from './header';
 import { Sidebar } from './sidebar';
 
@@ -71,61 +69,32 @@ function getRouteMeta(pathname: string): RouteMeta {
 }
 
 export function DashboardShell({ children }: DashboardShellProps) {
+  return (
+    <CurrentUserProvider>
+      <DashboardShellContent>{children}</DashboardShellContent>
+    </CurrentUserProvider>
+  );
+}
+
+function DashboardShellContent({
+  children,
+}: Readonly<{
+  children: ReactNode;
+}>) {
   const pathname = usePathname();
-  const router = useRouter();
   const meta = getRouteMeta(pathname);
-  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
-
-  useEffect(() => {
-    if (process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true') {
-      setCurrentUser({
-        id: 'local-test-user',
-        email: 'tester@localhost',
-        first_name: 'Local',
-        last_name: 'Tester',
-        role: 'student',
-      });
-      setIsCheckingSession(false);
-      return;
-    }
-
-    let isMounted = true;
-    const cachedUser = getCachedCurrentUser();
-
-    if (cachedUser) {
-      setCurrentUser(cachedUser);
-    }
-
-    getCurrentUser()
-      .then((user) => {
-        if (isMounted) {
-          setCurrentUser(user);
-        }
-      })
-      .catch(() => {
-        clearSession();
-        router.replace('/login');
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsCheckingSession(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [router]);
+  const { isCheckingSession, user } = useCurrentUser();
 
   return (
     <div className="min-h-dvh bg-dashboard-bg text-dashboard-text lg:flex">
-      <Sidebar className="max-lg:h-auto max-lg:w-full max-lg:border-b max-lg:border-r-0 max-lg:px-4 max-lg:py-5" />
+      <Suspense fallback={null}>
+        <Sidebar className="max-lg:h-auto max-lg:w-full max-lg:border-b max-lg:border-r-0 max-lg:px-4 max-lg:py-5" />
+      </Suspense>
 
       <div className="min-w-0 flex-1">
-        <Header subtitle={meta.subtitle} title={meta.title} user={currentUser} />
-        <main className="min-h-[calc(100dvh-7rem)] px-6 py-8 lg:px-10 xl:px-12">
-          {isCheckingSession && !currentUser ? (
+        <Header subtitle={meta.subtitle} title={meta.title} user={user} />
+        <main className="relative z-0 min-h-[calc(100dvh-7rem)] px-6 py-8 lg:px-10 xl:px-12">
+          {isCheckingSession && !user ? (
             <div className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted">
               Checking your session...
             </div>

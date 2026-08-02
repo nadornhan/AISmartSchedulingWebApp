@@ -1,10 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import {
-  FocusSettingsModal,
-  type FocusDurations,
-} from './FocusSettingsModal';
+import { useEffect, useRef, useState } from 'react';
+import { FocusSettingsModal, type FocusDurations } from './FocusSettingsModal';
 
 type Mode = 'Pomodoro' | 'Short Break' | 'Long Break';
 
@@ -30,33 +27,59 @@ function getModeSeconds(mode: Mode, durations: FocusDurations) {
 
 export function FocusMode() {
   const [mode, setMode] = useState<Mode>('Pomodoro');
-  const [durations, setDurations] =
-    useState<FocusDurations>(defaultDurations);
+  const [durations, setDurations] = useState<FocusDurations>(defaultDurations);
   const [seconds, setSeconds] = useState(defaultDurations.focus * 60);
   const [running, setRunning] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tasks, setTasks] = useState<FocusTask[]>([]);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const endTimeRef = useRef<number | null>(null);
+  const remainingRef = useRef(defaultDurations.focus * 60);
+  const completionSoundPlayedRef = useRef(false);
 
   const totalSeconds = getModeSeconds(mode, durations);
   const progress = totalSeconds > 0 ? seconds / totalSeconds : 0;
-  const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const minutes = Math.floor(seconds / 60)
+    .toString()
+    .padStart(2, '0');
   const remainder = (seconds % 60).toString().padStart(2, '0');
+
+  useEffect(() => {
+    remainingRef.current = seconds;
+  }, [seconds]);
+
+  useEffect(() => {
+    audioRef.current = new Audio('/sounds/focus-complete.wav');
+    audioRef.current.preload = 'auto';
+  }, []);
 
   useEffect(() => {
     if (!running) return;
 
-    const timer = window.setInterval(() => {
+    function tick() {
+      if (endTimeRef.current === null) return;
+
+      const nextSeconds = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000));
+
       setSeconds((current) => {
-        if (current <= 1) {
-          setRunning(false);
-          return 0;
+        if (nextSeconds === 0 && current > 0 && !completionSoundPlayedRef.current) {
+          completionSoundPlayedRef.current = true;
+          audioRef.current?.play().catch(() => {});
         }
 
-        return current - 1;
+        return nextSeconds;
       });
-    }, 1000);
+
+      if (nextSeconds === 0) {
+        setRunning(false);
+        endTimeRef.current = null;
+      }
+    }
+
+    tick();
+    const timer = window.setInterval(tick, 250);
 
     return () => window.clearInterval(timer);
   }, [running]);
@@ -65,22 +88,38 @@ export function FocusMode() {
     setMode(nextMode);
     setSeconds(getModeSeconds(nextMode, durations));
     setRunning(false);
+    endTimeRef.current = null;
+    completionSoundPlayedRef.current = false;
   }
 
   function saveDurations(nextDurations: FocusDurations) {
     setDurations(nextDurations);
     setSeconds(getModeSeconds(mode, nextDurations));
     setRunning(false);
+    endTimeRef.current = null;
+    completionSoundPlayedRef.current = false;
     setSettingsOpen(false);
   }
 
   function toggleTimer() {
     if (seconds === 0) {
       setSeconds(totalSeconds);
+      endTimeRef.current = null;
+      completionSoundPlayedRef.current = false;
       return;
     }
 
-    setRunning((current) => !current);
+    setRunning((current) => {
+      if (current) {
+        endTimeRef.current = null;
+        return false;
+      }
+
+      completionSoundPlayedRef.current = false;
+      endTimeRef.current = Date.now() + remainingRef.current * 1000;
+      audioRef.current?.load();
+      return true;
+    });
   }
 
   function skipSession() {
@@ -92,19 +131,14 @@ export function FocusMode() {
 
     if (!title) return;
 
-    setTasks((current) => [
-      ...current,
-      { id: Date.now(), title, done: false },
-    ]);
+    setTasks((current) => [...current, { id: Date.now(), title, done: false }]);
     setDraft('');
     setAdding(false);
   }
 
   function toggleTask(taskId: number) {
     setTasks((current) =>
-      current.map((task) =>
-        task.id === taskId ? { ...task, done: !task.done } : task,
-      ),
+      current.map((task) => (task.id === taskId ? { ...task, done: !task.done } : task)),
     );
   }
 
@@ -138,11 +172,7 @@ export function FocusMode() {
         </div>
 
         <div className="focus-timer-stage">
-          <svg
-            aria-hidden="true"
-            className="focus-timer-ring"
-            viewBox="0 0 200 200"
-          >
+          <svg aria-hidden="true" className="focus-timer-ring" viewBox="0 0 200 200">
             <circle
               cx="100"
               cy="100"
@@ -186,11 +216,7 @@ export function FocusMode() {
               </button>
 
               <button
-                aria-label={
-                  mode === 'Pomodoro'
-                    ? 'Skip to short break'
-                    : 'Skip to focus session'
-                }
+                aria-label={mode === 'Pomodoro' ? 'Skip to short break' : 'Skip to focus session'}
                 className="focus-skip-action"
                 onClick={skipSession}
                 title={mode === 'Pomodoro' ? 'Skip to break' : 'Skip to focus'}
@@ -211,9 +237,7 @@ export function FocusMode() {
       </section>
 
       <section>
-        <h2 className="mb-4 text-xl font-medium text-dashboard-text">
-          Tasks
-        </h2>
+        <h2 className="mb-4 text-xl font-medium text-dashboard-text">Tasks</h2>
 
         <div className="overflow-hidden rounded-2xl border border-dashboard-border bg-dashboard-surface/55">
           {tasks.map((task) => (
@@ -324,12 +348,7 @@ function PlusIcon() {
 
 function SkipIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      className="h-6 w-6"
-      fill="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg aria-hidden="true" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
       <path d="M6.5 5.7a1 1 0 0 1 1.5-.86l8.5 5.3a1 1 0 0 1 0 1.72L8 17.16a1 1 0 0 1-1.5-.86V5.7ZM18 5a1 1 0 0 1 1 1v12a1 1 0 1 1-2 0V6a1 1 0 0 1 1-1Z" />
     </svg>
   );

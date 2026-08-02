@@ -1,9 +1,4 @@
-import {
-  apiRequest,
-  clearAccessToken,
-  getAccessToken,
-  setAccessToken,
-} from './api';
+import { apiRequest, clearAccessToken, getAccessToken, setAccessToken } from './api';
 
 export type UserRole = 'student' | 'teacher' | 'other' | 'admin';
 export type RegistrationRole = Exclude<UserRole, 'admin'>;
@@ -22,6 +17,10 @@ export type UserResponse = {
   first_name: string;
   last_name: string;
   role: UserRole;
+  avatar_url: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 export type TokenResponse = {
@@ -34,9 +33,7 @@ const CURRENT_USER_KEY = 'chrono.auth.currentUser';
 /**
  * Register a user with their complete profile information.
  */
-export async function registerUser(
-  input: RegisterUserInput,
-): Promise<UserResponse> {
+export async function registerUser(input: RegisterUserInput): Promise<UserResponse> {
   return apiRequest<UserResponse>('/auth/register', {
     auth: false,
     method: 'POST',
@@ -53,10 +50,7 @@ export async function registerUser(
 /**
  * Sign in and save the access token using the shared token manager.
  */
-export async function loginUser(
-  email: string,
-  password: string,
-): Promise<TokenResponse> {
+export async function loginUser(email: string, password: string): Promise<TokenResponse> {
   const token = await apiRequest<TokenResponse>('/auth/login', {
     auth: false,
     method: 'POST',
@@ -86,10 +80,41 @@ export async function getCurrentUser(): Promise<UserResponse> {
   });
 
   if (typeof window !== 'undefined') {
-    window.localStorage.setItem(
-      CURRENT_USER_KEY,
-      JSON.stringify(user),
-    );
+    window.localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+  }
+
+  return user;
+}
+
+/**
+ * Upload a new avatar for the signed-in user.
+ */
+export async function uploadCurrentUserAvatar(file: File): Promise<UserResponse> {
+  const formData = new FormData();
+  formData.set('avatar', file);
+
+  const user = await apiRequest<UserResponse>('/auth/me/avatar', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+  }
+
+  return user;
+}
+
+/**
+ * Remove the signed-in user's avatar so UI falls back to initials.
+ */
+export async function deleteCurrentUserAvatar(): Promise<UserResponse> {
+  const user = await apiRequest<UserResponse>('/auth/me/avatar', {
+    method: 'DELETE',
+  });
+
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
   }
 
   return user;
@@ -131,9 +156,7 @@ export function clearSession(): void {
 /**
  * Register, sign in, and return the new user's profile.
  */
-export async function registerAndSignIn(
-  input: RegisterUserInput,
-): Promise<UserResponse> {
+export async function registerAndSignIn(input: RegisterUserInput): Promise<UserResponse> {
   await registerUser(input);
   await loginUser(input.email, input.password);
 

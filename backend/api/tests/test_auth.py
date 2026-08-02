@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import require_roles
 from app.auth.models import User
 from app.auth.security import create_access_token, hash_password, verify_password
+from app.config import get_settings
 
 
 def unique_email(prefix: str = "auth-test") -> str:
@@ -133,6 +134,136 @@ def test_login_returns_bearer_token_and_me_returns_current_user(
     assert current_user["first_name"] == "Alex"
     assert current_user["last_name"] == "Nguyen"
     assert current_user["role"] == "student"
+    assert current_user["avatar_url"] is None
+
+
+def test_upload_avatar_accepts_valid_png(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "upload_dir", tmp_path)
+    email, password, registered_user = register_user(client)
+    headers = auth_headers_for(email, password, client)
+
+    response = client.post(
+        "/auth/me/avatar",
+        files={
+            "avatar": (
+                "avatar.png",
+                b"\x89PNG\r\n\x1a\nvalid-image-content",
+                "image/png",
+            ),
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+
+    current_user = response.json()
+    stored_user = db_session.get(User, uuid.UUID(registered_user["id"]))
+
+    assert stored_user is not None
+    assert stored_user.avatar_path is not None
+    assert current_user["avatar_url"] == f"/media/{stored_user.avatar_path}"
+    assert stored_user.avatar_path.startswith("avatars/")
+    assert ".." not in stored_user.avatar_path
+    assert (tmp_path / stored_user.avatar_path).exists()
+
+
+def test_upload_avatar_rejects_mismatched_mime_type(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "upload_dir", tmp_path)
+    email, password, _ = register_user(client)
+    headers = auth_headers_for(email, password, client)
+
+    response = client.post(
+        "/auth/me/avatar",
+        files={
+            "avatar": (
+                "avatar.png",
+                b"\x89PNG\r\n\x1a\nvalid-image-content",
+                "image/jpeg",
+            ),
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Avatar MIME type does not match the file extension."
+    )
+
+
+def test_upload_avatar_rejects_oversized_file(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "upload_dir", tmp_path)
+    email, password, _ = register_user(client)
+    headers = auth_headers_for(email, password, client)
+    oversized_avatar = b"\xff\xd8\xff" + b"0" * settings.avatar_max_bytes
+
+    response = client.post(
+        "/auth/me/avatar",
+        files={
+            "avatar": (
+                "avatar.jpg",
+                oversized_avatar,
+                "image/jpeg",
+            ),
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == "Avatar must be 2 MB or smaller."
+
+
+def test_delete_avatar_clears_avatar_url(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "upload_dir", tmp_path)
+    email, password, registered_user = register_user(client)
+    headers = auth_headers_for(email, password, client)
+
+    upload_response = client.post(
+        "/auth/me/avatar",
+        files={
+            "avatar": (
+                "avatar.png",
+                b"\x89PNG\r\n\x1a\nvalid-image-content",
+                "image/png",
+            ),
+        },
+        headers=headers,
+    )
+    assert upload_response.status_code == 200
+    assert upload_response.json()["avatar_url"] is not None
+
+    delete_response = client.delete(
+        "/auth/me/avatar",
+        headers=headers,
+    )
+
+    stored_user = db_session.get(User, uuid.UUID(registered_user["id"]))
+
+    assert delete_response.status_code == 200
+    assert delete_response.json()["avatar_url"] is None
+    assert stored_user is not None
+    assert stored_user.avatar_path is None
 
 
 def test_login_rejects_invalid_password(client: TestClient) -> None:

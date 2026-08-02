@@ -102,6 +102,66 @@ def test_list_projects(
         "First Project",
         "Second Project",
     }
+    assert all(project["task_count"] == 0 for project in projects)
+    assert all(project["completed_task_count"] == 0 for project in projects)
+
+
+def test_list_projects_includes_task_counts(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    project_response = client.post(
+        "/projects",
+        headers=auth_headers,
+        json={"name": "Counted Project"},
+    )
+    assert project_response.status_code == 201
+    project_id = project_response.json()["id"]
+
+    first_task = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Pending task",
+            "project_id": project_id,
+        },
+    )
+    done_task = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Done task",
+            "project_id": project_id,
+        },
+    )
+    unassigned_task = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={"title": "Unassigned task"},
+    )
+
+    assert first_task.status_code == 201
+    assert done_task.status_code == 201
+    assert unassigned_task.status_code == 201
+
+    done_response = client.patch(
+        f"/tasks/{done_task.json()['id']}",
+        headers=auth_headers,
+        json={"status": "done"},
+    )
+    assert done_response.status_code == 200
+
+    response = client.get(
+        "/projects",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+
+    project = response.json()[0]
+    assert project["id"] == project_id
+    assert project["task_count"] == 2
+    assert project["completed_task_count"] == 1
 
 
 def test_update_project(

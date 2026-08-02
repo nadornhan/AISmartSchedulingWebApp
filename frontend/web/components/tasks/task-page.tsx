@@ -1,7 +1,9 @@
 'use client';
 
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { ApiError } from '../../lib/api';
+import { onProjectDataChanged, onTaskDataChanged } from '../../lib/data-events';
 import { listProjects, type Project } from '../../lib/projects';
 import {
   createTask,
@@ -179,6 +181,10 @@ function CheckBox({
 }
 
 export function TaskPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeProjectId = searchParams.get('project_id') || '';
+  const searchQuery = searchParams.get('search')?.trim() || '';
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('All');
@@ -198,12 +204,22 @@ export function TaskPage() {
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setPage(1);
+    setSelected([]);
+    if (searchQuery) {
+      setActiveFilter('All');
+    }
+  }, [activeProjectId, searchQuery]);
+
   const refreshTasks = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
       const response = await listTasks({
+        projectId: activeProjectId || undefined,
+        search: searchQuery || undefined,
         status: filterToApi[activeFilter],
         sortBy: 'due_date',
         sortOrder: sortAscending ? 'asc' : 'desc',
@@ -220,16 +236,41 @@ export function TaskPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeFilter, page, sortAscending]);
+  }, [activeFilter, activeProjectId, page, searchQuery, sortAscending]);
 
   const refreshCounts = useCallback(async () => {
     try {
+      const projectId = activeProjectId || undefined;
       const [all, pending, inProgress, done, overdue] = await Promise.all([
-        listTasks({ page: 1, pageSize: 1 }),
-        listTasks({ status: 'pending', page: 1, pageSize: 1 }),
-        listTasks({ status: 'in_progress', page: 1, pageSize: 1 }),
-        listTasks({ status: 'done', page: 1, pageSize: 1 }),
-        listTasks({ status: 'overdue', page: 1, pageSize: 1 }),
+        listTasks({ projectId, search: searchQuery || undefined, page: 1, pageSize: 1 }),
+        listTasks({
+          projectId,
+          search: searchQuery || undefined,
+          status: 'pending',
+          page: 1,
+          pageSize: 1,
+        }),
+        listTasks({
+          projectId,
+          search: searchQuery || undefined,
+          status: 'in_progress',
+          page: 1,
+          pageSize: 1,
+        }),
+        listTasks({
+          projectId,
+          search: searchQuery || undefined,
+          status: 'done',
+          page: 1,
+          pageSize: 1,
+        }),
+        listTasks({
+          projectId,
+          search: searchQuery || undefined,
+          status: 'overdue',
+          page: 1,
+          pageSize: 1,
+        }),
       ]);
       setCounts({
         All: all.total,
@@ -241,7 +282,7 @@ export function TaskPage() {
     } catch {
       // The main task request displays the actionable API error.
     }
-  }, []);
+  }, [activeProjectId, searchQuery]);
 
   useEffect(() => {
     void refreshTasks();
@@ -254,7 +295,28 @@ export function TaskPage() {
       .catch(() => setProjects([]));
   }, [refreshCounts]);
 
+  useEffect(
+    () =>
+      onTaskDataChanged(() => {
+        void refreshTasks();
+        void refreshCounts();
+      }),
+    [refreshCounts, refreshTasks],
+  );
+
+  useEffect(
+    () =>
+      onProjectDataChanged(() => {
+        void listProjects()
+          .then(setProjects)
+          .catch(() => setProjects([]));
+        void refreshCounts();
+      }),
+    [refreshCounts],
+  );
+
   const visibleTasks = tasks;
+  const activeProject = projects.find((project) => project.id === activeProjectId);
 
   const allVisibleSelected =
     visibleTasks.length > 0 && visibleTasks.every((task) => selected.includes(task.id));
@@ -339,8 +401,66 @@ export function TaskPage() {
     }
   }
 
+  function clearProjectFilter() {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('project_id');
+    const query = nextParams.toString();
+    router.push(query ? `/tasks?${query}` : '/tasks');
+  }
+
+  function clearSearchFilter() {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('search');
+    const query = nextParams.toString();
+    router.push(query ? `/tasks?${query}` : '/tasks');
+  }
+
   return (
     <>
+      {activeProjectId ? (
+        <section
+          aria-label="Active folder filter"
+          className="mb-5 flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-dashboard-border bg-dashboard-surface/55 px-4 py-3"
+        >
+          <span
+            className="h-3 w-3 rounded-full"
+            style={{ backgroundColor: activeProject?.color ?? 'var(--dashboard-muted)' }}
+          />
+          <p className="text-sm text-dashboard-muted">
+            Showing tasks in{' '}
+            <span className="font-semibold text-dashboard-text">
+              {activeProject?.name ?? 'selected folder'}
+            </span>
+          </p>
+          <button
+            className="ml-auto rounded-[var(--radius-sm)] border border-dashboard-border px-3 py-1.5 text-sm font-medium text-dashboard-muted transition hover:border-dashboard-accent/50 hover:text-dashboard-accent"
+            onClick={clearProjectFilter}
+            type="button"
+          >
+            Clear
+          </button>
+        </section>
+      ) : null}
+
+      {searchQuery ? (
+        <section
+          aria-label="Active task search"
+          className="mb-4 flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-dashboard-border bg-dashboard-surface/55 px-4 py-3"
+        >
+          <p className="text-sm text-dashboard-muted">
+            Searching tasks for{' '}
+            <span className="font-semibold text-dashboard-text">{searchQuery}</span>
+          </p>
+          <button
+            className="ml-auto rounded-[var(--radius-sm)] border border-dashboard-border px-3 py-1.5 text-sm font-medium text-dashboard-muted transition hover:border-dashboard-accent/50 hover:text-dashboard-accent"
+            onClick={clearSearchFilter}
+            type="button"
+          >
+            Clear
+          </button>
+        </section>
+      ) : null}
+
       <section aria-label="Task controls" className="mb-5 flex flex-wrap items-center gap-4">
         <div className="flex max-w-full gap-2 overflow-x-auto rounded-[var(--radius-xl)] border border-dashboard-border bg-dashboard-surface/70 p-2">
           {filterOrder.map((filter) => (

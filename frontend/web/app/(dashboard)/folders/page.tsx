@@ -1,40 +1,24 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { CreateFolderModal } from '../../../components/folders/create-folder-modal';
 import { DeleteFolderDialog } from '../../../components/folders/delete-folder-dialog';
 import { EditFolderModal } from '../../../components/folders/edit-folder-modal';
-import {
-  FolderList,
-  type TasksByFolder,
-} from '../../../components/folders/folder-list';
+import { FolderList, type TasksByFolder } from '../../../components/folders/folder-list';
 import { InboxList, type InboxTask } from '../../../components/folders/inbox-list';
 import { PlusIcon } from '../../../components/layout/icons';
-import {
-  seedFolders,
-  seedInboxTasks,
-  seedTasksByFolder,
-} from '../../../lib/folder-seed';
-import {
-  deleteFolder,
-  getFolders,
-  updateFolder,
-  type Folder,
-} from '../../../lib/folders';
+import { onProjectDataChanged, onTaskDataChanged } from '../../../lib/data-events';
+import { deleteFolder, getFolders, updateFolder, type Folder } from '../../../lib/folders';
 import { deleteTask, getTasks, updateTask } from '../../../lib/tasks';
 
-const useSeedData = process.env.NEXT_PUBLIC_USE_FOLDER_SEED_DATA !== 'false';
-
 export default function FoldersPage() {
+  const router = useRouter();
   const [isCreateOpenLocally, setIsCreateOpenLocally] = useState(false);
-  const [folders, setFolders] = useState<Folder[]>(useSeedData ? seedFolders : []);
-  const [tasksByFolder, setTasksByFolder] = useState<TasksByFolder>(
-    useSeedData ? seedTasksByFolder : {},
-  );
-  const [inboxTasks, setInboxTasks] = useState<InboxTask[]>(
-    useSeedData ? seedInboxTasks : [],
-  );
-  const [isLoading, setIsLoading] = useState(!useSeedData);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [tasksByFolder, setTasksByFolder] = useState<TasksByFolder>({});
+  const [inboxTasks, setInboxTasks] = useState<InboxTask[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
@@ -42,6 +26,47 @@ export default function FoldersPage() {
   const [isMutating, setIsMutating] = useState(false);
   const [isCreateOpenFromHash, setIsCreateOpenFromHash] = useState(false);
   const isCreateOpen = isCreateOpenLocally || isCreateOpenFromHash;
+
+  const loadFolders = useCallback(async (signal?: AbortSignal) => {
+    try {
+      setLoadError(null);
+      setIsLoading(true);
+      const result = await getFolders({ signal });
+      const [folderTaskResults, inboxResult] = await Promise.all([
+        Promise.all(
+          result.map((folder) => getTasks({ projectId: folder.id, pageSize: 3 }, { signal })),
+        ),
+        getTasks({ inbox: true }, { signal }),
+      ]);
+      const nextTasksByFolder: TasksByFolder = {};
+      result.forEach((folder, index) => {
+        nextTasksByFolder[folder.id] = folderTaskResults[index].items.map((task) => ({
+          id: task.id,
+          title: task.title,
+          status: task.status,
+          priority: task.priority,
+        }));
+      });
+      setFolders(result);
+      setTasksByFolder(nextTasksByFolder);
+      setInboxTasks(
+        inboxResult.items.map((task) => ({
+          id: task.id,
+          title: task.title,
+          status: task.status,
+          priority: task.priority,
+          icon: 'tool',
+        })),
+      );
+    } catch (requestError) {
+      if (signal?.aborted) return;
+      setLoadError(
+        requestError instanceof Error ? requestError.message : 'Unable to load folders.',
+      );
+    } finally {
+      if (!signal?.aborted) setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const syncModalWithHash = () => {
@@ -60,72 +85,26 @@ export default function FoldersPage() {
   }, []);
 
   useEffect(() => {
-    if (useSeedData) return;
-
     const controller = new AbortController();
-
-    async function loadFolders() {
-      try {
-        setLoadError(null);
-        setIsLoading(true);
-        const result = await getFolders({
-          signal: controller.signal,
-        });
-        const [folderTaskResults, inboxResult] = await Promise.all([
-          Promise.all(
-            result.map((folder) =>
-              getTasks(
-                { projectId: folder.id, pageSize: 100 },
-                { signal: controller.signal },
-              ),
-            ),
-          ),
-          getTasks(
-            { inbox: true },
-            { signal: controller.signal },
-          ),
-        ]);
-        const nextTasksByFolder: TasksByFolder = {};
-        const foldersWithCounts = result.map((folder, index) => {
-          const tasks = folderTaskResults[index].items;
-          nextTasksByFolder[folder.id] = tasks.map((task) => ({
-            id: task.id,
-            title: task.title,
-            status: task.status,
-            priority: task.priority,
-          }));
-          return {
-            ...folder,
-            task_count: folderTaskResults[index].total,
-            completed_task_count: tasks.filter((task) => task.status === 'done').length,
-          };
-        });
-        setFolders(foldersWithCounts);
-        setTasksByFolder(nextTasksByFolder);
-        setInboxTasks(
-          inboxResult.items.map((task) => ({
-            id: task.id,
-            title: task.title,
-            status: task.status,
-            priority: task.priority,
-            icon: 'tool',
-          })),
-        );
-      } catch (requestError) {
-        if (controller.signal.aborted) return;
-        setLoadError(
-          requestError instanceof Error
-            ? requestError.message
-            : 'Unable to load folders.',
-        );
-      } finally {
-        if (!controller.signal.aborted) setIsLoading(false);
-      }
-    }
-
-    void loadFolders();
+    void loadFolders(controller.signal);
     return () => controller.abort();
-  }, []);
+  }, [loadFolders]);
+
+  useEffect(
+    () =>
+      onTaskDataChanged(() => {
+        void loadFolders();
+      }),
+    [loadFolders],
+  );
+
+  useEffect(
+    () =>
+      onProjectDataChanged(() => {
+        void loadFolders();
+      }),
+    [loadFolders],
+  );
 
   const closeCreateModal = useCallback(() => {
     setIsCreateOpenLocally(false);
@@ -139,13 +118,15 @@ export default function FoldersPage() {
     setActionError(null);
     setIsMutating(true);
     try {
-      const updated = useSeedData
-        ? { ...folder, ...values, updated_at: new Date().toISOString() }
-        : await updateFolder(values, { folderId: folder.id });
+      const updated = await updateFolder(values, { folderId: folder.id });
       setFolders((current) =>
         current.map((item) =>
           item.id === folder.id
-            ? { ...updated, task_count: item.task_count, completed_task_count: item.completed_task_count }
+            ? {
+                ...updated,
+                task_count: item.task_count,
+                completed_task_count: item.completed_task_count,
+              }
             : item,
         ),
       );
@@ -161,20 +142,8 @@ export default function FoldersPage() {
     setActionError(null);
     setIsMutating(true);
     try {
-      if (!useSeedData) {
-        await deleteFolder({ folderId: folder.id });
-      }
-      const displacedTasks = tasksByFolder[folder.id] ?? [];
-      setInboxTasks((current) => [
-        ...current,
-        ...displacedTasks.map((task) => ({ ...task, icon: 'tool' as const })),
-      ]);
-      setTasksByFolder((current) => {
-        const next = { ...current };
-        delete next[folder.id];
-        return next;
-      });
-      setFolders((current) => current.filter((item) => item.id !== folder.id));
+      await deleteFolder({ folderId: folder.id });
+      await loadFolders();
       setDeletingFolder(null);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Unable to delete folder.');
@@ -186,9 +155,7 @@ export default function FoldersPage() {
   async function handleMoveTask(task: InboxTask, folderId: string) {
     setActionError(null);
     try {
-      if (!useSeedData) {
-        await updateTask(task.id, { project_id: folderId });
-      }
+      await updateTask(task.id, { project_id: folderId });
       setInboxTasks((current) => current.filter((item) => item.id !== task.id));
       setTasksByFolder((current) => ({
         ...current,
@@ -233,12 +200,7 @@ export default function FoldersPage() {
         onEditFolder={setEditingFolder}
         onMoveTask={async (sourceFolder, task, destinationFolderId) => {
           try {
-            if (!useSeedData) {
-              await updateTask(
-                task.id,
-                { project_id: destinationFolderId },
-              );
-            }
+            await updateTask(task.id, { project_id: destinationFolderId });
 
             setTasksByFolder((current) => {
               const next = {
@@ -248,19 +210,13 @@ export default function FoldersPage() {
                 ),
               };
               if (destinationFolderId) {
-                next[destinationFolderId] = [
-                  ...(next[destinationFolderId] ?? []),
-                  task,
-                ];
+                next[destinationFolderId] = [...(next[destinationFolderId] ?? []), task];
               }
               return next;
             });
 
             if (!destinationFolderId) {
-              setInboxTasks((current) => [
-                ...current,
-                { ...task, icon: 'tool' },
-              ]);
+              setInboxTasks((current) => [...current, { ...task, icon: 'tool' }]);
             }
 
             setFolders((current) =>
@@ -280,25 +236,20 @@ export default function FoldersPage() {
                   return {
                     ...folder,
                     task_count: (folder.task_count ?? 0) + 1,
-                    completed_task_count:
-                      (folder.completed_task_count ?? 0) + completedDelta,
+                    completed_task_count: (folder.completed_task_count ?? 0) + completedDelta,
                   };
                 }
                 return folder;
               }),
             );
           } catch (error) {
-            setActionError(
-              error instanceof Error ? error.message : 'Unable to move task.',
-            );
+            setActionError(error instanceof Error ? error.message : 'Unable to move task.');
           }
         }}
         onTaskToggle={async (folder, task) => {
           const nextStatus = task.status === 'done' ? 'pending' : 'done';
           try {
-            if (!useSeedData) {
-              await updateTask(task.id, { status: nextStatus });
-            }
+            await updateTask(task.id, { status: nextStatus });
             setTasksByFolder((current) => ({
               ...current,
               [folder.id]: (current[folder.id] ?? []).map((item) =>
@@ -312,8 +263,7 @@ export default function FoldersPage() {
                       ...item,
                       completed_task_count: Math.max(
                         0,
-                        (item.completed_task_count ?? 0) +
-                          (nextStatus === 'done' ? 1 : -1),
+                        (item.completed_task_count ?? 0) + (nextStatus === 'done' ? 1 : -1),
                       ),
                     }
                   : item,
@@ -322,6 +272,9 @@ export default function FoldersPage() {
           } catch (error) {
             setActionError(error instanceof Error ? error.message : 'Unable to update task.');
           }
+        }}
+        onViewFolder={(folder) => {
+          router.push(`/tasks?project_id=${encodeURIComponent(folder.id)}`);
         }}
         tasksByFolder={tasksByFolder}
       />
@@ -337,9 +290,7 @@ export default function FoldersPage() {
         onMoveToFolder={handleMoveTask}
         onRemove={async (task) => {
           try {
-            if (!useSeedData) {
-              await deleteTask(task.id);
-            }
+            await deleteTask(task.id);
             setInboxTasks((current) => current.filter((item) => item.id !== task.id));
           } catch (error) {
             setActionError(error instanceof Error ? error.message : 'Unable to delete task.');
@@ -348,13 +299,9 @@ export default function FoldersPage() {
         onTaskToggle={async (task) => {
           const nextStatus = task.status === 'done' ? 'pending' : 'done';
           try {
-            if (!useSeedData) {
-              await updateTask(task.id, { status: nextStatus });
-            }
+            await updateTask(task.id, { status: nextStatus });
             setInboxTasks((current) =>
-              current.map((item) =>
-                item.id === task.id ? { ...item, status: nextStatus } : item,
-              ),
+              current.map((item) => (item.id === task.id ? { ...item, status: nextStatus } : item)),
             );
           } catch (error) {
             setActionError(error instanceof Error ? error.message : 'Unable to update task.');
@@ -367,7 +314,7 @@ export default function FoldersPage() {
         isOpen={isCreateOpen}
         onClose={closeCreateModal}
         onCreated={(folder) => {
-          setFolders((current) => [folder, ...current]);
+          setFolders((current) => [...current, folder]);
           setLoadError(null);
         }}
       />
