@@ -41,8 +41,8 @@ const routeMeta: Record<string, RouteMeta> = {
     subtitle: 'Stay focused. Beat distraction. Get things done.',
   },
   '/analytics': {
-    title: 'Insights',
-    subtitle: 'Understand productivity patterns and scheduling trends.',
+    title: 'AI Insights',
+    subtitle: 'Personalized productivity insights from your recent activity.',
   },
   '/gamification': {
     title: 'Gamification',

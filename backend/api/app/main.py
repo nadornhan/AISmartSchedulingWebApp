@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.analytics.router import router as analytics_router
 from app.auth.router import router as auth_router
 from app.config import get_settings
 from app.notifications.router import router as notifications_router
@@ -19,6 +20,8 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ],
+    # Next.js may fall back to 3001+ when 3000 is busy.
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,6 +31,7 @@ app.include_router(auth_router)
 app.include_router(projects_router)
 app.include_router(tasks_router)
 app.include_router(notifications_router)
+app.include_router(analytics_router)
 app.mount(
     settings.media_url_path,
     StaticFiles(directory=settings.upload_dir),

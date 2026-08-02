@@ -44,7 +44,7 @@ const generalNavItems: NavItem[] = [
   { href: '/priority', label: 'Priority View', icon: PriorityIcon },
   { href: '/calendar', label: 'Calendar', icon: CalendarIcon },
   { href: '/focus', label: 'Focus Mode', icon: FocusIcon },
-  { href: '/analytics', label: 'Insights', icon: InsightsIcon },
+  { href: '/analytics', label: 'AI Insights', icon: InsightsIcon },
   { href: '/gamification', label: 'Gamification', icon: GamificationIcon },
 ];
 
