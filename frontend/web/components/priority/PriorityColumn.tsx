@@ -3,10 +3,11 @@ import { PriorityTaskCard } from './PriorityTaskCard';
 
 type Props = {
   column: PriorityColumnData;
+  onAddTask: (columnId: PriorityColumnData['id']) => void;
   onToggle: (id: string) => void;
 };
 
-export function PriorityColumn({ column, onToggle }: Props) {
+export function PriorityColumn({ column, onAddTask, onToggle }: Props) {
   return (
     <section
       className="flex min-h-[480px] flex-col overflow-hidden rounded-xl border bg-dashboard-surface/55"
@@ -26,7 +27,12 @@ export function PriorityColumn({ column, onToggle }: Props) {
             <PriorityTaskCard accent={column.accent} key={task.id} onToggle={onToggle} task={task} />
           ))}
         </div>
-        <button className="mx-auto mt-3 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition hover:bg-white/5" style={{ color: column.accent }} type="button">
+        <button
+          className="mx-auto mt-3 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition hover:bg-white/5"
+          onClick={() => onAddTask(column.id)}
+          style={{ color: column.accent }}
+          type="button"
+        >
           <span className="text-lg leading-none">+</span> Add task
         </button>
       </div>
