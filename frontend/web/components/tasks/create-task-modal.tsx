@@ -98,7 +98,7 @@ export function CreateTaskModal({
     <div
       aria-labelledby="create-task-title"
       aria-modal="true"
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-[#000306]/80 p-4 backdrop-blur-[5px]"
+      className="fixed inset-0 z-[300] grid place-items-center overflow-y-auto bg-[#000306]/80 p-4 backdrop-blur-[5px]"
       onMouseDown={(event) => {
         if (event.currentTarget === event.target) onClose();
       }}

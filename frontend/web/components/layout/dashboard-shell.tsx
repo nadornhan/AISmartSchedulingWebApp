@@ -93,7 +93,7 @@ function DashboardShellContent({
 
       <div className="min-w-0 flex-1">
         <Header subtitle={meta.subtitle} title={meta.title} user={user} />
-        <main className="relative z-0 min-h-[calc(100dvh-7rem)] px-6 py-8 lg:px-10 xl:px-12">
+        <main className="min-h-[calc(100dvh-7rem)] px-6 py-8 lg:px-10 xl:px-12">
           {isCheckingSession && !user ? (
             <div className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted">
               Checking your session...

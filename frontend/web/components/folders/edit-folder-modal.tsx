@@ -45,7 +45,7 @@ export function EditFolderModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[#01070d]/80 p-4 backdrop-blur-sm" role="presentation">
+    <div className="fixed inset-0 z-[300] grid place-items-center bg-[#01070d]/80 p-4 backdrop-blur-sm" role="presentation">
       <form className="w-full max-w-lg rounded-2xl border border-dashboard-accent/25 bg-[#07141e] p-7 shadow-panel" onSubmit={submit}>
         <div className="flex items-start">
           <div className="flex-1"><h2 className="text-2xl font-semibold">Edit Folder</h2><p className="mt-1 text-sm text-dashboard-muted">Update the folder name and color.</p></div>
