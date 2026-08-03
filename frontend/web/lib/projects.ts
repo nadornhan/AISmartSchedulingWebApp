@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import { emitProjectDataChanged } from './data-events';
 
 export type Project = {
   id: string;
@@ -11,6 +12,23 @@ export type Project = {
   completed_task_count: number;
 };
 
+export type CreateProjectInput = {
+  name: string;
+  color?: string;
+};
+
 export function listProjects() {
   return apiRequest<Project[]>('/projects');
+}
+
+export async function createProject(input: CreateProjectInput) {
+  const project = await apiRequest<Project>('/projects', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: input.name.trim(),
+      ...(input.color ? { color: input.color } : {}),
+    }),
+  });
+  emitProjectDataChanged();
+  return project;
 }

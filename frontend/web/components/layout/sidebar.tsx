@@ -250,6 +250,32 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
     onNavigate?.();
   }
 
+  function openCreateTaskModal(projectId?: string | null) {
+    const params = new URLSearchParams();
+    if (projectId) {
+      params.set('project_id', projectId);
+    }
+    params.set('create', '1');
+    const query = params.toString();
+    const target = query ? `/tasks?${query}` : '/tasks?create=1';
+
+    if (pathname === '/tasks') {
+      window.dispatchEvent(
+        new CustomEvent('open-create-task', {
+          detail: { projectId: projectId || activeProjectId || null },
+        }),
+      );
+      if (projectId && projectId !== activeProjectId) {
+        router.push(`/tasks?project_id=${encodeURIComponent(projectId)}&create=1`);
+      }
+      onNavigate?.();
+      return;
+    }
+
+    router.push(target);
+    onNavigate?.();
+  }
+
   return (
     <aside
       ref={sidebarRef}
@@ -267,16 +293,15 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
 
       <div className="group relative mb-10">
         <div className="flex h-14 overflow-hidden rounded-xl border border-dashboard-accent/60 bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong text-white transition hover:brightness-110">
-          {/* Main Add Task button */}
           <button
             className="flex flex-1 items-center justify-center gap-3 px-6 text-base font-normal"
+            onClick={() => openCreateTaskModal(activeProjectId)}
             type="button"
           >
             <PlusIcon className="h-6 w-6 mb-1" />
             <span>Add Task</span>
           </button>
 
-          {/* Dropdown trigger */}
           <button
             aria-label="Open add task menu"
             className="grid w-[64px] place-items-center border-l border-white/30 transition hover:bg-white/10"
@@ -286,7 +311,6 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </button>
         </div>
 
-        {/* Future dropdown */}
         <div
           className="
             invisible absolute left-0 right-0 top-full z-50 mt-2
@@ -298,6 +322,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         >
           <button
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+            onClick={() => openCreateTaskModal(null)}
             type="button"
           >
             <TasksIcon className="h-5 w-5" />
@@ -306,6 +331,14 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
 
           <button
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+            onClick={() => {
+              if (activeProjectId) {
+                openCreateTaskModal(activeProjectId);
+                return;
+              }
+              router.push('/folders');
+              onNavigate?.();
+            }}
             type="button"
           >
             <FolderIcon className="h-5 w-5" />

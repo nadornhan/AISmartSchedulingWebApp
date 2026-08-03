@@ -31,7 +31,7 @@ type FolderRequestOptions = RequestOptions & {
 };
 
 export async function getFolders({ signal }: RequestOptions = {}): Promise<Folder[]> {
-  return apiRequest<Folder[]>('/projects', {
+  return apiRequest<Folder[]>('/folders', {
     signal,
   });
 }
@@ -40,7 +40,7 @@ export async function createFolder(
   input: CreateFolderInput,
   { signal }: RequestOptions = {},
 ): Promise<Folder> {
-  const folder = await apiRequest<Folder>('/projects', {
+  const folder = await apiRequest<Folder>('/folders', {
     method: 'POST',
     body: JSON.stringify({
       name: input.name.trim(),
@@ -56,7 +56,7 @@ export async function updateFolder(
   input: UpdateFolderInput,
   { folderId, signal }: FolderRequestOptions,
 ): Promise<Folder> {
-  const folder = await apiRequest<Folder>(`/projects/${folderId}`, {
+  const folder = await apiRequest<Folder>(`/folders/${folderId}`, {
     method: 'PATCH',
     body: JSON.stringify({
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
@@ -70,7 +70,7 @@ export async function updateFolder(
 }
 
 export async function deleteFolder({ folderId, signal }: FolderRequestOptions): Promise<void> {
-  await apiRequest<void>(`/projects/${folderId}`, {
+  await apiRequest<void>(`/folders/${folderId}`, {
     method: 'DELETE',
     signal,
   });

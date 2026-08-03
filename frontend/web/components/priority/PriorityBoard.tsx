@@ -2,8 +2,17 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { onTaskDataChanged } from '../../lib/data-events';
-import { listTasks, updateTask, type TaskPriorityValue, type TaskResponse } from '../../lib/tasks';
+import { onProjectDataChanged, onTaskDataChanged } from '../../lib/data-events';
+import { listProjects, type Project } from '../../lib/projects';
+import {
+  createTask,
+  listTasks,
+  updateTask,
+  type TaskCreateInput,
+  type TaskPriorityValue,
+  type TaskResponse,
+} from '../../lib/tasks';
+import { CreateTaskModal, type TaskPriorityLabel } from '../tasks/create-task-modal';
 import { PriorityColumn } from './PriorityColumn';
 import { PrioritySummaryGrid } from './PrioritySummaryGrid';
 import { PriorityTipBar } from './PriorityTipBar';
@@ -49,6 +58,13 @@ const priorityMap: Record<TaskPriorityValue, PriorityLevel> = {
   low: 'low',
   medium: 'medium',
   no_priority: 'none',
+};
+
+const priorityLabelByLevel: Record<PriorityLevel, TaskPriorityLabel> = {
+  high: 'High',
+  low: 'Low',
+  medium: 'Medium',
+  none: 'No priority',
 };
 
 function formatDueDate(value: string | null) {
@@ -109,7 +125,11 @@ function buildColumns(tasks: TaskResponse[]): PriorityColumnData[] {
 
 export function PriorityBoard() {
   const [columns, setColumns] = useState<PriorityColumnData[]>(() => buildColumns([]));
+  const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMutating, setIsMutating] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [createPriority, setCreatePriority] = useState<TaskPriorityLabel>('No priority');
   const [error, setError] = useState<string | null>(null);
 
   const refreshTasks = useCallback(async () => {
@@ -133,9 +153,18 @@ export function PriorityBoard() {
     }
   }, []);
 
+  const refreshProjects = useCallback(async () => {
+    try {
+      setProjects(await listProjects());
+    } catch {
+      setProjects([]);
+    }
+  }, []);
+
   useEffect(() => {
     void refreshTasks();
-  }, [refreshTasks]);
+    void refreshProjects();
+  }, [refreshProjects, refreshTasks]);
 
   useEffect(
     () =>
@@ -144,6 +173,36 @@ export function PriorityBoard() {
       }),
     [refreshTasks],
   );
+
+  useEffect(
+    () =>
+      onProjectDataChanged(() => {
+        void refreshProjects();
+      }),
+    [refreshProjects],
+  );
+
+  function openCreateTask(columnId: PriorityLevel) {
+    setCreatePriority(priorityLabelByLevel[columnId]);
+    setIsModalOpen(true);
+  }
+
+  async function addTask(input: TaskCreateInput) {
+    setIsMutating(true);
+    setError(null);
+
+    try {
+      await createTask(input);
+      setIsModalOpen(false);
+      await refreshTasks();
+    } catch (requestError) {
+      throw requestError instanceof Error
+        ? requestError
+        : new Error('Unable to create task.');
+    } finally {
+      setIsMutating(false);
+    }
+  }
 
   async function toggleTask(id: string) {
     const task = columns.flatMap((column) => column.tasks).find((item) => item.id === id);
@@ -183,12 +242,28 @@ export function PriorityBoard() {
           className="grid items-stretch gap-3 md:grid-cols-2 xl:grid-cols-4"
         >
           {columns.map((column) => (
-            <PriorityColumn column={column} key={column.id} onToggle={toggleTask} />
+            <PriorityColumn
+              column={column}
+              key={column.id}
+              onAddTask={openCreateTask}
+              onToggle={toggleTask}
+            />
           ))}
         </section>
       )}
 
       <PriorityTipBar />
+
+      {isModalOpen ? (
+        <CreateTaskModal
+          initialPriority={createPriority}
+          isSubmitting={isMutating}
+          key={createPriority}
+          onClose={() => setIsModalOpen(false)}
+          onCreate={addTask}
+          projects={projects}
+        />
+      ) : null}
     </div>
   );
 }

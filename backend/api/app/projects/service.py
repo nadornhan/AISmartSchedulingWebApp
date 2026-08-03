@@ -82,7 +82,7 @@ def create_project(
     db: Session,
     user_id: uuid.UUID,
     project_data: ProjectCreate,
-) -> Project:
+) -> ProjectWithCounts:
     project = Project(
         user_id=user_id,
         **project_data.model_dump(),
@@ -92,7 +92,16 @@ def create_project(
     db.commit()
     db.refresh(project)
 
-    return project
+    return ProjectWithCounts(
+        id=project.id,
+        user_id=project.user_id,
+        name=project.name,
+        color=project.color,
+        created_at=project.created_at,
+        updated_at=project.updated_at,
+        task_count=0,
+        completed_task_count=0,
+    )
 
 
 def get_project_by_id(

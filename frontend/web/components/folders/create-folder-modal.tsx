@@ -94,7 +94,7 @@ export function CreateFolderModal({
     <div
       aria-labelledby="create-folder-title"
       aria-modal="true"
-      className="fixed inset-0 z-50 grid place-items-center bg-[#01070d]/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[300] grid place-items-center bg-[#01070d]/80 p-4 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) resetAndClose();
       }}

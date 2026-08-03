@@ -51,7 +51,7 @@ export function FocusSettingsModal({
   return (
     <div
       aria-modal="true"
-      className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[300] grid place-items-center bg-black/65 p-4 backdrop-blur-sm"
       role="dialog"
     >
       <div className="w-full max-w-md rounded-2xl border border-dashboard-border bg-[#07131d] p-6 shadow-panel">
