@@ -185,11 +185,13 @@ export function TaskPage() {
   const searchParams = useSearchParams();
   const activeProjectId = searchParams.get('project_id') || '';
   const searchQuery = searchParams.get('search')?.trim() || '';
+  const shouldOpenCreate = searchParams.get('create') === '1';
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('All');
   const [selected, setSelected] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [createProjectId, setCreateProjectId] = useState<string>(activeProjectId);
   const [sortAscending, setSortAscending] = useState(true);
   const [counts, setCounts] = useState<Record<TaskFilter, number>>({
     All: 0,
@@ -211,6 +213,33 @@ export function TaskPage() {
       setActiveFilter('All');
     }
   }, [activeProjectId, searchQuery]);
+
+  useEffect(() => {
+    setCreateProjectId(activeProjectId);
+  }, [activeProjectId]);
+
+  useEffect(() => {
+    if (!shouldOpenCreate) return;
+
+    setCreateProjectId(activeProjectId);
+    setIsModalOpen(true);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('create');
+    const query = params.toString();
+    router.replace(query ? `/tasks?${query}` : '/tasks', { scroll: false });
+  }, [activeProjectId, router, searchParams, shouldOpenCreate]);
+
+  useEffect(() => {
+    function handleOpenCreateTask(event: Event) {
+      const detail = (event as CustomEvent<{ projectId?: string | null }>).detail;
+      setCreateProjectId(detail?.projectId || activeProjectId || '');
+      setIsModalOpen(true);
+    }
+
+    window.addEventListener('open-create-task', handleOpenCreateTask);
+    return () => window.removeEventListener('open-create-task', handleOpenCreateTask);
+  }, [activeProjectId]);
 
   const refreshTasks = useCallback(async () => {
     setIsLoading(true);
@@ -506,7 +535,10 @@ export function TaskPage() {
           </button>
           <button
             className="flex h-11 items-center gap-2 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setCreateProjectId(activeProjectId);
+              setIsModalOpen(true);
+            }}
             type="button"
           >
             <PlusIcon className="h-5 w-5" />
@@ -775,6 +807,7 @@ export function TaskPage() {
 
       {isModalOpen ? (
         <CreateTaskModal
+          initialProjectId={createProjectId}
           isSubmitting={isMutating}
           onClose={() => setIsModalOpen(false)}
           onCreate={addTask}
@@ -786,11 +819,13 @@ export function TaskPage() {
 }
 
 function CreateTaskModal({
+  initialProjectId = '',
   isSubmitting,
   onClose,
   onCreate,
   projects,
 }: Readonly<{
+  initialProjectId?: string;
   isSubmitting: boolean;
   onClose: () => void;
   onCreate: (task: TaskCreateInput) => Promise<void>;
@@ -888,7 +923,7 @@ function CreateTaskModal({
               <span className="absolute left-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-dashboard-muted" />
               <select
                 className="h-[var(--input-height-desktop)] w-full appearance-none rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] pl-9 pr-10 text-sm text-dashboard-text outline-none focus:border-dashboard-accent"
-                defaultValue=""
+                defaultValue={initialProjectId}
                 name="project"
               >
                 <option value="">Unassigned (Add to Inbox)</option>

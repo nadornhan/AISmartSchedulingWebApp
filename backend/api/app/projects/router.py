@@ -31,7 +31,7 @@ def create_project(
     project_data: ProjectCreate,
     db: DatabaseSession,
     current_user: CurrentUser,
-) -> Project:
+) -> service.ProjectWithCounts:
     return service.create_project(
         db,
         current_user.id,
