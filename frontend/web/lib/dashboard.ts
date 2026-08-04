@@ -12,6 +12,12 @@ export type DashboardProgressSummary = {
   percent: number | null;
 };
 
+export type DashboardFocusGoalSummary = {
+  completed_minutes: number;
+  goal_minutes: number;
+  percent: number;
+};
+
 export type DashboardProjectSummary = {
   id: string;
   name: string;
@@ -47,6 +53,9 @@ export type DashboardWeeklyActivityPoint = {
 
 export type DashboardSummary = {
   task_progress: DashboardProgressSummary;
+  today_progress: DashboardProgressSummary;
+  focus_goal: DashboardFocusGoalSummary;
+  current_streak_days: number;
   overdue_count: number;
   next_best_task: DashboardNextBestTask | null;
   quick_wins: DashboardTaskSummary[];

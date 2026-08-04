@@ -83,6 +83,17 @@ def test_dashboard_summary_for_empty_user(client: TestClient) -> None:
         "total": 0,
         "percent": None,
     }
+    assert payload["today_progress"] == {
+        "completed": 0,
+        "total": 0,
+        "percent": None,
+    }
+    assert payload["focus_goal"] == {
+        "completed_minutes": 0,
+        "goal_minutes": 360,
+        "percent": 0,
+    }
+    assert payload["current_streak_days"] == 0
     assert payload["overdue_count"] == 0
     assert payload["next_best_task"] is None
     assert payload["quick_wins"] == []
@@ -114,8 +125,9 @@ def test_dashboard_summary_derives_overdue_and_progress(
         status=TaskStatus.DONE,
         due_date=now - timedelta(days=2),
         estimated_duration_minutes=30,
+        completed_at=now,
     )
-    add_task(
+    future_open = add_task(
         db_session,
         user_id=user_id,
         title="Future open",
@@ -134,11 +146,23 @@ def test_dashboard_summary_derives_overdue_and_progress(
         "percent": 33,
     }
     assert payload["overdue_count"] == 1
-    assert payload["next_best_task"]["task"]["id"] == str(overdue.id)
-    assert payload["next_best_task"]["task"]["status"] == "overdue"
+    assert payload["today_progress"] == {
+        "completed": 1,
+        "total": 1,
+        "percent": 100,
+    }
+    assert payload["focus_goal"] == {
+        "completed_minutes": 30,
+        "goal_minutes": 360,
+        "percent": 8,
+    }
+    assert payload["current_streak_days"] == 1
+    assert payload["next_best_task"]["task"]["id"] == str(future_open.id)
+    assert payload["next_best_task"]["task"]["status"] == "pending"
     assert payload["next_best_task"]["task"]["stored_status"] == "pending"
-    assert payload["next_best_task"]["task"]["is_overdue"] is True
-    assert "Overdue" in payload["next_best_task"]["reasons"]
+    assert payload["next_best_task"]["task"]["is_overdue"] is False
+    assert payload["next_best_task"]["reasons"] == ["Due soon", "High priority"]
+    assert str(overdue.id) not in [task["id"] for task in payload["quick_wins"]]
     assert str(done_late.id) not in [
         payload["next_best_task"]["task"]["id"],
         *[task["id"] for task in payload["quick_wins"]],
@@ -151,13 +175,14 @@ def test_dashboard_next_best_task_ordering(
 ) -> None:
     headers, user_id = create_auth_headers(client)
     now = datetime.now(UTC)
+    today = datetime.combine(now.date(), datetime.min.time(), tzinfo=UTC)
 
     future_high = add_task(
         db_session,
         user_id=user_id,
         title="Future high",
         priority=TaskPriority.HIGH,
-        due_date=now + timedelta(hours=4),
+        due_date=today + timedelta(hours=16),
         estimated_duration_minutes=10,
     )
     add_task(
@@ -165,7 +190,7 @@ def test_dashboard_next_best_task_ordering(
         user_id=user_id,
         title="Future earlier",
         priority=TaskPriority.LOW,
-        due_date=now + timedelta(hours=1),
+        due_date=today + timedelta(hours=9),
         estimated_duration_minutes=60,
     )
 
@@ -173,9 +198,13 @@ def test_dashboard_next_best_task_ordering(
     assert response.status_code == 200
     payload = response.json()
 
-    assert payload["next_best_task"]["task"]["title"] == "Future earlier"
-    assert payload["next_best_task"]["task"]["id"] != str(future_high.id)
-    assert payload["next_best_task"]["reasons"] == ["Due soon"]
+    assert payload["next_best_task"]["task"]["title"] == "Future high"
+    assert payload["next_best_task"]["task"]["id"] == str(future_high.id)
+    assert payload["next_best_task"]["reasons"] == [
+        "Due today",
+        "High priority",
+        "Short estimated duration",
+    ]
 
 
 def test_dashboard_next_best_task_uses_priority_then_shorter_duration_tie_breakers(
@@ -183,7 +212,10 @@ def test_dashboard_next_best_task_uses_priority_then_shorter_duration_tie_breake
     db_session: Session,
 ) -> None:
     headers, user_id = create_auth_headers(client)
-    due_date = datetime.now(UTC) + timedelta(hours=2)
+    now = datetime.now(UTC)
+    due_date = datetime.combine(now.date(), datetime.min.time(), tzinfo=UTC) + timedelta(
+        hours=15
+    )
 
     add_task(
         db_session,
@@ -214,11 +246,10 @@ def test_dashboard_next_best_task_uses_priority_then_shorter_duration_tie_breake
     assert response.status_code == 200
     payload = response.json()
 
-    assert payload["next_best_task"]["task"]["title"] == "High same due short"
+    assert payload["next_best_task"]["task"]["title"] == "Medium same due"
     assert payload["next_best_task"]["task"]["id"] != str(high_long.id)
     assert payload["next_best_task"]["reasons"] == [
-        "Due soon",
-        "High priority",
+        "Due today",
         "Short estimated duration",
     ]
 

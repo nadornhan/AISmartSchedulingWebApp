@@ -13,6 +13,12 @@ class ProgressSummary(BaseModel):
     percent: int | None = None
 
 
+class FocusGoalSummary(BaseModel):
+    completed_minutes: int = Field(ge=0)
+    goal_minutes: int = Field(gt=0)
+    percent: int = Field(ge=0)
+
+
 class DashboardTaskSummary(BaseModel):
     id: uuid.UUID
     title: str
@@ -42,6 +48,9 @@ class WeeklyActivityPoint(BaseModel):
 
 class DashboardSummaryResponse(BaseModel):
     task_progress: ProgressSummary
+    today_progress: ProgressSummary
+    focus_goal: FocusGoalSummary
+    current_streak_days: int = Field(ge=0)
     overdue_count: int = Field(ge=0)
     next_best_task: NextBestTask | None
     quick_wins: list[DashboardTaskSummary]

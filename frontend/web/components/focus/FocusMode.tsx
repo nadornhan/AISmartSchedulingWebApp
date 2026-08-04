@@ -42,6 +42,7 @@ export function FocusMode() {
   const completionSoundPlayedRef = useRef(false);
   const selectedTaskId = searchParams.get('task_id');
   const selectedTaskTitle = searchParams.get('task_title');
+  const selectedDuration = Number(searchParams.get('duration'));
 
   const totalSeconds = getModeSeconds(mode, durations);
   const progress = totalSeconds > 0 ? seconds / totalSeconds : 0;
@@ -77,6 +78,20 @@ export function FocusMode() {
       ];
     });
   }, [selectedTaskId, selectedTaskTitle]);
+
+  useEffect(() => {
+    if (!Number.isInteger(selectedDuration) || selectedDuration <= 0) return;
+
+    setDurations((current) => ({
+      ...current,
+      focus: selectedDuration,
+    }));
+    setMode('Pomodoro');
+    setSeconds(selectedDuration * 60);
+    setRunning(false);
+    endTimeRef.current = null;
+    completionSoundPlayedRef.current = false;
+  }, [selectedDuration]);
 
   useEffect(() => {
     if (!running) return;

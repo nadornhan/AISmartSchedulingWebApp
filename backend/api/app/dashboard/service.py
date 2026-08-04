@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.dashboard.schemas import (
     DashboardSummaryResponse,
     DashboardTaskSummary,
+    FocusGoalSummary,
     NextBestTask,
     ProgressSummary,
     WeeklyActivityPoint,
@@ -17,6 +18,7 @@ from app.tasks.schemas import TaskDisplayStatus
 
 QUICK_WINS_LIMIT = 5
 WEEKLY_ACTIVITY_DAYS = 7
+DAILY_FOCUS_GOAL_MINUTES = 360
 
 PRIORITY_RANK = {
     TaskPriority.HIGH: 0,
@@ -41,6 +43,13 @@ def _day_bounds(day: date) -> tuple[datetime, datetime]:
     start = datetime.combine(day, datetime.min.time(), tzinfo=UTC)
     end = start + timedelta(days=1)
     return start, end
+
+
+def _is_between(value: datetime | None, start: datetime, end: datetime) -> bool:
+    if value is None:
+        return False
+
+    return start <= value.astimezone(UTC) < end
 
 
 def _open_tasks(db: Session, user_id: uuid.UUID) -> list[Task]:
@@ -91,11 +100,14 @@ def _due_sort_value(task: Task) -> datetime:
 
 
 def _next_best_sort_key(task: Task, *, now: datetime) -> tuple:
+    today_start, today_end = _day_bounds(now.date())
+    due_today = _is_between(task.due_date, today_start, today_end)
+
     return (
-        not is_task_overdue(status=task.status, due_date=task.due_date, now=now),
-        _due_sort_value(task),
-        PRIORITY_RANK[task.priority],
+        not due_today,
         task.estimated_duration_minutes or 999999,
+        PRIORITY_RANK[task.priority],
+        _due_sort_value(task),
         str(task.id),
     )
 
@@ -112,7 +124,11 @@ def _quick_win_sort_key(task: Task) -> tuple:
 def _next_best_reasons(task: Task, *, now: datetime) -> list[str]:
     reasons: list[str] = []
 
-    if is_task_overdue(status=task.status, due_date=task.due_date, now=now):
+    today_start, today_end = _day_bounds(now.date())
+
+    if _is_between(task.due_date, today_start, today_end):
+        reasons.append("Due today")
+    elif is_task_overdue(status=task.status, due_date=task.due_date, now=now):
         reasons.append("Overdue")
     elif task.due_date is not None:
         reasons.append("Due soon")
@@ -127,6 +143,103 @@ def _next_best_reasons(task: Task, *, now: datetime) -> list[str]:
         reasons.append("Short estimated duration")
 
     return reasons
+
+
+def _today_progress(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    now: datetime,
+) -> ProgressSummary:
+    start, end = _day_bounds(now.date())
+
+    due_today_ids = set(
+        db.scalars(
+            select(Task.id).where(
+                Task.user_id == user_id,
+                Task.due_date.is_not(None),
+                Task.due_date >= start,
+                Task.due_date < end,
+            )
+        ).all()
+    )
+    completed_today_ids = set(
+        db.scalars(
+            select(Task.id).where(
+                Task.user_id == user_id,
+                Task.status == TaskStatus.DONE,
+                Task.completed_at.is_not(None),
+                Task.completed_at >= start,
+                Task.completed_at < end,
+            )
+        ).all()
+    )
+    total = len(due_today_ids | completed_today_ids)
+    completed = len(completed_today_ids)
+
+    return ProgressSummary(
+        completed=completed,
+        total=total,
+        percent=_progress_percent(completed, total),
+    )
+
+
+def _focus_goal(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    now: datetime,
+) -> FocusGoalSummary:
+    start, end = _day_bounds(now.date())
+    completed_minutes = int(
+        db.scalar(
+            select(func.coalesce(func.sum(Task.estimated_duration_minutes), 0))
+            .where(
+                Task.user_id == user_id,
+                Task.status == TaskStatus.DONE,
+                Task.completed_at.is_not(None),
+                Task.completed_at >= start,
+                Task.completed_at < end,
+            )
+        )
+        or 0
+    )
+
+    return FocusGoalSummary(
+        completed_minutes=completed_minutes,
+        goal_minutes=DAILY_FOCUS_GOAL_MINUTES,
+        percent=min(
+            100,
+            _progress_percent(completed_minutes, DAILY_FOCUS_GOAL_MINUTES) or 0,
+        ),
+    )
+
+
+def _current_streak_days(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    now: datetime,
+) -> int:
+    completed_dates = set(
+        db.scalars(
+            select(func.date(Task.completed_at))
+            .where(
+                Task.user_id == user_id,
+                Task.status == TaskStatus.DONE,
+                Task.completed_at.is_not(None),
+                Task.completed_at <= now,
+            )
+        ).all()
+    )
+
+    streak = 0
+    day = now.date()
+    while day in completed_dates:
+        streak += 1
+        day -= timedelta(days=1)
+
+    return streak
 
 
 def _weekly_activity(
@@ -280,6 +393,9 @@ def get_dashboard_summary(
             total=total_count,
             percent=_progress_percent(completed_count, total_count),
         ),
+        today_progress=_today_progress(db, user_id, now=now),
+        focus_goal=_focus_goal(db, user_id, now=now),
+        current_streak_days=_current_streak_days(db, user_id, now=now),
         overdue_count=overdue_count,
         next_best_task=(
             NextBestTask(
