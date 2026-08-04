@@ -1,6 +1,6 @@
 import enum
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, func
@@ -106,14 +106,9 @@ class Task(Base):
     )
     @property
     def display_status(self) -> str:
-        if self.due_date is None or self.status == TaskStatus.DONE:
-            return self.status.value
+        from app.tasks.overdue import is_task_overdue
 
-        due_date = self.due_date
-        if due_date.tzinfo is None:
-            due_date = due_date.replace(tzinfo=UTC)
-
-        if due_date < datetime.now(UTC):
+        if is_task_overdue(status=self.status, due_date=self.due_date):
             return "overdue"
 
         return self.status.value

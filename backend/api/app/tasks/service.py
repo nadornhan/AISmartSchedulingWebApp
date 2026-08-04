@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.notifications import service as notification_service
 from app.tasks.models import Task, TaskPriority, TaskStatus
+from app.tasks.overdue import task_overdue_condition
 from app.tasks.schemas import (
     SortOrder,
     TaskCreate,
@@ -43,13 +44,7 @@ def list_tasks(
         )
 
     if task_status == TaskDisplayStatus.OVERDUE:
-        conditions.extend(
-            [
-                Task.status != TaskStatus.DONE,
-                Task.due_date.is_not(None),
-                Task.due_date < func.now(),
-            ]
-        )
+        conditions.append(task_overdue_condition(Task))
     elif task_status is not None:
         conditions.append(
             Task.status == TaskStatus(task_status.value)

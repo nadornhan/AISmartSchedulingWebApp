@@ -1,0 +1,52 @@
+import { apiRequest } from './api';
+import type {
+  TaskDisplayStatusValue,
+  TaskPriorityValue,
+  TaskStatusValue,
+} from './tasks';
+
+export type DashboardProgressSummary = {
+  completed: number;
+  total: number;
+  percent: number | null;
+};
+
+export type DashboardProjectSummary = {
+  id: string;
+  name: string;
+  color: string;
+};
+
+export type DashboardTaskSummary = {
+  id: string;
+  title: string;
+  description: string | null;
+  project_id: string | null;
+  project: DashboardProjectSummary | null;
+  priority: TaskPriorityValue;
+  status: TaskDisplayStatusValue;
+  stored_status: TaskStatusValue;
+  due_date: string | null;
+  estimated_duration_minutes: number | null;
+  is_overdue: boolean;
+};
+
+export type DashboardNextBestTask = {
+  task: DashboardTaskSummary;
+  reasons: string[];
+};
+
+export type DashboardSummary = {
+  task_progress: DashboardProgressSummary;
+  overdue_count: number;
+  next_best_task: DashboardNextBestTask | null;
+  quick_wins: DashboardTaskSummary[];
+  in_progress: DashboardTaskSummary[];
+};
+
+export function getDashboardSummary(signal?: AbortSignal) {
+  return apiRequest<DashboardSummary>('/dashboard/summary', {
+    method: 'GET',
+    signal,
+  });
+}
