@@ -1,6 +1,6 @@
 import enum
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, func
@@ -78,7 +78,7 @@ class Task(Base):
         DateTime(timezone=True),
         nullable=True,
     )
-    estimated_duration: Mapped[int | None] = mapped_column(
+    estimated_duration_minutes: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
     )
@@ -111,9 +111,9 @@ class Task(Base):
 
         due_date = self.due_date
         if due_date.tzinfo is None:
-            due_date = due_date.replace(tzinfo=timezone.utc)
+            due_date = due_date.replace(tzinfo=UTC)
 
-        if due_date < datetime.now(timezone.utc):
+        if due_date < datetime.now(UTC):
             return "overdue"
 
         return self.status.value

@@ -24,8 +24,8 @@ class InsightsSummaryResponse(BaseModel):
     tasks_completed_this_week: int = Field(ge=0)
     tasks_completed_last_week: int = Field(ge=0)
     week_over_week_change_percent: int | None = None
-    focus_minutes_this_week: int = Field(ge=0)
-    focus_time_label: str
+    estimated_work_minutes_this_week: int = Field(ge=0)
+    estimated_work_time_label: str
     goal_progress_percent: int = Field(ge=0, le=100)
     current_streak_days: int = Field(ge=0)
     trend: list[InsightTrendPoint]

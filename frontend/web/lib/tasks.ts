@@ -30,7 +30,7 @@ export type TaskResponse = {
   status: TaskDisplayStatusValue;
   priority: TaskPriorityValue;
   due_date: string | null;
-  estimated_duration: number | null;
+  estimated_duration_minutes: number | null;
   scheduled_start: string | null;
   scheduled_end: string | null;
   created_at: string;
@@ -72,6 +72,7 @@ export type TaskCreateInput = {
   project_id?: string | null;
   priority?: TaskPriorityValue;
   due_date?: string | null;
+  estimated_duration_minutes?: number | null;
 };
 
 export type TaskUpdateInput = Partial<TaskCreateInput> & {

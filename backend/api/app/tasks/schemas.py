@@ -41,7 +41,7 @@ class TaskCreate(BaseModel):
     project_id: uuid.UUID | None = None
     priority: TaskPriority = TaskPriority.NO_PRIORITY
     due_date: datetime | None = None
-    estimated_duration: int | None = Field(default=None, gt=0)
+    estimated_duration_minutes: int | None = Field(default=None, gt=0)
     scheduled_start: datetime | None = None
     scheduled_end: datetime | None = None
 
@@ -70,7 +70,7 @@ class TaskUpdate(BaseModel):
     project_id: uuid.UUID | None = None
     priority: TaskPriority | None = None
     due_date: datetime | None = None
-    estimated_duration: int | None = Field(default=None, gt=0)
+    estimated_duration_minutes: int | None = Field(default=None, gt=0)
     scheduled_start: datetime | None = None
     scheduled_end: datetime | None = None
 
@@ -102,7 +102,7 @@ class TaskResponse(BaseModel):
     )
     priority: TaskPriority
     due_date: datetime | None
-    estimated_duration: int | None
+    estimated_duration_minutes: int | None
     scheduled_start: datetime | None
     scheduled_end: datetime | None
     created_at: datetime

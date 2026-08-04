@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckIcon, ChevronRightIcon, PlusIcon } from '../layout/icons';
 import { onProjectDataChanged, onTaskDataChanged } from '../../lib/data-events';
+import { formatDurationLabel } from '../../lib/duration';
 import { listTasks, updateTask, type TaskResponse, type TaskStatusValue } from '../../lib/tasks';
 
 export type CalendarTaskStatus = 'pending' | 'in_progress' | 'done' | 'overdue';
@@ -14,7 +15,7 @@ export type CalendarTask = {
   project: string;
   projectColor: string;
   dueDate: string;
-  durationMinutes: number;
+  durationMinutes: number | null;
   priority: CalendarTaskPriority;
   status: CalendarTaskStatus;
 };
@@ -182,7 +183,7 @@ function toCalendarTask(task: TaskResponse): CalendarTask | null {
     project: task.project?.name ?? 'Unassigned',
     projectColor: task.project?.color ?? 'var(--dashboard-muted)',
     dueDate: task.due_date,
-    durationMinutes: task.estimated_duration ?? 30,
+    durationMinutes: task.estimated_duration_minutes,
     priority: task.priority,
     status: task.status,
   };
@@ -844,9 +845,11 @@ function AgendaTask({
                 High
               </span>
             ) : null}
-            <span className="text-xs font-medium text-dashboard-muted">
-              {task.durationMinutes}m
-            </span>
+            {task.durationMinutes !== null ? (
+              <span className="text-xs font-medium text-dashboard-muted">
+                {formatDurationLabel(task.durationMinutes)}
+              </span>
+            ) : null}
           </div>
         </div>
       </div>

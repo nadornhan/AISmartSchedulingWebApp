@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '../../lib/api';
 import { onProjectDataChanged, onTaskDataChanged } from '../../lib/data-events';
+import { formatDurationLabel } from '../../lib/duration';
 import { listProjects, type Project } from '../../lib/projects';
 import {
   createTask,
@@ -15,6 +16,7 @@ import {
   type TaskPriorityValue,
   type TaskResponse,
   type TaskStatusValue,
+  type TaskUpdateInput,
 } from '../../lib/tasks';
 import {
   CheckIcon,
@@ -29,6 +31,7 @@ import {
 } from '../layout/icons';
 import {
   CreateTaskModal,
+  EditTaskModal,
   priorityLabelFromApi,
   type TaskPriorityLabel,
 } from './create-task-modal';
@@ -45,8 +48,10 @@ type Task = {
   project: string;
   projectColor: string;
   dueDate: string;
+  durationLabel: string | null;
   priority: TaskPriority;
   status: TaskStatus;
+  source: TaskResponse;
   overdue?: boolean;
 };
 
@@ -113,6 +118,10 @@ function toTask(response: TaskResponse): Task {
     project: response.project?.name ?? 'Unassigned',
     projectColor: response.project?.color ?? 'neutral',
     dueDate: formatTaskDueDate(response.due_date),
+    durationLabel:
+      response.estimated_duration_minutes !== null
+        ? formatDurationLabel(response.estimated_duration_minutes)
+        : null,
     priority: priorityFromApi(response.priority),
     status:
       displayStatus === 'done'
@@ -120,6 +129,7 @@ function toTask(response: TaskResponse): Task {
         : displayStatus === 'in_progress'
           ? 'In Progress'
           : 'Pending',
+    source: response,
     overdue: displayStatus === 'overdue',
   };
 }
@@ -183,6 +193,7 @@ export function TaskPage() {
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('All');
   const [selected, setSelected] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskResponse | null>(null);
   const [createProjectId, setCreateProjectId] = useState<string>(activeProjectId);
   const [createPriority, setCreatePriority] = useState<TaskPriority>('No priority');
   const [sortAscending, setSortAscending] = useState(true);
@@ -441,6 +452,23 @@ export function TaskPage() {
     }
   }
 
+  async function editTask(input: TaskUpdateInput) {
+    if (!editingTask) return;
+
+    setIsMutating(true);
+    setError(null);
+    try {
+      await updateTask(editingTask.id, input);
+      setEditingTask(null);
+      await Promise.all([refreshTasks(), refreshCounts()]);
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+      throw requestError;
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
   function clearProjectFilter() {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete('project_id');
@@ -633,6 +661,11 @@ export function TaskPage() {
                       <p className="mt-1 truncate text-xs leading-5 text-dashboard-muted">
                         {task.description}
                       </p>
+                      {task.durationLabel ? (
+                        <p className="mt-1 text-xs font-medium text-dashboard-muted">
+                          {task.durationLabel}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -703,6 +736,7 @@ export function TaskPage() {
                   <button
                     aria-label={`Edit ${task.title}`}
                     className="grid h-9 w-9 place-items-center rounded-lg transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+                    onClick={() => setEditingTask(task.source)}
                     type="button"
                   >
                     <EditIcon className="h-4 w-4" />
@@ -824,6 +858,16 @@ export function TaskPage() {
           onClose={() => setIsModalOpen(false)}
           onCreate={addTask}
           projects={projects}
+        />
+      ) : null}
+
+      {editingTask ? (
+        <EditTaskModal
+          isSubmitting={isMutating}
+          onClose={() => setEditingTask(null)}
+          onUpdate={editTask}
+          projects={projects}
+          task={editingTask}
         />
       ) : null}
     </>

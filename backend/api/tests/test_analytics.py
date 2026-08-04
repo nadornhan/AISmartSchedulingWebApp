@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -65,13 +65,13 @@ def test_insights_counts_completed_tasks_this_week(
 ) -> None:
     headers, user_id = create_auth_headers(client)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for index in range(3):
         task = Task(
             user_id=uuid.UUID(user_id),
             title=f"Done {index}",
             status=TaskStatus.DONE,
-            estimated_duration=30,
+            estimated_duration_minutes=30,
             updated_at=now - timedelta(hours=index + 1),
             created_at=now - timedelta(days=1),
         )
@@ -81,7 +81,7 @@ def test_insights_counts_completed_tasks_this_week(
         user_id=uuid.UUID(user_id),
         title="Old done",
         status=TaskStatus.DONE,
-        estimated_duration=60,
+        estimated_duration_minutes=60,
         updated_at=now - timedelta(days=10),
         created_at=now - timedelta(days=11),
     )
@@ -93,7 +93,7 @@ def test_insights_counts_completed_tasks_this_week(
 
     payload = response.json()
     assert payload["tasks_completed_this_week"] == 3
-    assert payload["focus_minutes_this_week"] == 90
-    assert payload["focus_time_label"] == "1h 30m"
+    assert payload["estimated_work_minutes_this_week"] == 90
+    assert payload["estimated_work_time_label"] == "1h 30m"
     assert payload["current_streak_days"] >= 1
     assert any(point["completed_count"] > 0 for point in payload["trend"])

@@ -30,7 +30,7 @@ TASKS = [
         "priority": TaskPriority.MEDIUM,
         "status": TaskStatus.PENDING,
         "due_at": (7, 8, 9, 0),
-        "estimated_duration": 75,
+        "estimated_duration_minutes": 75,
     },
     {
         "title": "Submit database assignment",
@@ -39,7 +39,7 @@ TASKS = [
         "priority": TaskPriority.HIGH,
         "status": TaskStatus.PENDING,
         "due_at": (7, 19, 14, 30),
-        "estimated_duration": 120,
+        "estimated_duration_minutes": 120,
     },
     {
         "title": "Prepare systems quiz",
@@ -48,7 +48,7 @@ TASKS = [
         "priority": TaskPriority.HIGH,
         "status": TaskStatus.IN_PROGRESS,
         "due_at": (8, 5, 11, 0),
-        "estimated_duration": 90,
+        "estimated_duration_minutes": 90,
     },
     {
         "title": "Group project retrospective",
@@ -57,7 +57,7 @@ TASKS = [
         "priority": TaskPriority.MEDIUM,
         "status": TaskStatus.DONE,
         "due_at": (9, 12, 16, 0),
-        "estimated_duration": 45,
+        "estimated_duration_minutes": 45,
     },
     {
         "title": "Update internship timesheet",
@@ -66,7 +66,7 @@ TASKS = [
         "priority": TaskPriority.LOW,
         "status": TaskStatus.PENDING,
         "due_at": (7, 10, 17, 0),
-        "estimated_duration": 20,
+        "estimated_duration_minutes": 20,
     },
     {
         "title": "Prepare sprint demo",
@@ -75,7 +75,7 @@ TASKS = [
         "priority": TaskPriority.HIGH,
         "status": TaskStatus.IN_PROGRESS,
         "due_at": (7, 25, 10, 30),
-        "estimated_duration": 90,
+        "estimated_duration_minutes": 90,
     },
     {
         "title": "Refactor onboarding notes",
@@ -84,7 +84,7 @@ TASKS = [
         "priority": TaskPriority.MEDIUM,
         "status": TaskStatus.PENDING,
         "due_at": (8, 15, 13, 0),
-        "estimated_duration": 60,
+        "estimated_duration_minutes": 60,
     },
     {
         "title": "Book mentor catch-up",
@@ -93,7 +93,7 @@ TASKS = [
         "priority": TaskPriority.NO_PRIORITY,
         "status": TaskStatus.PENDING,
         "due_at": (9, 3, 9, 30),
-        "estimated_duration": 15,
+        "estimated_duration_minutes": 15,
     },
     {
         "title": "Draft portfolio case study",
@@ -102,7 +102,7 @@ TASKS = [
         "priority": TaskPriority.MEDIUM,
         "status": TaskStatus.PENDING,
         "due_at": (9, 21, 15, 0),
-        "estimated_duration": 100,
+        "estimated_duration_minutes": 100,
     },
     {
         "title": "Plan weekly groceries",
@@ -111,7 +111,7 @@ TASKS = [
         "priority": TaskPriority.LOW,
         "status": TaskStatus.DONE,
         "due_at": (7, 4, 18, 30),
-        "estimated_duration": 30,
+        "estimated_duration_minutes": 30,
     },
     {
         "title": "Renew transport card",
@@ -120,7 +120,7 @@ TASKS = [
         "priority": TaskPriority.MEDIUM,
         "status": TaskStatus.PENDING,
         "due_at": (7, 28, 8, 15),
-        "estimated_duration": 20,
+        "estimated_duration_minutes": 20,
     },
     {
         "title": "Clean apartment desk",
@@ -129,7 +129,7 @@ TASKS = [
         "priority": TaskPriority.NO_PRIORITY,
         "status": TaskStatus.PENDING,
         "due_at": (8, 9, 12, 0),
-        "estimated_duration": 40,
+        "estimated_duration_minutes": 40,
     },
     {
         "title": "Birthday gift research",
@@ -138,7 +138,7 @@ TASKS = [
         "priority": TaskPriority.LOW,
         "status": TaskStatus.PENDING,
         "due_at": (8, 29, 20, 0),
-        "estimated_duration": 45,
+        "estimated_duration_minutes": 45,
     },
     {
         "title": "Tax document checklist",
@@ -147,7 +147,7 @@ TASKS = [
         "priority": TaskPriority.HIGH,
         "status": TaskStatus.PENDING,
         "due_at": (9, 8, 19, 0),
-        "estimated_duration": 80,
+        "estimated_duration_minutes": 80,
     },
     {
         "title": "Read scheduling paper",
@@ -156,7 +156,7 @@ TASKS = [
         "priority": TaskPriority.MEDIUM,
         "status": TaskStatus.PENDING,
         "due_at": (7, 15, 11, 30),
-        "estimated_duration": 60,
+        "estimated_duration_minutes": 60,
     },
     {
         "title": "Compare task ranking heuristics",
@@ -165,7 +165,7 @@ TASKS = [
         "priority": TaskPriority.HIGH,
         "status": TaskStatus.PENDING,
         "due_at": (7, 31, 14, 0),
-        "estimated_duration": 95,
+        "estimated_duration_minutes": 95,
     },
     {
         "title": "Annotate calendar integration article",
@@ -174,7 +174,7 @@ TASKS = [
         "priority": TaskPriority.MEDIUM,
         "status": TaskStatus.IN_PROGRESS,
         "due_at": (8, 18, 10, 0),
-        "estimated_duration": 70,
+        "estimated_duration_minutes": 70,
     },
     {
         "title": "Draft survey questions",
@@ -183,7 +183,7 @@ TASKS = [
         "priority": TaskPriority.LOW,
         "status": TaskStatus.PENDING,
         "due_at": (9, 1, 13, 30),
-        "estimated_duration": 50,
+        "estimated_duration_minutes": 50,
     },
     {
         "title": "Summarise experiment results",
@@ -192,7 +192,7 @@ TASKS = [
         "priority": TaskPriority.HIGH,
         "status": TaskStatus.PENDING,
         "due_at": (9, 18, 16, 30),
-        "estimated_duration": 110,
+        "estimated_duration_minutes": 110,
     },
     {
         "title": "Send research update",
@@ -201,7 +201,7 @@ TASKS = [
         "priority": TaskPriority.NO_PRIORITY,
         "status": TaskStatus.PENDING,
         "due_at": (9, 27, 9, 0),
-        "estimated_duration": 25,
+        "estimated_duration_minutes": 25,
     },
     {
         "title": "Morning run",
@@ -210,7 +210,7 @@ TASKS = [
         "priority": TaskPriority.LOW,
         "status": TaskStatus.DONE,
         "due_at": (7, 6, 7, 0),
-        "estimated_duration": 45,
+        "estimated_duration_minutes": 45,
     },
     {
         "title": "Meal prep protein bowls",
@@ -219,7 +219,7 @@ TASKS = [
         "priority": TaskPriority.MEDIUM,
         "status": TaskStatus.PENDING,
         "due_at": (8, 3, 17, 30),
-        "estimated_duration": 75,
+        "estimated_duration_minutes": 75,
     },
     {
         "title": "Book dental appointment",
@@ -228,7 +228,7 @@ TASKS = [
         "priority": TaskPriority.HIGH,
         "status": TaskStatus.PENDING,
         "due_at": (8, 20, 12, 30),
-        "estimated_duration": 15,
+        "estimated_duration_minutes": 15,
     },
     {
         "title": "Review sleep routine",
@@ -237,7 +237,7 @@ TASKS = [
         "priority": TaskPriority.LOW,
         "status": TaskStatus.PENDING,
         "due_at": (9, 10, 21, 0),
-        "estimated_duration": 30,
+        "estimated_duration_minutes": 30,
     },
     {
         "title": "Sketch dashboard concepts",
@@ -246,7 +246,7 @@ TASKS = [
         "priority": TaskPriority.MEDIUM,
         "status": TaskStatus.PENDING,
         "due_at": (7, 22, 20, 0),
-        "estimated_duration": 60,
+        "estimated_duration_minutes": 60,
     },
     {
         "title": "Edit project screenshots",
@@ -255,7 +255,7 @@ TASKS = [
         "priority": TaskPriority.LOW,
         "status": TaskStatus.PENDING,
         "due_at": (8, 7, 18, 0),
-        "estimated_duration": 50,
+        "estimated_duration_minutes": 50,
     },
     {
         "title": "Write UI case study intro",
@@ -264,7 +264,7 @@ TASKS = [
         "priority": TaskPriority.HIGH,
         "status": TaskStatus.PENDING,
         "due_at": (8, 26, 15, 30),
-        "estimated_duration": 90,
+        "estimated_duration_minutes": 90,
     },
     {
         "title": "Publish design notes",
@@ -273,7 +273,7 @@ TASKS = [
         "priority": TaskPriority.MEDIUM,
         "status": TaskStatus.PENDING,
         "due_at": (9, 24, 11, 0),
-        "estimated_duration": 65,
+        "estimated_duration_minutes": 65,
     },
 ]
 
@@ -356,7 +356,7 @@ def seed_tasks(user: User, projects: dict[str, Project]) -> None:
                         project_id=project_id,
                         priority=task_data["priority"],
                         due_date=due_date,
-                        estimated_duration=task_data["estimated_duration"],
+                        estimated_duration_minutes=task_data["estimated_duration_minutes"],
                     ),
                 )
 
@@ -365,7 +365,7 @@ def seed_tasks(user: User, projects: dict[str, Project]) -> None:
             task.priority = task_data["priority"]
             task.status = task_data["status"]
             task.due_date = due_date
-            task.estimated_duration = task_data["estimated_duration"]
+            task.estimated_duration_minutes = task_data["estimated_duration_minutes"]
 
         db.commit()
 

@@ -20,8 +20,8 @@ export type InsightsSummary = {
   tasks_completed_this_week: number;
   tasks_completed_last_week: number;
   week_over_week_change_percent: number | null;
-  focus_minutes_this_week: number;
-  focus_time_label: string;
+  estimated_work_minutes_this_week: number;
+  estimated_work_time_label: string;
   goal_progress_percent: number;
   current_streak_days: number;
   trend: InsightTrendPoint[];

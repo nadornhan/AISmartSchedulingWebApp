@@ -292,7 +292,7 @@ def test_create_task_with_new_fields_and_project_summary(
             "project_id": project["id"],
             "priority": "high",
             "due_date": "2030-08-10T12:00:00Z",
-            "estimated_duration": 90,
+            "estimated_duration_minutes": 90,
             "scheduled_start": "2030-08-10T09:00:00Z",
             "scheduled_end": "2030-08-10T10:30:00Z",
         },
@@ -304,13 +304,98 @@ def test_create_task_with_new_fields_and_project_summary(
 
     assert task["status"] == "pending"
     assert task["priority"] == "high"
-    assert task["estimated_duration"] == 90
+    assert task["estimated_duration_minutes"] == 90
     assert task["due_date"] == "2030-08-10T12:00:00Z"
     assert task["scheduled_start"] == "2030-08-10T09:00:00Z"
     assert task["scheduled_end"] == "2030-08-10T10:30:00Z"
     assert task["project"]["id"] == project["id"]
     assert task["project"]["name"] == "University"
     assert task["project"]["color"] == project["color"]
+
+
+@pytest.mark.parametrize(
+    "duration",
+    [None, 5, 10, 15, 30, 60, 135],
+)
+def test_create_task_with_valid_estimated_duration_minutes(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    duration: int | None,
+) -> None:
+    payload = {"title": f"Duration {duration}"}
+    if duration is not None:
+        payload["estimated_duration_minutes"] = duration
+
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json=payload,
+    )
+
+    assert response.status_code == 201
+    task = response.json()
+    assert task["estimated_duration_minutes"] == duration
+    assert "estimated_duration" not in task
+
+
+def test_create_task_accepts_explicit_null_estimated_duration_minutes(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "No estimate",
+            "estimated_duration_minutes": None,
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["estimated_duration_minutes"] is None
+
+
+@pytest.mark.parametrize("duration", [0, -1, 3.5])
+def test_reject_invalid_estimated_duration_minutes(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    duration: float,
+) -> None:
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Invalid estimate",
+            "estimated_duration_minutes": duration,
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_update_and_clear_estimated_duration_minutes(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    task = create_task(client, auth_headers, "Change estimate")
+
+    update_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"estimated_duration_minutes": 45},
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["estimated_duration_minutes"] == 45
+
+    clear_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"estimated_duration_minutes": None},
+    )
+
+    assert clear_response.status_code == 200
+    assert clear_response.json()["estimated_duration_minutes"] is None
 
 
 def test_past_due_task_is_returned_as_overdue(

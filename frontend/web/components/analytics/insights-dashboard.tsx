@@ -217,8 +217,8 @@ export function InsightsDashboard() {
             <StatCard
               icon="⌛"
               iconClass="bg-[var(--blue-soft)] text-[var(--blue-light)]"
-              label="Focus Time"
-              value={summary.focus_time_label}
+              label="Estimated Work"
+              value={summary.estimated_work_time_label}
             />
             <StatCard
               icon="◎"
