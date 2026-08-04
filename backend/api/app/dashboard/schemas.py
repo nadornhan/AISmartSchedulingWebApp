@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -32,9 +32,17 @@ class NextBestTask(BaseModel):
     reasons: list[str]
 
 
+class WeeklyActivityPoint(BaseModel):
+    date: date
+    day: str
+    done: int = Field(ge=0)
+    overdue: int = Field(ge=0)
+
+
 class DashboardSummaryResponse(BaseModel):
     task_progress: ProgressSummary
     overdue_count: int = Field(ge=0)
     next_best_task: NextBestTask | None
     quick_wins: list[DashboardTaskSummary]
     in_progress: list[DashboardTaskSummary]
+    weekly_activity: list[WeeklyActivityPoint]

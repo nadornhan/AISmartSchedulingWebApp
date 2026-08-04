@@ -432,6 +432,43 @@ def test_done_task_is_not_returned_as_overdue(
 
     assert response.status_code == 200
     assert response.json()["status"] == "done"
+    assert response.json()["completed_at"] is not None
+
+
+def test_completed_at_is_set_and_cleared_with_done_status(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    task = create_task(client, auth_headers, "Completion timestamp")
+    assert task["completed_at"] is None
+
+    done_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"status": "done"},
+    )
+
+    assert done_response.status_code == 200
+    completed_at = done_response.json()["completed_at"]
+    assert completed_at is not None
+
+    noop_done_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"description": "Edited after completion"},
+    )
+
+    assert noop_done_response.status_code == 200
+    assert noop_done_response.json()["completed_at"] == completed_at
+
+    reopen_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"status": "pending"},
+    )
+
+    assert reopen_response.status_code == 200
+    assert reopen_response.json()["completed_at"] is None
 
 
 def test_reject_invalid_schedule_on_create(

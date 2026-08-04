@@ -105,6 +105,7 @@ class TaskResponse(BaseModel):
     estimated_duration_minutes: int | None
     scheduled_start: datetime | None
     scheduled_end: datetime | None
+    completed_at: datetime | None
     created_at: datetime
     updated_at: datetime
 

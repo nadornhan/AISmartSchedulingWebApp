@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, selectinload
@@ -9,12 +9,14 @@ from app.dashboard.schemas import (
     DashboardTaskSummary,
     NextBestTask,
     ProgressSummary,
+    WeeklyActivityPoint,
 )
 from app.tasks.models import Task, TaskPriority, TaskStatus
 from app.tasks.overdue import is_task_overdue, task_overdue_condition, utc_now
 from app.tasks.schemas import TaskDisplayStatus
 
 QUICK_WINS_LIMIT = 5
+WEEKLY_ACTIVITY_DAYS = 7
 
 PRIORITY_RANK = {
     TaskPriority.HIGH: 0,
@@ -29,6 +31,16 @@ def _progress_percent(completed: int, total: int) -> int | None:
         return None
 
     return round((completed / total) * 100)
+
+
+def _start_of_week(day: date) -> date:
+    return day - timedelta(days=day.weekday())
+
+
+def _day_bounds(day: date) -> tuple[datetime, datetime]:
+    start = datetime.combine(day, datetime.min.time(), tzinfo=UTC)
+    end = start + timedelta(days=1)
+    return start, end
 
 
 def _open_tasks(db: Session, user_id: uuid.UUID) -> list[Task]:
@@ -111,6 +123,77 @@ def _next_best_reasons(task: Task, *, now: datetime) -> list[str]:
         reasons.append("Short estimated duration")
 
     return reasons
+
+
+def _weekly_activity(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    now: datetime,
+) -> list[WeeklyActivityPoint]:
+    week_start = _start_of_week(now.date())
+    days = [
+        week_start + timedelta(days=offset)
+        for offset in range(WEEKLY_ACTIVITY_DAYS)
+    ]
+    counts = {
+        day: {"done": 0, "overdue": 0}
+        for day in days
+    }
+    start, _first_end = _day_bounds(days[0])
+    _last_start, end = _day_bounds(days[-1])
+
+    completed_tasks = list(
+        db.scalars(
+            select(Task)
+            .where(
+                Task.user_id == user_id,
+                Task.status == TaskStatus.DONE,
+                Task.completed_at.is_not(None),
+                Task.completed_at >= start,
+                Task.completed_at < end,
+            )
+        ).all()
+    )
+    overdue_tasks = list(
+        db.scalars(
+            select(Task)
+            .where(
+                Task.user_id == user_id,
+                Task.status != TaskStatus.DONE,
+                Task.due_date.is_not(None),
+                Task.due_date >= start,
+                Task.due_date < end,
+                Task.due_date < now,
+            )
+        ).all()
+    )
+
+    for task in completed_tasks:
+        if task.completed_at is None:
+            continue
+
+        completed_day = task.completed_at.astimezone(UTC).date()
+        if completed_day in counts:
+            counts[completed_day]["done"] += 1
+
+    for task in overdue_tasks:
+        if task.due_date is None:
+            continue
+
+        due_day = task.due_date.astimezone(UTC).date()
+        if due_day in counts:
+            counts[due_day]["overdue"] += 1
+
+    return [
+        WeeklyActivityPoint(
+            date=day,
+            day=day.strftime("%a"),
+            done=counts[day]["done"],
+            overdue=counts[day]["overdue"],
+        )
+        for day in days
+    ]
 
 
 def get_dashboard_summary(
@@ -207,4 +290,5 @@ def get_dashboard_summary(
             _task_summary(task, now=now)
             for task in in_progress
         ],
+        weekly_activity=_weekly_activity(db, user_id, now=now),
     )

@@ -72,6 +72,7 @@ def test_insights_counts_completed_tasks_this_week(
             title=f"Done {index}",
             status=TaskStatus.DONE,
             estimated_duration_minutes=30,
+            completed_at=now - timedelta(hours=index + 1),
             updated_at=now - timedelta(hours=index + 1),
             created_at=now - timedelta(days=1),
         )
@@ -82,6 +83,7 @@ def test_insights_counts_completed_tasks_this_week(
         title="Old done",
         status=TaskStatus.DONE,
         estimated_duration_minutes=60,
+        completed_at=now - timedelta(days=10),
         updated_at=now - timedelta(days=10),
         created_at=now - timedelta(days=11),
     )

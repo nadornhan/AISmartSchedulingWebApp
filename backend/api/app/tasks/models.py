@@ -90,6 +90,10 @@ class Task(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -104,6 +108,7 @@ class Task(Base):
     project: Mapped["Project | None"] = relationship(
         back_populates="tasks",
     )
+
     @property
     def display_status(self) -> str:
         from app.tasks.overdue import is_task_overdue

@@ -65,12 +65,13 @@ def _completed_tasks_query(
     statement = select(Task).where(
         Task.user_id == user_id,
         Task.status == TaskStatus.DONE,
+        Task.completed_at.is_not(None),
     )
 
     if start is not None:
-        statement = statement.where(Task.updated_at >= start)
+        statement = statement.where(Task.completed_at >= start)
     if end is not None:
-        statement = statement.where(Task.updated_at < end)
+        statement = statement.where(Task.completed_at < end)
 
     return statement
 
@@ -88,8 +89,9 @@ def _count_completed(
         .where(
             Task.user_id == user_id,
             Task.status == TaskStatus.DONE,
-            Task.updated_at >= start,
-            Task.updated_at < end,
+            Task.completed_at.is_not(None),
+            Task.completed_at >= start,
+            Task.completed_at < end,
         )
     )
     return int(db.scalar(statement) or 0)
@@ -184,8 +186,9 @@ def _current_streak_days(db: Session, user_id, *, reference: datetime) -> int:
     )
 
     completed_days = {
-        _as_utc(task.updated_at).date()
+        _as_utc(task.completed_at).date()
         for task in tasks
+        if task.completed_at is not None
     }
 
     if not completed_days:
@@ -233,7 +236,10 @@ def _trend_points(
     }
 
     for task in tasks:
-        day = _as_utc(task.updated_at).date()
+        if task.completed_at is None:
+            continue
+
+        day = _as_utc(task.completed_at).date()
         if day in counts:
             counts[day] += 1
 

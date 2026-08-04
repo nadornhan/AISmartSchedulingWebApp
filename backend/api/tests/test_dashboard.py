@@ -47,6 +47,7 @@ def add_task(
     priority: TaskPriority = TaskPriority.NO_PRIORITY,
     due_date: datetime | None = None,
     estimated_duration_minutes: int | None = None,
+    completed_at: datetime | None = None,
     project_id: uuid.UUID | None = None,
 ) -> Task:
     task = Task(
@@ -57,6 +58,7 @@ def add_task(
         priority=priority,
         due_date=due_date,
         estimated_duration_minutes=estimated_duration_minutes,
+        completed_at=completed_at,
     )
     db_session.add(task)
     db_session.commit()
@@ -85,6 +87,9 @@ def test_dashboard_summary_for_empty_user(client: TestClient) -> None:
     assert payload["next_best_task"] is None
     assert payload["quick_wins"] == []
     assert payload["in_progress"] == []
+    assert len(payload["weekly_activity"]) == 7
+    assert all(point["done"] == 0 for point in payload["weekly_activity"])
+    assert all(point["overdue"] == 0 for point in payload["weekly_activity"])
 
 
 def test_dashboard_summary_derives_overdue_and_progress(
@@ -308,3 +313,62 @@ def test_dashboard_in_progress_includes_project_and_overdue_badge_data(
     assert items[0]["status"] == "overdue"
     assert items[0]["stored_status"] == "in_progress"
     assert items[0]["is_overdue"] is True
+
+
+def test_dashboard_weekly_activity_uses_completed_at_and_current_overdue(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    headers, user_id = create_auth_headers(client)
+    now = datetime.now(UTC)
+    week_start = now.date() - timedelta(days=now.date().weekday())
+    monday = datetime.combine(week_start, datetime.min.time(), tzinfo=UTC)
+    tuesday = monday + timedelta(days=1)
+
+    completed_monday = add_task(
+        db_session,
+        user_id=user_id,
+        title="Completed Monday",
+        status=TaskStatus.DONE,
+        due_date=tuesday,
+        estimated_duration_minutes=30,
+    )
+    completed_monday.completed_at = monday + timedelta(hours=10)
+    completed_tuesday = add_task(
+        db_session,
+        user_id=user_id,
+        title="Edited Monday but completed Tuesday",
+        status=TaskStatus.DONE,
+        due_date=monday,
+        estimated_duration_minutes=30,
+    )
+    completed_tuesday.completed_at = tuesday + timedelta(hours=11)
+    add_task(
+        db_session,
+        user_id=user_id,
+        title="Currently overdue Monday",
+        status=TaskStatus.PENDING,
+        due_date=min(monday + timedelta(hours=8), now - timedelta(hours=1)),
+        estimated_duration_minutes=30,
+    )
+    add_task(
+        db_session,
+        user_id=user_id,
+        title="Completed overdue is not current overdue",
+        status=TaskStatus.DONE,
+        due_date=min(monday + timedelta(hours=9), now - timedelta(hours=1)),
+        completed_at=tuesday + timedelta(hours=12),
+    )
+    db_session.commit()
+
+    response = client.get("/dashboard/summary", headers=headers)
+    assert response.status_code == 200
+    weekly_activity = response.json()["weekly_activity"]
+    monday_point = weekly_activity[0]
+    tuesday_point = weekly_activity[1]
+
+    assert monday_point["day"] == "Mon"
+    assert monday_point["done"] == 1
+    assert monday_point["overdue"] == 1
+    assert tuesday_point["day"] == "Tue"
+    assert tuesday_point["done"] == 2

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.notifications import service as notification_service
 from app.tasks.models import Task, TaskPriority, TaskStatus
-from app.tasks.overdue import task_overdue_condition
+from app.tasks.overdue import task_overdue_condition, utc_now
 from app.tasks.schemas import (
     SortOrder,
     TaskCreate,
@@ -154,6 +154,7 @@ def update_task(
     task_data: TaskUpdate,
 ) -> Task:
     update_data = task_data.model_dump(exclude_unset=True)
+    previous_status = task.status
 
     scheduled_start = update_data.get(
         "scheduled_start",
@@ -175,6 +176,14 @@ def update_task(
 
     for field, value in update_data.items():
         setattr(task, field, value)
+
+    next_status = update_data.get("status", previous_status)
+    if next_status == TaskStatus.DONE and previous_status != TaskStatus.DONE:
+        task.completed_at = utc_now()
+    elif next_status != TaskStatus.DONE:
+        task.completed_at = None
+    elif task.completed_at is None:
+        task.completed_at = utc_now()
 
     db.commit()
     db.refresh(task)

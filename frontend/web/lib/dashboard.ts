@@ -36,12 +36,20 @@ export type DashboardNextBestTask = {
   reasons: string[];
 };
 
+export type DashboardWeeklyActivityPoint = {
+  date: string;
+  day: string;
+  done: number;
+  overdue: number;
+};
+
 export type DashboardSummary = {
   task_progress: DashboardProgressSummary;
   overdue_count: number;
   next_best_task: DashboardNextBestTask | null;
   quick_wins: DashboardTaskSummary[];
   in_progress: DashboardTaskSummary[];
+  weekly_activity: DashboardWeeklyActivityPoint[];
 };
 
 export function getDashboardSummary(signal?: AbortSignal) {
