@@ -49,6 +49,7 @@ type Task = {
   projectColor: string;
   dueDate: string;
   durationLabel: string | null;
+  subtaskProgressLabel: string | null;
   priority: TaskPriority;
   status: TaskStatus;
   source: TaskResponse;
@@ -109,6 +110,14 @@ function formatTaskDueDate(value: string | null) {
 
 function toTask(response: TaskResponse): Task {
   const displayStatus = response.status;
+  const subtaskProgress =
+    response.subtask_progress.total > 0
+      ? `${response.subtask_progress.completed}/${response.subtask_progress.total} subtasks${
+          response.subtask_progress.percent !== null
+            ? ` (${response.subtask_progress.percent}%)`
+            : ''
+        }`
+      : null;
 
   return {
     id: response.id,
@@ -122,6 +131,7 @@ function toTask(response: TaskResponse): Task {
       response.estimated_duration_minutes !== null
         ? formatDurationLabel(response.estimated_duration_minutes)
         : null,
+    subtaskProgressLabel: subtaskProgress,
     priority: priorityFromApi(response.priority),
     status:
       displayStatus === 'done'
@@ -661,9 +671,9 @@ export function TaskPage() {
                       <p className="mt-1 truncate text-xs leading-5 text-dashboard-muted">
                         {task.description}
                       </p>
-                      {task.durationLabel ? (
+                      {task.subtaskProgressLabel || task.durationLabel ? (
                         <p className="mt-1 text-xs font-medium text-dashboard-muted">
-                          {task.durationLabel}
+                          {task.subtaskProgressLabel ?? task.durationLabel}
                         </p>
                       ) : null}
                     </div>

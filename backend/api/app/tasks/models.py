@@ -3,7 +3,16 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -108,6 +117,11 @@ class Task(Base):
     project: Mapped["Project | None"] = relationship(
         back_populates="tasks",
     )
+    subtasks: Mapped[list["Subtask"]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="Subtask.position",
+    )
 
     @property
     def display_status(self) -> str:
@@ -117,3 +131,58 @@ class Task(Base):
             return "overdue"
 
         return self.status.value
+
+    @property
+    def subtask_progress(self) -> dict[str, int | None]:
+        total = len(self.subtasks)
+        completed = sum(1 for subtask in self.subtasks if subtask.is_completed)
+
+        return {
+            "completed": completed,
+            "total": total,
+            "percent": round((completed / total) * 100) if total > 0 else None,
+        }
+
+
+class Subtask(Base):
+    __tablename__ = "subtasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    title: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    is_completed: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="false",
+        nullable=False,
+    )
+    position: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+    task: Mapped[Task] = relationship(
+        back_populates="subtasks",
+    )

@@ -311,6 +311,115 @@ def test_create_task_with_new_fields_and_project_summary(
     assert task["project"]["id"] == project["id"]
     assert task["project"]["name"] == "University"
     assert task["project"]["color"] == project["color"]
+    assert task["subtasks"] == []
+    assert task["subtask_progress"] == {
+        "completed": 0,
+        "total": 0,
+        "percent": None,
+    }
+
+
+def test_create_task_with_subtasks(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Build onboarding",
+            "subtasks": [
+                {
+                    "title": "Write copy",
+                    "is_completed": True,
+                    "position": 2,
+                },
+                {
+                    "title": "Design empty state",
+                    "position": 1,
+                },
+            ],
+        },
+    )
+
+    assert response.status_code == 201
+
+    task = response.json()
+    assert [
+        subtask["title"]
+        for subtask in task["subtasks"]
+    ] == [
+        "Design empty state",
+        "Write copy",
+    ]
+    assert [
+        subtask["position"]
+        for subtask in task["subtasks"]
+    ] == [0, 1]
+    assert task["subtasks"][0]["is_completed"] is False
+    assert task["subtasks"][1]["is_completed"] is True
+    assert task["subtask_progress"] == {
+        "completed": 1,
+        "total": 2,
+        "percent": 50,
+    }
+
+
+def test_update_task_replaces_and_clears_subtasks(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    create_response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Refine recommendation model",
+            "subtasks": [
+                {"title": "Audit signals"},
+                {"title": "Tune score weights"},
+            ],
+        },
+    )
+    assert create_response.status_code == 201
+    task = create_response.json()
+
+    update_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={
+            "subtasks": [
+                {
+                    "title": "Document final weights",
+                    "is_completed": True,
+                }
+            ],
+        },
+    )
+
+    assert update_response.status_code == 200
+    updated_task = update_response.json()
+    assert len(updated_task["subtasks"]) == 1
+    assert updated_task["subtasks"][0]["title"] == "Document final weights"
+    assert updated_task["subtasks"][0]["position"] == 0
+    assert updated_task["subtask_progress"] == {
+        "completed": 1,
+        "total": 1,
+        "percent": 100,
+    }
+
+    clear_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"subtasks": []},
+    )
+
+    assert clear_response.status_code == 200
+    assert clear_response.json()["subtasks"] == []
+    assert clear_response.json()["subtask_progress"] == {
+        "completed": 0,
+        "total": 0,
+        "percent": None,
+    }
 
 
 @pytest.mark.parametrize(

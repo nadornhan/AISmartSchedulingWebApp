@@ -46,6 +46,15 @@ export function DashboardTaskCard({
   compact?: boolean;
   task: DashboardTaskSummary;
 }>) {
+  const subtaskProgress =
+    task.subtask_progress.total > 0
+      ? `${task.subtask_progress.completed}/${task.subtask_progress.total} subtasks${
+          task.subtask_progress.percent !== null
+            ? ` (${task.subtask_progress.percent}%)`
+            : ''
+        }`
+      : null;
+
   return (
     <article className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -62,7 +71,8 @@ export function DashboardTaskCard({
               {task.project?.name ?? 'Unassigned'}
             </span>
             <span>{formatDueDate(task.due_date)}</span>
-            {task.estimated_duration_minutes !== null ? (
+            {subtaskProgress ? <span>{subtaskProgress}</span> : null}
+            {!subtaskProgress && task.estimated_duration_minutes !== null ? (
               <span>{formatDurationLabel(task.estimated_duration_minutes)}</span>
             ) : null}
           </div>

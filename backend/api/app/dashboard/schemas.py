@@ -4,7 +4,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, Field
 
 from app.tasks.models import TaskPriority, TaskStatus
-from app.tasks.schemas import ProjectSummary, TaskDisplayStatus
+from app.tasks.schemas import ProjectSummary, SubtaskProgress, TaskDisplayStatus
 
 
 class ProgressSummary(BaseModel):
@@ -24,6 +24,7 @@ class DashboardTaskSummary(BaseModel):
     stored_status: TaskStatus
     due_date: datetime | None
     estimated_duration_minutes: int | None
+    subtask_progress: SubtaskProgress
     is_overdue: bool
 
 

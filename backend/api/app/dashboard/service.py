@@ -47,7 +47,10 @@ def _open_tasks(db: Session, user_id: uuid.UUID) -> list[Task]:
     return list(
         db.scalars(
             select(Task)
-            .options(selectinload(Task.project))
+            .options(
+                selectinload(Task.project),
+                selectinload(Task.subtasks),
+            )
             .where(
                 Task.user_id == user_id,
                 Task.status != TaskStatus.DONE,
@@ -78,6 +81,7 @@ def _task_summary(task: Task, *, now: datetime) -> DashboardTaskSummary:
         stored_status=task.status,
         due_date=task.due_date,
         estimated_duration_minutes=task.estimated_duration_minutes,
+        subtask_progress=task.subtask_progress,
         is_overdue=overdue,
     )
 
@@ -258,7 +262,10 @@ def get_dashboard_summary(
     in_progress = list(
         db.scalars(
             select(Task)
-            .options(selectinload(Task.project))
+            .options(
+                selectinload(Task.project),
+                selectinload(Task.subtasks),
+            )
             .where(
                 Task.user_id == user_id,
                 Task.status == TaskStatus.IN_PROGRESS,

@@ -2,6 +2,7 @@ import { apiRequest } from './api';
 import type {
   TaskDisplayStatusValue,
   TaskPriorityValue,
+  TaskSubtaskProgress,
   TaskStatusValue,
 } from './tasks';
 
@@ -28,6 +29,7 @@ export type DashboardTaskSummary = {
   stored_status: TaskStatusValue;
   due_date: string | null;
   estimated_duration_minutes: number | null;
+  subtask_progress: TaskSubtaskProgress;
   is_overdue: boolean;
 };
 

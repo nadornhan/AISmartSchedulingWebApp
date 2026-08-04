@@ -15,7 +15,14 @@ import type {
   TaskResponse,
   TaskUpdateInput,
 } from '../../lib/tasks';
-import { CalendarIcon, ChevronDownIcon, CloseIcon } from '../layout/icons';
+import {
+  CalendarIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  CloseIcon,
+  PlusIcon,
+  TrashIcon,
+} from '../layout/icons';
 
 export type TaskPriorityLabel = 'No priority' | 'Low' | 'Medium' | 'High';
 
@@ -43,6 +50,12 @@ type TaskFormInitialValues = {
   dueDate: string;
   dueTime: string;
   estimatedDurationMinutes: number | null;
+  subtasks: TaskFormSubtask[];
+};
+
+type TaskFormSubtask = {
+  title: string;
+  isCompleted: boolean;
 };
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -96,6 +109,10 @@ function taskInitialValues(task: TaskResponse): TaskFormInitialValues {
     dueDate: toDateInputValue(task.due_date),
     dueTime: toTimeInputValue(task.due_date),
     estimatedDurationMinutes: task.estimated_duration_minutes,
+    subtasks: task.subtasks.map((subtask) => ({
+      title: subtask.title,
+      isCompleted: subtask.is_completed,
+    })),
   };
 }
 
@@ -129,6 +146,7 @@ export function CreateTaskModal({
         dueDate: '',
         dueTime: '',
         estimatedDurationMinutes: null,
+        subtasks: [],
       }}
       isSubmitting={isSubmitting}
       onClose={onClose}
@@ -205,7 +223,35 @@ function TaskFormModal({
       ? String(initialDuration)
       : '',
   );
+  const [subtasks, setSubtasks] = useState<TaskFormSubtask[]>(initialValues.subtasks);
+  const [subtaskDraft, setSubtaskDraft] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  function addSubtask() {
+    const titleValue = subtaskDraft.trim();
+    if (!titleValue) return;
+
+    setSubtasks((current) => [
+      ...current,
+      {
+        title: titleValue,
+        isCompleted: false,
+      },
+    ]);
+    setSubtaskDraft('');
+  }
+
+  function updateSubtask(index: number, nextSubtask: TaskFormSubtask) {
+    setSubtasks((current) =>
+      current.map((subtask, subtaskIndex) =>
+        subtaskIndex === index ? nextSubtask : subtask,
+      ),
+    );
+  }
+
+  function removeSubtask(index: number) {
+    setSubtasks((current) => current.filter((_subtask, subtaskIndex) => subtaskIndex !== index));
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -251,6 +297,14 @@ function TaskFormModal({
     }
 
     try {
+      const normalizedSubtasks = subtasks
+        .map((subtask, position) => ({
+          title: subtask.title.trim(),
+          is_completed: subtask.isCompleted,
+          position,
+        }))
+        .filter((subtask) => subtask.title);
+
       await onSubmit({
         title: titleValue,
         description: notes || null,
@@ -258,6 +312,7 @@ function TaskFormModal({
         due_date: dueDateTime,
         priority: priorityToApi[priority],
         estimated_duration_minutes: estimatedDurationMinutes,
+        subtasks: normalizedSubtasks,
       });
     } catch (requestError) {
       setSubmitError(getErrorMessage(requestError));
@@ -450,6 +505,85 @@ function TaskFormModal({
               placeholder="Add any notes or details..."
             />
           </Field>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-dashboard-text">
+                Subtasks{' '}
+                <span className="font-normal text-dashboard-muted">(optional)</span>
+              </span>
+              <span className="text-xs text-dashboard-muted">
+                {subtasks.filter((subtask) => subtask.isCompleted).length}/{subtasks.length} done
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {subtasks.map((subtask, index) => (
+                <div className="flex items-center gap-2" key={`${subtask.title}-${index}`}>
+                  <button
+                    aria-label={subtask.isCompleted ? 'Mark subtask incomplete' : 'Mark subtask done'}
+                    aria-pressed={subtask.isCompleted}
+                    className={cn(
+                      'grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border transition',
+                      subtask.isCompleted
+                        ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                        : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted hover:border-dashboard-accent/70',
+                    )}
+                    onClick={() =>
+                      updateSubtask(index, {
+                        ...subtask,
+                        isCompleted: !subtask.isCompleted,
+                      })
+                    }
+                    type="button"
+                  >
+                    {subtask.isCompleted ? <CheckIcon className="h-4 w-4" /> : null}
+                  </button>
+                  <input
+                    className="h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
+                    onChange={(event) =>
+                      updateSubtask(index, {
+                        ...subtask,
+                        title: event.target.value,
+                      })
+                    }
+                    value={subtask.title}
+                  />
+                  <button
+                    aria-label="Remove subtask"
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted transition hover:border-[var(--red-border)] hover:text-[var(--red-light)]"
+                    onClick={() => removeSubtask(index)}
+                    type="button"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-2 flex gap-2">
+              <input
+                className="h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
+                onChange={(event) => setSubtaskDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addSubtask();
+                  }
+                }}
+                placeholder="Add a subtask..."
+                value={subtaskDraft}
+              />
+              <button
+                aria-label="Add subtask"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent transition hover:bg-dashboard-accent/20"
+                onClick={addSubtask}
+                type="button"
+              >
+                <PlusIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
         {submitError ? (

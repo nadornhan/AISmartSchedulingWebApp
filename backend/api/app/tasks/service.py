@@ -5,15 +5,37 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.notifications import service as notification_service
-from app.tasks.models import Task, TaskPriority, TaskStatus
+from app.tasks.models import Subtask, Task, TaskPriority, TaskStatus
 from app.tasks.overdue import task_overdue_condition, utc_now
 from app.tasks.schemas import (
     SortOrder,
+    SubtaskInput,
     TaskCreate,
     TaskDisplayStatus,
     TaskSortBy,
     TaskUpdate,
 )
+
+
+def _replace_subtasks(task: Task, subtasks: list[SubtaskInput]) -> None:
+    ordered_subtasks = sorted(
+        enumerate(subtasks),
+        key=lambda item: (
+            item[1].position if item[1].position is not None else item[0],
+            item[0],
+        ),
+    )
+
+    task.subtasks.clear()
+    task.subtasks.extend(
+        Subtask(
+            title=subtask.title.strip(),
+            is_completed=subtask.is_completed,
+            position=position,
+        )
+        for position, (_original_index, subtask) in enumerate(ordered_subtasks)
+        if subtask.title.strip()
+    )
 
 
 def list_tasks(
@@ -95,7 +117,10 @@ def list_tasks(
 
     statement = (
         select(Task)
-        .options(selectinload(Task.project))
+        .options(
+            selectinload(Task.project),
+            selectinload(Task.subtasks),
+        )
         .where(*conditions)
         .order_by(order_expression, Task.id.asc())
         .offset(offset)
@@ -112,14 +137,16 @@ def create_task(
     user_id: uuid.UUID,
     task_data: TaskCreate,
 ) -> Task:
+    create_data = task_data.model_dump(exclude={"subtasks"})
     task = Task(
         user_id=user_id,
         status=TaskStatus.PENDING,
-        **task_data.model_dump(),
+        **create_data,
     )
 
     db.add(task)
     db.flush()
+    _replace_subtasks(task, task_data.subtasks)
     notification_service.create_task_notification(
         db,
         user_id=user_id,
@@ -138,7 +165,10 @@ def get_task_by_id(
 ) -> Task | None:
     statement = (
         select(Task)
-        .options(selectinload(Task.project))
+        .options(
+            selectinload(Task.project),
+            selectinload(Task.subtasks),
+        )
         .where(
             Task.id == task_id,
             Task.user_id == user_id,
@@ -153,7 +183,15 @@ def update_task(
     task: Task,
     task_data: TaskUpdate,
 ) -> Task:
-    update_data = task_data.model_dump(exclude_unset=True)
+    update_data = task_data.model_dump(
+        exclude={"subtasks"},
+        exclude_unset=True,
+    )
+    subtasks = (
+        task_data.subtasks
+        if "subtasks" in task_data.model_fields_set
+        else None
+    )
     previous_status = task.status
 
     scheduled_start = update_data.get(
@@ -176,6 +214,9 @@ def update_task(
 
     for field, value in update_data.items():
         setattr(task, field, value)
+
+    if subtasks is not None:
+        _replace_subtasks(task, subtasks)
 
     next_status = update_data.get("status", previous_status)
     if next_status == TaskStatus.DONE and previous_status != TaskStatus.DONE:
