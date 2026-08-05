@@ -25,28 +25,28 @@ export function WorkPreferences({ value, onChange }: WorkPreferencesProps) {
       description="Default planning windows used by the scheduling flow."
     >
       <div className="grid gap-4 sm:grid-cols-3">
-        <label className="grid gap-2 text-sm font-medium text-slate-700">
+        <label className="grid gap-2 text-sm font-medium text-dashboard-text">
           Work start
           <input
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-950 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+            className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
             onChange={(event) => updateField('workStart', event.target.value)}
             type="time"
             value={value.workStart}
           />
         </label>
-        <label className="grid gap-2 text-sm font-medium text-slate-700">
+        <label className="grid gap-2 text-sm font-medium text-dashboard-text">
           Work end
           <input
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-950 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+            className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
             onChange={(event) => updateField('workEnd', event.target.value)}
             type="time"
             value={value.workEnd}
           />
         </label>
-        <label className="grid gap-2 text-sm font-medium text-slate-700">
+        <label className="grid gap-2 text-sm font-medium text-dashboard-text">
           Pomodoro
           <select
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-950 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+            className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-text outline-none focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
             onChange={(event) => updateField('pomodoroMinutes', Number(event.target.value))}
             value={value.pomodoroMinutes}
           >
@@ -60,7 +60,7 @@ export function WorkPreferences({ value, onChange }: WorkPreferencesProps) {
       </div>
       <div className="mt-5 flex justify-end">
         <button
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+          className="h-11 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
           type="button"
         >
           Save Changes
