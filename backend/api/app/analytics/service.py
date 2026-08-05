@@ -1,24 +1,23 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
-from app.auth.models import User
-from app.tasks.models import Task, TaskPriority, TaskStatus
 from app.analytics.schemas import (
     InsightRecommendation,
-    InsightTrendPoint,
     InsightsSummaryResponse,
+    InsightTrendPoint,
 )
+from app.auth.models import User
+from app.tasks.models import Task, TaskPriority, TaskStatus
 
-DEFAULT_FOCUS_MINUTES_PER_TASK = 25
 TREND_DAYS = 7
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _start_of_week(day: date) -> date:
@@ -27,8 +26,8 @@ def _start_of_week(day: date) -> date:
 
 def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _week_bounds(reference: datetime) -> tuple[datetime, datetime, datetime, datetime]:
@@ -37,9 +36,21 @@ def _week_bounds(reference: datetime) -> tuple[datetime, datetime, datetime, dat
     next_week_start = this_week_start + timedelta(days=7)
     last_week_start = this_week_start - timedelta(days=7)
 
-    this_start = datetime.combine(this_week_start, datetime.min.time(), tzinfo=timezone.utc)
-    this_end = datetime.combine(next_week_start, datetime.min.time(), tzinfo=timezone.utc)
-    last_start = datetime.combine(last_week_start, datetime.min.time(), tzinfo=timezone.utc)
+    this_start = datetime.combine(
+        this_week_start,
+        datetime.min.time(),
+        tzinfo=UTC,
+    )
+    this_end = datetime.combine(
+        next_week_start,
+        datetime.min.time(),
+        tzinfo=UTC,
+    )
+    last_start = datetime.combine(
+        last_week_start,
+        datetime.min.time(),
+        tzinfo=UTC,
+    )
     last_end = this_start
 
     return this_start, this_end, last_start, last_end
@@ -54,12 +65,13 @@ def _completed_tasks_query(
     statement = select(Task).where(
         Task.user_id == user_id,
         Task.status == TaskStatus.DONE,
+        Task.completed_at.is_not(None),
     )
 
     if start is not None:
-        statement = statement.where(Task.updated_at >= start)
+        statement = statement.where(Task.completed_at >= start)
     if end is not None:
-        statement = statement.where(Task.updated_at < end)
+        statement = statement.where(Task.completed_at < end)
 
     return statement
 
@@ -77,14 +89,15 @@ def _count_completed(
         .where(
             Task.user_id == user_id,
             Task.status == TaskStatus.DONE,
-            Task.updated_at >= start,
-            Task.updated_at < end,
+            Task.completed_at.is_not(None),
+            Task.completed_at >= start,
+            Task.completed_at < end,
         )
     )
     return int(db.scalar(statement) or 0)
 
 
-def _focus_minutes(
+def _estimated_work_minutes(
     db: Session,
     user_id,
     *,
@@ -99,15 +112,13 @@ def _focus_minutes(
 
     total = 0
     for task in tasks:
-        if task.estimated_duration and task.estimated_duration > 0:
-            total += task.estimated_duration
-        else:
-            total += DEFAULT_FOCUS_MINUTES_PER_TASK
+        if task.estimated_duration_minutes is not None:
+            total += task.estimated_duration_minutes
 
     return total
 
 
-def _format_focus_label(minutes: int) -> str:
+def _format_estimated_work_label(minutes: int) -> str:
     hours, remaining = divmod(max(minutes, 0), 60)
     if hours == 0:
         return f"{remaining}m"
@@ -175,8 +186,9 @@ def _current_streak_days(db: Session, user_id, *, reference: datetime) -> int:
     )
 
     completed_days = {
-        _as_utc(task.updated_at).date()
+        _as_utc(task.completed_at).date()
         for task in tasks
+        if task.completed_at is not None
     }
 
     if not completed_days:
@@ -205,11 +217,11 @@ def _trend_points(
 ) -> list[InsightTrendPoint]:
     end_day = reference.date()
     start_day = end_day - timedelta(days=days - 1)
-    start = datetime.combine(start_day, datetime.min.time(), tzinfo=timezone.utc)
+    start = datetime.combine(start_day, datetime.min.time(), tzinfo=UTC)
     end = datetime.combine(
         end_day + timedelta(days=1),
         datetime.min.time(),
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     tasks = list(
@@ -224,7 +236,10 @@ def _trend_points(
     }
 
     for task in tasks:
-        day = _as_utc(task.updated_at).date()
+        if task.completed_at is None:
+            continue
+
+        day = _as_utc(task.completed_at).date()
         if day in counts:
             counts[day] += 1
 
@@ -248,7 +263,7 @@ def _build_recommendations(
     streak_days: int,
     this_week_completed: int,
     high_priority_open: int,
-    focus_minutes: int,
+    estimated_work_minutes: int,
 ) -> list[InsightRecommendation]:
     recommendations: list[InsightRecommendation] = [
         InsightRecommendation(
@@ -277,9 +292,9 @@ def _build_recommendations(
             category="breaks",
             title="Take breaks to stay sharp",
             description=(
-                f"You've logged about {_format_focus_label(focus_minutes)} of focus this week. "
-                "Short breaks help you recharge and protect deep work quality."
-                if focus_minutes >= 60
+                f"You've completed about {_format_estimated_work_label(estimated_work_minutes)} "
+                "of estimated work this week. Short breaks help you recharge."
+                if estimated_work_minutes >= 60
                 else (
                     f"Nice pace — {this_week_completed} tasks done this week. "
                     "Add short breaks between sessions to stay sharp."
@@ -322,7 +337,12 @@ def get_insights_summary(db: Session, user: User) -> InsightsSummaryResponse:
     this_week = _count_completed(db, user.id, start=this_start, end=this_end)
     last_week = _count_completed(db, user.id, start=last_start, end=last_end)
     change_percent = _week_over_week_change(this_week, last_week)
-    focus_minutes = _focus_minutes(db, user.id, start=this_start, end=this_end)
+    estimated_work_minutes = _estimated_work_minutes(
+        db,
+        user.id,
+        start=this_start,
+        end=this_end,
+    )
     goal_progress = _goal_progress_percent(
         db,
         user.id,
@@ -358,8 +378,10 @@ def get_insights_summary(db: Session, user: User) -> InsightsSummaryResponse:
         tasks_completed_this_week=this_week,
         tasks_completed_last_week=last_week,
         week_over_week_change_percent=change_percent,
-        focus_minutes_this_week=focus_minutes,
-        focus_time_label=_format_focus_label(focus_minutes),
+        estimated_work_minutes_this_week=estimated_work_minutes,
+        estimated_work_time_label=_format_estimated_work_label(
+            estimated_work_minutes,
+        ),
         goal_progress_percent=goal_progress,
         current_streak_days=streak_days,
         trend=trend,
@@ -367,7 +389,7 @@ def get_insights_summary(db: Session, user: User) -> InsightsSummaryResponse:
             streak_days=streak_days,
             this_week_completed=this_week,
             high_priority_open=high_priority_open,
-            focus_minutes=focus_minutes,
+            estimated_work_minutes=estimated_work_minutes,
         ),
         motivational_quote="Discipline today, success tomorrow. — Keep it up!",
         footer_message=(

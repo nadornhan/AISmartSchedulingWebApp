@@ -76,6 +76,15 @@ export function FocusIcon(props: IconProps) {
   );
 }
 
+export function FlameIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 21a7 7 0 0 0 7-7c0-2.8-1.5-5.2-4-7.1.1 1.8-.6 3.1-2 3.9.3-2.9-1.1-5.4-4.1-7.8.2 3.2-1.5 4.8-2.8 6.3A7.2 7.2 0 0 0 5 14a7 7 0 0 0 7 7Z" />
+      <path d="M12 21a3 3 0 0 0 3-3c0-1.3-.7-2.4-1.9-3.3 0 .9-.4 1.6-1.1 2-.1-1.3-.8-2.4-2-3.4.1 1.5-.7 2.3-1.3 3A3.2 3.2 0 0 0 9 18a3 3 0 0 0 3 3Z" />
+    </IconBase>
+  );
+}
+
 export function InsightsIcon(props: IconProps) {
   return (
     <IconBase {...props}>

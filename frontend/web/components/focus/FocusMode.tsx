@@ -1,12 +1,13 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { FocusSettingsModal, type FocusDurations } from './FocusSettingsModal';
 
 type Mode = 'Pomodoro' | 'Short Break' | 'Long Break';
 
 type FocusTask = {
-  id: number;
+  id: string;
   title: string;
   done: boolean;
 };
@@ -26,6 +27,7 @@ function getModeSeconds(mode: Mode, durations: FocusDurations) {
 }
 
 export function FocusMode() {
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>('Pomodoro');
   const [durations, setDurations] = useState<FocusDurations>(defaultDurations);
   const [seconds, setSeconds] = useState(defaultDurations.focus * 60);
@@ -38,6 +40,9 @@ export function FocusMode() {
   const endTimeRef = useRef<number | null>(null);
   const remainingRef = useRef(defaultDurations.focus * 60);
   const completionSoundPlayedRef = useRef(false);
+  const selectedTaskId = searchParams.get('task_id');
+  const selectedTaskTitle = searchParams.get('task_title');
+  const selectedDuration = Number(searchParams.get('duration'));
 
   const totalSeconds = getModeSeconds(mode, durations);
   const progress = totalSeconds > 0 ? seconds / totalSeconds : 0;
@@ -54,6 +59,39 @@ export function FocusMode() {
     audioRef.current = new Audio('/sounds/focus-complete.wav');
     audioRef.current.preload = 'auto';
   }, []);
+
+  useEffect(() => {
+    if (!selectedTaskId || !selectedTaskTitle) return;
+
+    setTasks((current) => {
+      if (current.some((task) => task.id === selectedTaskId)) {
+        return current;
+      }
+
+      return [
+        {
+          id: selectedTaskId,
+          title: selectedTaskTitle,
+          done: false,
+        },
+        ...current,
+      ];
+    });
+  }, [selectedTaskId, selectedTaskTitle]);
+
+  useEffect(() => {
+    if (!Number.isInteger(selectedDuration) || selectedDuration <= 0) return;
+
+    setDurations((current) => ({
+      ...current,
+      focus: selectedDuration,
+    }));
+    setMode('Pomodoro');
+    setSeconds(selectedDuration * 60);
+    setRunning(false);
+    endTimeRef.current = null;
+    completionSoundPlayedRef.current = false;
+  }, [selectedDuration]);
 
   useEffect(() => {
     if (!running) return;
@@ -131,12 +169,12 @@ export function FocusMode() {
 
     if (!title) return;
 
-    setTasks((current) => [...current, { id: Date.now(), title, done: false }]);
+    setTasks((current) => [...current, { id: String(Date.now()), title, done: false }]);
     setDraft('');
     setAdding(false);
   }
 
-  function toggleTask(taskId: number) {
+  function toggleTask(taskId: string) {
     setTasks((current) =>
       current.map((task) => (task.id === taskId ? { ...task, done: !task.done } : task)),
     );

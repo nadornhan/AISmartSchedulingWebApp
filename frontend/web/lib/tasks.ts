@@ -20,6 +20,28 @@ export type TaskProjectSummary = {
 
 export type TaskProject = TaskProjectSummary;
 
+export type TaskSubtask = {
+  id: string;
+  task_id: string;
+  title: string;
+  is_completed: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TaskSubtaskInput = {
+  title: string;
+  is_completed?: boolean;
+  position?: number | null;
+};
+
+export type TaskSubtaskProgress = {
+  completed: number;
+  total: number;
+  percent: number | null;
+};
+
 export type TaskResponse = {
   id: string;
   user_id: string;
@@ -30,9 +52,12 @@ export type TaskResponse = {
   status: TaskDisplayStatusValue;
   priority: TaskPriorityValue;
   due_date: string | null;
-  estimated_duration: number | null;
+  estimated_duration_minutes: number | null;
   scheduled_start: string | null;
   scheduled_end: string | null;
+  completed_at: string | null;
+  subtasks: TaskSubtask[];
+  subtask_progress: TaskSubtaskProgress;
   created_at: string;
   updated_at: string;
 };
@@ -72,6 +97,8 @@ export type TaskCreateInput = {
   project_id?: string | null;
   priority?: TaskPriorityValue;
   due_date?: string | null;
+  estimated_duration_minutes?: number | null;
+  subtasks?: TaskSubtaskInput[];
 };
 
 export type TaskUpdateInput = Partial<TaskCreateInput> & {

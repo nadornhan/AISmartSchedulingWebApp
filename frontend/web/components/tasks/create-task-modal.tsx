@@ -1,11 +1,28 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 
 import { ApiError } from '../../lib/api';
+import {
+  DURATION_PRESETS_MINUTES,
+  formatDurationLabel,
+  parseCustomDuration,
+} from '../../lib/duration';
 import type { Project } from '../../lib/projects';
-import type { TaskCreateInput, TaskPriorityValue } from '../../lib/tasks';
-import { CalendarIcon, ChevronDownIcon, CloseIcon } from '../layout/icons';
+import type {
+  TaskCreateInput,
+  TaskPriorityValue,
+  TaskResponse,
+  TaskUpdateInput,
+} from '../../lib/tasks';
+import {
+  CalendarIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  CloseIcon,
+  PlusIcon,
+  TrashIcon,
+} from '../layout/icons';
 
 export type TaskPriorityLabel = 'No priority' | 'Low' | 'Medium' | 'High';
 
@@ -23,6 +40,24 @@ const priorityFromApi: Record<TaskPriorityValue, TaskPriorityLabel> = {
   high: 'High',
 };
 
+type DurationOption = '' | 'custom' | `${(typeof DURATION_PRESETS_MINUTES)[number]}`;
+
+type TaskFormInitialValues = {
+  title: string;
+  description: string;
+  projectId: string;
+  priority: TaskPriorityLabel;
+  dueDate: string;
+  dueTime: string;
+  estimatedDurationMinutes: number | null;
+  subtasks: TaskFormSubtask[];
+};
+
+type TaskFormSubtask = {
+  title: string;
+  isCompleted: boolean;
+};
+
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }
@@ -31,6 +66,54 @@ function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) return error.message;
   if (error instanceof Error) return error.message;
   return 'Something went wrong. Please try again.';
+}
+
+function toDateInputValue(value: string | null) {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function toTimeInputValue(value: string | null) {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+function durationOptionFromMinutes(value: number | null): DurationOption {
+  if (value === null) return '';
+  return DURATION_PRESETS_MINUTES.includes(
+    value as (typeof DURATION_PRESETS_MINUTES)[number],
+  )
+    ? (`${value}` as DurationOption)
+    : 'custom';
+}
+
+function taskInitialValues(task: TaskResponse): TaskFormInitialValues {
+  return {
+    title: task.title,
+    description: task.description ?? '',
+    projectId: task.project_id ?? '',
+    priority: priorityFromApi[task.priority],
+    dueDate: toDateInputValue(task.due_date),
+    dueTime: toTimeInputValue(task.due_date),
+    estimatedDurationMinutes: task.estimated_duration_minutes,
+    subtasks: task.subtasks.map((subtask) => ({
+      title: subtask.title,
+      isCompleted: subtask.is_completed,
+    })),
+  };
 }
 
 export function priorityLabelFromApi(value: TaskPriorityValue): TaskPriorityLabel {
@@ -52,18 +135,150 @@ export function CreateTaskModal({
   onCreate: (task: TaskCreateInput) => Promise<void>;
   projects: Project[];
 }>) {
-  const [priority, setPriority] = useState<TaskPriorityLabel>(initialPriority);
+  return (
+    <TaskFormModal
+      description="Add the details of your task below."
+      initialValues={{
+        title: '',
+        description: '',
+        projectId: initialProjectId,
+        priority: initialPriority,
+        dueDate: '',
+        dueTime: '',
+        estimatedDurationMinutes: null,
+        subtasks: [],
+      }}
+      isSubmitting={isSubmitting}
+      onClose={onClose}
+      onSubmit={onCreate}
+      projects={projects}
+      submitLabel="Create Task"
+      submittingLabel="Creating..."
+      title="Create New Task"
+    />
+  );
+}
+
+export function EditTaskModal({
+  isSubmitting,
+  onClose,
+  onUpdate,
+  projects,
+  task,
+}: Readonly<{
+  isSubmitting: boolean;
+  onClose: () => void;
+  onUpdate: (task: TaskUpdateInput) => Promise<void>;
+  projects: Project[];
+  task: TaskResponse;
+}>) {
+  const initialValues = useMemo(() => taskInitialValues(task), [task]);
+
+  return (
+    <TaskFormModal
+      description="Update the details for this task."
+      initialValues={initialValues}
+      isSubmitting={isSubmitting}
+      onClose={onClose}
+      onSubmit={onUpdate}
+      projects={projects}
+      submitLabel="Save Changes"
+      submittingLabel="Saving..."
+      title="Edit Task"
+    />
+  );
+}
+
+function TaskFormModal({
+  description,
+  initialValues,
+  isSubmitting,
+  onClose,
+  onSubmit,
+  projects,
+  submitLabel,
+  submittingLabel,
+  title,
+}: Readonly<{
+  description: string;
+  initialValues: TaskFormInitialValues;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onSubmit: (task: TaskCreateInput) => Promise<void>;
+  projects: Project[];
+  submitLabel: string;
+  submittingLabel: string;
+  title: string;
+}>) {
+  const initialDuration = initialValues.estimatedDurationMinutes;
+  const [priority, setPriority] = useState<TaskPriorityLabel>(initialValues.priority);
+  const [durationOption, setDurationOption] = useState<DurationOption>(
+    durationOptionFromMinutes(initialDuration),
+  );
+  const [customDuration, setCustomDuration] = useState(
+    initialDuration !== null &&
+      !DURATION_PRESETS_MINUTES.includes(
+        initialDuration as (typeof DURATION_PRESETS_MINUTES)[number],
+      )
+      ? String(initialDuration)
+      : '',
+  );
+  const [subtasks, setSubtasks] = useState<TaskFormSubtask[]>(initialValues.subtasks);
+  const [subtaskDraft, setSubtaskDraft] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  function addSubtask() {
+    const titleValue = subtaskDraft.trim();
+    if (!titleValue) return;
+
+    setSubtasks((current) => [
+      ...current,
+      {
+        title: titleValue,
+        isCompleted: false,
+      },
+    ]);
+    setSubtaskDraft('');
+  }
+
+  function updateSubtask(index: number, nextSubtask: TaskFormSubtask) {
+    setSubtasks((current) =>
+      current.map((subtask, subtaskIndex) =>
+        subtaskIndex === index ? nextSubtask : subtask,
+      ),
+    );
+  }
+
+  function removeSubtask(index: number) {
+    setSubtasks((current) => current.filter((_subtask, subtaskIndex) => subtaskIndex !== index));
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitError(null);
     const formData = new FormData(event.currentTarget);
+    const titleValue = String(formData.get('title') || '').trim();
     const projectId = String(formData.get('project') || '');
     const dueDate = String(formData.get('dueDate') || '');
     const dueTime = String(formData.get('dueTime') || '').trim();
-    const description = String(formData.get('description') || '').trim();
+    const notes = String(formData.get('description') || '').trim();
     let dueDateTime: string | null = null;
+    let estimatedDurationMinutes: number | null = null;
+
+    if (!titleValue) {
+      setSubmitError('Please enter a task title.');
+      return;
+    }
+
+    if (durationOption === 'custom') {
+      estimatedDurationMinutes = parseCustomDuration(customDuration);
+      if (estimatedDurationMinutes === null) {
+        setSubmitError('Custom duration must be a positive whole number of minutes.');
+        return;
+      }
+    } else if (durationOption) {
+      estimatedDurationMinutes = Number(durationOption);
+    }
 
     if (dueDate) {
       const normalizedTime = dueTime
@@ -82,12 +297,22 @@ export function CreateTaskModal({
     }
 
     try {
-      await onCreate({
-        title: String(formData.get('title')).trim(),
-        description: description || null,
+      const normalizedSubtasks = subtasks
+        .map((subtask, position) => ({
+          title: subtask.title.trim(),
+          is_completed: subtask.isCompleted,
+          position,
+        }))
+        .filter((subtask) => subtask.title);
+
+      await onSubmit({
+        title: titleValue,
+        description: notes || null,
         project_id: projectId || null,
         due_date: dueDateTime,
         priority: priorityToApi[priority],
+        estimated_duration_minutes: estimatedDurationMinutes,
+        subtasks: normalizedSubtasks,
       });
     } catch (requestError) {
       setSubmitError(getErrorMessage(requestError));
@@ -96,7 +321,7 @@ export function CreateTaskModal({
 
   return (
     <div
-      aria-labelledby="create-task-title"
+      aria-labelledby="task-form-title"
       aria-modal="true"
       className="fixed inset-0 z-[300] grid place-items-center overflow-y-auto bg-[#000306]/80 p-4 backdrop-blur-[5px]"
       onMouseDown={(event) => {
@@ -112,14 +337,14 @@ export function CreateTaskModal({
           <div>
             <h2
               className="text-2xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text"
-              id="create-task-title"
+              id="task-form-title"
             >
-              Create New Task
+              {title}
             </h2>
-            <p className="mt-1 text-sm text-dashboard-muted">Add the details of your task below.</p>
+            <p className="mt-1 text-sm text-dashboard-muted">{description}</p>
           </div>
           <button
-            aria-label="Close create task dialog"
+            aria-label="Close task dialog"
             className="grid h-10 w-10 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-text"
             onClick={onClose}
             type="button"
@@ -133,6 +358,7 @@ export function CreateTaskModal({
             <input
               autoFocus
               className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-accent bg-[var(--bg-input)] px-4 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
+              defaultValue={initialValues.title}
               name="title"
               placeholder="e.g. Finish Q2 Report"
               required
@@ -144,7 +370,7 @@ export function CreateTaskModal({
               <span className="absolute left-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-dashboard-muted" />
               <select
                 className="h-[var(--input-height-desktop)] w-full appearance-none rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] pl-9 pr-10 text-sm text-dashboard-text outline-none focus:border-dashboard-accent"
-                defaultValue={initialProjectId}
+                defaultValue={initialValues.projectId}
                 name="project"
               >
                 <option value="">Unassigned (Add to Inbox)</option>
@@ -193,6 +419,7 @@ export function CreateTaskModal({
                 <CalendarIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-dashboard-muted" />
                 <input
                   className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] pl-12 pr-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
+                  defaultValue={initialValues.dueDate}
                   name="dueDate"
                   type="date"
                 />
@@ -202,19 +429,161 @@ export function CreateTaskModal({
             <Field label="Time" optional>
               <input
                 className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
+                defaultValue={initialValues.dueTime}
                 name="dueTime"
                 type="time"
               />
             </Field>
           </div>
 
+          <Field label="Estimated Duration" optional>
+            <div className="flex flex-wrap gap-2">
+              {DURATION_PRESETS_MINUTES.map((minutes) => {
+                const value = String(minutes) as DurationOption;
+                return (
+                  <button
+                    aria-pressed={durationOption === value}
+                    className={cn(
+                      'h-10 rounded-[var(--radius-sm)] border px-3 text-sm font-medium transition',
+                      durationOption === value
+                        ? 'border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent'
+                        : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted hover:border-dashboard-border-strong hover:text-dashboard-text',
+                    )}
+                    key={minutes}
+                    onClick={() => setDurationOption(value)}
+                    type="button"
+                  >
+                    {formatDurationLabel(minutes)}
+                  </button>
+                );
+              })}
+              <button
+                aria-pressed={durationOption === 'custom'}
+                className={cn(
+                  'h-10 rounded-[var(--radius-sm)] border px-3 text-sm font-medium transition',
+                  durationOption === 'custom'
+                    ? 'border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent'
+                    : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted hover:border-dashboard-border-strong hover:text-dashboard-text',
+                )}
+                onClick={() => setDurationOption('custom')}
+                type="button"
+              >
+                Custom
+              </button>
+              {durationOption ? (
+                <button
+                  className="h-10 rounded-[var(--radius-sm)] border border-dashboard-border px-3 text-sm font-medium text-dashboard-muted transition hover:border-dashboard-border-strong hover:text-dashboard-text"
+                  onClick={() => {
+                    setDurationOption('');
+                    setCustomDuration('');
+                  }}
+                  type="button"
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+            {durationOption === 'custom' ? (
+              <input
+                className="mt-3 h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
+                inputMode="numeric"
+                min={1}
+                onChange={(event) => setCustomDuration(event.target.value)}
+                pattern="[1-9][0-9]*"
+                placeholder="Minutes"
+                type="number"
+                value={customDuration}
+              />
+            ) : null}
+          </Field>
+
           <Field label="Notes / Description" optional>
             <textarea
               className="min-h-24 w-full resize-y rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 py-3 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
+              defaultValue={initialValues.description}
               name="description"
               placeholder="Add any notes or details..."
             />
           </Field>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-dashboard-text">
+                Subtasks{' '}
+                <span className="font-normal text-dashboard-muted">(optional)</span>
+              </span>
+              <span className="text-xs text-dashboard-muted">
+                {subtasks.filter((subtask) => subtask.isCompleted).length}/{subtasks.length} done
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {subtasks.map((subtask, index) => (
+                <div className="flex items-center gap-2" key={`${subtask.title}-${index}`}>
+                  <button
+                    aria-label={subtask.isCompleted ? 'Mark subtask incomplete' : 'Mark subtask done'}
+                    aria-pressed={subtask.isCompleted}
+                    className={cn(
+                      'grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border transition',
+                      subtask.isCompleted
+                        ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                        : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted hover:border-dashboard-accent/70',
+                    )}
+                    onClick={() =>
+                      updateSubtask(index, {
+                        ...subtask,
+                        isCompleted: !subtask.isCompleted,
+                      })
+                    }
+                    type="button"
+                  >
+                    {subtask.isCompleted ? <CheckIcon className="h-4 w-4" /> : null}
+                  </button>
+                  <input
+                    className="h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
+                    onChange={(event) =>
+                      updateSubtask(index, {
+                        ...subtask,
+                        title: event.target.value,
+                      })
+                    }
+                    value={subtask.title}
+                  />
+                  <button
+                    aria-label="Remove subtask"
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted transition hover:border-[var(--red-border)] hover:text-[var(--red-light)]"
+                    onClick={() => removeSubtask(index)}
+                    type="button"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-2 flex gap-2">
+              <input
+                className="h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
+                onChange={(event) => setSubtaskDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addSubtask();
+                  }
+                }}
+                placeholder="Add a subtask..."
+                value={subtaskDraft}
+              />
+              <button
+                aria-label="Add subtask"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent transition hover:bg-dashboard-accent/20"
+                onClick={addSubtask}
+                type="button"
+              >
+                <PlusIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
         {submitError ? (
@@ -237,7 +606,7 @@ export function CreateTaskModal({
             disabled={isSubmitting}
             type="submit"
           >
-            {isSubmitting ? 'Creating...' : 'Create Task'}
+            {isSubmitting ? submittingLabel : submitLabel}
             <span className="rounded bg-[#04110d]/15 px-1.5 py-0.5 text-xs">⌘↵</span>
           </button>
         </div>
