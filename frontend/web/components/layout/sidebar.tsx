@@ -280,7 +280,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
     <aside
       ref={sidebarRef}
       className={cn(
-        'accent-scrollbar flex h-dvh w-80 flex-col overflow-y-auto border-r border-dashboard-border bg-[#03101a]/95 px-6 py-5 text-dashboard-text shadow-panel backdrop-blur-xl',
+        'accent-scrollbar z-[170] flex h-dvh w-80 flex-col overflow-y-auto border-r border-dashboard-border bg-[#03101a]/95 px-6 py-5 text-dashboard-text shadow-panel backdrop-blur-xl lg:sticky lg:top-0',
         className,
       )}
     >

@@ -10,7 +10,7 @@ import type { UserResponse } from '../../lib/auth';
 import { onTaskDataChanged } from '../../lib/data-events';
 import {
   listNotifications,
-  markNotificationsRead,
+  markAllNotificationsRead,
   type NotificationListResponse,
   type NotificationResponse,
 } from '../../lib/notifications';
@@ -31,7 +31,7 @@ export function Header({ title, subtitle, className, user }: HeaderProps) {
   return (
     <header
       className={cn(
-        'relative z-[100] flex min-h-28 flex-col gap-6 border-b border-dashboard-border bg-dashboard-bg/75 px-6 py-6 backdrop-blur-xl lg:px-10 xl:px-12',
+        'sticky top-0 z-[180] flex min-h-28 flex-col gap-6 border-b border-dashboard-border bg-dashboard-bg/90 px-6 py-6 backdrop-blur-xl lg:px-10 xl:px-12',
         className,
       )}
     >
@@ -110,6 +110,7 @@ function HeaderActions({
   });
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -155,36 +156,37 @@ function HeaderActions({
 
     const controller = new AbortController();
 
-    async function loadAndMarkDisplayed() {
+    async function loadNotifications() {
       setNotificationsLoading(true);
-      const response = await refreshNotifications(controller.signal);
-      const unreadIds =
-        response?.items.filter((item) => !item.is_read).map((item) => item.id) ?? [];
-
-      if (unreadIds.length > 0) {
-        try {
-          const nextNotifications = await markNotificationsRead(unreadIds, {
-            signal: controller.signal,
-          });
-          setNotifications(nextNotifications);
-        } catch (error) {
-          if (!(error instanceof DOMException && error.name === 'AbortError')) {
-            setNotificationsError(
-              error instanceof Error ? error.message : 'Unable to update notifications.',
-            );
-          }
-        }
-      }
+      await refreshNotifications(controller.signal);
 
       if (!controller.signal.aborted) {
         setNotificationsLoading(false);
       }
     }
 
-    void loadAndMarkDisplayed();
+    void loadNotifications();
 
     return () => controller.abort();
   }, [openMenu, refreshNotifications]);
+
+  async function markAllRead() {
+    if (isMarkingAllRead || notifications.unread_count === 0) return;
+
+    setIsMarkingAllRead(true);
+    setNotificationsError(null);
+
+    try {
+      const nextNotifications = await markAllNotificationsRead();
+      setNotifications(nextNotifications);
+    } catch (error) {
+      setNotificationsError(
+        error instanceof Error ? error.message : 'Unable to update notifications.',
+      );
+    } finally {
+      setIsMarkingAllRead(false);
+    }
+  }
 
   function notificationDescription(notification: NotificationResponse) {
     const details = [
@@ -256,9 +258,12 @@ function HeaderActions({
         >
           <NotificationDropdown
             error={notificationsError}
+            isMarkingAllRead={isMarkingAllRead}
             isLoading={notificationsLoading}
             items={notificationItems}
             onClose={() => setOpenMenu(null)}
+            onMarkAllRead={() => void markAllRead()}
+            unreadCount={notifications.unread_count}
           />
         </HeaderDropdown>
       ) : null}

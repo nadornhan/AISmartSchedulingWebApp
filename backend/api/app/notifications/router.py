@@ -42,6 +42,28 @@ def mark_notifications_read(
         db,
         current_user.id,
         limit=5,
+        sync_reminders=False,
+    )
+    return NotificationListResponse(
+        items=items,
+        unread_count=unread_count,
+    )
+
+
+@router.post("/mark-all-read", response_model=NotificationListResponse)
+def mark_all_notifications_read(
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> NotificationListResponse:
+    service.mark_all_notifications_read(
+        db,
+        current_user.id,
+    )
+    items, unread_count = service.list_notifications(
+        db,
+        current_user.id,
+        limit=5,
+        sync_reminders=False,
     )
     return NotificationListResponse(
         items=items,

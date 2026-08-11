@@ -1,12 +1,16 @@
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.notifications.models import Notification
-from app.tasks.models import Task
+from app.settings import service as settings_service
+from app.tasks.models import Task, TaskStatus
+from app.tasks.overdue import normalize_due_datetime, utc_now
+
+UPCOMING_DEADLINE_WINDOW = timedelta(hours=24)
 
 
 @dataclass(frozen=True)
@@ -23,8 +27,12 @@ class NotificationTaskSummary:
 class NotificationWithTask:
     id: uuid.UUID
     task_id: uuid.UUID | None
+    type: str
     title: str
     message: str | None
+    metadata: dict[str, object] | None
+    scheduled_for: datetime | None
+    dedupe_key: str | None
     read_at: datetime | None
     created_at: datetime
     task: NotificationTaskSummary | None
@@ -43,21 +51,82 @@ def create_task_notification(
     notification = Notification(
         user_id=user_id,
         task_id=task.id,
+        type="task_created",
         title="Task created",
         message=task.title,
+        data={"task_title": task.title},
+        dedupe_key=f"task_created:{task.id}",
         created_at=datetime.now(UTC),
     )
     db.add(notification)
     return notification
 
 
-def list_notifications(
+def create_notification_once(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    notification_type: str,
+    title: str,
+    message: str | None = None,
+    task: Task | None = None,
+    metadata: dict[str, object] | None = None,
+    scheduled_for: datetime | None = None,
+    dedupe_key: str,
+) -> Notification | None:
+    existing = db.scalar(
+        select(Notification).where(Notification.dedupe_key == dedupe_key)
+    )
+
+    if existing is not None:
+        return None
+
+    notification = Notification(
+        user_id=user_id,
+        task_id=task.id if task is not None else None,
+        type=notification_type,
+        title=title,
+        message=message,
+        data=metadata,
+        scheduled_for=scheduled_for,
+        dedupe_key=dedupe_key,
+        created_at=utc_now(),
+    )
+    db.add(notification)
+    return notification
+
+
+def sync_user_reminders(
     db: Session,
     user_id: uuid.UUID,
     *,
-    limit: int = 5,
-) -> tuple[list[NotificationWithTask], int]:
-    unread_count = db.scalar(
+    now: datetime | None = None,
+) -> int:
+    reference = now or utc_now()
+    settings = settings_service.get_or_create_user_settings(db, user_id)
+    created_count = 0
+
+    if settings.notify_task_reminders:
+        created_count += create_upcoming_deadline_reminders(
+            db,
+            user_id,
+            reference,
+        )
+
+    if settings.notify_overdue_alerts:
+        created_count += create_overdue_alerts(db, user_id, reference)
+
+    if settings.notify_productivity_reminders and get_unread_count(db, user_id) == 0:
+        created_count += create_productivity_message(db, user_id, reference)
+
+    if created_count > 0:
+        db.commit()
+
+    return created_count
+
+
+def get_unread_count(db: Session, user_id: uuid.UUID) -> int:
+    return db.scalar(
         select(func.count())
         .select_from(Notification)
         .where(
@@ -65,6 +134,121 @@ def list_notifications(
             Notification.read_at.is_(None),
         )
     ) or 0
+
+
+def create_upcoming_deadline_reminders(
+    db: Session,
+    user_id: uuid.UUID,
+    now: datetime,
+) -> int:
+    window_end = now + UPCOMING_DEADLINE_WINDOW
+    statement = (
+        select(Task)
+        .where(
+            Task.user_id == user_id,
+            Task.status != TaskStatus.DONE,
+            Task.due_date.is_not(None),
+            Task.due_date >= now,
+            Task.due_date <= window_end,
+        )
+        .order_by(Task.due_date.asc(), Task.id.asc())
+    )
+    tasks = list(db.scalars(statement).all())
+    created_count = 0
+
+    for task in tasks:
+        due_date = normalize_due_datetime(task.due_date)
+        notification = create_notification_once(
+            db,
+            user_id=user_id,
+            task=task,
+            notification_type="task_reminder",
+            title="Task deadline soon",
+            message=f"{task.title} is due soon.",
+            metadata={
+                "task_title": task.title,
+                "due_date": due_date.isoformat(),
+            },
+            scheduled_for=due_date,
+            dedupe_key=f"task_reminder:{task.id}",
+        )
+        if notification is not None:
+            created_count += 1
+
+    return created_count
+
+
+def create_overdue_alerts(
+    db: Session,
+    user_id: uuid.UUID,
+    now: datetime,
+) -> int:
+    statement = (
+        select(Task)
+        .where(
+            Task.user_id == user_id,
+            Task.status != TaskStatus.DONE,
+            Task.due_date.is_not(None),
+            Task.due_date < now,
+        )
+        .order_by(Task.due_date.asc(), Task.id.asc())
+    )
+    tasks = list(db.scalars(statement).all())
+    created_count = 0
+
+    for task in tasks:
+        due_date = normalize_due_datetime(task.due_date)
+        notification = create_notification_once(
+            db,
+            user_id=user_id,
+            task=task,
+            notification_type="overdue_alert",
+            title="Task overdue",
+            message=f"{task.title} is overdue.",
+            metadata={
+                "task_title": task.title,
+                "due_date": due_date.isoformat(),
+            },
+            scheduled_for=due_date,
+            dedupe_key=f"overdue_alert:{task.id}",
+        )
+        if notification is not None:
+            created_count += 1
+
+    return created_count
+
+
+def create_productivity_message(
+    db: Session,
+    user_id: uuid.UUID,
+    now: datetime,
+) -> int:
+    day_key = now.date().isoformat()
+    notification = create_notification_once(
+        db,
+        user_id=user_id,
+        notification_type="productivity_reminder",
+        title="Momentum check",
+        message="Pick one focused task for your next work block.",
+        metadata={"date": day_key},
+        scheduled_for=now,
+        dedupe_key=f"productivity_reminder:{user_id}:{day_key}",
+    )
+
+    return 1 if notification is not None else 0
+
+
+def list_notifications(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    limit: int = 5,
+    sync_reminders: bool = True,
+) -> tuple[list[NotificationWithTask], int]:
+    if sync_reminders:
+        sync_user_reminders(db, user_id)
+
+    unread_count = get_unread_count(db, user_id)
 
     statement = (
         select(Notification)
@@ -81,8 +265,12 @@ def list_notifications(
         NotificationWithTask(
             id=notification.id,
             task_id=notification.task_id,
+            type=notification.type,
             title=notification.title,
             message=notification.message,
+            metadata=notification.data,
+            scheduled_for=notification.scheduled_for,
+            dedupe_key=notification.dedupe_key,
             read_at=notification.read_at,
             created_at=notification.created_at,
             task=(
@@ -121,6 +309,24 @@ def mark_notifications_read(
     )
     notifications = list(db.scalars(statement).all())
     read_at = datetime.now(UTC)
+
+    for notification in notifications:
+        notification.read_at = read_at
+
+    db.commit()
+    return len(notifications)
+
+
+def mark_all_notifications_read(
+    db: Session,
+    user_id: uuid.UUID,
+) -> int:
+    statement = select(Notification).where(
+        Notification.user_id == user_id,
+        Notification.read_at.is_(None),
+    )
+    notifications = list(db.scalars(statement).all())
+    read_at = utc_now()
 
     for notification in notifications:
         notification.read_at = read_at

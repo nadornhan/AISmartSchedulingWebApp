@@ -9,6 +9,7 @@ from app.dashboard.router import router as dashboard_router
 from app.folders.router import router as folders_router
 from app.notifications.router import router as notifications_router
 from app.projects.router import router as projects_router
+from app.settings.router import router as settings_router
 from app.tasks.router import router as tasks_router
 
 settings = get_settings()
@@ -34,6 +35,7 @@ app.include_router(projects_router)
 app.include_router(folders_router)
 app.include_router(tasks_router)
 app.include_router(notifications_router)
+app.include_router(settings_router)
 app.include_router(analytics_router)
 app.include_router(dashboard_router)
 app.mount(

@@ -17,6 +17,7 @@ export type NotificationSettingsValue = {
 type NotificationSettingsProps = {
   value: NotificationSettingsValue;
   onChange: (value: NotificationSettingsValue) => void;
+  isDisabled?: boolean;
 };
 
 const notifications = [
@@ -62,7 +63,11 @@ const channels = [
   { label: 'Desktop', key: 'desktop' },
 ] satisfies Array<{ label: string; key: keyof NotificationSettingsValue['channels'] }>;
 
-export function NotificationSettings({ value, onChange }: NotificationSettingsProps) {
+export function NotificationSettings({
+  isDisabled = false,
+  value,
+  onChange,
+}: NotificationSettingsProps) {
   function toggleNotification(key: keyof Omit<NotificationSettingsValue, 'channels'>) {
     onChange({ ...value, [key]: !value[key] });
   }
@@ -99,6 +104,7 @@ export function NotificationSettings({ value, onChange }: NotificationSettingsPr
                     ? 'border-dashboard-accent bg-dashboard-accent'
                     : 'border-dashboard-border bg-[var(--bg-input)]'
                 }`}
+                disabled={isDisabled}
                 onClick={() => toggleNotification(notification.key)}
                 role="switch"
                 type="button"
@@ -126,6 +132,7 @@ export function NotificationSettings({ value, onChange }: NotificationSettingsPr
                     ? 'border-dashboard-accent/60 bg-dashboard-accent-soft text-dashboard-accent'
                     : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted hover:border-dashboard-border-strong hover:text-dashboard-text'
                 }`}
+                disabled={isDisabled}
                 key={channel.label}
                 onClick={() => toggleChannel(channel.key)}
                 role="switch"

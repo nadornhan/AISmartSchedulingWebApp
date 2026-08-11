@@ -20,8 +20,12 @@ class NotificationResponse(BaseModel):
 
     id: uuid.UUID
     task_id: uuid.UUID | None
+    type: str
     title: str
     message: str | None
+    metadata: dict[str, object] | None = None
+    scheduled_for: datetime | None
+    dedupe_key: str | None
     is_read: bool = Field(validation_alias="is_read")
     read_at: datetime | None
     created_at: datetime
