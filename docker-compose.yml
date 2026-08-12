@@ -45,6 +45,8 @@ services:
       - '8000:8000'
     volumes:
       - ./backend/api/app:/app/app
+      - ./backend/api/alembic:/app/alembic
+      - ./backend/api/alembic.ini:/app/alembic.ini
     depends_on:
       postgres:
         condition: service_healthy

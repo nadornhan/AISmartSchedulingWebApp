@@ -10,8 +10,11 @@ from app.tasks.overdue import task_overdue_condition, utc_now
 from app.tasks.schemas import (
     SortOrder,
     SubtaskInput,
+    TaskBulkUpdate,
     TaskCreate,
     TaskDisplayStatus,
+    TaskDuplicate,
+    TaskReschedule,
     TaskSortBy,
     TaskUpdate,
 )
@@ -46,6 +49,7 @@ def list_tasks(
     task_status: TaskDisplayStatus | None = None,
     priority: TaskPriority | None = None,
     project_id: uuid.UUID | None = None,
+    inbox_only: bool = False,
     due_from: datetime | None = None,
     due_to: datetime | None = None,
     sort_by: TaskSortBy = TaskSortBy.CREATED_AT,
@@ -54,6 +58,7 @@ def list_tasks(
     page_size: int = 20,
 ) -> tuple[list[Task], int]:
     conditions = [Task.user_id == user_id]
+    overdue = task_overdue_condition(Task)
 
     if search is not None and search.strip():
         search_pattern = f"%{search.strip()}%"
@@ -66,16 +71,22 @@ def list_tasks(
         )
 
     if task_status == TaskDisplayStatus.OVERDUE:
-        conditions.append(task_overdue_condition(Task))
+        conditions.append(overdue)
     elif task_status is not None:
-        conditions.append(
-            Task.status == TaskStatus(task_status.value)
-        )
+        # Keep Pending / In Progress tabs free of computed overdue rows.
+        conditions.append(Task.status == TaskStatus(task_status.value))
+        if task_status in {
+            TaskDisplayStatus.PENDING,
+            TaskDisplayStatus.IN_PROGRESS,
+        }:
+            conditions.append(~overdue)
 
     if priority is not None:
         conditions.append(Task.priority == priority)
 
-    if project_id is not None:
+    if inbox_only:
+        conditions.append(Task.project_id.is_(None))
+    elif project_id is not None:
         conditions.append(Task.project_id == project_id)
 
     if due_from is not None:
@@ -193,6 +204,7 @@ def update_task(
         else None
     )
     previous_status = task.status
+    previous_due_date = task.due_date
 
     scheduled_start = update_data.get(
         "scheduled_start",
@@ -226,6 +238,18 @@ def update_task(
     elif task.completed_at is None:
         task.completed_at = utc_now()
 
+    if "due_date" in update_data and update_data["due_date"] != previous_due_date:
+        notification_service.create_notification_once(
+            db,
+            user_id=task.user_id,
+            notification_type="task_rescheduled",
+            title="Task rescheduled",
+            message=task.title,
+            task=task,
+            metadata={"task_title": task.title},
+            dedupe_key=f"task_rescheduled:{task.id}:{utc_now().isoformat()}",
+        )
+
     db.commit()
     db.refresh(task)
 
@@ -235,3 +259,130 @@ def update_task(
 def delete_task(db: Session, task: Task) -> None:
     db.delete(task)
     db.commit()
+
+
+def get_tasks_by_ids(
+    db: Session,
+    user_id: uuid.UUID,
+    task_ids: list[uuid.UUID],
+) -> list[Task]:
+    if not task_ids:
+        return []
+
+    statement = (
+        select(Task)
+        .options(
+            selectinload(Task.project),
+            selectinload(Task.subtasks),
+        )
+        .where(
+            Task.user_id == user_id,
+            Task.id.in_(task_ids),
+        )
+    )
+    tasks = list(db.scalars(statement).all())
+    by_id = {task.id: task for task in tasks}
+    return [by_id[task_id] for task_id in task_ids if task_id in by_id]
+
+
+def bulk_update_tasks(
+    db: Session,
+    user_id: uuid.UUID,
+    payload: TaskBulkUpdate,
+) -> list[Task]:
+    unique_ids = list(dict.fromkeys(payload.task_ids))
+    tasks = get_tasks_by_ids(db, user_id, unique_ids)
+    if len(tasks) != len(unique_ids):
+        raise LookupError("One or more tasks were not found")
+
+    fields: dict[str, object] = {}
+    if payload.status is not None:
+        fields["status"] = payload.status
+    if "project_id" in payload.model_fields_set:
+        fields["project_id"] = payload.project_id
+    if payload.priority is not None:
+        fields["priority"] = payload.priority
+    if "due_date" in payload.model_fields_set:
+        fields["due_date"] = payload.due_date
+
+    update = TaskUpdate.model_validate(fields)
+    updated: list[Task] = []
+    for task in tasks:
+        updated.append(update_task(db, task, update))
+    return updated
+
+
+def bulk_delete_tasks(
+    db: Session,
+    user_id: uuid.UUID,
+    task_ids: list[uuid.UUID],
+) -> int:
+    unique_ids = list(dict.fromkeys(task_ids))
+    tasks = get_tasks_by_ids(db, user_id, unique_ids)
+    if len(tasks) != len(unique_ids):
+        raise LookupError("One or more tasks were not found")
+
+    for task in tasks:
+        db.delete(task)
+    db.commit()
+    return len(tasks)
+
+
+def duplicate_task(
+    db: Session,
+    user_id: uuid.UUID,
+    task: Task,
+    options: TaskDuplicate | None = None,
+) -> Task:
+    options = options or TaskDuplicate()
+    title = (options.title or f"{task.title} (Copy)").strip()
+    subtasks = (
+        [
+            SubtaskInput(
+                title=subtask.title,
+                is_completed=False if options.reset_status else subtask.is_completed,
+                position=subtask.position,
+            )
+            for subtask in task.subtasks
+        ]
+        if options.include_subtasks
+        else []
+    )
+
+    create_data = TaskCreate(
+        title=title,
+        description=task.description,
+        project_id=task.project_id,
+        priority=task.priority,
+        due_date=task.due_date,
+        estimated_duration_minutes=task.estimated_duration_minutes,
+        scheduled_start=task.scheduled_start,
+        scheduled_end=task.scheduled_end,
+        subtasks=subtasks,
+    )
+    duplicated = create_task(db, user_id, create_data)
+
+    if not options.reset_status and task.status != TaskStatus.PENDING:
+        return update_task(
+            db,
+            duplicated,
+            TaskUpdate(status=task.status),
+        )
+
+    return duplicated
+
+
+def reschedule_task(
+    db: Session,
+    task: Task,
+    payload: TaskReschedule,
+) -> Task:
+    update_fields: dict[str, object] = {}
+    if "due_date" in payload.model_fields_set:
+        update_fields["due_date"] = payload.due_date
+    if "scheduled_start" in payload.model_fields_set:
+        update_fields["scheduled_start"] = payload.scheduled_start
+    if "scheduled_end" in payload.model_fields_set:
+        update_fields["scheduled_end"] = payload.scheduled_end
+
+    return update_task(db, task, TaskUpdate.model_validate(update_fields))
