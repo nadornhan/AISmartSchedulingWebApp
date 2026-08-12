@@ -2,6 +2,8 @@ node_modules/
 dist/
 **/.vite/
 .next/
+frontend/web/.next/dev/types/routes.d.ts
+frontend/web/next-env.d.ts
 .venv/
 __pycache__/
 **/.pytest_cache/

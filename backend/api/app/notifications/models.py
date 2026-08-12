@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import JSON, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -28,12 +28,32 @@ class Notification(Base):
         index=True,
         nullable=True,
     )
+    type: Mapped[str] = mapped_column(
+        String(64),
+        default="general",
+        server_default="general",
+        nullable=False,
+    )
     title: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
     )
     message: Mapped[str | None] = mapped_column(
         Text,
+        nullable=True,
+    )
+    data: Mapped[dict[str, object] | None] = mapped_column(
+        "metadata",
+        JSON,
+        nullable=True,
+    )
+    scheduled_for: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    dedupe_key: Mapped[str | None] = mapped_column(
+        String(255),
+        unique=True,
         nullable=True,
     )
     read_at: Mapped[datetime | None] = mapped_column(

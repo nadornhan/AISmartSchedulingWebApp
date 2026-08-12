@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -7,12 +7,32 @@ from app.auth.models import User
 from app.auth.security import hash_password
 from app.database import SessionLocal
 from app.projects.models import Project
+from app.settings.models import UserSettings
 from app.tasks import service as task_service
 from app.tasks.models import Subtask, Task, TaskPriority, TaskStatus
 from app.tasks.schemas import TaskCreate
 
 SEED_EMAIL = "demo@example.com"
 SEED_PASSWORD = "DemoPassword123"
+
+DEMO_SETTINGS = {
+    "work_start": time(9, 0),
+    "work_end": time(17, 0),
+    "pomodoro_minutes": 25,
+    "ai_assistant_enabled": True,
+    "ai_deadline_urgency_weight": 80,
+    "ai_priority_weight": 70,
+    "ai_estimated_duration_weight": 50,
+    "notify_task_reminders": True,
+    "notify_productivity_reminders": True,
+    "notify_daily_digest": True,
+    "notify_overdue_alerts": True,
+    "notify_focus_do_not_disturb": True,
+    "notify_weekly_report": False,
+    "channel_desktop": False,
+    "channel_push": True,
+    "channel_email": True,
+}
 
 PROJECTS = [
     {"name": "University", "color": "#22F0B1"},
@@ -494,6 +514,22 @@ def seed_projects(user: User) -> dict[str, Project]:
         return projects
 
 
+def seed_settings(user: User) -> None:
+    with SessionLocal() as db:
+        settings = db.scalar(
+            select(UserSettings).where(UserSettings.user_id == user.id)
+        )
+
+        if settings is None:
+            settings = UserSettings(user_id=user.id)
+            db.add(settings)
+
+        for field, value in DEMO_SETTINGS.items():
+            setattr(settings, field, value)
+
+        db.commit()
+
+
 def task_datetime(anchor: datetime, value: tuple[int, int, int]) -> datetime:
     day_offset, hour, minute = value
     target_date = (anchor + timedelta(days=day_offset)).date()
@@ -586,6 +622,7 @@ def seed_tasks(user: User, projects: dict[str, Project]) -> None:
 
 def main() -> None:
     user = get_or_create_user()
+    seed_settings(user)
     projects = seed_projects(user)
     seed_tasks(user, projects)
     print(f"Seeded demo data for {SEED_EMAIL} / {SEED_PASSWORD}")

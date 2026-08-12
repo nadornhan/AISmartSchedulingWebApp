@@ -12,8 +12,12 @@ export type NotificationTaskSummary = {
 export type NotificationResponse = {
   id: string;
   task_id: string | null;
+  type: string;
   title: string;
   message: string | null;
+  metadata: Record<string, unknown> | null;
+  scheduled_for: string | null;
+  dedupe_key: string | null;
   is_read: boolean;
   read_at: string | null;
   created_at: string;
@@ -43,6 +47,13 @@ export function markNotificationsRead(notificationIds: string[], options: Reques
   return apiRequest<NotificationListResponse>('/notifications/mark-read', {
     method: 'POST',
     body: JSON.stringify(notificationIds),
+    signal: options.signal,
+  });
+}
+
+export function markAllNotificationsRead(options: RequestOptions = {}) {
+  return apiRequest<NotificationListResponse>('/notifications/mark-all-read', {
+    method: 'POST',
     signal: options.signal,
   });
 }

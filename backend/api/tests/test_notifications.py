@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 
@@ -52,10 +53,13 @@ def create_task(
     auth_headers: dict[str, str],
     title: str,
     project_id: str | None = None,
+    due_date: str | None = None,
 ) -> dict:
     payload = {"title": title, "priority": "high"}
     if project_id is not None:
         payload["project_id"] = project_id
+    if due_date is not None:
+        payload["due_date"] = due_date
 
     response = client.post(
         "/tasks",
@@ -63,6 +67,20 @@ def create_task(
         json=payload,
     )
     assert response.status_code == 201
+    return response.json()
+
+
+def patch_settings(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    payload: dict,
+) -> dict:
+    response = client.patch(
+        "/settings",
+        headers=auth_headers,
+        json=payload,
+    )
+    assert response.status_code == 200
     return response.json()
 
 
@@ -90,6 +108,7 @@ def test_task_creation_creates_unread_notification(
 
     assert data["unread_count"] == 1
     assert notification["is_read"] is False
+    assert notification["type"] == "task_created"
     assert notification["title"] == "Task created"
     assert notification["message"] == "Write notification tests"
     assert notification["task_id"] == task["id"]
@@ -173,6 +192,206 @@ def test_mark_notifications_read_only_marks_current_user_notifications(
     assert other_response.json()["items"][0]["task_id"] == other_task["id"]
 
 
+def test_upcoming_deadline_reminder_created_once(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    due_date = (datetime.now(UTC) + timedelta(hours=2)).isoformat()
+    task = create_task(
+        client,
+        auth_headers,
+        "Soon due task",
+        due_date=due_date,
+    )
+
+    first_response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+    second_response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+
+    notifications = second_response.json()["items"]
+    reminders = [
+        notification
+        for notification in notifications
+        if notification["type"] == "task_reminder"
+    ]
+
+    assert len(reminders) == 1
+    assert reminders[0]["task_id"] == task["id"]
+    assert reminders[0]["dedupe_key"] == f"task_reminder:{task['id']}"
+    assert reminders[0]["scheduled_for"] is not None
+
+
+def test_task_reminder_respects_settings_preference(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    patch_settings(
+        client,
+        auth_headers,
+        {
+            "notifications": {
+                "notify_task_reminders": False,
+            },
+        },
+    )
+    create_task(
+        client,
+        auth_headers,
+        "Muted reminder task",
+        due_date=(datetime.now(UTC) + timedelta(hours=2)).isoformat(),
+    )
+
+    response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+
+    assert response.status_code == 200
+    assert all(
+        notification["type"] != "task_reminder"
+        for notification in response.json()["items"]
+    )
+
+
+def test_overdue_alert_respects_settings_preference(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    patch_settings(
+        client,
+        auth_headers,
+        {
+            "notifications": {
+                "notify_overdue_alerts": False,
+            },
+        },
+    )
+    create_task(
+        client,
+        auth_headers,
+        "Muted overdue task",
+        due_date=(datetime.now(UTC) - timedelta(hours=2)).isoformat(),
+    )
+
+    muted_response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+
+    assert muted_response.status_code == 200
+    assert all(
+        notification["type"] != "overdue_alert"
+        for notification in muted_response.json()["items"]
+    )
+
+    patch_settings(
+        client,
+        auth_headers,
+        {
+            "notifications": {
+                "notify_overdue_alerts": True,
+            },
+        },
+    )
+    enabled_response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+
+    assert enabled_response.status_code == 200
+    assert any(
+        notification["type"] == "overdue_alert"
+        for notification in enabled_response.json()["items"]
+    )
+
+
+def test_productivity_message_respects_settings_preference(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    patch_settings(
+        client,
+        auth_headers,
+        {
+            "notifications": {
+                "notify_productivity_reminders": False,
+            },
+        },
+    )
+
+    muted_response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+
+    assert muted_response.status_code == 200
+    assert all(
+        notification["type"] != "productivity_reminder"
+        for notification in muted_response.json()["items"]
+    )
+
+    patch_settings(
+        client,
+        auth_headers,
+        {
+            "notifications": {
+                "notify_productivity_reminders": True,
+            },
+        },
+    )
+    enabled_response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+
+    assert enabled_response.status_code == 200
+    assert any(
+        notification["type"] == "productivity_reminder"
+        for notification in enabled_response.json()["items"]
+    )
+
+
+def test_mark_all_notifications_read_only_marks_current_user(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    other_headers = create_auth_headers(client, "other-mark-all-test")
+
+    create_task(client, auth_headers, "Own unread task")
+    create_task(client, other_headers, "Other unread task")
+
+    response = client.post(
+        "/notifications/mark-all-read",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["unread_count"] == 0
+
+    other_response = client.get(
+        "/notifications",
+        headers=other_headers,
+    )
+
+    assert other_response.status_code == 200
+    assert other_response.json()["unread_count"] == 1
+
+
 def test_notifications_require_authentication(
     client: TestClient,
 ) -> None:
@@ -181,6 +400,8 @@ def test_notifications_require_authentication(
         "/notifications/mark-read",
         json=[],
     )
+    mark_all_response = client.post("/notifications/mark-all-read")
 
     assert list_response.status_code in {401, 403}
     assert mark_response.status_code in {401, 403}
+    assert mark_all_response.status_code in {401, 403}

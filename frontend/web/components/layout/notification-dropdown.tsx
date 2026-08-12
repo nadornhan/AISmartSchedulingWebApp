@@ -12,8 +12,11 @@ export type NotificationDropdownItem = {
 type NotificationDropdownProps = {
   error?: string | null;
   isLoading?: boolean;
+  isMarkingAllRead?: boolean;
   items?: NotificationDropdownItem[];
   onClose: () => void;
+  onMarkAllRead?: () => void;
+  unreadCount?: number;
 };
 
 function formatCreatedAt(value: string) {
@@ -34,16 +37,31 @@ function formatCreatedAt(value: string) {
 export function NotificationDropdown({
   error = null,
   isLoading = false,
+  isMarkingAllRead = false,
   items = [],
   onClose,
+  onMarkAllRead,
+  unreadCount = 0,
 }: NotificationDropdownProps) {
   return (
     <div className="grid gap-2">
       <div className="flex items-center justify-between border-b border-dashboard-border px-2 pb-3">
         <h2 className="text-sm font-semibold text-dashboard-text">Notifications</h2>
-        <span className="rounded-full bg-dashboard-raised px-2 py-1 text-xs text-dashboard-muted">
-          {items.length}
-        </span>
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && onMarkAllRead ? (
+            <button
+              className="rounded-[var(--radius-sm)] px-2 py-1 text-xs font-medium text-dashboard-accent transition hover:bg-dashboard-accent-soft disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
+              disabled={isLoading || isMarkingAllRead}
+              onClick={onMarkAllRead}
+              type="button"
+            >
+              {isMarkingAllRead ? 'Marking...' : 'Mark All as Read'}
+            </button>
+          ) : null}
+          <span className="rounded-full bg-dashboard-raised px-2 py-1 text-xs text-dashboard-muted">
+            {items.length}
+          </span>
+        </div>
       </div>
 
       {isLoading ? (
