@@ -126,6 +126,9 @@ class TaskResponse(BaseModel):
     status: TaskDisplayStatus = Field(
         validation_alias="display_status",
     )
+    workflow_status: TaskStatus = Field(
+        validation_alias="status",
+    )
     priority: TaskPriority
     due_date: datetime | None
     estimated_duration_minutes: int | None
@@ -144,3 +147,64 @@ class TaskListResponse(BaseModel):
     page_size: int
     total: int
     total_pages: int
+
+
+class TaskBulkUpdate(BaseModel):
+    task_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+    status: TaskStatus | None = None
+    project_id: uuid.UUID | None = None
+    priority: TaskPriority | None = None
+    due_date: datetime | None = None
+
+    @model_validator(mode="after")
+    def require_at_least_one_change(self) -> "TaskBulkUpdate":
+        if (
+            self.status is None
+            and "project_id" not in self.model_fields_set
+            and self.priority is None
+            and "due_date" not in self.model_fields_set
+        ):
+            raise ValueError("At least one update field is required")
+
+        return self
+
+
+class TaskBulkDelete(BaseModel):
+    task_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+
+
+class TaskBulkResponse(BaseModel):
+    updated: list[TaskResponse] = Field(default_factory=list)
+    deleted_count: int = 0
+
+
+class TaskReschedule(BaseModel):
+    due_date: datetime | None = None
+    scheduled_start: datetime | None = None
+    scheduled_end: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_reschedule(self) -> "TaskReschedule":
+        if (
+            "due_date" not in self.model_fields_set
+            and "scheduled_start" not in self.model_fields_set
+            and "scheduled_end" not in self.model_fields_set
+        ):
+            raise ValueError("At least one schedule field is required")
+
+        if (
+            self.scheduled_start is not None
+            and self.scheduled_end is not None
+            and self.scheduled_end <= self.scheduled_start
+        ):
+            raise ValueError(
+                "scheduled_end must be later than scheduled_start"
+            )
+
+        return self
+
+
+class TaskDuplicate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    include_subtasks: bool = True
+    reset_status: bool = True

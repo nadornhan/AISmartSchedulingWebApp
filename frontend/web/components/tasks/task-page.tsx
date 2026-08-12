@@ -7,14 +7,19 @@ import { onProjectDataChanged, onTaskDataChanged } from '../../lib/data-events';
 import { formatDurationLabel } from '../../lib/duration';
 import { listProjects, type Project } from '../../lib/projects';
 import {
+  bulkDeleteTasks,
+  bulkUpdateTasks,
   createTask,
   deleteTask,
+  duplicateTask,
   listTasks,
+  rescheduleTask,
   updateTask,
   type TaskCreateInput,
   type TaskDisplayStatusValue,
   type TaskPriorityValue,
   type TaskResponse,
+  type TaskSortValue,
   type TaskStatusValue,
   type TaskUpdateInput,
 } from '../../lib/tasks';
@@ -37,8 +42,10 @@ import {
 } from './create-task-modal';
 
 type TaskStatus = 'Pending' | 'In Progress' | 'Done';
+type DisplayTaskStatus = TaskStatus | 'Overdue';
 type TaskPriority = TaskPriorityLabel;
 type TaskFilter = 'All' | TaskStatus | 'Overdue';
+type PriorityFilter = 'All' | TaskPriority;
 
 type Task = {
   id: string;
@@ -48,17 +55,27 @@ type Task = {
   project: string;
   projectColor: string;
   dueDate: string;
+  dueDateIso: string | null;
   durationLabel: string | null;
   subtaskProgressLabel: string | null;
   priority: TaskPriority;
-  status: TaskStatus;
+  status: DisplayTaskStatus;
+  workflowStatus: TaskStatus;
   source: TaskResponse;
   overdue?: boolean;
 };
 
 const filterOrder: TaskFilter[] = ['All', 'Pending', 'In Progress', 'Done', 'Overdue'];
 const statuses: TaskStatus[] = ['Pending', 'In Progress', 'Done'];
-const pageSize = 8;
+const priorityFilters: PriorityFilter[] = ['All', 'No priority', 'Low', 'Medium', 'High'];
+const sortOptions: Array<{ label: string; value: TaskSortValue }> = [
+  { label: 'Due date', value: 'due_date' },
+  { label: 'Priority', value: 'priority' },
+  { label: 'Title', value: 'title' },
+  { label: 'Created', value: 'created_at' },
+  { label: 'Updated', value: 'updated_at' },
+];
+const pageSizeOptions = [8, 16, 24];
 
 const statusToApi: Record<TaskStatus, TaskStatusValue> = {
   Pending: 'pending',
@@ -66,11 +83,24 @@ const statusToApi: Record<TaskStatus, TaskStatusValue> = {
   Done: 'done',
 };
 
+const statusFromApi: Record<TaskStatusValue, TaskStatus> = {
+  pending: 'Pending',
+  in_progress: 'In Progress',
+  done: 'Done',
+};
+
 const filterToApi: Partial<Record<TaskFilter, TaskDisplayStatusValue>> = {
   Pending: 'pending',
   'In Progress': 'in_progress',
   Done: 'done',
   Overdue: 'overdue',
+};
+
+const priorityFilterToApi: Partial<Record<PriorityFilter, TaskPriorityValue>> = {
+  'No priority': 'no_priority',
+  Low: 'low',
+  Medium: 'medium',
+  High: 'high',
 };
 
 const priorityFromApi = priorityLabelFromApi;
@@ -110,6 +140,13 @@ function formatTaskDueDate(value: string | null) {
 
 function toTask(response: TaskResponse): Task {
   const displayStatus = response.status;
+  const workflowStatus =
+    response.workflow_status ??
+    (displayStatus === 'overdue'
+      ? 'pending'
+      : displayStatus === 'done' || displayStatus === 'in_progress'
+        ? displayStatus
+        : 'pending');
   const subtaskProgress =
     response.subtask_progress.total > 0
       ? `${response.subtask_progress.completed}/${response.subtask_progress.total} subtasks${
@@ -127,18 +164,15 @@ function toTask(response: TaskResponse): Task {
     project: response.project?.name ?? 'Unassigned',
     projectColor: response.project?.color ?? 'neutral',
     dueDate: formatTaskDueDate(response.due_date),
+    dueDateIso: response.due_date,
     durationLabel:
       response.estimated_duration_minutes !== null
         ? formatDurationLabel(response.estimated_duration_minutes)
         : null,
     subtaskProgressLabel: subtaskProgress,
     priority: priorityFromApi(response.priority),
-    status:
-      displayStatus === 'done'
-        ? 'Done'
-        : displayStatus === 'in_progress'
-          ? 'In Progress'
-          : 'Pending',
+    status: displayStatus === 'overdue' ? 'Overdue' : statusFromApi[workflowStatus],
+    workflowStatus: statusFromApi[workflowStatus],
     source: response,
     overdue: displayStatus === 'overdue',
   };
@@ -160,11 +194,12 @@ function priorityClass(priority: TaskPriority) {
   }[priority];
 }
 
-function statusClass(status: TaskStatus) {
+function statusClass(status: DisplayTaskStatus) {
   return {
     Pending: 'border-[var(--orange-border)] bg-[var(--orange-soft)] text-[var(--yellow)]',
     'In Progress': 'border-[var(--blue-border)] bg-[var(--blue-soft)] text-[var(--blue-light)]',
     Done: 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]',
+    Overdue: 'border-[var(--red-border)] bg-[var(--red-soft)] text-[var(--red-light)]',
   }[status];
 }
 
@@ -201,12 +236,19 @@ export function TaskPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('All');
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('All');
   const [selected, setSelected] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskResponse | null>(null);
   const [createProjectId, setCreateProjectId] = useState<string>(activeProjectId);
   const [createPriority, setCreatePriority] = useState<TaskPriority>('No priority');
+  const [sortBy, setSortBy] = useState<TaskSortValue>('due_date');
   const [sortAscending, setSortAscending] = useState(true);
+  const [pageSize, setPageSize] = useState(8);
+  const [menuTaskId, setMenuTaskId] = useState<string | null>(null);
+  const [isMoveOpen, setIsMoveOpen] = useState(false);
+  const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
+  const [rescheduleDueDate, setRescheduleDueDate] = useState('');
   const [counts, setCounts] = useState<Record<TaskFilter, number>>({
     All: 0,
     Pending: 0,
@@ -282,7 +324,8 @@ export function TaskPage() {
         projectId: activeProjectId || undefined,
         search: searchQuery || undefined,
         status: filterToApi[activeFilter],
-        sortBy: 'due_date',
+        priority: priorityFilterToApi[priorityFilter],
+        sortBy,
         sortOrder: sortAscending ? 'asc' : 'desc',
         page,
         pageSize,
@@ -290,6 +333,7 @@ export function TaskPage() {
       setTasks(response.items.map(toTask));
       setTotalPages(response.total_pages);
       setSelected([]);
+      setMenuTaskId(null);
     } catch (requestError) {
       setError(getErrorMessage(requestError));
       setTasks([]);
@@ -297,7 +341,16 @@ export function TaskPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeFilter, activeProjectId, page, searchQuery, sortAscending]);
+  }, [
+    activeFilter,
+    activeProjectId,
+    page,
+    pageSize,
+    priorityFilter,
+    searchQuery,
+    sortAscending,
+    sortBy,
+  ]);
 
   const refreshCounts = useCallback(async () => {
     try {
@@ -418,7 +471,7 @@ export function TaskPage() {
     setIsMutating(true);
     setError(null);
     try {
-      await Promise.all(selected.map((id) => updateTask(id, { status: 'done' })));
+      await bulkUpdateTasks({ task_ids: selected, status: 'done' });
       await Promise.all([refreshTasks(), refreshCounts()]);
     } catch (requestError) {
       setError(getErrorMessage(requestError));
@@ -431,7 +484,7 @@ export function TaskPage() {
     setIsMutating(true);
     setError(null);
     try {
-      await Promise.all(selected.map(deleteTask));
+      await bulkDeleteTasks(selected);
       const shouldGoBack = tasks.length === selected.length && page > 1;
       if (shouldGoBack) {
         setPage((current) => current - 1);
@@ -444,6 +497,74 @@ export function TaskPage() {
     } finally {
       setIsMutating(false);
     }
+  }
+
+  async function moveSelected(projectId: string | null) {
+    setIsMutating(true);
+    setError(null);
+    try {
+      await bulkUpdateTasks({ task_ids: selected, project_id: projectId });
+      setIsMoveOpen(false);
+      await Promise.all([refreshTasks(), refreshCounts()]);
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleDuplicate(taskId: string) {
+    setIsMutating(true);
+    setError(null);
+    setMenuTaskId(null);
+    try {
+      await duplicateTask(taskId);
+      await Promise.all([refreshTasks(), refreshCounts()]);
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleDeleteOne(taskId: string) {
+    setIsMutating(true);
+    setError(null);
+    setMenuTaskId(null);
+    try {
+      await deleteTask(taskId);
+      await Promise.all([refreshTasks(), refreshCounts()]);
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleReschedule() {
+    if (!rescheduleTaskId || !rescheduleDueDate) return;
+
+    setIsMutating(true);
+    setError(null);
+    try {
+      const dueDateTime = new Date(`${rescheduleDueDate}T23:59:00`);
+      await rescheduleTask(rescheduleTaskId, {
+        due_date: Number.isNaN(dueDateTime.getTime()) ? null : dueDateTime.toISOString(),
+      });
+      setRescheduleTaskId(null);
+      setRescheduleDueDate('');
+      await Promise.all([refreshTasks(), refreshCounts()]);
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  function openReschedule(task: Task) {
+    setMenuTaskId(null);
+    setRescheduleTaskId(task.id);
+    setRescheduleDueDate(task.dueDateIso ? task.dueDateIso.slice(0, 10) : '');
   }
 
   async function addTask(input: TaskCreateInput) {
@@ -572,16 +693,52 @@ export function TaskPage() {
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          <label className="relative">
+            <span className="sr-only">Filter by priority</span>
+            <select
+              className="h-11 appearance-none rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface py-0 pl-4 pr-10 text-sm font-medium text-dashboard-muted outline-none transition hover:border-dashboard-border-strong hover:text-dashboard-text"
+              onChange={(event) => {
+                setPriorityFilter(event.target.value as PriorityFilter);
+                setPage(1);
+              }}
+              value={priorityFilter}
+            >
+              {priorityFilters.map((option) => (
+                <option key={option} value={option}>
+                  {option === 'All' ? 'All priorities' : option}
+                </option>
+              ))}
+            </select>
+            <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+          </label>
+
+          <label className="relative">
+            <span className="sr-only">Sort tasks</span>
+            <select
+              className="h-11 appearance-none rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface py-0 pl-10 pr-10 text-sm font-medium text-dashboard-muted outline-none transition hover:border-dashboard-border-strong hover:text-dashboard-text"
+              onChange={(event) => setSortBy(event.target.value as TaskSortValue)}
+              value={sortBy}
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <SortIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+            <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+          </label>
+
           <button
-            className="flex h-11 items-center gap-2 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface px-4 text-sm font-medium text-dashboard-muted transition hover:border-dashboard-border-strong hover:text-dashboard-text"
+            aria-label={sortAscending ? 'Sort ascending' : 'Sort descending'}
+            className="grid h-11 w-11 place-items-center rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface text-dashboard-muted transition hover:border-dashboard-border-strong hover:text-dashboard-text"
             onClick={() => setSortAscending((current) => !current)}
             type="button"
           >
-            <SortIcon className="h-4 w-4" />
-            Due date
             <ChevronDownIcon className={cn('h-4 w-4 transition', !sortAscending && 'rotate-180')} />
           </button>
+
           <button
             className="flex h-11 items-center gap-2 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
             onClick={() => {
@@ -720,29 +877,41 @@ export function TaskPage() {
                   </span>
                 </div>
 
-                <label className="relative inline-flex w-fit items-center">
-                  <span className="sr-only">Status for {task.title}</span>
-                  <select
-                    className={cn(
-                      'h-9 appearance-none rounded-[var(--radius-pill)] border py-0 pl-3 pr-8 text-xs font-medium outline-none transition focus:ring-2 focus:ring-dashboard-accent/20',
-                      statusClass(task.status),
-                    )}
-                    disabled={isMutating}
-                    onChange={(event) =>
-                      void changeStatus(task.id, event.target.value as TaskStatus)
-                    }
-                    value={task.status}
-                  >
-                    {statuses.map((status) => (
-                      <option className="bg-[var(--bg-surface-raised)]" key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDownIcon className="pointer-events-none absolute right-2.5 h-3.5 w-3.5" />
-                </label>
+                <div className="space-y-2">
+                  {task.overdue ? (
+                    <span
+                      className={cn(
+                        'inline-flex rounded-[var(--radius-pill)] border px-3 py-1.5 text-xs font-medium',
+                        statusClass('Overdue'),
+                      )}
+                    >
+                      Overdue
+                    </span>
+                  ) : null}
+                  <label className="relative inline-flex w-fit items-center">
+                    <span className="sr-only">Status for {task.title}</span>
+                    <select
+                      className={cn(
+                        'h-9 appearance-none rounded-[var(--radius-pill)] border py-0 pl-3 pr-8 text-xs font-medium outline-none transition focus:ring-2 focus:ring-dashboard-accent/20',
+                        statusClass(task.workflowStatus),
+                      )}
+                      disabled={isMutating}
+                      onChange={(event) =>
+                        void changeStatus(task.id, event.target.value as TaskStatus)
+                      }
+                      value={task.workflowStatus}
+                    >
+                      {statuses.map((status) => (
+                        <option className="bg-[var(--bg-surface-raised)]" key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDownIcon className="pointer-events-none absolute right-2.5 h-3.5 w-3.5" />
+                  </label>
+                </div>
 
-                <div className="flex justify-end gap-1 text-dashboard-muted">
+                <div className="relative flex justify-end gap-1 text-dashboard-muted">
                   <button
                     aria-label={`Edit ${task.title}`}
                     className="grid h-9 w-9 place-items-center rounded-lg transition hover:bg-dashboard-surface hover:text-dashboard-accent"
@@ -752,12 +921,51 @@ export function TaskPage() {
                     <EditIcon className="h-4 w-4" />
                   </button>
                   <button
+                    aria-expanded={menuTaskId === task.id}
                     aria-label={`More actions for ${task.title}`}
                     className="grid h-9 w-9 place-items-center rounded-lg transition hover:bg-dashboard-surface hover:text-dashboard-text"
+                    onClick={() =>
+                      setMenuTaskId((current) => (current === task.id ? null : task.id))
+                    }
                     type="button"
                   >
                     <MoreIcon className="h-4 w-4" />
                   </button>
+                  {menuTaskId === task.id ? (
+                    <div className="absolute right-0 top-11 z-20 min-w-44 rounded-xl border border-dashboard-border bg-[#071923] p-2 shadow-panel">
+                      <button
+                        className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+                        onClick={() => {
+                          setMenuTaskId(null);
+                          setEditingTask(task.source);
+                        }}
+                        type="button"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+                        onClick={() => void handleDuplicate(task.id)}
+                        type="button"
+                      >
+                        Duplicate
+                      </button>
+                      <button
+                        className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+                        onClick={() => openReschedule(task)}
+                        type="button"
+                      >
+                        Reschedule
+                      </button>
+                      <button
+                        className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--red-light)] transition hover:bg-dashboard-surface"
+                        onClick={() => void handleDeleteOne(task.id)}
+                        type="button"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </article>
             ))
@@ -789,6 +997,7 @@ export function TaskPage() {
           <button
             className="flex h-9 items-center gap-2 rounded-lg border border-dashboard-border px-3 text-sm text-dashboard-muted transition enabled:hover:border-dashboard-border-strong enabled:hover:text-dashboard-text disabled:cursor-not-allowed disabled:opacity-40"
             disabled={!selected.length || isMutating}
+            onClick={() => setIsMoveOpen(true)}
             type="button"
           >
             <MoveIcon className="h-4 w-4" />
@@ -850,13 +1059,24 @@ export function TaskPage() {
               <ChevronRightIcon className="h-4 w-4" />
             </button>
           </div>
-          <button
-            className="flex h-10 items-center gap-2 rounded-lg border border-dashboard-border bg-dashboard-surface px-3 text-dashboard-muted"
-            type="button"
-          >
-            {pageSize} / page
-            <ChevronDownIcon className="h-4 w-4" />
-          </button>
+          <label className="relative">
+            <span className="sr-only">Tasks per page</span>
+            <select
+              className="flex h-10 appearance-none rounded-lg border border-dashboard-border bg-dashboard-surface py-0 pl-3 pr-8 text-dashboard-muted outline-none"
+              onChange={(event) => {
+                setPageSize(Number(event.target.value));
+                setPage(1);
+              }}
+              value={pageSize}
+            >
+              {pageSizeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option} / page
+                </option>
+              ))}
+            </select>
+            <ChevronDownIcon className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2" />
+          </label>
         </div>
       </footer>
 
@@ -879,6 +1099,105 @@ export function TaskPage() {
           projects={projects}
           task={editingTask}
         />
+      ) : null}
+
+      {isMoveOpen ? (
+        <div
+          aria-labelledby="move-tasks-title"
+          aria-modal="true"
+          className="fixed inset-0 z-[300] grid place-items-center bg-[#000306]/80 p-4 backdrop-blur-[5px]"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) setIsMoveOpen(false);
+          }}
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-6 shadow-[0_32px_100px_rgba(0,0,0,.6)]">
+            <h2 className="text-xl font-semibold text-dashboard-text" id="move-tasks-title">
+              Move {selected.length} task{selected.length === 1 ? '' : 's'}
+            </h2>
+            <p className="mt-1 text-sm text-dashboard-muted">Choose a destination folder.</p>
+            <div className="mt-5 space-y-2">
+              <button
+                className="flex w-full rounded-lg border border-dashboard-border px-4 py-3 text-left text-sm text-dashboard-text transition hover:border-dashboard-accent/50 hover:text-dashboard-accent"
+                disabled={isMutating}
+                onClick={() => void moveSelected(null)}
+                type="button"
+              >
+                Unassigned (Inbox)
+              </button>
+              {projects.map((project) => (
+                <button
+                  className="flex w-full items-center gap-3 rounded-lg border border-dashboard-border px-4 py-3 text-left text-sm text-dashboard-text transition hover:border-dashboard-accent/50 hover:text-dashboard-accent"
+                  disabled={isMutating}
+                  key={project.id}
+                  onClick={() => void moveSelected(project.id)}
+                  type="button"
+                >
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: project.color }}
+                  />
+                  {project.name}
+                </button>
+              ))}
+            </div>
+            <button
+              className="mt-5 h-10 rounded-[var(--radius-sm)] border border-dashboard-border px-4 text-sm text-dashboard-muted"
+              onClick={() => setIsMoveOpen(false)}
+              type="button"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {rescheduleTaskId ? (
+        <div
+          aria-labelledby="reschedule-task-title"
+          aria-modal="true"
+          className="fixed inset-0 z-[300] grid place-items-center bg-[#000306]/80 p-4 backdrop-blur-[5px]"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) {
+              setRescheduleTaskId(null);
+              setRescheduleDueDate('');
+            }
+          }}
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-6 shadow-[0_32px_100px_rgba(0,0,0,.6)]">
+            <h2 className="text-xl font-semibold text-dashboard-text" id="reschedule-task-title">
+              Reschedule task
+            </h2>
+            <p className="mt-1 text-sm text-dashboard-muted">Pick a new due date.</p>
+            <input
+              className="mt-5 h-11 w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-text outline-none [color-scheme:dark] focus:border-dashboard-accent"
+              onChange={(event) => setRescheduleDueDate(event.target.value)}
+              type="date"
+              value={rescheduleDueDate}
+            />
+            <div className="mt-5 flex justify-between gap-3">
+              <button
+                className="h-10 rounded-[var(--radius-sm)] border border-dashboard-border px-4 text-sm text-dashboard-muted"
+                onClick={() => {
+                  setRescheduleTaskId(null);
+                  setRescheduleDueDate('');
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="h-10 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d]"
+                disabled={!rescheduleDueDate || isMutating}
+                onClick={() => void handleReschedule()}
+                type="button"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </>
   );

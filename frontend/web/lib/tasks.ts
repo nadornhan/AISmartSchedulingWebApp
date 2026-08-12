@@ -50,6 +50,7 @@ export type TaskResponse = {
   title: string;
   description: string | null;
   status: TaskDisplayStatusValue;
+  workflow_status?: TaskStatusValue;
   priority: TaskPriorityValue;
   due_date: string | null;
   estimated_duration_minutes: number | null;
@@ -78,6 +79,7 @@ export type TaskListParams = {
   status?: TaskDisplayStatusValue;
   priority?: TaskPriorityValue;
   projectId?: string;
+  inboxOnly?: boolean;
   search?: string;
   dueFrom?: string;
   dueTo?: string;
@@ -98,6 +100,8 @@ export type TaskCreateInput = {
   priority?: TaskPriorityValue;
   due_date?: string | null;
   estimated_duration_minutes?: number | null;
+  scheduled_start?: string | null;
+  scheduled_end?: string | null;
   subtasks?: TaskSubtaskInput[];
 };
 
@@ -106,6 +110,26 @@ export type TaskUpdateInput = Partial<TaskCreateInput> & {
 };
 
 export type UpdateTaskInput = TaskUpdateInput;
+
+export type TaskBulkUpdateInput = {
+  task_ids: string[];
+  status?: TaskStatusValue;
+  project_id?: string | null;
+  priority?: TaskPriorityValue;
+  due_date?: string | null;
+};
+
+export type TaskRescheduleInput = {
+  due_date?: string | null;
+  scheduled_start?: string | null;
+  scheduled_end?: string | null;
+};
+
+export type TaskDuplicateInput = {
+  title?: string;
+  include_subtasks?: boolean;
+  reset_status?: boolean;
+};
 
 type RequestOptions = {
   signal?: AbortSignal;
@@ -117,6 +141,7 @@ function taskQuery(params: TaskListParams): string {
   if (params.status) query.set('status', params.status);
   if (params.priority) query.set('priority', params.priority);
   if (params.projectId) query.set('project_id', params.projectId);
+  if (params.inboxOnly) query.set('inbox_only', 'true');
   if (params.search?.trim()) {
     query.set('search', params.search.trim());
   }
@@ -168,26 +193,20 @@ export async function getTasks(
   params: TaskQuery = {},
   options: RequestOptions = {},
 ): Promise<TaskListResponse> {
-  const result = await listTasks(
+  return listTasks(
     {
       ...params,
-      pageSize: params.inbox ? 100 : params.pageSize,
+      inboxOnly: params.inbox || params.inboxOnly,
+      pageSize: params.pageSize,
     },
     options,
   );
+}
 
-  if (!params.inbox) {
-    return result;
-  }
-
-  const items = result.items.filter((task) => task.project_id === null);
-
-  return {
-    ...result,
-    items,
-    total: items.length,
-    total_pages: items.length > 0 ? 1 : 0,
-  };
+export function getTask(taskId: string, options: RequestOptions = {}) {
+  return apiRequest<TaskResponse>(`/tasks/${taskId}`, {
+    signal: options.signal,
+  });
 }
 
 export function createTask(input: TaskCreateInput, options: RequestOptions = {}) {
@@ -223,5 +242,57 @@ export function deleteTask(taskId: string, options: RequestOptions = {}) {
   }).then((result) => {
     emitTaskDataChanged();
     return result;
+  });
+}
+
+export function bulkUpdateTasks(input: TaskBulkUpdateInput, options: RequestOptions = {}) {
+  return apiRequest<{ updated: TaskResponse[]; deleted_count: number }>('/tasks/bulk/update', {
+    method: 'POST',
+    body: JSON.stringify(input),
+    signal: options.signal,
+  }).then((result) => {
+    emitTaskDataChanged();
+    return result;
+  });
+}
+
+export function bulkDeleteTasks(taskIds: string[], options: RequestOptions = {}) {
+  return apiRequest<{ updated: TaskResponse[]; deleted_count: number }>('/tasks/bulk/delete', {
+    method: 'POST',
+    body: JSON.stringify({ task_ids: taskIds }),
+    signal: options.signal,
+  }).then((result) => {
+    emitTaskDataChanged();
+    return result;
+  });
+}
+
+export function duplicateTask(
+  taskId: string,
+  input: TaskDuplicateInput = {},
+  options: RequestOptions = {},
+) {
+  return apiRequest<TaskResponse>(`/tasks/${taskId}/duplicate`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+    signal: options.signal,
+  }).then((task) => {
+    emitTaskDataChanged();
+    return task;
+  });
+}
+
+export function rescheduleTask(
+  taskId: string,
+  input: TaskRescheduleInput,
+  options: RequestOptions = {},
+) {
+  return apiRequest<TaskResponse>(`/tasks/${taskId}/reschedule`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+    signal: options.signal,
+  }).then((task) => {
+    emitTaskDataChanged();
+    return task;
   });
 }
