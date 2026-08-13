@@ -7,7 +7,7 @@ import {
   type InsightRecommendation,
   type InsightsSummary,
 } from '../../lib/analytics';
-import { onTaskDataChanged } from '../../lib/data-events';
+import { onSettingsDataChanged, onTaskDataChanged } from '../../lib/data-events';
 import {
   acceptSuggestion,
   adjustSuggestion,
@@ -167,13 +167,17 @@ export function InsightsDashboard() {
   useEffect(() => {
     const controller = new AbortController();
     void load(controller.signal);
-    const unsubscribe = onTaskDataChanged(() => {
+    const unsubscribeTasks = onTaskDataChanged(() => {
+      void load();
+    });
+    const unsubscribeSettings = onSettingsDataChanged(() => {
       void load();
     });
 
     return () => {
       controller.abort();
-      unsubscribe();
+      unsubscribeTasks();
+      unsubscribeSettings();
     };
   }, []);
 
@@ -382,16 +386,6 @@ export function InsightsDashboard() {
           <div className="mt-5 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-bg/25 p-4">
             <p className="text-sm font-semibold text-dashboard-text">{plan.recommendation.title}</p>
             <p className="mt-1 text-sm text-dashboard-muted">{plan.recommendation.explanation}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {plan.recommendation.based_on.map((entry) => (
-                <span
-                  className="rounded-full border border-dashboard-border px-3 py-1 text-[11px] text-dashboard-muted"
-                  key={entry}
-                >
-                  {entry}
-                </span>
-              ))}
-            </div>
           </div>
         ) : null}
 
@@ -474,8 +468,7 @@ export function InsightsDashboard() {
             ))
           ) : (
             <p className="rounded-[var(--radius-sm)] border border-dashed border-dashboard-border p-5 text-sm text-dashboard-muted">
-              No suggested schedule yet. Create open tasks with estimates, or regenerate after
-              updating Settings weights.
+              No suggested schedule yet. Create open tasks with estimates, or regenerate.
             </p>
           )}
         </div>

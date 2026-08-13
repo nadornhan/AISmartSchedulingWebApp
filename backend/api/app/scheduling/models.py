@@ -23,6 +23,8 @@ class RecommendationStatus(str, enum.Enum):
     ACCEPTED = "accepted"
     DISMISSED = "dismissed"
     APPLIED = "applied"
+    # Cleared by the system when tasks/settings change (not a user dismiss).
+    SUPERSEDED = "superseded"
 
 
 class ScheduleSuggestionStatus(str, enum.Enum):

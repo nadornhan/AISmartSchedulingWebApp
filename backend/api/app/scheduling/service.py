@@ -172,6 +172,7 @@ def create_focus_session(
     db.add(session)
     db.commit()
     db.refresh(session)
+    invalidate_pending_plan(db, user_id)
     return FocusSessionResponse(
         id=session.id,
         task_id=session.task_id,
@@ -182,45 +183,22 @@ def create_focus_session(
     )
 
 
-def generate_plan(
+def invalidate_pending_plan(
     db: Session,
     user_id: uuid.UUID,
     *,
-    force: bool = False,
-) -> SchedulingPlanResponse:
-    now = utc_now()
-    settings = settings_service.get_or_create_user_settings(db, user_id)
+    commit: bool = True,
+) -> None:
+    """Clear pending AI rows so the next plan read regenerates from fresh data."""
 
-    if not settings.ai_assistant_enabled:
-        return SchedulingPlanResponse(
-            recommendation=None,
-            schedule=[],
-            generated_at=now,
-            footnote="AI assistant is disabled in Settings",
-        )
-
-    if not force:
-        existing = get_current_plan(db, user_id)
-        if existing.recommendation is not None or existing.schedule:
-            return existing
-
-    open_tasks = _open_tasks(db, user_id)
-    ranked = rank_open_tasks(
-        open_tasks,
-        settings,
-        now=now,
-        preferred_focus_hours=_preferred_focus_hours(db, user_id),
-        dismissed_task_ids=_recently_dismissed_task_ids(db, user_id),
-    )
-
-    # Expire previous pending rows.
     for recommendation in db.scalars(
         select(AiRecommendation).where(
             AiRecommendation.user_id == user_id,
             AiRecommendation.status == RecommendationStatus.PENDING.value,
         )
     ).all():
-        recommendation.status = RecommendationStatus.DISMISSED.value
+        recommendation.status = RecommendationStatus.SUPERSEDED.value
+        recommendation.updated_at = utc_now()
 
     for suggestion in db.scalars(
         select(AiScheduleSuggestion).where(
@@ -234,6 +212,91 @@ def generate_plan(
         )
     ).all():
         suggestion.status = ScheduleSuggestionStatus.DISMISSED.value
+        suggestion.updated_at = utc_now()
+
+    if commit:
+        db.commit()
+
+
+def refresh_plan(db: Session, user_id: uuid.UUID) -> SchedulingPlanResponse:
+    """Force a fresh recommendation/schedule from the latest user data."""
+
+    return generate_plan(db, user_id, force=True)
+
+
+def _plan_is_stale(
+    db: Session,
+    user_id: uuid.UUID,
+    plan: SchedulingPlanResponse,
+    settings,
+) -> bool:
+    if plan.recommendation is None:
+        return True
+
+    snapshot = plan.recommendation.weights
+    if (
+        snapshot.deadline_urgency != settings.ai_deadline_urgency_weight
+        or snapshot.priority != settings.ai_priority_weight
+        or snapshot.estimated_duration != settings.ai_estimated_duration_weight
+        or snapshot.ai_assistant_enabled != settings.ai_assistant_enabled
+        or snapshot.work_start != settings.work_start.strftime("%H:%M")
+        or snapshot.work_end != settings.work_end.strftime("%H:%M")
+        or snapshot.pomodoro_minutes != settings.pomodoro_minutes
+    ):
+        return True
+
+    if plan.recommendation.task is None:
+        return True
+
+    task = task_service.get_task_by_id(db, plan.recommendation.task.id, user_id)
+    if task is None or task.status == TaskStatus.DONE:
+        return True
+
+    newer_task = db.scalar(
+        select(Task.id).where(
+            Task.user_id == user_id,
+            Task.updated_at > plan.generated_at,
+        ).limit(1)
+    )
+    return newer_task is not None
+
+
+def generate_plan(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    force: bool = False,
+) -> SchedulingPlanResponse:
+    now = utc_now()
+    settings = settings_service.get_or_create_user_settings(db, user_id)
+
+    if not settings.ai_assistant_enabled:
+        invalidate_pending_plan(db, user_id, commit=True)
+        return SchedulingPlanResponse(
+            recommendation=None,
+            schedule=[],
+            generated_at=now,
+            footnote="AI assistant is disabled in Settings",
+        )
+
+    if not force:
+        existing = get_current_plan(db, user_id)
+        if (
+            existing.recommendation is not None
+            and not _plan_is_stale(db, user_id, existing, settings)
+        ):
+            return existing
+
+    open_tasks = _open_tasks(db, user_id)
+    ranked = rank_open_tasks(
+        open_tasks,
+        settings,
+        now=now,
+        preferred_focus_hours=_preferred_focus_hours(db, user_id),
+        dismissed_task_ids=_recently_dismissed_task_ids(db, user_id),
+    )
+
+    invalidate_pending_plan(db, user_id, commit=False)
 
     top: RankedTask | None = ranked[0] if ranked else None
     recommendation: AiRecommendation | None = None
@@ -245,9 +308,8 @@ def generate_plan(
             kind="next_task",
             title=f"Focus on “{top.task.title}” next",
             explanation=(
-                "This recommendation balances your Settings weights for deadlines, "
-                "priority, and estimated duration with your recent focus patterns "
-                "and open task history."
+                "Picked from your open tasks using deadlines, priority, estimated "
+                "duration, and recent focus patterns."
             ),
             reasons=top.reasons,
             based_on=top.based_on,
@@ -398,6 +460,15 @@ def set_recommendation_status(
     recommendation.updated_at = utc_now()
     db.commit()
     db.refresh(recommendation)
+
+    # After dismiss/accept, immediately refresh so the next best option is ready.
+    if status in {
+        RecommendationStatus.DISMISSED,
+        RecommendationStatus.ACCEPTED,
+    }:
+        refreshed = generate_plan(db, user_id, force=True)
+        if refreshed.recommendation is not None:
+            return refreshed.recommendation
 
     task = None
     if recommendation.task_id is not None:

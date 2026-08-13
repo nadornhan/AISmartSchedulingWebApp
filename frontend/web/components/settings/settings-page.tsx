@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useCurrentUser } from '../auth/current-user-provider';
 import { deleteCurrentUserAvatar, uploadCurrentUserAvatar } from '../../lib/auth';
+import { emitSettingsDataChanged } from '../../lib/data-events';
 import {
   getSettings,
   settingsFormValueToUpdateInput,
@@ -151,6 +152,7 @@ export function SettingsPage() {
       setNotifications(formValue.notifications);
       setSchedulingWeights(formValue.schedulingWeights);
       setSaveMessage('Settings saved.');
+      emitSettingsDataChanged();
     } catch (saveError) {
       setSettingsError(
         saveError instanceof Error

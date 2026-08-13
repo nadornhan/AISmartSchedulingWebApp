@@ -114,3 +114,86 @@ def test_dashboard_includes_ai_recommendation(client: TestClient) -> None:
     assert payload["ai_recommendation"]["footnote"] == "AI based on your patterns"
     assert payload["ai_recommendation"]["task"]["title"] == "Dashboard AI card"
     assert payload["next_best_task"] is not None
+
+
+def test_recommendation_refreshes_after_task_and_settings_changes(
+    client: TestClient,
+) -> None:
+    headers = auth_headers(client)
+    due = (datetime.now(UTC) + timedelta(hours=5)).isoformat()
+
+    first = client.post(
+        "/tasks",
+        headers=headers,
+        json={
+            "title": "Finish first",
+            "priority": "high",
+            "due_date": due,
+            "estimated_duration_minutes": 25,
+        },
+    )
+    assert first.status_code == 201
+    first_id = first.json()["id"]
+
+    second = client.post(
+        "/tasks",
+        headers=headers,
+        json={
+            "title": "Then second",
+            "priority": "medium",
+            "due_date": (datetime.now(UTC) + timedelta(days=2)).isoformat(),
+            "estimated_duration_minutes": 45,
+        },
+    )
+    assert second.status_code == 201
+    second_id = second.json()["id"]
+
+    plan = client.get("/scheduling/plan", headers=headers)
+    assert plan.status_code == 200
+    assert plan.json()["recommendation"]["task"]["id"] == first_id
+    first_recommendation_id = plan.json()["recommendation"]["id"]
+
+    completed = client.patch(
+        f"/tasks/{first_id}",
+        headers=headers,
+        json={"status": "done"},
+    )
+    assert completed.status_code == 200
+
+    refreshed = client.get("/scheduling/plan", headers=headers)
+    assert refreshed.status_code == 200
+    assert refreshed.json()["recommendation"] is not None
+    assert refreshed.json()["recommendation"]["task"]["id"] == second_id
+    assert refreshed.json()["recommendation"]["id"] != first_recommendation_id
+
+    updated_task = client.patch(
+        f"/tasks/{second_id}",
+        headers=headers,
+        json={"title": "Then second (updated)", "priority": "high"},
+    )
+    assert updated_task.status_code == 200
+
+    after_edit = client.get("/scheduling/plan", headers=headers)
+    assert after_edit.status_code == 200
+    assert after_edit.json()["recommendation"]["task"]["title"] == "Then second (updated)"
+    assert after_edit.json()["recommendation"]["id"] != refreshed.json()["recommendation"]["id"]
+
+    settings = client.patch(
+        "/settings",
+        headers=headers,
+        json={
+            "ai_scheduling": {
+                "ai_deadline_urgency_weight": 90,
+                "ai_priority_weight": 10,
+                "ai_estimated_duration_weight": 10,
+            }
+        },
+    )
+    assert settings.status_code == 200
+
+    after_weights = client.get("/scheduling/plan", headers=headers)
+    assert after_weights.status_code == 200
+    assert after_weights.json()["recommendation"] is not None
+    assert (
+        after_weights.json()["recommendation"]["weights"]["deadline_urgency"] == 90
+    )

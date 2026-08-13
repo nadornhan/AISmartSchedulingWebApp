@@ -11,6 +11,13 @@ DEFAULT_WORK_START = time(9, 0)
 DEFAULT_WORK_END = time(17, 0)
 
 
+def _invalidate_ai_plan(db: Session, user_id: uuid.UUID) -> None:
+    # Lazy import avoids circular dependency with scheduling.service.
+    from app.scheduling import service as scheduling_service
+
+    scheduling_service.invalidate_pending_plan(db, user_id)
+
+
 def get_or_create_user_settings(
     db: Session,
     user_id: uuid.UUID,
@@ -96,8 +103,16 @@ def update_user_settings(
     if update.channels is not None:
         apply_update_group(settings, update.channels.model_dump(exclude_unset=True))
 
+    scheduling_inputs_changed = (
+        update.work_pattern is not None or update.ai_scheduling is not None
+    )
+
     db.commit()
     db.refresh(settings)
+
+    if scheduling_inputs_changed:
+        _invalidate_ai_plan(db, user_id)
+
     return settings
 
 

@@ -74,16 +74,6 @@ export function AiRecommendationCard({
               </span>
             ))}
           </div>
-          <div className="rounded-[var(--radius-sm)] border border-dashed border-dashboard-border bg-dashboard-bg/20 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-dashboard-muted">
-              Using your data
-            </p>
-            <ul className="mt-2 space-y-1 text-xs text-dashboard-muted">
-              {item.based_on.map((entry) => (
-                <li key={entry}>• {entry}</li>
-              ))}
-            </ul>
-          </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               className="h-11 flex-1 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"

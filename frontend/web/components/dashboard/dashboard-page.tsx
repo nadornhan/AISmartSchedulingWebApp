@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCurrentUser } from '../auth/current-user-provider';
-import { onTaskDataChanged } from '../../lib/data-events';
+import { onSettingsDataChanged, onTaskDataChanged } from '../../lib/data-events';
 import { getDashboardSummary, type DashboardSummary } from '../../lib/dashboard';
 import { formatDurationLabel } from '../../lib/duration';
 import { updateTask } from '../../lib/tasks';
@@ -86,6 +86,14 @@ export function DashboardPage() {
   useEffect(
     () =>
       onTaskDataChanged(() => {
+        void loadSummary();
+      }),
+    [loadSummary],
+  );
+
+  useEffect(
+    () =>
+      onSettingsDataChanged(() => {
         void loadSummary();
       }),
     [loadSummary],
