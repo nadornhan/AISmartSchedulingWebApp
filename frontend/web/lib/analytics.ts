@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import type { SchedulingPlan } from './scheduling';
 
 export type InsightTrendPoint = {
   date: string;
@@ -7,7 +8,7 @@ export type InsightTrendPoint = {
 
 export type InsightRecommendation = {
   id: string;
-  category: 'deep_focus' | 'consistency' | 'breaks';
+  category: 'deep_focus' | 'consistency' | 'breaks' | 'schedule';
   title: string;
   description: string;
   cta_label: string;
@@ -26,8 +27,10 @@ export type InsightsSummary = {
   current_streak_days: number;
   trend: InsightTrendPoint[];
   recommendations: InsightRecommendation[];
+  scheduling_plan: SchedulingPlan | null;
   motivational_quote: string;
   footer_message: string;
+  footnote: string;
 };
 
 export function getInsightsSummary(signal?: AbortSignal) {

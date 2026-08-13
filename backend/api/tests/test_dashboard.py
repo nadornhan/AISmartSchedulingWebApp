@@ -207,7 +207,7 @@ def test_dashboard_next_best_task_ordering(
     ]
 
 
-def test_dashboard_next_best_task_uses_priority_then_shorter_duration_tie_breakers(
+def test_dashboard_ai_recommendation_prefers_high_priority_short_tasks(
     client: TestClient,
     db_session: Session,
 ) -> None:
@@ -233,7 +233,7 @@ def test_dashboard_next_best_task_uses_priority_then_shorter_duration_tie_breake
         due_date=due_date,
         estimated_duration_minutes=30,
     )
-    add_task(
+    high_short = add_task(
         db_session,
         user_id=user_id,
         title="High same due short",
@@ -246,12 +246,12 @@ def test_dashboard_next_best_task_uses_priority_then_shorter_duration_tie_breake
     assert response.status_code == 200
     payload = response.json()
 
-    assert payload["next_best_task"]["task"]["title"] == "Medium same due"
-    assert payload["next_best_task"]["task"]["id"] != str(high_long.id)
-    assert payload["next_best_task"]["reasons"] == [
-        "Due today",
-        "Short estimated duration",
-    ]
+    assert payload["ai_recommendation"]["task"]["title"] == "High same due short"
+    assert payload["ai_recommendation"]["task"]["id"] == str(high_short.id)
+    assert payload["ai_recommendation"]["task"]["id"] != str(high_long.id)
+    assert "High priority" in payload["ai_recommendation"]["reasons"]
+    assert any("weight" in item.lower() for item in payload["ai_recommendation"]["based_on"])
+    assert payload["ai_recommendation"]["footnote"] == "AI based on your patterns"
 
 
 def test_dashboard_quick_wins_require_short_estimates_and_limit_to_five(

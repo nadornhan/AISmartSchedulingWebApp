@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.scheduling.schemas import SchedulingPlanResponse
+
 
 class InsightTrendPoint(BaseModel):
     date: date
@@ -11,7 +13,7 @@ class InsightTrendPoint(BaseModel):
 
 class InsightRecommendation(BaseModel):
     id: str
-    category: Literal["deep_focus", "consistency", "breaks"]
+    category: Literal["deep_focus", "consistency", "breaks", "schedule"]
     title: str
     description: str
     cta_label: str = "Learn more"
@@ -30,5 +32,7 @@ class InsightsSummaryResponse(BaseModel):
     current_streak_days: int = Field(ge=0)
     trend: list[InsightTrendPoint]
     recommendations: list[InsightRecommendation]
+    scheduling_plan: SchedulingPlanResponse | None = None
     motivational_quote: str
     footer_message: str
+    footnote: str = "AI based on your patterns"

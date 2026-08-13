@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { createFocusSession } from '../../lib/scheduling';
 import { FocusSettingsModal, type FocusDurations } from './FocusSettingsModal';
 
 type Mode = 'Pomodoro' | 'Short Break' | 'Long Break';
@@ -40,6 +41,7 @@ export function FocusMode() {
   const endTimeRef = useRef<number | null>(null);
   const remainingRef = useRef(defaultDurations.focus * 60);
   const completionSoundPlayedRef = useRef(false);
+  const sessionStartedAtRef = useRef<string | null>(null);
   const selectedTaskId = searchParams.get('task_id');
   const selectedTaskTitle = searchParams.get('task_title');
   const selectedDuration = Number(searchParams.get('duration'));
@@ -113,6 +115,21 @@ export function FocusMode() {
       if (nextSeconds === 0) {
         setRunning(false);
         endTimeRef.current = null;
+        if (
+          mode === 'Pomodoro' &&
+          sessionStartedAtRef.current &&
+          completionSoundPlayedRef.current
+        ) {
+          const startedAt = sessionStartedAtRef.current;
+          sessionStartedAtRef.current = null;
+          void createFocusSession({
+            task_id: selectedTaskId,
+            started_at: startedAt,
+            ended_at: new Date().toISOString(),
+            duration_minutes: Math.max(1, Math.round(totalSeconds / 60)),
+            completed: true,
+          }).catch(() => {});
+        }
       }
     }
 
@@ -120,7 +137,7 @@ export function FocusMode() {
     const timer = window.setInterval(tick, 250);
 
     return () => window.clearInterval(timer);
-  }, [running]);
+  }, [mode, running, selectedTaskId, totalSeconds]);
 
   function selectMode(nextMode: Mode) {
     setMode(nextMode);
@@ -155,6 +172,9 @@ export function FocusMode() {
 
       completionSoundPlayedRef.current = false;
       endTimeRef.current = Date.now() + remainingRef.current * 1000;
+      if (mode === 'Pomodoro') {
+        sessionStartedAtRef.current = new Date().toISOString();
+      }
       audioRef.current?.load();
       return true;
     });
