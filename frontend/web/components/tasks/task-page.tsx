@@ -769,8 +769,8 @@ export function TaskPage() {
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 shadow-panel">
-        <div className="hidden min-h-14 grid-cols-[32px_minmax(240px,1.6fr)_minmax(94px,0.8fr)_minmax(104px,0.85fr)_minmax(92px,0.75fr)_minmax(116px,0.95fr)_76px] items-center gap-2 border-b border-dashboard-border px-4 text-xs font-semibold uppercase tracking-wide text-dashboard-muted lg:grid">
+      <section className="rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 shadow-panel">
+        <div className="hidden min-h-14 grid-cols-[32px_minmax(240px,1.6fr)_minmax(94px,0.8fr)_minmax(104px,0.85fr)_minmax(92px,0.75fr)_minmax(116px,0.95fr)_76px] items-center gap-2 rounded-t-[var(--radius-lg)] border-b border-dashboard-border px-4 text-xs font-semibold uppercase tracking-wide text-dashboard-muted lg:grid">
           <CheckBox
             checked={allVisibleSelected}
             label="Select all visible tasks"
@@ -786,18 +786,20 @@ export function TaskPage() {
 
         <div className="divide-y divide-dashboard-border">
           {isLoading ? (
-            <div className="grid min-h-64 place-items-center px-6 text-center">
+            <div className="grid min-h-64 place-items-center rounded-b-[var(--radius-lg)] px-6 text-center">
               <div>
                 <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-dashboard-border border-t-dashboard-accent" />
                 <p className="mt-3 text-sm text-dashboard-muted">Loading tasks...</p>
               </div>
             </div>
           ) : visibleTasks.length ? (
-            visibleTasks.map((task) => (
+            visibleTasks.map((task, taskIndex) => (
               <article
                 className={cn(
                   'group grid gap-4 bg-[var(--bg-surface)]/45 px-4 py-5 transition hover:bg-[var(--bg-surface-hover)]/65 lg:grid-cols-[32px_minmax(240px,1.6fr)_minmax(94px,0.8fr)_minmax(104px,0.85fr)_minmax(92px,0.75fr)_minmax(116px,0.95fr)_76px] lg:items-center lg:gap-2',
                   selected.includes(task.id) && 'bg-dashboard-accent-soft',
+                  menuTaskId === task.id && 'relative z-30',
+                  taskIndex === visibleTasks.length - 1 && 'rounded-b-[var(--radius-lg)]',
                 )}
                 key={task.id}
               >
@@ -932,7 +934,12 @@ export function TaskPage() {
                     <MoreIcon className="h-4 w-4" />
                   </button>
                   {menuTaskId === task.id ? (
-                    <div className="absolute right-0 top-11 z-20 min-w-44 rounded-xl border border-dashboard-border bg-[#071923] p-2 shadow-panel">
+                    <div
+                      className={cn(
+                        'absolute right-0 z-40 min-w-44 rounded-xl border border-dashboard-border bg-[#071923] p-2 shadow-panel',
+                        taskIndex >= visibleTasks.length - 2 ? 'bottom-11' : 'top-11',
+                      )}
+                    >
                       <button
                         className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
                         onClick={() => {
@@ -970,7 +977,7 @@ export function TaskPage() {
               </article>
             ))
           ) : (
-            <div className="grid min-h-64 place-items-center px-6 text-center">
+            <div className="grid min-h-64 place-items-center rounded-b-[var(--radius-lg)] px-6 text-center">
               <div>
                 <p className="text-base font-semibold text-dashboard-text">No tasks found</p>
                 <p className="mt-2 text-sm text-dashboard-muted">
