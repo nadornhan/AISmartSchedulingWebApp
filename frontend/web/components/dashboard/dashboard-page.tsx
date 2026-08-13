@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCurrentUser } from '../auth/current-user-provider';
-import { onTaskDataChanged } from '../../lib/data-events';
+import { onSettingsDataChanged, onTaskDataChanged } from '../../lib/data-events';
 import { getDashboardSummary, type DashboardSummary } from '../../lib/dashboard';
 import { formatDurationLabel } from '../../lib/duration';
 import { updateTask } from '../../lib/tasks';
@@ -13,7 +13,7 @@ import { DashboardErrorState } from './dashboard-error-state';
 import { DashboardLoadingState } from './dashboard-loading-state';
 import { DashboardStatCard } from './dashboard-stat-card';
 import { InProgressList } from './in-progress-list';
-import { NextBestTaskCard } from './next-best-task-card';
+import { AiRecommendationCard } from './ai-recommendation-card';
 import { QuickWinsCard } from './quick-wins-card';
 import { WeeklyActivityCard } from './weekly-activity-card';
 
@@ -91,6 +91,14 @@ export function DashboardPage() {
     [loadSummary],
   );
 
+  useEffect(
+    () =>
+      onSettingsDataChanged(() => {
+        void loadSummary();
+      }),
+    [loadSummary],
+  );
+
   const greeting = useMemo(
     () => greetingForNow(displayName(user?.first_name, user?.last_name)),
     [user?.first_name, user?.last_name],
@@ -113,7 +121,7 @@ export function DashboardPage() {
 
   const hasDashboardTasks =
     summary.task_progress.total > 0 ||
-    summary.next_best_task !== null ||
+    summary.ai_recommendation !== null ||
     summary.quick_wins.length > 0 ||
     summary.in_progress.length > 0;
 
@@ -174,7 +182,10 @@ export function DashboardPage() {
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
         <div className="space-y-5">
-          <NextBestTaskCard item={summary.next_best_task} />
+          <AiRecommendationCard
+            item={summary.ai_recommendation}
+            onChanged={() => void loadSummary()}
+          />
           <WeeklyActivityCard points={summary.weekly_activity} />
         </div>
         <div className="space-y-5">

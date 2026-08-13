@@ -44,6 +44,17 @@ export type DashboardNextBestTask = {
   reasons: string[];
 };
 
+export type DashboardAiRecommendation = {
+  id: string | null;
+  task: DashboardTaskSummary;
+  title: string;
+  explanation: string;
+  reasons: string[];
+  based_on: string[];
+  score: number;
+  footnote: string;
+};
+
 export type DashboardWeeklyActivityPoint = {
   date: string;
   day: string;
@@ -57,6 +68,7 @@ export type DashboardSummary = {
   focus_goal: DashboardFocusGoalSummary;
   current_streak_days: number;
   overdue_count: number;
+  ai_recommendation: DashboardAiRecommendation | null;
   next_best_task: DashboardNextBestTask | null;
   quick_wins: DashboardTaskSummary[];
   in_progress: DashboardTaskSummary[];

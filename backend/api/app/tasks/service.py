@@ -20,6 +20,13 @@ from app.tasks.schemas import (
 )
 
 
+def _invalidate_ai_plan(db: Session, user_id: uuid.UUID) -> None:
+    # Lazy import avoids circular dependency with scheduling.service.
+    from app.scheduling import service as scheduling_service
+
+    scheduling_service.invalidate_pending_plan(db, user_id)
+
+
 def _replace_subtasks(task: Task, subtasks: list[SubtaskInput]) -> None:
     ordered_subtasks = sorted(
         enumerate(subtasks),
@@ -165,6 +172,7 @@ def create_task(
     )
     db.commit()
     db.refresh(task)
+    _invalidate_ai_plan(db, user_id)
 
     return get_task_by_id(db, task.id, user_id) or task
 
@@ -250,15 +258,19 @@ def update_task(
             dedupe_key=f"task_rescheduled:{task.id}:{utc_now().isoformat()}",
         )
 
+    user_id = task.user_id
     db.commit()
     db.refresh(task)
+    _invalidate_ai_plan(db, user_id)
 
-    return get_task_by_id(db, task.id, task.user_id) or task
+    return get_task_by_id(db, task.id, user_id) or task
 
 
 def delete_task(db: Session, task: Task) -> None:
+    user_id = task.user_id
     db.delete(task)
     db.commit()
+    _invalidate_ai_plan(db, user_id)
 
 
 def get_tasks_by_ids(
@@ -309,6 +321,7 @@ def bulk_update_tasks(
     updated: list[Task] = []
     for task in tasks:
         updated.append(update_task(db, task, update))
+    _invalidate_ai_plan(db, user_id)
     return updated
 
 
@@ -325,6 +338,7 @@ def bulk_delete_tasks(
     for task in tasks:
         db.delete(task)
     db.commit()
+    _invalidate_ai_plan(db, user_id)
     return len(tasks)
 
 

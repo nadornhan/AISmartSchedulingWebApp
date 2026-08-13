@@ -5,6 +5,7 @@ from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.dashboard.schemas import (
+    AiRecommendationCard,
     DashboardSummaryResponse,
     DashboardTaskSummary,
     FocusGoalSummary,
@@ -12,6 +13,7 @@ from app.dashboard.schemas import (
     ProgressSummary,
     WeeklyActivityPoint,
 )
+from app.scheduling import service as scheduling_service
 from app.tasks.models import Task, TaskPriority, TaskStatus
 from app.tasks.overdue import is_task_overdue, task_overdue_condition, utc_now
 from app.tasks.schemas import TaskDisplayStatus
@@ -351,11 +353,40 @@ def get_dashboard_summary(
     )
 
     open_tasks = _open_tasks(db, user_id)
-    next_task = min(
-        open_tasks,
-        key=lambda task: _next_best_sort_key(task, now=now),
-        default=None,
+    ai_recommendation_response = scheduling_service.get_dashboard_recommendation(
+        db,
+        user_id,
     )
+    ai_recommendation = None
+    next_task = None
+    if (
+        ai_recommendation_response is not None
+        and ai_recommendation_response.task is not None
+    ):
+        ai_recommendation = AiRecommendationCard(
+            id=ai_recommendation_response.id,
+            task=ai_recommendation_response.task,
+            title=ai_recommendation_response.title,
+            explanation=ai_recommendation_response.explanation,
+            reasons=ai_recommendation_response.reasons,
+            based_on=ai_recommendation_response.based_on,
+            score=ai_recommendation_response.score,
+            footnote="AI based on your patterns",
+        )
+        next_task = next(
+            (
+                task
+                for task in open_tasks
+                if task.id == ai_recommendation_response.task.id
+            ),
+            None,
+        )
+    if next_task is None:
+        next_task = min(
+            open_tasks,
+            key=lambda task: _next_best_sort_key(task, now=now),
+            default=None,
+        )
     quick_wins = sorted(
         (
             task
@@ -397,6 +428,23 @@ def get_dashboard_summary(
         focus_goal=_focus_goal(db, user_id, now=now),
         current_streak_days=_current_streak_days(db, user_id, now=now),
         overdue_count=overdue_count,
+        ai_recommendation=ai_recommendation
+        or (
+            AiRecommendationCard(
+                id=None,
+                task=_task_summary(next_task, now=now),
+                title=f"Focus on “{next_task.title}” next",
+                explanation=(
+                    "Fallback ranking from your open tasks while AI preferences "
+                    "are unavailable."
+                ),
+                reasons=_next_best_reasons(next_task, now=now),
+                based_on=["Open tasks", "Due dates", "Priority"],
+                score=0,
+            )
+            if next_task is not None
+            else None
+        ),
         next_best_task=(
             NextBestTask(
                 task=_task_summary(next_task, now=now),

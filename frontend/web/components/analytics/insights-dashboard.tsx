@@ -7,7 +7,16 @@ import {
   type InsightRecommendation,
   type InsightsSummary,
 } from '../../lib/analytics';
-import { onTaskDataChanged } from '../../lib/data-events';
+import { onSettingsDataChanged, onTaskDataChanged } from '../../lib/data-events';
+import {
+  acceptSuggestion,
+  adjustSuggestion,
+  applySuggestions,
+  dismissSuggestion,
+  regenerateSchedulingPlan,
+  type ScheduleSuggestion,
+  type SchedulingPlan,
+} from '../../lib/scheduling';
 
 function formatWeeklySummary(summary: InsightsSummary) {
   const change = summary.week_over_week_change_percent;
@@ -36,6 +45,13 @@ function formatWeeklySummary(summary: InsightsSummary) {
   );
 }
 
+function formatSlotTime(value: string) {
+  return new Intl.DateTimeFormat('en-AU', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
 function TrendChart({ points }: { points: InsightsSummary['trend'] }) {
   const max = Math.max(1, ...points.map((point) => point.completed_count));
   const width = 320;
@@ -43,12 +59,8 @@ function TrendChart({ points }: { points: InsightsSummary['trend'] }) {
   const padding = 8;
 
   const coordinates = points.map((point, index) => {
-    const x =
-      padding + (index / Math.max(points.length - 1, 1)) * (width - padding * 2);
-    const y =
-      height -
-      padding -
-      (point.completed_count / max) * (height - padding * 2);
+    const x = padding + (index / Math.max(points.length - 1, 1)) * (width - padding * 2);
+    const y = height - padding - (point.completed_count / max) * (height - padding * 2);
     return { x, y, count: point.completed_count };
   });
 
@@ -98,6 +110,12 @@ function TrendChart({ points }: { points: InsightsSummary['trend'] }) {
 }
 
 function recommendationAccent(category: InsightRecommendation['category']) {
+  if (category === 'schedule') {
+    return {
+      ring: 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]',
+      icon: '✦',
+    };
+  }
   if (category === 'deep_focus') {
     return {
       ring: 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]',
@@ -118,48 +136,146 @@ function recommendationAccent(category: InsightRecommendation['category']) {
 
 export function InsightsDashboard() {
   const [summary, setSummary] = useState<InsightsSummary | null>(null);
+  const [plan, setPlan] = useState<SchedulingPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMutating, setIsMutating] = useState(false);
+  const [adjustingId, setAdjustingId] = useState<string | null>(null);
+  const [adjustStart, setAdjustStart] = useState('');
+  const [adjustEnd, setAdjustEnd] = useState('');
+
+  async function load(signal?: AbortSignal) {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await getInsightsSummary(signal);
+      setSummary(data);
+      setPlan(data.scheduling_plan);
+    } catch (requestError) {
+      if (signal?.aborted) return;
+      setError(
+        requestError instanceof Error ? requestError.message : 'Could not load insights.',
+      );
+    } finally {
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
-
-    async function load() {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const data = await getInsightsSummary(controller.signal);
-        setSummary(data);
-      } catch (requestError) {
-        if (controller.signal.aborted) return;
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : 'Could not load insights.',
-        );
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    void load();
-    const unsubscribe = onTaskDataChanged(() => {
+    void load(controller.signal);
+    const unsubscribeTasks = onTaskDataChanged(() => {
+      void load();
+    });
+    const unsubscribeSettings = onSettingsDataChanged(() => {
       void load();
     });
 
     return () => {
       controller.abort();
-      unsubscribe();
+      unsubscribeTasks();
+      unsubscribeSettings();
     };
   }, []);
 
-  const recommendationCards = useMemo(
-    () => summary?.recommendations ?? [],
-    [summary],
-  );
+  const recommendationCards = useMemo(() => summary?.recommendations ?? [], [summary]);
+
+  async function handleRegenerate() {
+    setIsMutating(true);
+    try {
+      const next = await regenerateSchedulingPlan();
+      setPlan(next);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to regenerate.');
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleAccept(suggestion: ScheduleSuggestion) {
+    setIsMutating(true);
+    try {
+      const updated = await acceptSuggestion(suggestion.id);
+      setPlan((current) =>
+        current
+          ? {
+              ...current,
+              schedule: current.schedule.map((item) =>
+                item.id === updated.id ? updated : item,
+              ),
+            }
+          : current,
+      );
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleDismiss(suggestion: ScheduleSuggestion) {
+    setIsMutating(true);
+    try {
+      await dismissSuggestion(suggestion.id);
+      setPlan((current) =>
+        current
+          ? {
+              ...current,
+              schedule: current.schedule.filter((item) => item.id !== suggestion.id),
+            }
+          : current,
+      );
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleApply() {
+    setIsMutating(true);
+    try {
+      const next = await applySuggestions();
+      setPlan(next);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to apply schedule to calendar.',
+      );
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleAdjustSave(suggestionId: string) {
+    if (!adjustStart || !adjustEnd) return;
+    setIsMutating(true);
+    try {
+      const start = new Date(adjustStart);
+      const end = new Date(adjustEnd);
+      const updated = await adjustSuggestion(suggestionId, {
+        suggested_start: start.toISOString(),
+        suggested_end: end.toISOString(),
+      });
+      setPlan((current) =>
+        current
+          ? {
+              ...current,
+              schedule: current.schedule.map((item) =>
+                item.id === updated.id ? updated : item,
+              ),
+            }
+          : current,
+      );
+      setAdjustingId(null);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error ? requestError.message : 'Unable to adjust suggestion.',
+      );
+    } finally {
+      setIsMutating(false);
+    }
+  }
 
   if (isLoading && !summary) {
     return (
@@ -182,6 +298,11 @@ export function InsightsDashboard() {
   return (
     <div className="space-y-6">
       <section className="overflow-hidden rounded-[20px] border border-dashboard-border bg-dashboard-surface p-6 shadow-panel sm:p-8">
+        <div className="mb-4 flex justify-end">
+          <span className="rounded-[var(--radius-pill)] border border-dashboard-accent/40 bg-dashboard-accent-soft px-3 py-1 text-[11px] font-medium text-dashboard-accent">
+            {summary.footnote || 'AI based on your patterns'}
+          </span>
+        </div>
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)] lg:items-start">
           <div>
             <div className="mb-4 flex items-center gap-3">
@@ -230,6 +351,129 @@ export function InsightsDashboard() {
         </div>
       </section>
 
+      <section
+        className="rounded-[20px] border border-dashboard-border bg-dashboard-surface p-6 shadow-panel"
+        data-schedule-section
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="text-xl font-semibold text-dashboard-text">Suggested schedule</h3>
+            <p className="mt-1 text-sm text-dashboard-muted">
+              Review, adjust, accept, or dismiss slots before applying them to your calendar.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="h-10 rounded-[var(--radius-sm)] border border-dashboard-border px-4 text-sm text-dashboard-muted transition hover:text-dashboard-text"
+              disabled={isMutating}
+              onClick={() => void handleRegenerate()}
+              type="button"
+            >
+              Regenerate
+            </button>
+            <button
+              className="h-10 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-4 text-sm font-semibold text-[#04110d]"
+              disabled={isMutating || !plan?.schedule.length}
+              onClick={() => void handleApply()}
+              type="button"
+            >
+              Apply to calendar
+            </button>
+          </div>
+        </div>
+
+        {plan?.recommendation ? (
+          <div className="mt-5 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-bg/25 p-4">
+            <p className="text-sm font-semibold text-dashboard-text">{plan.recommendation.title}</p>
+            <p className="mt-1 text-sm text-dashboard-muted">{plan.recommendation.explanation}</p>
+          </div>
+        ) : null}
+
+        <div className="mt-5 space-y-3">
+          {plan?.schedule.length ? (
+            plan.schedule.map((suggestion) => (
+              <article
+                className="rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-surface-raised)] p-4"
+                key={suggestion.id}
+              >
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-dashboard-text">
+                      {suggestion.task_title}
+                    </p>
+                    <p className="mt-1 text-xs text-dashboard-muted">
+                      {formatSlotTime(suggestion.suggested_start)} –{' '}
+                      {formatSlotTime(suggestion.suggested_end)}
+                      {suggestion.project_name ? ` · ${suggestion.project_name}` : ''}
+                      {suggestion.status === 'adjusted' ? ' · Adjusted' : ''}
+                    </p>
+                    <p className="mt-2 text-xs text-dashboard-muted">{suggestion.explanation}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className="h-9 rounded-lg border border-dashboard-border px-3 text-xs text-dashboard-muted"
+                      disabled={isMutating}
+                      onClick={() => {
+                        setAdjustingId(suggestion.id);
+                        setAdjustStart(suggestion.suggested_start.slice(0, 16));
+                        setAdjustEnd(suggestion.suggested_end.slice(0, 16));
+                      }}
+                      type="button"
+                    >
+                      Adjust
+                    </button>
+                    <button
+                      className="h-9 rounded-lg border border-dashboard-border px-3 text-xs text-dashboard-muted"
+                      disabled={isMutating}
+                      onClick={() => void handleAccept(suggestion)}
+                      type="button"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      className="h-9 rounded-lg border border-dashboard-border px-3 text-xs text-[var(--red-light)]"
+                      disabled={isMutating}
+                      onClick={() => void handleDismiss(suggestion)}
+                      type="button"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+                {adjustingId === suggestion.id ? (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                    <input
+                      className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text [color-scheme:dark]"
+                      onChange={(event) => setAdjustStart(event.target.value)}
+                      type="datetime-local"
+                      value={adjustStart}
+                    />
+                    <input
+                      className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text [color-scheme:dark]"
+                      onChange={(event) => setAdjustEnd(event.target.value)}
+                      type="datetime-local"
+                      value={adjustEnd}
+                    />
+                    <button
+                      className="h-10 rounded-lg bg-dashboard-accent px-4 text-sm font-semibold text-[#04110d]"
+                      disabled={isMutating}
+                      onClick={() => void handleAdjustSave(suggestion.id)}
+                      type="button"
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : null}
+              </article>
+            ))
+          ) : (
+            <p className="rounded-[var(--radius-sm)] border border-dashed border-dashboard-border p-5 text-sm text-dashboard-muted">
+              No suggested schedule yet. Create open tasks with estimates, or regenerate.
+            </p>
+          )}
+        </div>
+      </section>
+
       <section>
         <h3 className="mb-4 text-xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text">
           How to boost your productivity
@@ -251,6 +495,13 @@ export function InsightsDashboard() {
                 <p className="mt-2 text-sm leading-6 text-dashboard-muted">{item.description}</p>
                 <button
                   className="mt-4 text-sm font-semibold text-[var(--accent)] transition hover:text-[var(--accent-hover)]"
+                  onClick={() => {
+                    if (item.category === 'schedule') {
+                      document
+                        .querySelector('[data-schedule-section]')
+                        ?.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }}
                   type="button"
                 >
                   {item.cta_label} →
@@ -268,7 +519,6 @@ export function InsightsDashboard() {
           </div>
           <p className="max-w-3xl text-sm leading-6 text-dashboard-muted">{summary.footer_message}</p>
         </div>
-        <MountainMark />
       </section>
     </div>
   );
@@ -299,30 +549,5 @@ function StatCard({
         </div>
       </div>
     </div>
-  );
-}
-
-function MountainMark() {
-  return (
-    <svg
-      aria-hidden
-      className="h-14 w-28 shrink-0 text-[var(--accent)] opacity-80"
-      fill="none"
-      viewBox="0 0 120 56"
-    >
-      <path
-        d="M8 48 L36 18 L52 34 L78 10 L112 48"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2.5"
-      />
-      <circle cx="78" cy="10" fill="currentColor" r="3.5" />
-      <path
-        d="M78 14 L74 22 H82 Z"
-        fill="currentColor"
-        opacity="0.85"
-      />
-    </svg>
   );
 }

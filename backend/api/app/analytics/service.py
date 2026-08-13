@@ -11,6 +11,7 @@ from app.analytics.schemas import (
     InsightTrendPoint,
 )
 from app.auth.models import User
+from app.scheduling import service as scheduling_service
 from app.tasks.models import Task, TaskPriority, TaskStatus
 
 TREND_DAYS = 7
@@ -367,6 +368,24 @@ def get_insights_summary(db: Session, user: User) -> InsightsSummaryResponse:
 
     first_name = (user.first_name or "").strip() or "there"
     greeting = f"You're doing great, {first_name}!"
+    scheduling_plan = scheduling_service.generate_plan(db, user.id, force=False)
+    recommendations = _build_recommendations(
+        streak_days=streak_days,
+        this_week_completed=this_week,
+        high_priority_open=high_priority_open,
+        estimated_work_minutes=estimated_work_minutes,
+    )
+    if scheduling_plan.recommendation is not None:
+        recommendations.insert(
+            0,
+            InsightRecommendation(
+                id=str(scheduling_plan.recommendation.id),
+                category="schedule",
+                title=scheduling_plan.recommendation.title,
+                description=scheduling_plan.recommendation.explanation,
+                cta_label="Review schedule",
+            ),
+        )
 
     return InsightsSummaryResponse(
         user_first_name=first_name,
@@ -385,15 +404,12 @@ def get_insights_summary(db: Session, user: User) -> InsightsSummaryResponse:
         goal_progress_percent=goal_progress,
         current_streak_days=streak_days,
         trend=trend,
-        recommendations=_build_recommendations(
-            streak_days=streak_days,
-            this_week_completed=this_week,
-            high_priority_open=high_priority_open,
-            estimated_work_minutes=estimated_work_minutes,
-        ),
+        recommendations=recommendations[:4],
+        scheduling_plan=scheduling_plan,
         motivational_quote="Discipline today, success tomorrow. — Keep it up!",
         footer_message=(
             "Small steps every day lead to amazing results. "
             "Trust the process. You're building a better you."
         ),
+        footnote="AI based on your patterns",
     )

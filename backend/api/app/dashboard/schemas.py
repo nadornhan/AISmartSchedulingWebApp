@@ -39,6 +39,17 @@ class NextBestTask(BaseModel):
     reasons: list[str]
 
 
+class AiRecommendationCard(BaseModel):
+    id: uuid.UUID | None = None
+    task: DashboardTaskSummary
+    title: str
+    explanation: str
+    reasons: list[str]
+    based_on: list[str]
+    score: float = 0
+    footnote: str = "AI based on your patterns"
+
+
 class WeeklyActivityPoint(BaseModel):
     date: date
     day: str
@@ -52,7 +63,8 @@ class DashboardSummaryResponse(BaseModel):
     focus_goal: FocusGoalSummary
     current_streak_days: int = Field(ge=0)
     overdue_count: int = Field(ge=0)
-    next_best_task: NextBestTask | None
+    ai_recommendation: AiRecommendationCard | None
+    next_best_task: NextBestTask | None = None
     quick_wins: list[DashboardTaskSummary]
     in_progress: list[DashboardTaskSummary]
     weekly_activity: list[WeeklyActivityPoint]
