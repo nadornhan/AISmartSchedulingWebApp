@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "chrono-node": "^2.10.1",
     "next": "^16.0.8",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"

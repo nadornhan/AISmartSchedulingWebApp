@@ -8,6 +8,7 @@ import {
   formatDurationLabel,
   parseCustomDuration,
 } from '../../lib/duration';
+import { parseNaturalLanguageTask } from '../../lib/natural-language-task';
 import type { Project } from '../../lib/projects';
 import type {
   TaskCreateInput,
@@ -138,6 +139,7 @@ export function CreateTaskModal({
   return (
     <TaskFormModal
       description="Add the details of your task below."
+      enableNaturalLanguage
       initialValues={{
         title: '',
         description: '',
@@ -191,6 +193,7 @@ export function EditTaskModal({
 
 function TaskFormModal({
   description,
+  enableNaturalLanguage = false,
   initialValues,
   isSubmitting,
   onClose,
@@ -201,6 +204,7 @@ function TaskFormModal({
   title,
 }: Readonly<{
   description: string;
+  enableNaturalLanguage?: boolean;
   initialValues: TaskFormInitialValues;
   isSubmitting: boolean;
   onClose: () => void;
@@ -211,6 +215,12 @@ function TaskFormModal({
   title: string;
 }>) {
   const initialDuration = initialValues.estimatedDurationMinutes;
+  const [titleValue, setTitleValue] = useState(initialValues.title);
+  const [dueDateValue, setDueDateValue] = useState(initialValues.dueDate);
+  const [dueTimeValue, setDueTimeValue] = useState(initialValues.dueTime);
+  const [naturalLanguageInput, setNaturalLanguageInput] = useState('');
+  const [parseFeedback, setParseFeedback] = useState<string | null>(null);
+  const [isQuickCreating, setIsQuickCreating] = useState(false);
   const [priority, setPriority] = useState<TaskPriorityLabel>(initialValues.priority);
   const [durationOption, setDurationOption] = useState<DurationOption>(
     durationOptionFromMinutes(initialDuration),
@@ -226,6 +236,58 @@ function TaskFormModal({
   const [subtasks, setSubtasks] = useState<TaskFormSubtask[]>(initialValues.subtasks);
   const [subtaskDraft, setSubtaskDraft] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  async function createFromNaturalLanguage() {
+    const parsed = parseNaturalLanguageTask(naturalLanguageInput);
+
+    if (!parsed.title) {
+      setParseFeedback('Add a task description before creating the task.');
+      return;
+    }
+
+    const requestedProjectName = parsed.projectName?.toLocaleLowerCase();
+    const matchedProject = requestedProjectName
+      ? projects.find(
+          (project) => project.name.trim().toLocaleLowerCase() === requestedProjectName,
+        )
+      : null;
+
+    if (parsed.projectName && !matchedProject) {
+      setParseFeedback(
+        `Folder “${parsed.projectName}” was not found. Check the folder name and try again.`,
+      );
+      return;
+    }
+
+    let dueDateTime: string | null = null;
+    if (parsed.dueDate) {
+      const parsedDate = new Date(
+        `${parsed.dueDate}T${parsed.dueTime ? `${parsed.dueTime}:00` : '23:59:00'}`,
+      );
+      if (!Number.isNaN(parsedDate.getTime())) dueDateTime = parsedDate.toISOString();
+    }
+
+    setParseFeedback(`Creating task from ${parsed.detectedFields.join(', ')}...`);
+    setSubmitError(null);
+    setIsQuickCreating(true);
+
+    try {
+      await onSubmit({
+        title: parsed.title,
+        description: null,
+        project_id: matchedProject?.id ?? (initialValues.projectId || null),
+        due_date: dueDateTime,
+        priority: parsed.priority ?? 'no_priority',
+        estimated_duration_minutes: parsed.estimatedDurationMinutes,
+        subtasks: [],
+      });
+    } catch (requestError) {
+      setParseFeedback(null);
+      setSubmitError(getErrorMessage(requestError));
+    } finally {
+      setIsQuickCreating(false);
+    }
+  }
 
   function addSubtask() {
     const titleValue = subtaskDraft.trim();
@@ -354,14 +416,56 @@ function TaskFormModal({
         </div>
 
         <div className="mt-7 space-y-5">
+          {enableNaturalLanguage ? (
+            <section className="rounded-[var(--radius-md)] border border-dashboard-accent/30 bg-dashboard-accent-soft/40 p-4">
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold text-dashboard-text">Smart task entry</h3>
+                <p className="mt-1 text-xs leading-5 text-dashboard-muted">
+                  Write naturally and CHRONO will create the task immediately.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <textarea
+                  aria-label="Describe your task naturally"
+                  className="min-h-20 min-w-0 flex-1 resize-y rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 py-3 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
+                  onChange={(event) => {
+                    setNaturalLanguageInput(event.target.value);
+                    setParseFeedback(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                      event.preventDefault();
+                      void createFromNaturalLanguage();
+                    }
+                  }}
+                  placeholder="e.g. Finalize the CSIT321 report tomorrow at 5 PM, high priority, around 2 hours, assign to: A"
+                  value={naturalLanguageInput}
+                />
+                <button
+                  className="h-11 shrink-0 rounded-[var(--radius-sm)] border border-dashboard-accent bg-dashboard-accent-soft px-4 text-sm font-semibold text-dashboard-accent transition hover:bg-dashboard-accent/20 sm:self-end"
+                  disabled={isSubmitting || isQuickCreating || !naturalLanguageInput.trim()}
+                  onClick={() => void createFromNaturalLanguage()}
+                  type="button"
+                >
+                  {isSubmitting || isQuickCreating ? 'Creating...' : 'Create task'}
+                </button>
+              </div>
+              {parseFeedback ? (
+                <p className="mt-2 text-xs leading-5 text-dashboard-accent" role="status">
+                  {parseFeedback}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+
           <Field label="Task Title">
             <input
-              autoFocus
               className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-accent bg-[var(--bg-input)] px-4 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
-              defaultValue={initialValues.title}
               name="title"
+              onChange={(event) => setTitleValue(event.target.value)}
               placeholder="e.g. Finish Q2 Report"
               required
+              value={titleValue}
             />
           </Field>
 
@@ -419,9 +523,10 @@ function TaskFormModal({
                 <CalendarIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-dashboard-muted" />
                 <input
                   className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] pl-12 pr-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
-                  defaultValue={initialValues.dueDate}
                   name="dueDate"
+                  onChange={(event) => setDueDateValue(event.target.value)}
                   type="date"
+                  value={dueDateValue}
                 />
               </label>
             </Field>
@@ -429,9 +534,10 @@ function TaskFormModal({
             <Field label="Time" optional>
               <input
                 className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
-                defaultValue={initialValues.dueTime}
                 name="dueTime"
+                onChange={(event) => setDueTimeValue(event.target.value)}
                 type="time"
+                value={dueTimeValue}
               />
             </Field>
           </div>
