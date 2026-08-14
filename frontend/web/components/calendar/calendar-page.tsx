@@ -1,10 +1,20 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckIcon, ChevronRightIcon, PlusIcon } from '../layout/icons';
+import { CalendarIcon, CheckIcon, ChevronRightIcon, CloseIcon, PlusIcon } from '../layout/icons';
 import { onProjectDataChanged, onTaskDataChanged } from '../../lib/data-events';
 import { formatDurationLabel } from '../../lib/duration';
-import { listTasks, updateTask, type TaskResponse, type TaskStatusValue } from '../../lib/tasks';
+import { listProjects, type Project } from '../../lib/projects';
+import {
+  createTask,
+  listTasks,
+  rescheduleTask,
+  updateTask,
+  type TaskCreateInput,
+  type TaskResponse,
+  type TaskStatusValue,
+} from '../../lib/tasks';
+import { CreateTaskModal } from '../tasks/create-task-modal';
 
 export type CalendarTaskStatus = 'pending' | 'in_progress' | 'done' | 'overdue';
 export type CalendarTaskPriority = 'no_priority' | 'low' | 'medium' | 'high';
@@ -203,6 +213,12 @@ export function CalendarPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mutatingTaskId, setMutatingTaskId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<CalendarTask | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   const days = useMemo(() => {
     if (calendarView === 'week') return buildWeekDays(selectedDate);
@@ -280,6 +296,31 @@ export function CalendarPage() {
     [refreshCalendarTasks],
   );
 
+  async function openCreateTaskModal() {
+    setActionError(null);
+    setIsCreateTaskOpen(true);
+    try {
+      setProjects(await listProjects());
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to load folders.');
+    }
+  }
+
+  async function createCalendarTask(input: TaskCreateInput) {
+    setIsCreatingTask(true);
+    setActionError(null);
+    try {
+      await createTask(input);
+      setIsCreateTaskOpen(false);
+      await refreshCalendarTasks();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to create task.');
+      throw error;
+    } finally {
+      setIsCreatingTask(false);
+    }
+  }
+
   const visibleTasks = useMemo(
     () =>
       calendarTasks
@@ -343,6 +384,76 @@ export function CalendarPage() {
     }
   }
 
+  async function moveTaskToDate(taskId: string, date: Date) {
+    const task = calendarTasks.find((candidate) => candidate.id === taskId);
+    if (!task) return;
+
+    const currentDueDate = new Date(task.dueDate);
+    const nextDueDate = new Date(date);
+    nextDueDate.setHours(currentDueDate.getHours(), currentDueDate.getMinutes(), 0, 0);
+
+    setActionError(null);
+    setMutatingTaskId(task.id);
+    try {
+      const updated = await rescheduleTask(task.id, { due_date: nextDueDate.toISOString() });
+      setCalendarTasks((current) =>
+        current.map((item) =>
+          item.id === task.id && updated.due_date
+            ? { ...item, dueDate: updated.due_date }
+            : item,
+        ),
+      );
+      selectDate(date);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to reschedule task.');
+    } finally {
+      setMutatingTaskId(null);
+    }
+  }
+
+  function openRescheduleDialog(task: CalendarTask) {
+    const dueDate = new Date(task.dueDate);
+    setRescheduleTarget(task);
+    setRescheduleDate(dateKey(dueDate));
+    setRescheduleTime(
+      `${String(dueDate.getHours()).padStart(2, '0')}:${String(dueDate.getMinutes()).padStart(2, '0')}`,
+    );
+    setActionError(null);
+  }
+
+  async function submitReschedule() {
+    if (!rescheduleTarget || !rescheduleDate) return;
+
+    const nextDueDate = new Date(
+      `${rescheduleDate}T${rescheduleTime ? `${rescheduleTime}:00` : '23:59:00'}`,
+    );
+    if (Number.isNaN(nextDueDate.getTime())) {
+      setActionError('Choose a valid date and time.');
+      return;
+    }
+
+    setActionError(null);
+    setMutatingTaskId(rescheduleTarget.id);
+    try {
+      const updated = await rescheduleTask(rescheduleTarget.id, {
+        due_date: nextDueDate.toISOString(),
+      });
+      setCalendarTasks((current) =>
+        current.map((item) =>
+          item.id === rescheduleTarget.id && updated.due_date
+            ? { ...item, dueDate: updated.due_date }
+            : item,
+        ),
+      );
+      selectDate(nextDueDate);
+      setRescheduleTarget(null);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to reschedule task.');
+    } finally {
+      setMutatingTaskId(null);
+    }
+  }
+
   function selectCalendarView(nextView: CalendarView) {
     setCalendarView(nextView);
 
@@ -357,6 +468,7 @@ export function CalendarPage() {
   }
 
   return (
+    <>
     <section className="grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.95fr)]">
       <div className="rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 shadow-panel">
         <div className="flex flex-col gap-4 border-b border-dashboard-border p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
@@ -408,6 +520,7 @@ export function CalendarPage() {
 
             <button
               className="flex h-10 items-center gap-2 rounded-lg bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-4 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
+              onClick={() => void openCreateTaskModal()}
               type="button"
             >
               <PlusIcon className="h-4 w-4" />
@@ -416,30 +529,7 @@ export function CalendarPage() {
           </div>
         </div>
 
-        <div className="flex gap-2 border-b border-dashboard-border px-4 py-3 sm:px-5">
-          {[
-            ['all', 'All'],
-            ['tasks', 'Tasks'],
-            ['focus', 'Focus'],
-          ].map(([value, label]) => (
-            <button
-              aria-pressed={activeFilter === value}
-              className={cn(
-                'h-9 rounded-lg border px-5 text-sm font-medium transition',
-                activeFilter === value
-                  ? 'border-dashboard-accent/50 bg-dashboard-accent-soft text-dashboard-accent'
-                  : 'border-dashboard-border bg-dashboard-bg/25 text-dashboard-muted hover:border-dashboard-border-strong hover:text-dashboard-text',
-                value === 'focus' && 'cursor-not-allowed opacity-50',
-              )}
-              disabled={value === 'focus'}
-              key={value}
-              onClick={() => setActiveFilter(value as 'all' | 'tasks' | 'focus')}
-              type="button"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+    
 
         {loadError ? (
           <p
@@ -472,6 +562,8 @@ export function CalendarPage() {
             calendarView={calendarView}
             days={days}
             mutatingTaskId={mutatingTaskId}
+            onDropTask={moveTaskToDate}
+            onReschedule={openRescheduleDialog}
             onSelectDate={selectDate}
             onToggleTask={toggleTaskStatus}
             selectedKey={selectedKey}
@@ -485,6 +577,7 @@ export function CalendarPage() {
         mutatingTaskId={mutatingTaskId}
         onNextDay={() => moveSelectedDate(1)}
         onPreviousDay={() => moveSelectedDate(-1)}
+        onReschedule={openRescheduleDialog}
         onShowCompletedChange={() => setShowCompleted((current) => !current)}
         onToday={goToToday}
         onToggleTask={toggleTaskStatus}
@@ -493,6 +586,28 @@ export function CalendarPage() {
         tasks={selectedTasks}
       />
     </section>
+    {rescheduleTarget ? (
+      <RescheduleDialog
+        date={rescheduleDate}
+        error={actionError}
+        isSubmitting={mutatingTaskId === rescheduleTarget.id}
+        onClose={() => setRescheduleTarget(null)}
+        onDateChange={setRescheduleDate}
+        onSubmit={() => void submitReschedule()}
+        onTimeChange={setRescheduleTime}
+        task={rescheduleTarget}
+        time={rescheduleTime}
+      />
+    ) : null}
+    {isCreateTaskOpen ? (
+      <CreateTaskModal
+        isSubmitting={isCreatingTask}
+        onClose={() => setIsCreateTaskOpen(false)}
+        onCreate={createCalendarTask}
+        projects={projects}
+      />
+    ) : null}
+    </>
   );
 }
 
@@ -500,6 +615,8 @@ function CalendarMainView({
   calendarView,
   days,
   mutatingTaskId,
+  onDropTask,
+  onReschedule,
   onSelectDate,
   onToggleTask,
   selectedKey,
@@ -508,6 +625,8 @@ function CalendarMainView({
   calendarView: CalendarView;
   days: CalendarDay[];
   mutatingTaskId: string | null;
+  onDropTask: (taskId: string, date: Date) => void;
+  onReschedule: (task: CalendarTask) => void;
   onSelectDate: (date: Date) => void;
   onToggleTask: (task: CalendarTask) => void;
   selectedKey: string;
@@ -521,6 +640,7 @@ function CalendarMainView({
       <div className="p-4 sm:p-5">
         <DayTaskPanel
           mutatingTaskId={mutatingTaskId}
+          onReschedule={onReschedule}
           onToggleTask={onToggleTask}
           selectedDate={day.date}
           tasks={tasks}
@@ -538,6 +658,7 @@ function CalendarMainView({
             isSelected={day.key === selectedKey}
             key={day.key}
             onSelect={() => onSelectDate(day.date)}
+            onDropTask={onDropTask}
             tasks={tasksByDay[day.key] ?? []}
             variant="week"
           />
@@ -554,6 +675,7 @@ function CalendarMainView({
           isSelected={day.key === selectedKey}
           key={day.key}
           onSelect={() => onSelectDate(day.date)}
+          onDropTask={onDropTask}
           tasks={tasksByDay[day.key] ?? []}
         />
       ))}
@@ -563,11 +685,13 @@ function CalendarMainView({
 
 function DayTaskPanel({
   mutatingTaskId,
+  onReschedule,
   onToggleTask,
   selectedDate,
   tasks,
 }: Readonly<{
   mutatingTaskId: string | null;
+  onReschedule: (task: CalendarTask) => void;
   onToggleTask: (task: CalendarTask) => void;
   selectedDate: Date;
   tasks: CalendarTask[];
@@ -584,16 +708,17 @@ function DayTaskPanel({
           </h3>
         </div>
         <span className="rounded-full bg-dashboard-raised px-3 py-1 text-xs font-medium text-dashboard-muted">
-          {tasks.length} tasks
+          {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
         </span>
       </div>
 
       {tasks.length ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {tasks.map((task) => (
-            <AgendaTask
+            <DayViewTaskCard
               isMutating={mutatingTaskId === task.id}
               key={task.id}
+              onReschedule={onReschedule}
               onToggleTask={onToggleTask}
               task={task}
             />
@@ -608,15 +733,113 @@ function DayTaskPanel({
   );
 }
 
+function DayViewTaskCard({
+  isMutating,
+  onReschedule,
+  onToggleTask,
+  task,
+}: Readonly<{
+  isMutating: boolean;
+  onReschedule: (task: CalendarTask) => void;
+  onToggleTask: (task: CalendarTask) => void;
+  task: CalendarTask;
+}>) {
+  const priorityLabel =
+    task.priority === 'no_priority'
+      ? 'No priority'
+      : `${task.priority.charAt(0).toUpperCase()}${task.priority.slice(1)}`;
+
+  return (
+    <article
+      className={cn(
+        'group cursor-grab rounded-xl border p-4 shadow-[0_12px_32px_rgba(0,0,0,0.14)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_38px_rgba(0,0,0,0.22)] active:cursor-grabbing sm:p-5',
+        priorityClasses(task),
+        isMutating && 'cursor-wait opacity-60',
+      )}
+      draggable={!isMutating}
+      onDragEnd={(event) => event.currentTarget.classList.remove('opacity-50')}
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/calendar-task-id', task.id);
+        event.currentTarget.classList.add('opacity-50');
+      }}
+      title="Drag to another date to reschedule"
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-4">
+          <time className="shrink-0 rounded-lg border border-current/20 bg-dashboard-bg/45 px-3 py-2 text-sm font-semibold text-current">
+            {formatTime(task.dueDate)}
+          </time>
+          <div className="min-w-0">
+            <h4 className="truncate text-base font-semibold text-dashboard-text">{task.title}</h4>
+            <p className="mt-2 flex items-center gap-2 text-sm text-dashboard-muted">
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: task.projectColor }}
+              />
+              <span className="truncate">{task.project}</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+          <button
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-dashboard-border-strong bg-dashboard-bg/60 px-3 text-xs font-semibold text-dashboard-muted transition hover:border-dashboard-accent/70 hover:text-dashboard-accent"
+            disabled={isMutating}
+            onClick={() => onReschedule(task)}
+            type="button"
+          >
+            <CalendarIcon className="h-4 w-4" />
+            Reschedule
+          </button>
+          <button
+            aria-label={task.status === 'done' ? 'Reopen task' : 'Complete task'}
+            className={cn(
+              'inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition',
+              task.status === 'done'
+                ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                : 'border-dashboard-border-strong bg-dashboard-bg/60 text-dashboard-muted hover:border-dashboard-accent/70 hover:text-dashboard-accent',
+            )}
+            disabled={isMutating}
+            onClick={() => onToggleTask(task)}
+            type="button"
+          >
+            <span className="grid h-4 w-4 place-items-center rounded border border-current/50">
+              {task.status === 'done' ? <CheckIcon className="h-3 w-3" /> : null}
+            </span>
+            {task.status === 'done' ? 'Completed' : 'Complete'}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-current/10 pt-3">
+        <span className="rounded-full border border-current/20 bg-dashboard-bg/35 px-2.5 py-1 text-xs font-semibold text-current">
+          {priorityLabel}
+        </span>
+        {task.durationMinutes !== null ? (
+          <span className="rounded-full border border-dashboard-border bg-dashboard-bg/35 px-2.5 py-1 text-xs font-medium text-dashboard-muted">
+            {formatDurationLabel(task.durationMinutes)} estimated
+          </span>
+        ) : null}
+        <span className="ml-auto text-xs font-medium text-dashboard-muted">
+          Due {formatTime(task.dueDate)}
+        </span>
+      </div>
+    </article>
+  );
+}
+
 function CalendarDayCell({
   day,
   isSelected,
+  onDropTask,
   onSelect,
   tasks,
   variant = 'month',
 }: Readonly<{
   day: CalendarDay;
   isSelected: boolean;
+  onDropTask: (taskId: string, date: Date) => void;
   onSelect: () => void;
   tasks: CalendarTask[];
   variant?: 'month' | 'week';
@@ -631,6 +854,16 @@ function CalendarDayCell({
           'relative z-10 bg-dashboard-accent-soft ring-2 ring-inset ring-dashboard-accent/70',
       )}
       onClick={onSelect}
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const taskId = event.dataTransfer.getData('text/calendar-task-id');
+        if (taskId) onDropTask(taskId, day.date);
+      }}
       type="button"
     >
       <div className="flex h-8 shrink-0 items-start justify-between">
@@ -669,6 +902,15 @@ function CalendarTaskCard({
         priorityClasses(task),
         task.status === 'done' && 'opacity-70',
       )}
+      draggable
+      onDragEnd={(event) => event.currentTarget.classList.remove('opacity-50')}
+      onDragStart={(event) => {
+        event.stopPropagation();
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/calendar-task-id', task.id);
+        event.currentTarget.classList.add('opacity-50');
+      }}
+      title="Drag to another date to reschedule"
     >
       <p className="truncate text-xs font-semibold leading-4 text-current">{task.title}</p>
       <p
@@ -685,6 +927,7 @@ function DayAgenda({
   mutatingTaskId,
   onNextDay,
   onPreviousDay,
+  onReschedule,
   onShowCompletedChange,
   onToday,
   onToggleTask,
@@ -696,6 +939,7 @@ function DayAgenda({
   mutatingTaskId: string | null;
   onNextDay: () => void;
   onPreviousDay: () => void;
+  onReschedule: (task: CalendarTask) => void;
   onShowCompletedChange: () => void;
   onToday: () => void;
   onToggleTask: (task: CalendarTask) => void;
@@ -705,10 +949,18 @@ function DayAgenda({
 }>) {
   return (
     <aside className="rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 p-5 shadow-panel">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 className="min-w-0 truncate text-xl font-semibold text-dashboard-text">
-          {formatSelectedDate(selectedDate)}
-        </h2>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-dashboard-accent">
+            Daily agenda
+          </p>
+          <h2 className="mt-1 truncate font-poppins text-xl font-medium tracking-[-0.02em] text-dashboard-text">
+            {formatSelectedDate(selectedDate)}
+          </h2>
+          <p className="mt-1 text-xs text-dashboard-muted">
+            {tasks.length} {tasks.length === 1 ? 'scheduled task' : 'scheduled tasks'}
+          </p>
+        </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
             aria-label="Previous day"
@@ -748,12 +1000,13 @@ function DayAgenda({
 
         {tasks.length ? (
           <>
-            <div className="absolute bottom-0 left-[84px] top-0 w-px bg-dashboard-border" />
-            <div className="space-y-4">
+            <div className="absolute bottom-0 left-[78px] top-0 w-px bg-gradient-to-b from-dashboard-accent/35 via-dashboard-border to-transparent" />
+            <div className="space-y-3">
               {tasks.map((task) => (
                 <AgendaTask
                   isMutating={mutatingTaskId === task.id}
                   key={task.id}
+                  onReschedule={onReschedule}
                   onToggleTask={onToggleTask}
                   task={task}
                 />
@@ -769,7 +1022,7 @@ function DayAgenda({
         )}
       </div>
 
-      <label className="mt-5 flex w-fit items-center gap-3 text-sm text-dashboard-muted">
+      <label className="mt-6 flex w-fit items-center gap-3 text-[13px] font-medium text-dashboard-muted">
         <button
           aria-pressed={showCompleted}
           className={cn(
@@ -791,44 +1044,65 @@ function DayAgenda({
 
 function AgendaTask({
   isMutating,
+  onReschedule,
   onToggleTask,
   task,
 }: Readonly<{
   isMutating: boolean;
+  onReschedule: (task: CalendarTask) => void;
   onToggleTask: (task: CalendarTask) => void;
   task: CalendarTask;
 }>) {
+  const priorityLabel =
+    task.priority === 'no_priority'
+      ? 'No priority'
+      : `${task.priority.charAt(0).toUpperCase()}${task.priority.slice(1)}`;
+
   return (
-    <article className="grid grid-cols-[64px_16px_minmax(0,1fr)] items-center gap-3">
-      <time className="text-right text-sm font-medium text-dashboard-muted">
+    <article
+      className="grid cursor-grab grid-cols-[58px_14px_minmax(0,1fr)] items-center gap-3 active:cursor-grabbing"
+      draggable={!isMutating}
+      onDragEnd={(event) => event.currentTarget.classList.remove('opacity-50')}
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/calendar-task-id', task.id);
+        event.currentTarget.classList.add('opacity-50');
+      }}
+      title="Drag to another date to reschedule"
+    >
+      <time className="text-right text-xs font-semibold tabular-nums tracking-[-0.01em] text-dashboard-muted">
         {formatTime(task.dueDate)}
       </time>
       <span
-        className="relative z-10 h-3 w-3 justify-self-center rounded-full ring-4 ring-[var(--bg-surface)]"
+        className="relative z-10 h-2.5 w-2.5 justify-self-center rounded-full shadow-[0_0_0_4px_var(--bg-surface),0_0_12px_currentColor]"
         style={{ backgroundColor: task.projectColor }}
       />
       <div
         className={cn(
-          'rounded-lg border bg-dashboard-bg/35 p-4 transition hover:bg-dashboard-raised/75',
+          'rounded-xl border bg-dashboard-bg/35 p-4 shadow-[0_10px_28px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5 hover:bg-dashboard-raised/75 hover:shadow-[0_14px_34px_rgba(0,0,0,0.2)]',
           priorityClasses(task),
         )}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold text-dashboard-text">{task.title}</h3>
-            <p className="mt-2 flex items-center gap-2 truncate text-xs text-dashboard-muted">
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: task.projectColor }}
-              />
-              {task.project}
-            </p>
+            <h3 className="truncate font-poppins text-[15px] font-medium tracking-[-0.01em] text-dashboard-text">
+              {task.title}
+            </h3>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-2">
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-dashboard-border-strong bg-dashboard-bg/70 px-2.5 text-[11px] font-semibold text-dashboard-muted transition hover:border-dashboard-accent/70 hover:text-dashboard-accent"
+              disabled={isMutating}
+              onClick={() => onReschedule(task)}
+              type="button"
+            >
+              <CalendarIcon className="h-3.5 w-3.5" />
+              Reschedule
+            </button>
             <button
               aria-label={task.status === 'done' ? 'Reopen task' : 'Complete task'}
               className={cn(
-                'grid h-7 w-7 place-items-center rounded-lg border transition',
+                'grid h-8 w-8 place-items-center rounded-lg border transition',
                 task.status === 'done'
                   ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
                   : 'border-dashboard-border-strong bg-dashboard-bg text-dashboard-muted hover:border-dashboard-accent/70 hover:text-dashboard-accent',
@@ -840,19 +1114,137 @@ function AgendaTask({
             >
               {task.status === 'done' ? <CheckIcon className="h-4 w-4" /> : null}
             </button>
-            {task.priority === 'high' ? (
-              <span className="rounded-full border border-[var(--red-border)] bg-[var(--red-soft)] px-3 py-1 text-xs font-semibold text-[var(--red-light)]">
-                High
-              </span>
-            ) : null}
-            {task.durationMinutes !== null ? (
-              <span className="text-xs font-medium text-dashboard-muted">
-                {formatDurationLabel(task.durationMinutes)}
-              </span>
-            ) : null}
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-current/10 pt-3">
+          <span className="inline-flex min-w-0 items-center gap-2 text-xs font-medium text-dashboard-muted">
+            <span
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: task.projectColor }}
+            />
+            <span className="truncate">{task.project}</span>
+          </span>
+          <span className="rounded-full border border-current/20 bg-dashboard-bg/35 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-current">
+            {priorityLabel}
+          </span>
+          {task.durationMinutes !== null ? (
+            <span className="ml-auto text-[11px] font-semibold tabular-nums text-dashboard-muted">
+              {formatDurationLabel(task.durationMinutes)}
+            </span>
+          ) : null}
         </div>
       </div>
     </article>
+  );
+}
+
+function RescheduleDialog({
+  date,
+  error,
+  isSubmitting,
+  onClose,
+  onDateChange,
+  onSubmit,
+  onTimeChange,
+  task,
+  time,
+}: Readonly<{
+  date: string;
+  error: string | null;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onDateChange: (value: string) => void;
+  onSubmit: () => void;
+  onTimeChange: (value: string) => void;
+  task: CalendarTask;
+  time: string;
+}>) {
+  return (
+    <div
+      aria-labelledby="reschedule-dialog-title"
+      aria-modal="true"
+      className="fixed inset-0 z-[350] grid place-items-center overflow-y-auto bg-[#000306]/80 p-4 backdrop-blur-[5px]"
+      onMouseDown={(event) => {
+        if (event.currentTarget === event.target && !isSubmitting) onClose();
+      }}
+      role="dialog"
+    >
+      <form
+        className="w-full max-w-md rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-6 shadow-[0_32px_100px_rgba(0,0,0,.6)]"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit();
+        }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2
+              className="text-xl font-semibold text-dashboard-text"
+              id="reschedule-dialog-title"
+            >
+              Reschedule task
+            </h2>
+            <p className="mt-1 truncate text-sm text-dashboard-muted">{task.title}</p>
+          </div>
+          <button
+            aria-label="Close reschedule dialog"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-text"
+            disabled={isSubmitting}
+            onClick={onClose}
+            type="button"
+          >
+            <CloseIcon className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium text-dashboard-text">Due date</span>
+            <input
+              className="h-11 w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text outline-none [color-scheme:dark] focus:border-dashboard-accent"
+              disabled={isSubmitting}
+              onChange={(event) => onDateChange(event.target.value)}
+              required
+              type="date"
+              value={date}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium text-dashboard-text">Time</span>
+            <input
+              className="h-11 w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text outline-none [color-scheme:dark] focus:border-dashboard-accent"
+              disabled={isSubmitting}
+              onChange={(event) => onTimeChange(event.target.value)}
+              type="time"
+              value={time}
+            />
+          </label>
+        </div>
+
+        {error ? (
+          <p className="mt-4 text-sm text-dashboard-danger" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            className="h-10 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm font-medium text-dashboard-text transition hover:border-dashboard-border-strong"
+            disabled={isSubmitting}
+            onClick={onClose}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            className="h-10 rounded-[var(--radius-sm)] bg-dashboard-accent px-4 text-sm font-semibold text-dashboard-bg transition hover:bg-dashboard-accent/90 disabled:cursor-wait disabled:opacity-60"
+            disabled={isSubmitting || !date}
+            type="submit"
+          >
+            {isSubmitting ? 'Rescheduling...' : 'Save schedule'}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
