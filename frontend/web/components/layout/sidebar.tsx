@@ -45,7 +45,7 @@ const generalNavItems: NavItem[] = [
   { href: '/calendar', label: 'Calendar', icon: CalendarIcon },
   { href: '/focus', label: 'Focus Mode', icon: FocusIcon },
   { href: '/analytics', label: 'AI Insights', icon: InsightsIcon },
-  { href: '/gamification', label: 'Gamification', icon: GamificationIcon },
+  { href: '/gamification', label: 'Personal Forest', icon: GamificationIcon },
 ];
 
 const foldersNavItem: NavItem = {

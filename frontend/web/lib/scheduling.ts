@@ -1,6 +1,7 @@
 import { apiRequest } from './api';
 import { emitTaskDataChanged } from './data-events';
 import type { DashboardTaskSummary } from './dashboard';
+import { emitGrowthReward, type RewardFeedback } from './gamification';
 
 export type AiWeightsSnapshot = {
   deadline_urgency: number;
@@ -104,6 +105,16 @@ export async function applySuggestions(suggestionIds?: string[]) {
   return plan;
 }
 
+export type FocusSessionResponse = {
+  id: string;
+  task_id: string | null;
+  started_at: string;
+  ended_at: string;
+  duration_minutes: number;
+  completed: boolean;
+  growth_reward?: RewardFeedback | null;
+};
+
 export function createFocusSession(input: {
   task_id?: string | null;
   started_at: string;
@@ -111,8 +122,13 @@ export function createFocusSession(input: {
   duration_minutes: number;
   completed?: boolean;
 }) {
-  return apiRequest('/scheduling/focus-sessions', {
+  return apiRequest<FocusSessionResponse>('/scheduling/focus-sessions', {
     method: 'POST',
     body: JSON.stringify(input),
+  }).then((session) => {
+    if (session.growth_reward?.awarded) {
+      emitGrowthReward(session.growth_reward);
+    }
+    return session;
   });
 }

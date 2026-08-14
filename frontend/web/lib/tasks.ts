@@ -1,5 +1,6 @@
 import { apiRequest } from './api';
 import { emitTaskDataChanged } from './data-events';
+import { emitGrowthReward, type RewardFeedback } from './gamification';
 
 export type TaskStatusValue = 'pending' | 'in_progress' | 'done';
 export type TaskDisplayStatusValue = TaskStatusValue | 'overdue';
@@ -61,6 +62,7 @@ export type TaskResponse = {
   subtask_progress: TaskSubtaskProgress;
   created_at: string;
   updated_at: string;
+  growth_reward?: RewardFeedback | null;
 };
 
 export type Task = TaskResponse;
@@ -227,6 +229,9 @@ export function updateTask(taskId: string, input: TaskUpdateInput, options: Requ
     signal: options.signal,
   }).then((task) => {
     emitTaskDataChanged();
+    if (task.growth_reward?.awarded) {
+      emitGrowthReward(task.growth_reward);
+    }
     return task;
   });
 }

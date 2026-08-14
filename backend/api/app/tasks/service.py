@@ -259,11 +259,24 @@ def update_task(
         )
 
     user_id = task.user_id
+    completed_now = (
+        next_status == TaskStatus.DONE and previous_status != TaskStatus.DONE
+    )
     db.commit()
     db.refresh(task)
     _invalidate_ai_plan(db, user_id)
 
-    return get_task_by_id(db, task.id, user_id) or task
+    result = get_task_by_id(db, task.id, user_id) or task
+    if completed_now:
+        from app.gamification import service as gamification_service
+
+        try:
+            reward = gamification_service.award_for_task_completion(db, user_id, task)
+            setattr(result, "growth_reward", reward if reward.awarded else None)
+        except Exception:
+            setattr(result, "growth_reward", None)
+
+    return result
 
 
 def delete_task(db: Session, task: Task) -> None:

@@ -62,6 +62,18 @@ export type DashboardWeeklyActivityPoint = {
   overdue: number;
 };
 
+export type DashboardForestSummary = {
+  species_name?: string | null;
+  display_name?: string | null;
+  growth_stage?: string | null;
+  growth_stage_label?: string | null;
+  current_growth_points?: number;
+  next_stage_at?: number | null;
+  total_trees_grown?: number;
+  needs_plant_selection?: boolean;
+  supportive_message?: string;
+};
+
 export type DashboardSummary = {
   task_progress: DashboardProgressSummary;
   today_progress: DashboardProgressSummary;
@@ -73,6 +85,7 @@ export type DashboardSummary = {
   quick_wins: DashboardTaskSummary[];
   in_progress: DashboardTaskSummary[];
   weekly_activity: DashboardWeeklyActivityPoint[];
+  forest?: DashboardForestSummary | null;
 };
 
 export function getDashboardSummary(signal?: AbortSignal) {

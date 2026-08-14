@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.dashboard.schemas import DashboardTaskSummary
+from app.gamification.schemas import RewardFeedback
 
 
 class AiWeightsSnapshot(BaseModel):
@@ -63,6 +64,7 @@ class FocusSessionResponse(BaseModel):
     ended_at: datetime
     duration_minutes: int
     completed: bool
+    growth_reward: RewardFeedback | None = None
 
 
 class ScheduleAdjustRequest(BaseModel):

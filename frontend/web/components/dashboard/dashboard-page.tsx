@@ -12,6 +12,7 @@ import { DashboardEmptyState } from './dashboard-empty-state';
 import { DashboardErrorState } from './dashboard-error-state';
 import { DashboardLoadingState } from './dashboard-loading-state';
 import { DashboardStatCard } from './dashboard-stat-card';
+import { ForestWidget } from '../gamification/forest-widget';
 import { InProgressList } from './in-progress-list';
 import { AiRecommendationCard } from './ai-recommendation-card';
 import { QuickWinsCard } from './quick-wins-card';
@@ -189,6 +190,7 @@ export function DashboardPage() {
           <WeeklyActivityCard points={summary.weekly_activity} />
         </div>
         <div className="space-y-5">
+          <ForestWidget forest={summary.forest} />
           <QuickWinsCard
             completingTaskId={completingTaskId}
             onComplete={completeQuickWin}

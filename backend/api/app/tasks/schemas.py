@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.gamification.schemas import RewardFeedback
 from app.tasks.models import TaskPriority, TaskStatus
 
 
@@ -139,6 +140,7 @@ class TaskResponse(BaseModel):
     subtask_progress: SubtaskProgress
     created_at: datetime
     updated_at: datetime
+    growth_reward: RewardFeedback | None = None
 
 
 class TaskListResponse(BaseModel):

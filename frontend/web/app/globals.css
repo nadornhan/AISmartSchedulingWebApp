@@ -317,3 +317,33 @@ button {
   border: 0 !important;
   -webkit-appearance: none !important;
 }
+
+.forest-progress-fill {
+  transition: width 480ms ease;
+}
+
+@keyframes forest-stage-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.forest-stage-pop {
+  animation: forest-stage-pop 720ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forest-progress-fill {
+    transition: none;
+  }
+
+  .forest-stage-pop {
+    animation: none;
+  }
+}
