@@ -7,11 +7,13 @@ from app.auth.router import router as auth_router
 from app.config import get_settings
 from app.dashboard.router import router as dashboard_router
 from app.folders.router import router as folders_router
+from app.gamification.router import router as gamification_router
 from app.notifications.router import router as notifications_router
 from app.projects.router import router as projects_router
 from app.scheduling.router import router as scheduling_router
 from app.settings.router import router as settings_router
 from app.tasks.router import router as tasks_router
+import app.gamification.models  # noqa: F401
 import app.scheduling.models  # noqa: F401
 
 settings = get_settings()
@@ -41,6 +43,7 @@ app.include_router(settings_router)
 app.include_router(analytics_router)
 app.include_router(scheduling_router)
 app.include_router(dashboard_router)
+app.include_router(gamification_router)
 app.mount(
     settings.media_url_path,
     StaticFiles(directory=settings.upload_dir),

@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { Suspense, type ReactNode } from 'react';
 import { CurrentUserProvider, useCurrentUser } from '../auth/current-user-provider';
+import { GrowthRewardToast } from '../gamification/growth-reward-toast';
 import { Header } from './header';
 import { Sidebar } from './sidebar';
 
@@ -45,8 +46,12 @@ const routeMeta: Record<string, RouteMeta> = {
     subtitle: 'Personalized productivity insights from your recent activity.',
   },
   '/gamification': {
-    title: 'Gamification',
-    subtitle: 'Keep streaks, milestones, and rewards visible.',
+    title: 'Personal Forest',
+    subtitle: 'Watch your forest grow with every effort',
+  },
+  '/gamification/forest': {
+    title: 'Your Forest',
+    subtitle: 'Wander your garden and place mature trees.',
   },
   '/settings': {
     title: 'Settings',
@@ -102,6 +107,7 @@ function DashboardShellContent({
             children
           )}
         </main>
+        <GrowthRewardToast />
       </div>
     </div>
   );

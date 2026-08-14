@@ -57,6 +57,18 @@ class WeeklyActivityPoint(BaseModel):
     overdue: int = Field(ge=0)
 
 
+class DashboardForestSummary(BaseModel):
+    species_name: str | None = None
+    display_name: str | None = None
+    growth_stage: str | None = None
+    growth_stage_label: str | None = None
+    current_growth_points: int = 0
+    next_stage_at: int | None = None
+    total_trees_grown: int = 0
+    needs_plant_selection: bool = False
+    supportive_message: str = ""
+
+
 class DashboardSummaryResponse(BaseModel):
     task_progress: ProgressSummary
     today_progress: ProgressSummary
@@ -68,3 +80,4 @@ class DashboardSummaryResponse(BaseModel):
     quick_wins: list[DashboardTaskSummary]
     in_progress: list[DashboardTaskSummary]
     weekly_activity: list[WeeklyActivityPoint]
+    forest: DashboardForestSummary | None = None

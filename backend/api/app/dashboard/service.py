@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.dashboard.schemas import (
     AiRecommendationCard,
+    DashboardForestSummary,
     DashboardSummaryResponse,
     DashboardTaskSummary,
     FocusGoalSummary,
@@ -13,6 +14,7 @@ from app.dashboard.schemas import (
     ProgressSummary,
     WeeklyActivityPoint,
 )
+from app.gamification import service as gamification_service
 from app.scheduling import service as scheduling_service
 from app.tasks.models import Task, TaskPriority, TaskStatus
 from app.tasks.overdue import is_task_overdue, task_overdue_condition, utc_now
@@ -462,4 +464,20 @@ def get_dashboard_summary(
             for task in in_progress
         ],
         weekly_activity=_weekly_activity(db, user_id, now=now),
+        forest=_forest_summary(db, user_id),
+    )
+
+
+def _forest_summary(db: Session, user_id: uuid.UUID) -> DashboardForestSummary:
+    widget = gamification_service.get_dashboard_widget(db, user_id)
+    return DashboardForestSummary(
+        species_name=widget.species_name,
+        display_name=widget.display_name,
+        growth_stage=widget.growth_stage,
+        growth_stage_label=widget.growth_stage_label,
+        current_growth_points=widget.current_growth_points,
+        next_stage_at=widget.next_stage_at,
+        total_trees_grown=widget.total_trees_grown,
+        needs_plant_selection=widget.needs_plant_selection,
+        supportive_message=widget.supportive_message,
     )

@@ -173,6 +173,17 @@ def create_focus_session(
     db.commit()
     db.refresh(session)
     invalidate_pending_plan(db, user_id)
+
+    growth_reward = None
+    try:
+        from app.gamification import service as gamification_service
+
+        reward = gamification_service.award_for_focus_session(db, user_id, session)
+        if reward.awarded:
+            growth_reward = reward
+    except Exception:
+        growth_reward = None
+
     return FocusSessionResponse(
         id=session.id,
         task_id=session.task_id,
@@ -180,6 +191,7 @@ def create_focus_session(
         ended_at=session.ended_at,
         duration_minutes=session.duration_minutes,
         completed=session.completed,
+        growth_reward=growth_reward,
     )
 
 
