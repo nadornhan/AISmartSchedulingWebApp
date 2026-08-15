@@ -31,25 +31,37 @@ export function clearAccessToken() {
   localStorage.removeItem('access_token');
 }
 
-export async function apiRequest<T>(
-  path: string,
-  init: ApiRequestOptions = {},
-): Promise<T> {
+export function getApiUrl(path: string) {
+  return `${API_URL}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+export async function apiRequest<T>(path: string, init: ApiRequestOptions = {}): Promise<T> {
   const { auth = true, ...requestInit } = init;
   const token = getAccessToken();
   const headers = new Headers(requestInit.headers);
 
-  if (requestInit.body && !headers.has('Content-Type')) {
+  const isFormData = typeof FormData !== 'undefined' && requestInit.body instanceof FormData;
+
+  if (requestInit.body && !isFormData && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
   if (auth && token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...requestInit,
-    headers,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(getApiUrl(path), {
+      ...requestInit,
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      `Cannot reach the API at ${API_URL}. Make sure the backend is running and up to date.`,
+      0,
+    );
+  }
 
   if (response.ok) {
     if (response.status === 204) return undefined as T;

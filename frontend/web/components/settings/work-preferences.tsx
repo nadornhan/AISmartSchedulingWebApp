@@ -9,11 +9,12 @@ export type WorkPreferencesValue = {
 type WorkPreferencesProps = {
   value: WorkPreferencesValue;
   onChange: (value: WorkPreferencesValue) => void;
+  isDisabled?: boolean;
 };
 
 const pomodoroOptions = [15, 20, 25, 30, 45, 60];
 
-export function WorkPreferences({ value, onChange }: WorkPreferencesProps) {
+export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPreferencesProps) {
   function updateField(field: keyof WorkPreferencesValue, nextValue: string | number) {
     onChange({ ...value, [field]: nextValue });
   }
@@ -29,6 +30,7 @@ export function WorkPreferences({ value, onChange }: WorkPreferencesProps) {
           Work start
           <input
             className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
+            disabled={isDisabled}
             onChange={(event) => updateField('workStart', event.target.value)}
             type="time"
             value={value.workStart}
@@ -38,6 +40,7 @@ export function WorkPreferences({ value, onChange }: WorkPreferencesProps) {
           Work end
           <input
             className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
+            disabled={isDisabled}
             onChange={(event) => updateField('workEnd', event.target.value)}
             type="time"
             value={value.workEnd}
@@ -47,6 +50,7 @@ export function WorkPreferences({ value, onChange }: WorkPreferencesProps) {
           Pomodoro
           <select
             className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-text outline-none focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
+            disabled={isDisabled}
             onChange={(event) => updateField('pomodoroMinutes', Number(event.target.value))}
             value={value.pomodoroMinutes}
           >
@@ -57,14 +61,6 @@ export function WorkPreferences({ value, onChange }: WorkPreferencesProps) {
             ))}
           </select>
         </label>
-      </div>
-      <div className="mt-5 flex justify-end">
-        <button
-          className="h-11 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
-          type="button"
-        >
-          Save Changes
-        </button>
       </div>
     </SettingsSection>
   );

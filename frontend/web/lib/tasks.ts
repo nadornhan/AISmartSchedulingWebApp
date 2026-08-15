@@ -1,14 +1,11 @@
 import { apiRequest } from './api';
+import { emitTaskDataChanged } from './data-events';
+import { emitGrowthReward, type RewardFeedback } from './gamification';
 
 export type TaskStatusValue = 'pending' | 'in_progress' | 'done';
 export type TaskDisplayStatusValue = TaskStatusValue | 'overdue';
 export type TaskPriorityValue = 'no_priority' | 'low' | 'medium' | 'high';
-export type TaskSortValue =
-  | 'created_at'
-  | 'updated_at'
-  | 'title'
-  | 'due_date'
-  | 'priority';
+export type TaskSortValue = 'created_at' | 'updated_at' | 'title' | 'due_date' | 'priority';
 
 // Compatibility aliases used by the folders/inbox feature.
 export type TaskStatus = TaskDisplayStatusValue;
@@ -24,6 +21,28 @@ export type TaskProjectSummary = {
 
 export type TaskProject = TaskProjectSummary;
 
+export type TaskSubtask = {
+  id: string;
+  task_id: string;
+  title: string;
+  is_completed: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TaskSubtaskInput = {
+  title: string;
+  is_completed?: boolean;
+  position?: number | null;
+};
+
+export type TaskSubtaskProgress = {
+  completed: number;
+  total: number;
+  percent: number | null;
+};
+
 export type TaskResponse = {
   id: string;
   user_id: string;
@@ -32,13 +51,18 @@ export type TaskResponse = {
   title: string;
   description: string | null;
   status: TaskDisplayStatusValue;
+  workflow_status?: TaskStatusValue;
   priority: TaskPriorityValue;
   due_date: string | null;
-  estimated_duration: number | null;
+  estimated_duration_minutes: number | null;
   scheduled_start: string | null;
   scheduled_end: string | null;
+  completed_at: string | null;
+  subtasks: TaskSubtask[];
+  subtask_progress: TaskSubtaskProgress;
   created_at: string;
   updated_at: string;
+  growth_reward?: RewardFeedback | null;
 };
 
 export type Task = TaskResponse;
@@ -57,6 +81,7 @@ export type TaskListParams = {
   status?: TaskDisplayStatusValue;
   priority?: TaskPriorityValue;
   projectId?: string;
+  inboxOnly?: boolean;
   search?: string;
   dueFrom?: string;
   dueTo?: string;
@@ -76,6 +101,10 @@ export type TaskCreateInput = {
   project_id?: string | null;
   priority?: TaskPriorityValue;
   due_date?: string | null;
+  estimated_duration_minutes?: number | null;
+  scheduled_start?: string | null;
+  scheduled_end?: string | null;
+  subtasks?: TaskSubtaskInput[];
 };
 
 export type TaskUpdateInput = Partial<TaskCreateInput> & {
@@ -83,6 +112,26 @@ export type TaskUpdateInput = Partial<TaskCreateInput> & {
 };
 
 export type UpdateTaskInput = TaskUpdateInput;
+
+export type TaskBulkUpdateInput = {
+  task_ids: string[];
+  status?: TaskStatusValue;
+  project_id?: string | null;
+  priority?: TaskPriorityValue;
+  due_date?: string | null;
+};
+
+export type TaskRescheduleInput = {
+  due_date?: string | null;
+  scheduled_start?: string | null;
+  scheduled_end?: string | null;
+};
+
+export type TaskDuplicateInput = {
+  title?: string;
+  include_subtasks?: boolean;
+  reset_status?: boolean;
+};
 
 type RequestOptions = {
   signal?: AbortSignal;
@@ -94,6 +143,7 @@ function taskQuery(params: TaskListParams): string {
   if (params.status) query.set('status', params.status);
   if (params.priority) query.set('priority', params.priority);
   if (params.projectId) query.set('project_id', params.projectId);
+  if (params.inboxOnly) query.set('inbox_only', 'true');
   if (params.search?.trim()) {
     query.set('search', params.search.trim());
   }
@@ -109,25 +159,17 @@ function taskQuery(params: TaskListParams): string {
   return query.size ? `?${query.toString()}` : '';
 }
 
-function isTaskListResponse(
-  response: TaskListApiResponse,
-): response is TaskListResponse {
-  return (
-    !Array.isArray(response) &&
-    Array.isArray(response.items)
-  );
+function isTaskListResponse(response: TaskListApiResponse): response is TaskListResponse {
+  return !Array.isArray(response) && Array.isArray(response.items);
 }
 
 export async function listTasks(
   params: TaskListParams = {},
   options: RequestOptions = {},
 ): Promise<TaskListResponse> {
-  const response = await apiRequest<TaskListApiResponse>(
-    `/tasks${taskQuery(params)}`,
-    {
-      signal: options.signal,
-    },
-  );
+  const response = await apiRequest<TaskListApiResponse>(`/tasks${taskQuery(params)}`, {
+    signal: options.signal,
+  });
 
   // Compatibility with the older deployed backend,
   // which returns TaskResponse[] directly.
@@ -143,9 +185,7 @@ export async function listTasks(
 
   // The current backend should return TaskListResponse.
   if (!isTaskListResponse(response)) {
-    throw new Error(
-      'Invalid task list response from the server.',
-    );
+    throw new Error('Invalid task list response from the server.');
   }
 
   return response;
@@ -155,68 +195,109 @@ export async function getTasks(
   params: TaskQuery = {},
   options: RequestOptions = {},
 ): Promise<TaskListResponse> {
-  const result = await listTasks(
+  return listTasks(
     {
       ...params,
-      pageSize: params.inbox ? 100 : params.pageSize,
+      inboxOnly: params.inbox || params.inboxOnly,
+      pageSize: params.pageSize,
     },
     options,
   );
-
-  if (!params.inbox) {
-    return result;
-  }
-
-  const items = result.items.filter(
-    (task) => task.project_id === null,
-  );
-
-  return {
-    ...result,
-    items,
-    total: items.length,
-    total_pages: items.length > 0 ? 1 : 0,
-  };
 }
 
-export function createTask(
-  input: TaskCreateInput,
-  options: RequestOptions = {},
-) {
+export function getTask(taskId: string, options: RequestOptions = {}) {
+  return apiRequest<TaskResponse>(`/tasks/${taskId}`, {
+    signal: options.signal,
+  });
+}
+
+export function createTask(input: TaskCreateInput, options: RequestOptions = {}) {
   return apiRequest<TaskResponse>('/tasks', {
     method: 'POST',
     body: JSON.stringify(input),
     signal: options.signal,
+  }).then((task) => {
+    emitTaskDataChanged();
+    return task;
   });
 }
 
-export function updateTask(
-  taskId: string,
-  input: TaskUpdateInput,
-  options: RequestOptions = {},
-) {
+export function updateTask(taskId: string, input: TaskUpdateInput, options: RequestOptions = {}) {
   return apiRequest<TaskResponse>(`/tasks/${taskId}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
     signal: options.signal,
+  }).then((task) => {
+    emitTaskDataChanged();
+    if (task.growth_reward?.awarded) {
+      emitGrowthReward(task.growth_reward);
+    }
+    return task;
   });
 }
 
-export function deleteTask(
-  taskId: string,
-): Promise<void>;
+export function deleteTask(taskId: string): Promise<void>;
 
-export function deleteTask(
-  taskId: string,
-  options: RequestOptions,
-): Promise<void>;
+export function deleteTask(taskId: string, options: RequestOptions): Promise<void>;
 
-export function deleteTask(
-  taskId: string,
-  options: RequestOptions = {},
-) {
+export function deleteTask(taskId: string, options: RequestOptions = {}) {
   return apiRequest<void>(`/tasks/${taskId}`, {
     method: 'DELETE',
     signal: options.signal,
+  }).then((result) => {
+    emitTaskDataChanged();
+    return result;
+  });
+}
+
+export function bulkUpdateTasks(input: TaskBulkUpdateInput, options: RequestOptions = {}) {
+  return apiRequest<{ updated: TaskResponse[]; deleted_count: number }>('/tasks/bulk/update', {
+    method: 'POST',
+    body: JSON.stringify(input),
+    signal: options.signal,
+  }).then((result) => {
+    emitTaskDataChanged();
+    return result;
+  });
+}
+
+export function bulkDeleteTasks(taskIds: string[], options: RequestOptions = {}) {
+  return apiRequest<{ updated: TaskResponse[]; deleted_count: number }>('/tasks/bulk/delete', {
+    method: 'POST',
+    body: JSON.stringify({ task_ids: taskIds }),
+    signal: options.signal,
+  }).then((result) => {
+    emitTaskDataChanged();
+    return result;
+  });
+}
+
+export function duplicateTask(
+  taskId: string,
+  input: TaskDuplicateInput = {},
+  options: RequestOptions = {},
+) {
+  return apiRequest<TaskResponse>(`/tasks/${taskId}/duplicate`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+    signal: options.signal,
+  }).then((task) => {
+    emitTaskDataChanged();
+    return task;
+  });
+}
+
+export function rescheduleTask(
+  taskId: string,
+  input: TaskRescheduleInput,
+  options: RequestOptions = {},
+) {
+  return apiRequest<TaskResponse>(`/tasks/${taskId}/reschedule`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+    signal: options.signal,
+  }).then((task) => {
+    emitTaskDataChanged();
+    return task;
   });
 }

@@ -8,6 +8,8 @@ WORKDIR /app
 COPY backend/api/pyproject.toml ./
 RUN pip install --no-cache-dir .
 
+COPY backend/api/alembic.ini ./
+COPY backend/api/alembic ./alembic
 COPY backend/api/app ./app
 
 EXPOSE 8000

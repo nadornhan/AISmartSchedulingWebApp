@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    upload_dir: Path = Path(__file__).resolve().parents[1] / "uploads"
+    avatar_max_bytes: int = 2 * 1024 * 1024
+    media_url_path: str = "/media"
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,

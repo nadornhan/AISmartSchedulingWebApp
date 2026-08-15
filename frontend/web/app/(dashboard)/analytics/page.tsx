@@ -1,11 +1,5 @@
-import { PagePlaceholder } from '../_components/page-placeholder';
+import { InsightsDashboard } from '../../../components/analytics/insights-dashboard';
 
 export default function AnalyticsPage() {
-  return (
-    <PagePlaceholder
-      eyebrow="Insights"
-      items={['Completion trends', 'Focus analytics', 'Workload balance']}
-      summary="Insight widgets can be added here while the shared header supplies the page title."
-    />
-  );
+  return <InsightsDashboard />;
 }

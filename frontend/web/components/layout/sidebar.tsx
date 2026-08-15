@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CalendarIcon,
   ChevronDownIcon,
@@ -18,7 +19,9 @@ import {
   TasksIcon,
 } from './icons';
 
-import { useEffect, useRef } from 'react';
+import { listProjects, type Project } from '../../lib/projects';
+import { onProjectDataChanged, onTaskDataChanged } from '../../lib/data-events';
+import { listTasks } from '../../lib/tasks';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -37,12 +40,12 @@ type SidebarProps = {
 
 const generalNavItems: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: DashboardIcon, exact: true },
-  { href: '/tasks', label: 'All Tasks', icon: TasksIcon, badge: '24' },
+  { href: '/tasks', label: 'All Tasks', icon: TasksIcon },
   { href: '/priority', label: 'Priority View', icon: PriorityIcon },
   { href: '/calendar', label: 'Calendar', icon: CalendarIcon },
   { href: '/focus', label: 'Focus Mode', icon: FocusIcon },
-  { href: '/analytics', label: 'Insights', icon: InsightsIcon },
-  { href: '/gamification', label: 'Gamification', icon: GamificationIcon },
+  { href: '/analytics', label: 'AI Insights', icon: InsightsIcon },
+  { href: '/gamification', label: 'Personal Forest', icon: GamificationIcon },
 ];
 
 const foldersNavItem: NavItem = {
@@ -50,13 +53,6 @@ const foldersNavItem: NavItem = {
   label: 'Folders',
   icon: FolderIcon,
 };
-
-const folders = [
-  { name: 'Work', count: 8, color: 'bg-dashboard-danger' },
-  { name: 'Personal', count: 5, color: 'bg-dashboard-info' },
-  { name: 'Study', count: 3, color: 'bg-dashboard-warning' },
-  { name: 'Health', count: 3, color: 'bg-dashboard-accent' },
-];
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
@@ -68,6 +64,37 @@ function isActive(pathname: string, item: NavItem) {
   }
 
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+function useScrollFeedback<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+
+    if (!element) return;
+
+    let scrollTimeout: ReturnType<typeof setTimeout>;
+
+    const handleScroll = () => {
+      element.classList.add('is-scrolling');
+
+      clearTimeout(scrollTimeout);
+
+      scrollTimeout = setTimeout(() => {
+        element.classList.remove('is-scrolling');
+      }, 500);
+    };
+
+    element.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      element.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, []);
+
+  return ref;
 }
 
 function BrandMark() {
@@ -144,7 +171,9 @@ function NavLink({
       <Icon
         className={cn(
           'h-5 w-5 shrink-0 transition',
-          active ? 'text-dashboard-accent' : 'text-dashboard-muted group-hover:text-dashboard-accent',
+          active
+            ? 'text-dashboard-accent'
+            : 'text-dashboard-muted group-hover:text-dashboard-accent',
         )}
       />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -167,36 +196,49 @@ function NavLink({
 export function Sidebar({ className, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeProjectId = searchParams.get('project_id');
   const foldersActive = pathname === '/folders' || pathname.startsWith('/folders/');
   const settingsActive = pathname === '/settings' || pathname.startsWith('/settings/');
-  const sidebarRef = useRef<HTMLElement>(null);
+  const sidebarRef = useScrollFeedback<HTMLElement>();
+  const folderListRef = useScrollFeedback<HTMLDivElement>();
+  const [folders, setFolders] = useState<Project[]>([]);
+  const [allTasksCount, setAllTasksCount] = useState<number | null>(null);
 
-  useEffect(() => {
-    const sidebar = sidebarRef.current;
+  const refreshNavigationData = useCallback(async () => {
+    try {
+      const [projects, taskResult] = await Promise.all([
+        listProjects(),
+        listTasks({ page: 1, pageSize: 1 }),
+      ]);
 
-    if (!sidebar) return;
-
-    let scrollTimeout: ReturnType<typeof setTimeout>;
-
-    const handleScroll = () => {
-      sidebar.classList.add('is-scrolling');
-
-      clearTimeout(scrollTimeout);
-
-      scrollTimeout = setTimeout(() => {
-        sidebar.classList.remove('is-scrolling');
-      }, 500);
-    };
-
-    sidebar.addEventListener('scroll', handleScroll, { passive: true });
-
-    return () => {
-      sidebar.removeEventListener('scroll', handleScroll);
-      clearTimeout(scrollTimeout);
-    };
+      setFolders(projects);
+      setAllTasksCount(taskResult.total);
+    } catch {
+      setFolders([]);
+      setAllTasksCount(null);
+    }
   }, []);
 
-  // ...
+  useEffect(() => {
+    void refreshNavigationData();
+  }, [pathname, refreshNavigationData]);
+
+  useEffect(
+    () =>
+      onTaskDataChanged(() => {
+        void refreshNavigationData();
+      }),
+    [refreshNavigationData],
+  );
+
+  useEffect(
+    () =>
+      onProjectDataChanged(() => {
+        void refreshNavigationData();
+      }),
+    [refreshNavigationData],
+  );
 
   function openCreateFolderModal() {
     if (foldersActive) {
@@ -208,31 +250,58 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
     onNavigate?.();
   }
 
+  function openCreateTaskModal(projectId?: string | null) {
+    const params = new URLSearchParams();
+    if (projectId) {
+      params.set('project_id', projectId);
+    }
+    params.set('create', '1');
+    const query = params.toString();
+    const target = query ? `/tasks?${query}` : '/tasks?create=1';
+
+    if (pathname === '/tasks') {
+      window.dispatchEvent(
+        new CustomEvent('open-create-task', {
+          detail: { projectId: projectId || activeProjectId || null },
+        }),
+      );
+      if (projectId && projectId !== activeProjectId) {
+        router.push(`/tasks?project_id=${encodeURIComponent(projectId)}&create=1`);
+      }
+      onNavigate?.();
+      return;
+    }
+
+    router.push(target);
+    onNavigate?.();
+  }
+
   return (
     <aside
       ref={sidebarRef}
       className={cn(
-        'accent-scrollbar flex h-dvh w-80 flex-col overflow-y-auto border-r border-dashboard-border bg-[#03101a]/95 px-6 py-5 text-dashboard-text shadow-panel backdrop-blur-xl',
+        'accent-scrollbar z-[170] flex h-dvh w-80 flex-col overflow-y-auto border-r border-dashboard-border bg-[#03101a]/95 px-6 py-5 text-dashboard-text shadow-panel backdrop-blur-xl lg:sticky lg:top-0',
         className,
       )}
     >
       <div className="mb-8 flex items-center gap-3">
         <BrandMark />
-        <span className="font-poppins text-[28px] mt-2 font-medium leading-none tracking-normal">Chrono</span>
+        <span className="font-poppins text-[28px] mt-2 font-medium leading-none tracking-normal">
+          Chrono
+        </span>
       </div>
 
       <div className="group relative mb-10">
         <div className="flex h-14 overflow-hidden rounded-xl border border-dashboard-accent/60 bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong text-white transition hover:brightness-110">
-          {/* Main Add Task button */}
           <button
             className="flex flex-1 items-center justify-center gap-3 px-6 text-base font-normal"
+            onClick={() => openCreateTaskModal(activeProjectId)}
             type="button"
           >
             <PlusIcon className="h-6 w-6 mb-1" />
             <span>Add Task</span>
           </button>
 
-          {/* Dropdown trigger */}
           <button
             aria-label="Open add task menu"
             className="grid w-[64px] place-items-center border-l border-white/30 transition hover:bg-white/10"
@@ -242,7 +311,6 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </button>
         </div>
 
-        {/* Future dropdown */}
         <div
           className="
             invisible absolute left-0 right-0 top-full z-50 mt-2
@@ -254,6 +322,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         >
           <button
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+            onClick={() => openCreateTaskModal(null)}
             type="button"
           >
             <TasksIcon className="h-5 w-5" />
@@ -262,6 +331,14 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
 
           <button
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+            onClick={() => {
+              if (activeProjectId) {
+                openCreateTaskModal(activeProjectId);
+                return;
+              }
+              router.push('/folders');
+              onNavigate?.();
+            }}
             type="button"
           >
             <FolderIcon className="h-5 w-5" />
@@ -274,14 +351,20 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         <section>
           <SectionTitle>General</SectionTitle>
           <div className="space-y-1.5">
-            {generalNavItems.map((item) => (
-              <NavLink
-                active={isActive(pathname, item)}
-                item={item}
-                key={item.href}
-                onNavigate={onNavigate}
-              />
-            ))}
+            {generalNavItems.map((item) => {
+              const navItem =
+                item.href === '/tasks' && allTasksCount !== null
+                  ? { ...item, badge: String(allTasksCount) }
+                  : item;
+              const active =
+                item.href === '/tasks'
+                  ? isActive(pathname, item) && !activeProjectId
+                  : isActive(pathname, item);
+
+              return (
+                <NavLink active={active} item={navItem} key={item.href} onNavigate={onNavigate} />
+              );
+            })}
           </div>
         </section>
 
@@ -291,30 +374,40 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </SectionTitle>
           <div className="space-y-1.5">
             <NavLink active={foldersActive} item={foldersNavItem} onNavigate={onNavigate} />
-            <div className="pt-1">
+            <div
+              className="accent-scrollbar max-h-[232px] overflow-y-auto pt-1"
+              ref={folderListRef}
+            >
               {folders.map((folder) => (
                 <Link
-                  className="group flex h-11 items-center gap-4 rounded-lg px-3 text-[15px] font-normal text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-text"
-                  href={`/folders?folder=${encodeURIComponent(folder.name.toLowerCase())}`}
-                  key={folder.name}
+                  aria-current={activeProjectId === folder.id ? 'page' : undefined}
+                  className={cn(
+                    'group flex h-11 items-center gap-4 rounded-lg px-3 text-[15px] font-normal transition',
+                    activeProjectId === folder.id
+                      ? 'border-l-4 border-l-dashboard-accent bg-dashboard-accent/20 text-dashboard-accent'
+                      : 'text-dashboard-muted hover:bg-dashboard-surface hover:text-dashboard-text',
+                  )}
+                  href={`/tasks?project_id=${encodeURIComponent(folder.id)}`}
+                  key={folder.id}
                   onClick={onNavigate}
                 >
-                  <span className={cn('h-3 w-3 shrink-0 rounded-full', folder.color)} />
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full"
+                    style={{ backgroundColor: folder.color }}
+                  />
                   <span className="min-w-0 flex-1 truncate">{folder.name}</span>
-                  <span className="rounded-full bg-dashboard-surface px-2.5 py-1 text-sm font-medium leading-none text-dashboard-text group-hover:text-dashboard-accent">
-                    {folder.count}
+                  <span
+                    className={cn(
+                      'rounded-full px-3 py-1 text-sm font-medium leading-none',
+                      activeProjectId === folder.id
+                        ? 'bg-dashboard-bg/25 text-dashboard-text'
+                        : 'bg-dashboard-accent-soft text-dashboard-accent',
+                    )}
+                  >
+                    {folder.task_count}
                   </span>
                 </Link>
               ))}
-
-              <button
-                className="mt-1 flex h-11 w-full items-center gap-4 rounded-lg px-3 text-left text-[15px] font-medium text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-accent"
-                onClick={openCreateFolderModal}
-                type="button"
-              >
-                <PlusIcon className="h-5 w-5 shrink-0" />
-                <span>New Folder</span>
-              </button>
             </div>
           </div>
         </section>
@@ -325,8 +418,8 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           className="mb-6 overflow-hidden rounded-2xl border border-dashboard-border p-6 aspect-[4.2/3]"
           style={{
             backgroundImage: "url('/sidebar.png')",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
           }}
         >
           <p className="text-base font-semibold text-dashboard-text">Keep going!🚀</p>
@@ -340,7 +433,9 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           aria-current={settingsActive ? 'page' : undefined}
           className={cn(
             'flex h-12 items-center gap-4 rounded-lg border-t border-dashboard-border px-2 pt-4 text-[15px] font-medium transition',
-            settingsActive ? 'text-dashboard-accent' : 'text-dashboard-muted hover:text-dashboard-text',
+            settingsActive
+              ? 'text-dashboard-accent'
+              : 'text-dashboard-muted hover:text-dashboard-text',
           )}
           href="/settings"
           onClick={onNavigate}

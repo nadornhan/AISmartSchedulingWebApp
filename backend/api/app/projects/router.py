@@ -18,7 +18,7 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 def list_projects(
     db: DatabaseSession,
     current_user: CurrentUser,
-) -> list[Project]:
+) -> list[service.ProjectWithCounts]:
     return service.list_projects(db, current_user.id)
 
 
@@ -31,7 +31,7 @@ def create_project(
     project_data: ProjectCreate,
     db: DatabaseSession,
     current_user: CurrentUser,
-) -> Project:
+) -> service.ProjectWithCounts:
     return service.create_project(
         db,
         current_user.id,

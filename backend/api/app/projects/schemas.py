@@ -33,3 +33,5 @@ class ProjectResponse(BaseModel):
     color: str
     created_at: datetime
     updated_at: datetime
+    task_count: int = 0
+    completed_task_count: int = 0

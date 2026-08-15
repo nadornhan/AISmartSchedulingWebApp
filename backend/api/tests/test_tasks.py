@@ -292,7 +292,7 @@ def test_create_task_with_new_fields_and_project_summary(
             "project_id": project["id"],
             "priority": "high",
             "due_date": "2030-08-10T12:00:00Z",
-            "estimated_duration": 90,
+            "estimated_duration_minutes": 90,
             "scheduled_start": "2030-08-10T09:00:00Z",
             "scheduled_end": "2030-08-10T10:30:00Z",
         },
@@ -304,13 +304,207 @@ def test_create_task_with_new_fields_and_project_summary(
 
     assert task["status"] == "pending"
     assert task["priority"] == "high"
-    assert task["estimated_duration"] == 90
+    assert task["estimated_duration_minutes"] == 90
     assert task["due_date"] == "2030-08-10T12:00:00Z"
     assert task["scheduled_start"] == "2030-08-10T09:00:00Z"
     assert task["scheduled_end"] == "2030-08-10T10:30:00Z"
     assert task["project"]["id"] == project["id"]
     assert task["project"]["name"] == "University"
     assert task["project"]["color"] == project["color"]
+    assert task["subtasks"] == []
+    assert task["subtask_progress"] == {
+        "completed": 0,
+        "total": 0,
+        "percent": None,
+    }
+
+
+def test_create_task_with_subtasks(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Build onboarding",
+            "subtasks": [
+                {
+                    "title": "Write copy",
+                    "is_completed": True,
+                    "position": 2,
+                },
+                {
+                    "title": "Design empty state",
+                    "position": 1,
+                },
+            ],
+        },
+    )
+
+    assert response.status_code == 201
+
+    task = response.json()
+    assert [
+        subtask["title"]
+        for subtask in task["subtasks"]
+    ] == [
+        "Design empty state",
+        "Write copy",
+    ]
+    assert [
+        subtask["position"]
+        for subtask in task["subtasks"]
+    ] == [0, 1]
+    assert task["subtasks"][0]["is_completed"] is False
+    assert task["subtasks"][1]["is_completed"] is True
+    assert task["subtask_progress"] == {
+        "completed": 1,
+        "total": 2,
+        "percent": 50,
+    }
+
+
+def test_update_task_replaces_and_clears_subtasks(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    create_response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Refine recommendation model",
+            "subtasks": [
+                {"title": "Audit signals"},
+                {"title": "Tune score weights"},
+            ],
+        },
+    )
+    assert create_response.status_code == 201
+    task = create_response.json()
+
+    update_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={
+            "subtasks": [
+                {
+                    "title": "Document final weights",
+                    "is_completed": True,
+                }
+            ],
+        },
+    )
+
+    assert update_response.status_code == 200
+    updated_task = update_response.json()
+    assert len(updated_task["subtasks"]) == 1
+    assert updated_task["subtasks"][0]["title"] == "Document final weights"
+    assert updated_task["subtasks"][0]["position"] == 0
+    assert updated_task["subtask_progress"] == {
+        "completed": 1,
+        "total": 1,
+        "percent": 100,
+    }
+
+    clear_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"subtasks": []},
+    )
+
+    assert clear_response.status_code == 200
+    assert clear_response.json()["subtasks"] == []
+    assert clear_response.json()["subtask_progress"] == {
+        "completed": 0,
+        "total": 0,
+        "percent": None,
+    }
+
+
+@pytest.mark.parametrize(
+    "duration",
+    [None, 5, 10, 15, 30, 60, 135],
+)
+def test_create_task_with_valid_estimated_duration_minutes(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    duration: int | None,
+) -> None:
+    payload = {"title": f"Duration {duration}"}
+    if duration is not None:
+        payload["estimated_duration_minutes"] = duration
+
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json=payload,
+    )
+
+    assert response.status_code == 201
+    task = response.json()
+    assert task["estimated_duration_minutes"] == duration
+    assert "estimated_duration" not in task
+
+
+def test_create_task_accepts_explicit_null_estimated_duration_minutes(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "No estimate",
+            "estimated_duration_minutes": None,
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["estimated_duration_minutes"] is None
+
+
+@pytest.mark.parametrize("duration", [0, -1, 3.5])
+def test_reject_invalid_estimated_duration_minutes(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    duration: float,
+) -> None:
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Invalid estimate",
+            "estimated_duration_minutes": duration,
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_update_and_clear_estimated_duration_minutes(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    task = create_task(client, auth_headers, "Change estimate")
+
+    update_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"estimated_duration_minutes": 45},
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["estimated_duration_minutes"] == 45
+
+    clear_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"estimated_duration_minutes": None},
+    )
+
+    assert clear_response.status_code == 200
+    assert clear_response.json()["estimated_duration_minutes"] is None
 
 
 def test_past_due_task_is_returned_as_overdue(
@@ -347,6 +541,43 @@ def test_done_task_is_not_returned_as_overdue(
 
     assert response.status_code == 200
     assert response.json()["status"] == "done"
+    assert response.json()["completed_at"] is not None
+
+
+def test_completed_at_is_set_and_cleared_with_done_status(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    task = create_task(client, auth_headers, "Completion timestamp")
+    assert task["completed_at"] is None
+
+    done_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"status": "done"},
+    )
+
+    assert done_response.status_code == 200
+    completed_at = done_response.json()["completed_at"]
+    assert completed_at is not None
+
+    noop_done_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"description": "Edited after completion"},
+    )
+
+    assert noop_done_response.status_code == 200
+    assert noop_done_response.json()["completed_at"] == completed_at
+
+    reopen_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"status": "pending"},
+    )
+
+    assert reopen_response.status_code == 200
+    assert reopen_response.json()["completed_at"] is None
 
 
 def test_reject_invalid_schedule_on_create(
@@ -844,3 +1075,162 @@ def test_reject_reversed_due_date_range(
     assert response.json()["detail"] == (
         "due_to must be later than or equal to due_from"
     )
+
+def test_get_task_by_id_returns_workflow_status(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    task = create_task(client, auth_headers, "Readable task")
+
+    response = client.get(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == task["id"]
+    assert body["workflow_status"] == "pending"
+    assert body["status"] in {"pending", "overdue"}
+
+
+def test_duplicate_task_copies_fields_and_resets_status(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    project = create_project(client, auth_headers, "Dup Project")
+    original = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Original task",
+            "description": "Keep me",
+            "project_id": project["id"],
+            "priority": "high",
+            "subtasks": [{"title": "Step 1", "is_completed": True}],
+        },
+    ).json()
+
+    client.patch(
+        f"/tasks/{original['id']}",
+        headers=auth_headers,
+        json={"status": "in_progress"},
+    )
+
+    response = client.post(
+        f"/tasks/{original['id']}/duplicate",
+        headers=auth_headers,
+        json={},
+    )
+
+    assert response.status_code == 201
+    duplicated = response.json()
+    assert duplicated["id"] != original["id"]
+    assert duplicated["title"] == "Original task (Copy)"
+    assert duplicated["description"] == "Keep me"
+    assert duplicated["project_id"] == project["id"]
+    assert duplicated["priority"] == "high"
+    assert duplicated["workflow_status"] == "pending"
+    assert len(duplicated["subtasks"]) == 1
+    assert duplicated["subtasks"][0]["is_completed"] is False
+
+
+def test_reschedule_task_updates_due_date(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    task = create_task(client, auth_headers, "Reschedule me")
+
+    response = client.post(
+        f"/tasks/{task['id']}/reschedule",
+        headers=auth_headers,
+        json={"due_date": "2026-12-01T09:00:00Z"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["due_date"].startswith("2026-12-01T09:00:00")
+
+
+def test_bulk_update_and_delete_tasks(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    project = create_project(client, auth_headers, "Bulk Project")
+    first = create_task(client, auth_headers, "Bulk one")
+    second = create_task(client, auth_headers, "Bulk two")
+
+    update_response = client.post(
+        "/tasks/bulk/update",
+        headers=auth_headers,
+        json={
+            "task_ids": [first["id"], second["id"]],
+            "status": "done",
+            "project_id": project["id"],
+        },
+    )
+
+    assert update_response.status_code == 200
+    updated = update_response.json()["updated"]
+    assert len(updated) == 2
+    assert all(item["workflow_status"] == "done" for item in updated)
+    assert all(item["project_id"] == project["id"] for item in updated)
+
+    delete_response = client.post(
+        "/tasks/bulk/delete",
+        headers=auth_headers,
+        json={"task_ids": [first["id"], second["id"]]},
+    )
+
+    assert delete_response.status_code == 200
+    assert delete_response.json()["deleted_count"] == 2
+
+    missing = client.get(f"/tasks/{first['id']}", headers=auth_headers)
+    assert missing.status_code == 404
+
+
+def test_pending_filter_excludes_overdue_tasks(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    overdue = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Already late",
+            "due_date": "2020-01-01T00:00:00Z",
+        },
+    ).json()
+    pending = create_task(client, auth_headers, "Still pending")
+
+    response = client.get(
+        "/tasks",
+        headers=auth_headers,
+        params={"status": "pending"},
+    )
+
+    assert response.status_code == 200
+    ids = {item["id"] for item in response.json()["items"]}
+    assert pending["id"] in ids
+    assert overdue["id"] not in ids
+
+
+def test_inbox_only_filter(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    project = create_project(client, auth_headers)
+    create_task(client, auth_headers, "In project", project_id=project["id"])
+    inbox = create_task(client, auth_headers, "Inbox task")
+
+    response = client.get(
+        "/tasks",
+        headers=auth_headers,
+        params={"inbox_only": True},
+    )
+
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert len(items) == 1
+    assert items[0]["id"] == inbox["id"]
+    assert items[0]["project_id"] is None
+

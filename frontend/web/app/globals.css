@@ -169,6 +169,116 @@ button {
   font-family: var(--font-poppins), sans-serif;
 }
 
+/* Focus timer geometry is kept in regular CSS so the circular layout remains
+   stable during Next.js/Tailwind development hot reloads. */
+.focus-mode-panel {
+  padding: 28px 32px;
+  background:
+    radial-gradient(circle at center, rgba(18, 209, 162, 0.13), transparent 44%),
+    rgba(7, 19, 29, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.focus-timer-stage {
+  position: relative;
+  display: grid;
+  width: min(390px, 44vh);
+  min-width: 290px;
+  aspect-ratio: 1 / 1;
+  margin: 32px auto 0;
+  place-items: center;
+  border: 1px solid rgba(34, 240, 177, 0.2);
+  border-radius: 9999px;
+}
+
+.focus-timer-stage::before,
+.focus-timer-stage::after {
+  position: absolute;
+  content: "";
+  border: 1px solid rgba(34, 240, 177, 0.06);
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+.focus-timer-stage::before {
+  inset: -58px;
+}
+
+.focus-timer-stage::after {
+  inset: -116px;
+  border-color: rgba(34, 240, 177, 0.035);
+}
+
+.focus-timer-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0 14px rgba(34, 240, 177, 0.48));
+}
+
+.focus-timer-time {
+  font-size: clamp(56px, 7vw, 88px);
+}
+
+.focus-timer-action {
+  min-width: 176px;
+}
+
+.focus-timer-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.focus-skip-action {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  place-items: center;
+  border: 1px solid rgba(34, 240, 177, 0.3);
+  border-radius: 9999px;
+  background: rgba(34, 240, 177, 0.1);
+  color: var(--dashboard-accent);
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.focus-skip-action:hover {
+  border-color: rgba(34, 240, 177, 0.68);
+  background: rgba(34, 240, 177, 0.18);
+  transform: translateX(2px);
+}
+
+@media (max-width: 640px) {
+  .focus-mode-panel {
+    padding: 72px 16px 24px;
+  }
+
+  .focus-timer-stage {
+    width: min(78vw, 340px);
+    min-width: 0;
+  }
+
+  .focus-timer-stage::before {
+    inset: -30px;
+  }
+
+  .focus-timer-stage::after {
+    inset: -60px;
+  }
+
+  .focus-timer-time {
+    font-size: clamp(46px, 17vw, 68px);
+  }
+
+  .focus-timer-action {
+    min-width: 148px;
+  }
+}
+
 .accent-scrollbar {
   scroll-behavior: smooth;
   overscroll-behavior-y: contain;
@@ -206,4 +316,34 @@ button {
   background-image: none !important;
   border: 0 !important;
   -webkit-appearance: none !important;
+}
+
+.forest-progress-fill {
+  transition: width 480ms ease;
+}
+
+@keyframes forest-stage-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.forest-stage-pop {
+  animation: forest-stage-pop 720ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forest-progress-fill {
+    transition: none;
+  }
+
+  .forest-stage-pop {
+    animation: none;
+  }
 }

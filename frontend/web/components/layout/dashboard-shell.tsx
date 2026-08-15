@@ -1,10 +1,9 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
-import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
-import { clearSession, getCachedCurrentUser, getCurrentUser } from '../../lib/auth';
-import type { UserResponse } from '../../lib/auth';
+import { usePathname } from 'next/navigation';
+import { Suspense, type ReactNode } from 'react';
+import { CurrentUserProvider, useCurrentUser } from '../auth/current-user-provider';
+import { GrowthRewardToast } from '../gamification/growth-reward-toast';
 import { Header } from './header';
 import { Sidebar } from './sidebar';
 
@@ -40,15 +39,19 @@ const routeMeta: Record<string, RouteMeta> = {
   },
   '/focus': {
     title: 'Focus Mode',
-    subtitle: 'Protect deep work sessions and reduce context switching.',
+    subtitle: 'Stay focused. Beat distraction. Get things done.',
   },
   '/analytics': {
-    title: 'Insights',
-    subtitle: 'Understand productivity patterns and scheduling trends.',
+    title: 'AI Insights',
+    subtitle: 'Personalized productivity insights from your recent activity.',
   },
   '/gamification': {
-    title: 'Gamification',
-    subtitle: 'Keep streaks, milestones, and rewards visible.',
+    title: 'Personal Forest',
+    subtitle: 'Watch your forest grow with every effort',
+  },
+  '/gamification/forest': {
+    title: 'Your Forest',
+    subtitle: 'Wander your garden and place mature trees.',
   },
   '/settings': {
     title: 'Settings',
@@ -71,49 +74,32 @@ function getRouteMeta(pathname: string): RouteMeta {
 }
 
 export function DashboardShell({ children }: DashboardShellProps) {
+  return (
+    <CurrentUserProvider>
+      <DashboardShellContent>{children}</DashboardShellContent>
+    </CurrentUserProvider>
+  );
+}
+
+function DashboardShellContent({
+  children,
+}: Readonly<{
+  children: ReactNode;
+}>) {
   const pathname = usePathname();
-  const router = useRouter();
   const meta = getRouteMeta(pathname);
-  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    const cachedUser = getCachedCurrentUser();
-
-    if (cachedUser) {
-      setCurrentUser(cachedUser);
-    }
-
-    getCurrentUser()
-      .then((user) => {
-        if (isMounted) {
-          setCurrentUser(user);
-        }
-      })
-      .catch(() => {
-        clearSession();
-        router.replace('/login');
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsCheckingSession(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [router]);
+  const { isCheckingSession, user } = useCurrentUser();
 
   return (
     <div className="min-h-dvh bg-dashboard-bg text-dashboard-text lg:flex">
-      <Sidebar className="max-lg:h-auto max-lg:w-full max-lg:border-b max-lg:border-r-0 max-lg:px-4 max-lg:py-5" />
+      <Suspense fallback={null}>
+        <Sidebar className="max-lg:h-auto max-lg:w-full max-lg:border-b max-lg:border-r-0 max-lg:px-4 max-lg:py-5" />
+      </Suspense>
 
       <div className="min-w-0 flex-1">
-        <Header subtitle={meta.subtitle} title={meta.title} user={currentUser} />
+        <Header subtitle={meta.subtitle} title={meta.title} user={user} />
         <main className="min-h-[calc(100dvh-7rem)] px-6 py-8 lg:px-10 xl:px-12">
-          {isCheckingSession && !currentUser ? (
+          {isCheckingSession && !user ? (
             <div className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted">
               Checking your session...
             </div>
@@ -121,6 +107,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
             children
           )}
         </main>
+        <GrowthRewardToast />
       </div>
     </div>
   );
