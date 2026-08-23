@@ -176,6 +176,47 @@ function priorityClasses(task: CalendarTask) {
   return 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--green-300)]';
 }
 
+function mobilePriorityLabel(priority: CalendarTaskPriority) {
+  return priority === 'no_priority'
+    ? 'No priority'
+    : `${priority.charAt(0).toUpperCase()}${priority.slice(1)}`;
+}
+
+function mobilePriorityClasses(priority: CalendarTaskPriority) {
+  return {
+    no_priority: 'border-dashboard-border bg-dashboard-raised text-dashboard-muted',
+    low: 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-dashboard-accent',
+    medium: 'border-[var(--orange-border)] bg-[var(--orange-soft)] text-[var(--yellow)]',
+    high: 'border-[var(--red-border)] bg-[var(--red-soft)] text-[var(--red-light)]',
+  }[priority];
+}
+
+function mobileStatusLabel(status: CalendarTaskStatus) {
+  return {
+    pending: 'Pending',
+    in_progress: 'In progress',
+    done: 'Done',
+    overdue: 'Overdue',
+  }[status];
+}
+
+function mobileStatusClasses(status: CalendarTaskStatus) {
+  return {
+    pending: 'border-[var(--red-border)] text-[var(--red-light)]',
+    in_progress: 'border-[var(--orange-border)] text-[var(--yellow)]',
+    done: 'border-[var(--accent-border)] text-dashboard-accent',
+    overdue: 'border-[var(--red-border)] text-[var(--red-light)]',
+  }[status];
+}
+
+function calendarDotClass(task: CalendarTask) {
+  if (task.status === 'done') return 'bg-dashboard-accent';
+  if (task.priority === 'high') return 'bg-[var(--red-light)]';
+  if (task.priority === 'medium') return 'bg-[var(--yellow)]';
+  if (task.priority === 'low') return 'bg-[var(--blue-light)]';
+  return 'bg-dashboard-muted';
+}
+
 function groupTasks(tasks: CalendarTask[]) {
   return tasks.reduce<Record<string, CalendarTask[]>>((groups, task) => {
     const key = dateKey(new Date(task.dueDate));
@@ -225,6 +266,7 @@ export function CalendarPage() {
     if (calendarView === 'day') return buildDay(selectedDate);
     return buildMonthDays(visibleMonth);
   }, [calendarView, selectedDate, visibleMonth]);
+  const mobileMonthDays = useMemo(() => buildMonthDays(visibleMonth), [visibleMonth]);
 
   const visibleRange = useMemo(() => {
     const start = new Date(days[0].date);
@@ -331,8 +373,10 @@ export function CalendarPage() {
     [calendarTasks, showCompleted],
   );
   const tasksByDay = useMemo(() => groupTasks(visibleTasks), [visibleTasks]);
+  const mobileTasksByDay = useMemo(() => groupTasks(calendarTasks), [calendarTasks]);
   const selectedKey = dateKey(selectedDate);
   const selectedTasks = tasksByDay[selectedKey] ?? [];
+  const mobileSelectedTasks = mobileTasksByDay[selectedKey] ?? [];
   const calendarTitle =
     calendarView === 'month'
       ? formatMonthTitle(visibleMonth)
@@ -359,6 +403,14 @@ export function CalendarPage() {
     setSelectedDate((current) => {
       const next = addDays(current, delta);
       setVisibleMonth(new Date(next.getFullYear(), next.getMonth(), 1));
+      return next;
+    });
+  }
+
+  function moveMobileMonth(delta: number) {
+    setVisibleMonth((current) => {
+      const next = new Date(current.getFullYear(), current.getMonth() + delta, 1);
+      setSelectedDate(next);
       return next;
     });
   }
@@ -469,7 +521,23 @@ export function CalendarPage() {
 
   return (
     <>
-    <section className="grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.95fr)]">
+    <MobileCalendarView
+      days={mobileMonthDays}
+      isLoading={isLoading}
+      loadError={loadError}
+      mutatingTaskId={mutatingTaskId}
+      onMoveMonth={moveMobileMonth}
+      onReschedule={openRescheduleDialog}
+      onSelectDate={selectDate}
+      onToggleTask={toggleTaskStatus}
+      selectedDate={selectedDate}
+      selectedKey={selectedKey}
+      selectedTasks={mobileSelectedTasks}
+      tasksByDay={mobileTasksByDay}
+      visibleMonth={visibleMonth}
+    />
+
+    <section className="hidden gap-5 lg:grid xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.95fr)]">
       <div className="rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 shadow-panel">
         <div className="flex flex-col gap-4 border-b border-dashboard-border p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-3">
@@ -608,6 +676,210 @@ export function CalendarPage() {
       />
     ) : null}
     </>
+  );
+}
+
+function MobileCalendarView({
+  days,
+  isLoading,
+  loadError,
+  mutatingTaskId,
+  onMoveMonth,
+  onReschedule,
+  onSelectDate,
+  onToggleTask,
+  selectedDate,
+  selectedKey,
+  selectedTasks,
+  tasksByDay,
+  visibleMonth,
+}: Readonly<{
+  days: CalendarDay[];
+  isLoading: boolean;
+  loadError: string | null;
+  mutatingTaskId: string | null;
+  onMoveMonth: (delta: number) => void;
+  onReschedule: (task: CalendarTask) => void;
+  onSelectDate: (date: Date) => void;
+  onToggleTask: (task: CalendarTask) => void;
+  selectedDate: Date;
+  selectedKey: string;
+  selectedTasks: CalendarTask[];
+  tasksByDay: Record<string, CalendarTask[]>;
+  visibleMonth: Date;
+}>) {
+  const monthLabel = new Intl.DateTimeFormat('en-AU', { month: 'short' })
+    .format(visibleMonth)
+    .toUpperCase();
+  const selectedLabel = new Intl.DateTimeFormat('en-AU', {
+    day: 'numeric',
+    month: 'short',
+  }).format(selectedDate);
+
+  return (
+    <section className="lg:hidden">
+      <div className="mb-8">
+        <div className="mb-5 grid grid-cols-[40px_1fr_40px] items-center">
+          <button
+            aria-label="Previous month"
+            className="grid h-10 w-10 place-items-center rounded-full text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+            onClick={() => onMoveMonth(-1)}
+            type="button"
+          >
+            <ChevronRightIcon className="h-4 w-4 rotate-180" />
+          </button>
+          <h2 className="text-center text-lg font-semibold tracking-wide text-dashboard-text">
+            {monthLabel}
+          </h2>
+          <button
+            aria-label="Next month"
+            className="grid h-10 w-10 place-items-center rounded-full text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+            onClick={() => onMoveMonth(1)}
+            type="button"
+          >
+            <ChevronRightIcon className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7">
+          {weekdayLabels.map((label) => (
+            <span
+              className="pb-3 text-center text-[11px] font-semibold text-dashboard-muted"
+              key={label}
+            >
+              {label}
+            </span>
+          ))}
+
+          {days.map((day) => {
+            const dayTasks = tasksByDay[day.key] ?? [];
+            const selected = day.key === selectedKey;
+            return (
+              <button
+                aria-label={`${formatSelectedDate(day.date)}${dayTasks.length ? `, ${dayTasks.length} tasks` : ''}`}
+                aria-pressed={selected}
+                className="flex h-[52px] flex-col items-center justify-center gap-1.5"
+                key={day.key}
+                onClick={() => onSelectDate(day.date)}
+                type="button"
+              >
+                <span
+                  className={cn(
+                    'grid h-9 w-9 place-items-center rounded-[10px] text-sm font-medium transition',
+                    !day.isCurrentMonth && 'text-dashboard-subtle',
+                    day.isCurrentMonth && !selected && 'text-dashboard-text',
+                    selected && 'bg-dashboard-accent font-semibold text-[#042019] shadow-glow',
+                    day.isToday && !selected && 'ring-1 ring-dashboard-accent/55 text-dashboard-accent',
+                  )}
+                >
+                  {day.date.getDate()}
+                </span>
+                <span className="flex h-1 items-center justify-center gap-1">
+                  {dayTasks.slice(0, 3).map((task) => (
+                    <span
+                      className={cn('h-1 w-1 rounded-full', calendarDotClass(task))}
+                      key={task.id}
+                    />
+                  ))}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {loadError ? (
+        <p className="mb-5 rounded-[var(--radius-md)] border border-dashboard-danger/30 bg-dashboard-danger/10 p-4 text-sm text-dashboard-danger" role="alert">
+          {loadError}
+        </p>
+      ) : null}
+
+      <div>
+        <h2 className="mb-3 font-poppins text-xl font-semibold text-dashboard-text">
+          {selectedLabel}
+        </h2>
+
+        {isLoading ? (
+          <div className="grid min-h-36 place-items-center rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 text-sm text-dashboard-muted">
+            Loading tasks...
+          </div>
+        ) : selectedTasks.length ? (
+          <div className="divide-y divide-dashboard-border overflow-hidden rounded-[var(--radius-lg)] border border-dashboard-border bg-[#071522] shadow-panel">
+            {selectedTasks.map((task) => {
+              const completed = task.status === 'done';
+              return (
+                <article className="flex items-start gap-3 px-4 py-4" key={task.id}>
+                  <button
+                    aria-label={completed ? `Reopen ${task.title}` : `Complete ${task.title}`}
+                    className={cn(
+                      'mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full border transition',
+                      completed
+                        ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                        : 'border-dashboard-border-strong hover:border-dashboard-accent',
+                    )}
+                    disabled={mutatingTaskId === task.id}
+                    onClick={() => onToggleTask(task)}
+                    type="button"
+                  >
+                    {completed ? <CheckIcon className="h-3.5 w-3.5" /> : null}
+                  </button>
+
+                  <button
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => onReschedule(task)}
+                    type="button"
+                  >
+                    <span className="block truncate text-sm font-semibold text-dashboard-text">
+                      {task.title}
+                    </span>
+                    <span className="mt-2 flex items-center gap-2 text-[11px] text-dashboard-muted">
+                      <span>◷ {formatTime(task.dueDate)}</span>
+                      <span aria-hidden="true">·</span>
+                      <span className="flex min-w-0 items-center gap-1.5 truncate">
+                        <span
+                          className="h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: task.projectColor }}
+                        />
+                        <span className="truncate">{task.project}</span>
+                      </span>
+                    </span>
+                  </button>
+
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <span
+                      className={cn(
+                        'rounded-[var(--radius-pill)] border px-2.5 py-1 text-[10px] font-medium',
+                        mobilePriorityClasses(task.priority),
+                      )}
+                    >
+                      {mobilePriorityLabel(task.priority)}
+                    </span>
+                    <button
+                      className={cn(
+                        'h-7 rounded-[var(--radius-pill)] border px-2.5 text-[10px] font-medium',
+                        mobileStatusClasses(task.status),
+                      )}
+                      disabled={mutatingTaskId === task.id}
+                      onClick={() => onToggleTask(task)}
+                      type="button"
+                    >
+                      {mobileStatusLabel(task.status)}⌄
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="grid min-h-36 place-items-center rounded-[var(--radius-lg)] border border-dashed border-dashboard-border bg-dashboard-surface/40 px-6 text-center">
+            <div>
+              <p className="text-sm font-semibold text-dashboard-text">No tasks scheduled</p>
+              <p className="mt-1 text-xs text-dashboard-muted">Use the + button to add a task.</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
