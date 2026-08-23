@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { HeaderDropdown } from './header-dropdown';
-import { BellIcon, ChevronDownIcon, SearchIcon } from './icons';
+import { BellIcon, ChevronDownIcon, FilterIcon, SearchIcon } from './icons';
 import { NotificationDropdown, type NotificationDropdownItem } from './notification-dropdown';
 import { ProfileMenu } from './profile-menu';
 import type { UserResponse } from '../../lib/auth';
@@ -31,7 +31,7 @@ export function Header({ title, subtitle, className, user }: HeaderProps) {
   return (
     <header
       className={cn(
-        'sticky top-0 z-[180] flex min-h-28 flex-col gap-6 border-b border-dashboard-border bg-dashboard-bg/90 px-6 py-6 backdrop-blur-xl lg:px-10 xl:px-12',
+        'sticky top-0 z-[180] hidden min-h-28 flex-col gap-6 border-b border-dashboard-border bg-dashboard-bg/90 px-10 py-6 backdrop-blur-xl lg:flex xl:px-12',
         className,
       )}
     >
@@ -45,21 +45,22 @@ export function Header({ title, subtitle, className, user }: HeaderProps) {
           ) : null}
         </div>
 
-        <div className="hidden shrink-0 items-center gap-6 md:flex">
+        <div className="flex shrink-0 items-center gap-6">
           <SearchBox />
           <HeaderActions user={user} />
         </div>
-      </div>
-
-      <div className="flex items-center gap-4 md:hidden">
-        <SearchBox compact />
-        <HeaderActions compact user={user} />
       </div>
     </header>
   );
 }
 
-function SearchBox({ compact = false }: Readonly<{ compact?: boolean }>) {
+export function SearchBox({
+  compact = false,
+  showFilterButton = false,
+}: Readonly<{
+  compact?: boolean;
+  showFilterButton?: boolean;
+}>) {
   const router = useRouter();
   const [search, setSearch] = useState('');
 
@@ -72,8 +73,8 @@ function SearchBox({ compact = false }: Readonly<{ compact?: boolean }>) {
   return (
     <form
       className={cn(
-        'flex h-14 items-center rounded-lg border border-dashboard-border bg-dashboard-surface/55 text-dashboard-muted shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition focus-within:border-dashboard-accent/60',
-        compact ? 'min-w-0 flex-1 px-4' : 'w-[420px] px-5',
+        'flex h-14 items-center border border-dashboard-border bg-dashboard-surface/55 text-dashboard-muted shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition focus-within:border-dashboard-accent/60',
+        compact ? 'w-full rounded-2xl px-4' : 'w-[420px] rounded-lg px-5',
       )}
       onSubmit={handleSubmit}
       role="search"
@@ -86,15 +87,25 @@ function SearchBox({ compact = false }: Readonly<{ compact?: boolean }>) {
         className="min-w-0 flex-1 border-0 bg-transparent pl-4 text-base font-medium text-dashboard-text outline-none placeholder:text-dashboard-muted"
         id={compact ? 'mobile-task-search' : 'desktop-task-search'}
         onChange={(event) => setSearch(event.target.value)}
-        placeholder="Search tasks..."
+        placeholder={compact ? 'Search' : 'Search tasks...'}
         type="search"
         value={search}
       />
+      {showFilterButton ? (
+        <button
+          aria-label="Toggle task filters"
+          className="ml-2 grid h-9 w-9 shrink-0 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-accent-soft hover:text-dashboard-accent"
+          onClick={() => window.dispatchEvent(new Event('toggle-mobile-task-filters'))}
+          type="button"
+        >
+          <FilterIcon className="h-5 w-5" />
+        </button>
+      ) : null}
     </form>
   );
 }
 
-function HeaderActions({
+export function HeaderActions({
   compact = false,
   user,
 }: Readonly<{
@@ -211,12 +222,15 @@ function HeaderActions({
   }));
 
   return (
-    <div className={cn('relative flex items-center', compact ? 'gap-3' : 'gap-6')}>
+    <div className={cn('relative flex items-center', compact ? 'gap-1' : 'gap-6')}>
       <button
         aria-expanded={openMenu === 'notifications'}
         aria-haspopup="dialog"
         aria-label="Notifications"
-        className="relative grid h-12 w-12 place-items-center rounded-full text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+        className={cn(
+          'relative grid place-items-center rounded-full text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent',
+          compact ? 'h-11 w-11' : 'h-12 w-12',
+        )}
         onClick={() =>
           setOpenMenu((current) => (current === 'notifications' ? null : 'notifications'))
         }
@@ -242,7 +256,7 @@ function HeaderActions({
       >
         <UserAvatar
           avatarUrl={user?.avatar_url}
-          className="h-12 w-12"
+          className={compact ? 'h-11 w-11' : 'h-12 w-12'}
           email={user?.email}
           firstName={user?.first_name}
           lastName={user?.last_name}

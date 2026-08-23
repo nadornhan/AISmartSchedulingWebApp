@@ -5,6 +5,8 @@ import { Suspense, type ReactNode } from 'react';
 import { CurrentUserProvider, useCurrentUser } from '../auth/current-user-provider';
 import { GrowthRewardToast } from '../gamification/growth-reward-toast';
 import { Header } from './header';
+import { MobileBottomNavigation } from './mobile-bottom-navigation';
+import { MobileTopHeader } from './mobile-top-header';
 import { Sidebar } from './sidebar';
 
 type DashboardShellProps = {
@@ -93,12 +95,13 @@ function DashboardShellContent({
   return (
     <div className="min-h-dvh bg-dashboard-bg text-dashboard-text lg:flex">
       <Suspense fallback={null}>
-        <Sidebar className="max-lg:h-auto max-lg:w-full max-lg:border-b max-lg:border-r-0 max-lg:px-4 max-lg:py-5" />
+        <Sidebar className="hidden lg:flex" />
       </Suspense>
 
       <div className="min-w-0 flex-1">
+        <MobileTopHeader title={meta.title} user={user} />
         <Header subtitle={meta.subtitle} title={meta.title} user={user} />
-        <main className="min-h-[calc(100dvh-7rem)] px-6 py-8 lg:px-10 xl:px-12">
+        <main className="min-h-[calc(100dvh-7rem)] px-6 pb-32 pt-7 lg:px-10 lg:py-8 xl:px-12">
           {isCheckingSession && !user ? (
             <div className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted">
               Checking your session...
@@ -108,6 +111,7 @@ function DashboardShellContent({
           )}
         </main>
         <GrowthRewardToast />
+        <MobileBottomNavigation />
       </div>
     </div>
   );
