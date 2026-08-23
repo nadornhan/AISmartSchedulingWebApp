@@ -132,7 +132,7 @@ export function HeaderActions({
       setNotifications(response);
       return response;
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
         return null;
       }
 
@@ -161,6 +161,16 @@ export function HeaderActions({
       }),
     [refreshNotifications],
   );
+
+  useEffect(() => {
+    function refreshAfterNotificationUpdate() {
+      void refreshNotifications();
+    }
+
+    window.addEventListener('notifications-updated', refreshAfterNotificationUpdate);
+    return () =>
+      window.removeEventListener('notifications-updated', refreshAfterNotificationUpdate);
+  }, [refreshNotifications]);
 
   useEffect(() => {
     if (openMenu !== 'notifications') return;
@@ -224,24 +234,35 @@ export function HeaderActions({
   return (
     <div className={cn('relative flex items-center', compact ? 'gap-1' : 'gap-6')}>
       <button
-        aria-expanded={openMenu === 'notifications'}
-        aria-haspopup="dialog"
+        aria-expanded={compact ? undefined : openMenu === 'notifications'}
+        aria-haspopup={compact ? undefined : 'dialog'}
         aria-label="Notifications"
         className={cn(
           'relative grid place-items-center rounded-full text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent',
           compact ? 'h-11 w-11' : 'h-12 w-12',
         )}
-        onClick={() =>
-          setOpenMenu((current) => (current === 'notifications' ? null : 'notifications'))
-        }
+        onClick={() => {
+          if (compact) {
+            router.push('/notifications');
+            return;
+          }
+          setOpenMenu((current) => (current === 'notifications' ? null : 'notifications'));
+        }}
         ref={notificationButtonRef}
         type="button"
       >
         <BellIcon className="h-6 w-6" />
         {notifications.unread_count > 0 ? (
-          <span className="absolute right-1.5 top-1.5 min-w-5 rounded-full bg-dashboard-danger px-1.5 text-center text-xs font-semibold leading-5 text-white">
-            {notifications.unread_count > 99 ? '99+' : notifications.unread_count}
-          </span>
+          compact ? (
+            <span
+              aria-label={`${notifications.unread_count} unread notifications`}
+              className="absolute bottom-2 left-2 h-2.5 w-2.5 rounded-full border-2 border-[#04111a] bg-[var(--orange)]"
+            />
+          ) : (
+            <span className="absolute right-1.5 top-1.5 min-w-5 rounded-full bg-dashboard-danger px-1.5 text-center text-xs font-semibold leading-5 text-white">
+              {notifications.unread_count > 99 ? '99+' : notifications.unread_count}
+            </span>
+          )
         ) : null}
       </button>
 

@@ -35,6 +35,10 @@ const routeMeta: Record<string, RouteMeta> = {
     title: 'Calendar',
     subtitle: 'Plan deadlines, reminders, and time blocks.',
   },
+  '/notifications': {
+    title: 'Notifications',
+    subtitle: 'Review reminders, deadlines, and schedule updates.',
+  },
   '/priority': {
     title: 'Priority View',
     subtitle: 'Focus on what matters most.',
