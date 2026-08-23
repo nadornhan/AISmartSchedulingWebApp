@@ -160,6 +160,41 @@ button {
   cursor: pointer;
 }
 
+/* Keep saved credentials and browser suggestions visually consistent with the
+   dark authentication and dashboard search fields. */
+.chrono-autofill-auth {
+  --autofill-background: #000306;
+  --autofill-text: #f4f7f6;
+}
+
+.chrono-autofill-search {
+  --autofill-background: #071119;
+  --autofill-text: var(--dashboard-text);
+}
+
+.chrono-autofill:autofill,
+.chrono-autofill:autofill:hover,
+.chrono-autofill:autofill:focus,
+.chrono-autofill:-moz-autofill,
+.chrono-autofill:-moz-autofill:hover,
+.chrono-autofill:-moz-autofill:focus {
+  background-color: var(--autofill-background) !important;
+  color: var(--autofill-text) !important;
+  caret-color: var(--autofill-text);
+  box-shadow: 0 0 0 1000px var(--autofill-background) inset !important;
+}
+
+.chrono-autofill:-webkit-autofill,
+.chrono-autofill:-webkit-autofill:hover,
+.chrono-autofill:-webkit-autofill:focus,
+.chrono-autofill:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--autofill-text) !important;
+  caret-color: var(--autofill-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--autofill-background) inset !important;
+  box-shadow: 0 0 0 1000px var(--autofill-background) inset !important;
+  transition: background-color 9999s ease-out 0s;
+}
+
 ::selection {
   background: var(--accent-border);
   color: var(--dashboard-text);
