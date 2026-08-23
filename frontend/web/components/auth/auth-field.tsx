@@ -11,7 +11,7 @@ export function AuthField({ id, label, icon, ...inputProps }: AuthFieldProps) {
     <label className="relative block h-[72px] w-full" htmlFor={id}>
       <span className="absolute left-0 top-2.5 text-sm text-[#65737a]">{label}</span>
       <input
-        className="absolute inset-x-0 bottom-0 h-12 w-full border-0 border-b border-[#ececf2] bg-transparent pr-8 text-sm font-bold text-[#f4f7f6] outline-none placeholder:font-semibold placeholder:text-[#65737a] focus:border-[var(--accent)]"
+        className="chrono-autofill chrono-autofill-auth absolute inset-x-0 bottom-0 h-12 w-full border-0 border-b border-[#ececf2] bg-transparent pr-8 text-sm font-bold text-[#f4f7f6] outline-none placeholder:font-semibold placeholder:text-[#65737a] focus:border-[var(--accent)]"
         id={id}
         {...inputProps}
       />

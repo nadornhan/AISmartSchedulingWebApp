@@ -83,7 +83,7 @@ function SearchBox({ compact = false }: Readonly<{ compact?: boolean }>) {
         Search tasks
       </label>
       <input
-        className="min-w-0 flex-1 border-0 bg-transparent pl-4 text-base font-medium text-dashboard-text outline-none placeholder:text-dashboard-muted"
+        className="chrono-autofill chrono-autofill-search min-w-0 flex-1 border-0 bg-transparent pl-4 text-base font-medium text-dashboard-text outline-none placeholder:text-dashboard-muted"
         id={compact ? 'mobile-task-search' : 'desktop-task-search'}
         onChange={(event) => setSearch(event.target.value)}
         placeholder="Search tasks..."
