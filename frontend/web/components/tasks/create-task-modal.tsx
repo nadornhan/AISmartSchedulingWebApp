@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useRef, useState } from 'react';
 
 import { ApiError } from '../../lib/api';
 import {
@@ -16,6 +16,7 @@ import type {
   TaskResponse,
   TaskUpdateInput,
 } from '../../lib/tasks';
+import { CreateFolderModal } from '../folders/create-folder-modal';
 import {
   CalendarIcon,
   CheckIcon,
@@ -221,6 +222,10 @@ function TaskFormModal({
   const [naturalLanguageInput, setNaturalLanguageInput] = useState('');
   const [parseFeedback, setParseFeedback] = useState<string | null>(null);
   const [isQuickCreating, setIsQuickCreating] = useState(false);
+  const [availableProjects, setAvailableProjects] = useState(projects);
+  const [selectedProjectId, setSelectedProjectId] = useState(initialValues.projectId);
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const projectMenuRef = useRef<HTMLDetailsElement>(null);
   const [priority, setPriority] = useState<TaskPriorityLabel>(initialValues.priority);
   const [durationOption, setDurationOption] = useState<DurationOption>(
     durationOptionFromMinutes(initialDuration),
@@ -247,7 +252,7 @@ function TaskFormModal({
 
     const requestedProjectName = parsed.projectName?.toLocaleLowerCase();
     const matchedProject = requestedProjectName
-      ? projects.find(
+      ? availableProjects.find(
           (project) => project.name.trim().toLocaleLowerCase() === requestedProjectName,
         )
       : null;
@@ -275,7 +280,7 @@ function TaskFormModal({
       await onSubmit({
         title: parsed.title,
         description: null,
-        project_id: matchedProject?.id ?? (initialValues.projectId || null),
+        project_id: matchedProject?.id ?? (selectedProjectId || null),
         due_date: dueDateTime,
         priority: parsed.priority ?? 'no_priority',
         estimated_duration_minutes: parsed.estimatedDurationMinutes,
@@ -313,6 +318,11 @@ function TaskFormModal({
 
   function removeSubtask(index: number) {
     setSubtasks((current) => current.filter((_subtask, subtaskIndex) => subtaskIndex !== index));
+  }
+
+  function selectProject(projectId: string) {
+    setSelectedProjectId(projectId);
+    projectMenuRef.current?.removeAttribute('open');
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -469,24 +479,90 @@ function TaskFormModal({
             />
           </Field>
 
-          <Field label="Folder / Project">
-            <label className="relative block">
-              <span className="absolute left-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-dashboard-muted" />
-              <select
-                className="h-[var(--input-height-desktop)] w-full appearance-none rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] pl-9 pr-10 text-sm text-dashboard-text outline-none focus:border-dashboard-accent"
-                defaultValue={initialValues.projectId}
-                name="project"
-              >
-                <option value="">Unassigned (Add to Inbox)</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dashboard-muted" />
-            </label>
-          </Field>
+          <div>
+            <span className="mb-2 block text-sm font-medium text-dashboard-text">
+              Folder / Project
+            </span>
+            <input name="project" type="hidden" value={selectedProjectId} />
+            <details className="group relative" ref={projectMenuRef}>
+              <summary className="flex h-[var(--input-height-desktop)] cursor-pointer list-none items-center gap-3 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-text outline-none transition hover:border-dashboard-border-strong focus-visible:border-dashboard-accent focus-visible:ring-2 focus-visible:ring-dashboard-accent/15 [&::-webkit-details-marker]:hidden">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{
+                    backgroundColor:
+                      availableProjects.find((project) => project.id === selectedProjectId)
+                        ?.color ?? 'var(--dashboard-muted)',
+                  }}
+                />
+                <span className="min-w-0 flex-1 truncate">
+                  {availableProjects.find((project) => project.id === selectedProjectId)?.name ??
+                    'Unassigned (Add to Inbox)'}
+                </span>
+                <ChevronDownIcon className="h-4 w-4 shrink-0 text-dashboard-muted transition group-open:rotate-180" />
+              </summary>
+
+              <div className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-40 overflow-hidden rounded-[var(--radius-sm)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-2 shadow-[0_18px_50px_rgba(0,0,0,.5)]">
+                <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
+                  <button
+                    aria-pressed={!selectedProjectId}
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition',
+                      !selectedProjectId
+                        ? 'bg-dashboard-accent-soft text-dashboard-accent'
+                        : 'text-dashboard-text hover:bg-dashboard-surface-hover',
+                    )}
+                    onClick={() => selectProject('')}
+                    type="button"
+                  >
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-dashboard-muted" />
+                    <span className="min-w-0 flex-1 truncate">Unassigned (Add to Inbox)</span>
+                    {!selectedProjectId ? <CheckIcon className="h-4 w-4" /> : null}
+                  </button>
+
+                  {availableProjects.map((project) => {
+                    const isSelected = project.id === selectedProjectId;
+                    return (
+                      <button
+                        aria-pressed={isSelected}
+                        className={cn(
+                          'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition',
+                          isSelected
+                            ? 'bg-dashboard-accent-soft text-dashboard-accent'
+                            : 'text-dashboard-text hover:bg-dashboard-surface-hover',
+                        )}
+                        key={project.id}
+                        onClick={() => selectProject(project.id)}
+                        type="button"
+                      >
+                        <span
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: project.color }}
+                        />
+                        <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                        {isSelected ? <CheckIcon className="h-4 w-4" /> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-2 border-t border-dashboard-border pt-2">
+                  <button
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-dashboard-accent transition hover:bg-dashboard-accent-soft"
+                    onClick={() => {
+                      projectMenuRef.current?.removeAttribute('open');
+                      setIsCreateFolderOpen(true);
+                    }}
+                    type="button"
+                  >
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-dashboard-accent-soft">
+                      <PlusIcon className="h-4 w-4" />
+                    </span>
+                    Create new folder
+                  </button>
+                </div>
+              </div>
+            </details>
+          </div>
 
           <Field label="Priority">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -717,6 +793,18 @@ function TaskFormModal({
           </button>
         </div>
       </form>
+
+      <CreateFolderModal
+        isOpen={isCreateFolderOpen}
+        onClose={() => setIsCreateFolderOpen(false)}
+        onCreated={(folder) => {
+          setAvailableProjects((current) => [
+            ...current.filter((project) => project.id !== folder.id),
+            folder,
+          ]);
+          setSelectedProjectId(folder.id);
+        }}
+      />
     </div>
   );
 }
