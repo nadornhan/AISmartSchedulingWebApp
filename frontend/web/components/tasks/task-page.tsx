@@ -25,8 +25,10 @@ import {
 } from '../../lib/tasks';
 import {
   CheckIcon,
+  CalendarIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  CloseIcon,
   EditIcon,
   MoreIcon,
   MoveIcon,
@@ -66,6 +68,7 @@ type Task = {
 };
 
 const filterOrder: TaskFilter[] = ['All', 'Pending', 'In Progress', 'Done', 'Overdue'];
+const mobileFilterOrder: TaskFilter[] = ['All', 'Done', 'In Progress', 'Pending', 'Overdue'];
 const statuses: TaskStatus[] = ['Pending', 'In Progress', 'Done'];
 const priorityFilters: PriorityFilter[] = ['All', 'No priority', 'Low', 'Medium', 'High'];
 const sortOptions: Array<{ label: string; value: TaskSortValue }> = [
@@ -203,6 +206,31 @@ function statusClass(status: DisplayTaskStatus) {
   }[status];
 }
 
+type MobileTaskGroup = 'Overdue' | 'Today' | 'Upcoming' | 'Other';
+
+const mobileGroupMeta: Record<MobileTaskGroup, { color: string; label: string }> = {
+  Overdue: { color: 'text-[var(--red-light)]', label: 'Overdue' },
+  Today: { color: 'text-dashboard-accent', label: 'Today' },
+  Upcoming: { color: 'text-[var(--blue-light)]', label: 'Upcoming' },
+  Other: { color: 'text-dashboard-muted', label: 'Other tasks' },
+};
+
+function mobileGroupForTask(task: Task): MobileTaskGroup {
+  if (task.overdue) return 'Overdue';
+  if (!task.dueDateIso) return 'Other';
+
+  const dueDate = new Date(task.dueDateIso);
+  const today = new Date();
+  const sameDay =
+    dueDate.getFullYear() === today.getFullYear() &&
+    dueDate.getMonth() === today.getMonth() &&
+    dueDate.getDate() === today.getDate();
+
+  if (sameDay) return 'Today';
+  if (dueDate.getTime() > today.getTime()) return 'Upcoming';
+  return 'Other';
+}
+
 function CheckBox({
   checked,
   label,
@@ -237,6 +265,7 @@ export function TaskPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('All');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('All');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskResponse | null>(null);
@@ -273,6 +302,32 @@ export function TaskPage() {
   useEffect(() => {
     setCreateProjectId(activeProjectId);
   }, [activeProjectId]);
+
+  useEffect(() => {
+    function toggleMobileFilters() {
+      setShowMobileFilters((current) => !current);
+    }
+
+    window.addEventListener('toggle-mobile-task-filters', toggleMobileFilters);
+    return () => window.removeEventListener('toggle-mobile-task-filters', toggleMobileFilters);
+  }, []);
+
+  useEffect(() => {
+    if (!showMobileFilters) return;
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setShowMobileFilters(false);
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [showMobileFilters]);
 
   useEffect(() => {
     if (!shouldOpenCreate) return;
@@ -431,6 +486,12 @@ export function TaskPage() {
 
   const visibleTasks = tasks;
   const activeProject = projects.find((project) => project.id === activeProjectId);
+  const mobileTaskGroups = (['Overdue', 'Today', 'Upcoming', 'Other'] as const)
+    .map((group) => ({
+      group,
+      tasks: visibleTasks.filter((task) => mobileGroupForTask(task) === group),
+    }))
+    .filter((item) => item.tasks.length > 0);
 
   const allVisibleSelected =
     visibleTasks.length > 0 && visibleTasks.every((task) => selected.includes(task.id));
@@ -660,7 +721,175 @@ export function TaskPage() {
         </section>
       ) : null}
 
-      <section aria-label="Task controls" className="mb-5 flex flex-wrap items-center gap-4">
+      <section aria-label="Mobile task controls" className="mb-6 lg:hidden">
+        <div className="accent-scrollbar -mx-6 flex gap-2 overflow-x-auto px-6 pb-2">
+          {mobileFilterOrder.map((filter) => (
+            <button
+              aria-pressed={activeFilter === filter}
+              className={cn(
+                'h-10 shrink-0 rounded-[var(--radius-sm)] border px-5 text-sm font-medium transition',
+                activeFilter === filter
+                  ? 'border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent'
+                  : 'border-transparent bg-[#0b1828] text-dashboard-muted',
+              )}
+              key={filter}
+              onClick={() => {
+                setActiveFilter(filter);
+                setPage(1);
+              }}
+              type="button"
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+
+      </section>
+
+      {showMobileFilters ? (
+        <div
+          aria-labelledby="mobile-task-filter-title"
+          aria-modal="true"
+          className="fixed inset-0 z-[260] grid place-items-end bg-black/65 p-3 pb-[calc(6.5rem+env(safe-area-inset-bottom))] backdrop-blur-sm lg:hidden"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) setShowMobileFilters(false);
+          }}
+          role="dialog"
+        >
+          <section className="mx-auto max-h-[calc(100dvh-8rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-dashboard-border-strong bg-[#07151f] p-5 shadow-[0_24px_70px_rgba(0,0,0,.65)]">
+            <header className="flex items-center justify-between gap-4 border-b border-dashboard-border pb-4">
+              <div>
+                <h2 className="font-poppins text-xl font-semibold text-dashboard-text" id="mobile-task-filter-title">
+                  Filter &amp; sort
+                </h2>
+                <p className="mt-1 text-xs text-dashboard-muted">Refine the tasks shown below.</p>
+              </div>
+              <button
+                aria-label="Close filters"
+                className="grid h-10 w-10 place-items-center rounded-full text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-text"
+                onClick={() => setShowMobileFilters(false)}
+                type="button"
+              >
+                <CloseIcon className="h-5 w-5" />
+              </button>
+            </header>
+
+            <fieldset className="mt-5">
+              <legend className="text-sm font-semibold text-dashboard-text">Priority</legend>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {priorityFilters.map((option) => (
+                  <button
+                    aria-pressed={priorityFilter === option}
+                    className={cn(
+                      'flex h-11 items-center gap-2.5 rounded-[var(--radius-sm)] border px-3 text-sm font-medium transition',
+                      option === 'All' && 'col-span-2',
+                      priorityFilter === option
+                        ? 'border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent'
+                        : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted',
+                    )}
+                    key={option}
+                    onClick={() => {
+                      setPriorityFilter(option);
+                      setPage(1);
+                    }}
+                    type="button"
+                  >
+                    <span
+                      className={cn(
+                        'h-2.5 w-2.5 rounded-full',
+                        option === 'All' && 'bg-dashboard-muted',
+                        option === 'No priority' && 'border border-dashboard-muted',
+                        option === 'Low' && 'bg-[var(--blue)]',
+                        option === 'Medium' && 'bg-[var(--yellow)]',
+                        option === 'High' && 'bg-[var(--red)]',
+                      )}
+                    />
+                    {option === 'All' ? 'All priorities' : option}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset className="mt-5">
+              <legend className="text-sm font-semibold text-dashboard-text">Sort by</legend>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {sortOptions.map((option) => (
+                  <button
+                    aria-pressed={sortBy === option.value}
+                    className={cn(
+                      'h-10 rounded-[var(--radius-sm)] border px-3 text-sm font-medium transition',
+                      sortBy === option.value
+                        ? 'border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent'
+                        : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted',
+                    )}
+                    key={option.value}
+                    onClick={() => {
+                      setSortBy(option.value);
+                      setPage(1);
+                    }}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <div className="mt-5">
+              <p className="text-sm font-semibold text-dashboard-text">Order</p>
+              <div className="mt-3 grid grid-cols-2 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] p-1">
+                {([
+                  { label: 'Ascending', value: true },
+                  { label: 'Descending', value: false },
+                ] as const).map((option) => (
+                  <button
+                    aria-pressed={sortAscending === option.value}
+                    className={cn(
+                      'flex h-9 items-center justify-center gap-2 rounded-md text-sm font-medium transition',
+                      sortAscending === option.value
+                        ? 'bg-dashboard-accent-soft text-dashboard-accent'
+                        : 'text-dashboard-muted',
+                    )}
+                    key={option.label}
+                    onClick={() => {
+                      setSortAscending(option.value);
+                      setPage(1);
+                    }}
+                    type="button"
+                  >
+                    <SortIcon className={cn('h-4 w-4', !option.value && 'rotate-180')} />
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <footer className="mt-6 grid grid-cols-2 gap-3 border-t border-dashboard-border pt-5">
+              <button
+                className="h-11 rounded-[var(--radius-sm)] border border-dashboard-border-strong text-sm font-semibold text-dashboard-muted transition hover:text-dashboard-text"
+                onClick={() => {
+                  setPriorityFilter('All');
+                  setSortBy('due_date');
+                  setSortAscending(true);
+                  setPage(1);
+                }}
+                type="button"
+              >
+                Reset
+              </button>
+              <button
+                className="h-11 rounded-[var(--radius-sm)] bg-dashboard-accent text-sm font-semibold text-[#042019] shadow-glow transition hover:brightness-110"
+                onClick={() => setShowMobileFilters(false)}
+                type="button"
+              >
+                Show results
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+
+      <section aria-label="Task controls" className="mb-5 hidden flex-wrap items-center gap-4 lg:flex">
         <div className="flex max-w-full gap-2 overflow-x-auto rounded-[var(--radius-xl)] border border-dashboard-border bg-dashboard-surface/70 p-2">
           {filterOrder.map((filter) => (
             <button
@@ -769,7 +998,128 @@ export function TaskPage() {
         </div>
       ) : null}
 
-      <section className="rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 shadow-panel">
+      <section aria-label="Tasks grouped by due date" className="space-y-7 lg:hidden">
+        {isLoading ? (
+          <div className="grid min-h-56 place-items-center rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 px-6 text-center">
+            <div>
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-dashboard-border border-t-dashboard-accent" />
+              <p className="mt-3 text-sm text-dashboard-muted">Loading tasks...</p>
+            </div>
+          </div>
+        ) : mobileTaskGroups.length ? (
+          mobileTaskGroups.map(({ group, tasks: groupTasks }) => {
+            const meta = mobileGroupMeta[group];
+            return (
+              <div key={group}>
+                <div className={cn('mb-3 flex items-center gap-2', meta.color)}>
+                  <CalendarIcon className="h-5 w-5" />
+                  <h2 className="text-sm font-medium text-dashboard-text">{meta.label}</h2>
+                  <span className="grid min-w-5 place-items-center rounded-full bg-current/10 px-1.5 text-xs font-semibold">
+                    {groupTasks.length}
+                  </span>
+                </div>
+
+                <div className="divide-y divide-dashboard-border overflow-hidden rounded-[var(--radius-lg)] border border-dashboard-border bg-[#071522] shadow-panel">
+                  {groupTasks.map((task) => {
+                    const completed = task.workflowStatus === 'Done';
+                    return (
+                      <article className="flex items-start gap-3 px-4 py-4" key={task.id}>
+                        <button
+                          aria-label={completed ? `Reopen ${task.title}` : `Complete ${task.title}`}
+                          className={cn(
+                            'mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full border transition',
+                            completed
+                              ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                              : 'border-dashboard-border-strong bg-transparent hover:border-dashboard-accent',
+                          )}
+                          disabled={isMutating}
+                          onClick={() =>
+                            void changeStatus(task.id, completed ? 'Pending' : 'Done')
+                          }
+                          type="button"
+                        >
+                          {completed ? <CheckIcon className="h-3.5 w-3.5" /> : null}
+                        </button>
+
+                        <button
+                          className="min-w-0 flex-1 text-left"
+                          onClick={() => setEditingTask(task.source)}
+                          type="button"
+                        >
+                          <span className="block truncate text-sm font-semibold text-dashboard-text">
+                            {task.title}
+                          </span>
+                          <span className="mt-2 flex min-w-0 items-center gap-2 text-[11px] text-dashboard-muted">
+                            <span className={cn(task.overdue && 'text-[var(--red-light)]')}>
+                              ◷ {task.dueDate}
+                            </span>
+                            <span aria-hidden="true">·</span>
+                            <span className="flex min-w-0 items-center gap-1.5 truncate">
+                              <span
+                                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                style={{
+                                  backgroundColor:
+                                    task.projectId === null
+                                      ? 'var(--dashboard-muted)'
+                                      : task.projectColor,
+                                }}
+                              />
+                              <span className="truncate">{task.project}</span>
+                            </span>
+                          </span>
+                        </button>
+
+                        <div className="flex shrink-0 flex-col items-end gap-2">
+                          <span
+                            className={cn(
+                              'inline-flex rounded-[var(--radius-pill)] border px-2.5 py-1 text-[10px] font-medium',
+                              priorityClass(task.priority),
+                            )}
+                          >
+                            {task.priority}
+                          </span>
+                          <label className="relative inline-flex items-center">
+                            <span className="sr-only">Status for {task.title}</span>
+                            <select
+                              className={cn(
+                                'h-7 max-w-[104px] appearance-none rounded-[var(--radius-pill)] border py-0 pl-2.5 pr-6 text-[10px] font-medium outline-none',
+                                statusClass(task.workflowStatus),
+                              )}
+                              disabled={isMutating}
+                              onChange={(event) =>
+                                void changeStatus(task.id, event.target.value as TaskStatus)
+                              }
+                              value={task.workflowStatus}
+                            >
+                              {statuses.map((status) => (
+                                <option className="bg-[var(--bg-surface-raised)]" key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDownIcon className="pointer-events-none absolute right-1.5 h-3 w-3" />
+                          </label>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="grid min-h-56 place-items-center rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 px-6 text-center">
+            <div>
+              <p className="text-base font-semibold text-dashboard-text">No tasks found</p>
+              <p className="mt-2 text-sm text-dashboard-muted">
+                Try another filter or create a new task.
+              </p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="hidden rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 shadow-panel lg:block">
         <div className="hidden min-h-14 grid-cols-[32px_minmax(240px,1.6fr)_minmax(94px,0.8fr)_minmax(104px,0.85fr)_minmax(92px,0.75fr)_minmax(116px,0.95fr)_76px] items-center gap-2 rounded-t-[var(--radius-lg)] border-b border-dashboard-border px-4 text-xs font-semibold uppercase tracking-wide text-dashboard-muted lg:grid">
           <CheckBox
             checked={allVisibleSelected}
@@ -989,7 +1339,31 @@ export function TaskPage() {
         </div>
       </section>
 
-      <footer className="mt-4 flex flex-col gap-4 xl:flex-row xl:items-center">
+      {totalPages > 1 ? (
+        <footer className="mt-6 flex items-center justify-between gap-3 text-sm text-dashboard-muted lg:hidden">
+          <button
+            className="h-10 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface px-4 disabled:opacity-40"
+            disabled={page <= 1 || isLoading}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            type="button"
+          >
+            Previous
+          </button>
+          <span>
+            Page {page} of {totalPages}
+          </span>
+          <button
+            className="h-10 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface px-4 disabled:opacity-40"
+            disabled={page >= totalPages || isLoading}
+            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            type="button"
+          >
+            Next
+          </button>
+        </footer>
+      ) : null}
+
+      <footer className="mt-4 hidden flex-col gap-4 lg:flex xl:flex-row xl:items-center">
         <div className="flex min-h-12 flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-dashboard-border bg-dashboard-surface/70 p-2">
           <span className="px-2 text-sm text-dashboard-muted">{selected.length} selected</span>
           <button
