@@ -142,6 +142,14 @@ export function ForestPage() {
           Watch your forest grow with every effort
         </h1>
         <p className="max-w-2xl text-sm text-dashboard-muted">{forest.supportive_message}</p>
+        <div className="inline-flex items-center gap-3 rounded-lg border border-dashboard-accent/30 bg-dashboard-accent/10 px-4 py-3">
+          <span className="text-sm font-medium text-dashboard-muted">
+            Available Growth Points
+          </span>
+          <span className="text-lg font-semibold text-dashboard-accent">
+            {forest.unassigned_growth_points} GP
+          </span>
+        </div>
         {error ? <p className="text-sm text-[var(--red-light)]">{error}</p> : null}
       </section>
 
@@ -149,7 +157,8 @@ export function ForestPage() {
         <section className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-6 shadow-panel">
           <h2 className="text-xl font-semibold text-dashboard-text">Choose Your First Plant</h2>
           <p className="mt-2 text-sm text-dashboard-muted">
-            Pick a companion species. Completing tasks and focus sessions will help it grow.
+            Pick a companion species. Your {forest.unassigned_growth_points} available GP will be
+            applied automatically, and future tasks and focus sessions will help it grow.
           </p>
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {unlockedCatalog.map((species) => (
