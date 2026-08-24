@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { useCurrentUser } from '../auth/current-user-provider';
-import { deleteCurrentUserAvatar, uploadCurrentUserAvatar } from '../../lib/auth';
 import { emitSettingsDataChanged } from '../../lib/data-events';
 import {
   getSettings,
@@ -12,21 +11,12 @@ import {
   updateSettings,
   type UserSettingsResponse,
 } from '../../lib/settings';
-import { AccountActions } from './account-actions';
 import { NotificationSettings, type NotificationSettingsValue } from './notification-settings';
-import { ProfileSettings, type ProfileSettingsValue } from './profile-settings';
 import { SchedulingWeights, type SchedulingWeightsValue } from './scheduling-weights';
 import { WorkPreferences, type WorkPreferencesValue } from './work-preferences';
 
-const roleLabels = {
-  admin: 'Admin',
-  other: 'Other',
-  student: 'Student',
-  teacher: 'Teacher',
-};
-
 export function SettingsPage() {
-  const { error, isCheckingSession, setUser, user } = useCurrentUser();
+  const { error, user } = useCurrentUser();
   const [workPreferences, setWorkPreferences] = useState<WorkPreferencesValue | null>(null);
   const [notifications, setNotifications] = useState<NotificationSettingsValue | null>(null);
   const [schedulingWeights, setSchedulingWeights] = useState<SchedulingWeightsValue | null>(null);
@@ -35,14 +25,6 @@ export function SettingsPage() {
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const profile: ProfileSettingsValue = {
-    firstName: user?.first_name ?? '',
-    lastName: user?.last_name ?? '',
-    email: user?.email ?? '',
-    role: user ? roleLabels[user.role] : '',
-    avatarUrl: user?.avatar_url ?? null,
-  };
   const settingsLoaded = Boolean(workPreferences && notifications && schedulingWeights);
   const isDirty = useMemo(() => {
     if (!savedSettings || !workPreferences || !notifications || !schedulingWeights) {
@@ -108,28 +90,6 @@ export function SettingsPage() {
     };
   }, [user]);
 
-  async function uploadAvatar(file: File) {
-    setIsUploadingAvatar(true);
-
-    try {
-      const updatedUser = await uploadCurrentUserAvatar(file);
-      setUser(updatedUser);
-    } finally {
-      setIsUploadingAvatar(false);
-    }
-  }
-
-  async function deleteAvatar() {
-    setIsUploadingAvatar(true);
-
-    try {
-      const updatedUser = await deleteCurrentUserAvatar();
-      setUser(updatedUser);
-    } finally {
-      setIsUploadingAvatar(false);
-    }
-  }
-
   async function saveSettings() {
     if (!workPreferences || !notifications || !schedulingWeights) return;
 
@@ -192,13 +152,6 @@ export function SettingsPage() {
       ) : null}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
         <div className="grid min-w-0 gap-6">
-          <ProfileSettings
-            isLoading={isCheckingSession && !user}
-            isUploadingAvatar={isUploadingAvatar}
-            onAvatarDelete={deleteAvatar}
-            onAvatarUpload={uploadAvatar}
-            value={profile}
-          />
           {isLoadingSettings || (!settingsLoaded && !settingsError) ? (
             <div
               className="rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 p-5 text-sm text-dashboard-muted shadow-panel"
@@ -240,7 +193,6 @@ export function SettingsPage() {
               {isSavingSettings ? 'Saving...' : isDirty ? 'Save Settings' : 'Settings Saved'}
             </button>
           ) : null}
-          <AccountActions />
         </aside>
       </div>
     </div>

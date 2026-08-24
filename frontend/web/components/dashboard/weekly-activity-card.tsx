@@ -53,10 +53,10 @@ export function WeeklyActivityCard({
         </div>
         <div className="relative grid h-52 grid-cols-7 items-end gap-3">
           <div className="pointer-events-none absolute inset-0 grid grid-rows-4">
-            <span className="border-t border-dashboard-border/60" />
-            <span className="border-t border-dashboard-border/60" />
-            <span className="border-t border-dashboard-border/60" />
-            <span className="border-t border-dashboard-border/60" />
+            <span className="border-t opacity-30 border-dashboard-border/60" />
+            <span className="border-t opacity-30 border-dashboard-border/60" />
+            <span className="border-t opacity-30 border-dashboard-border/60" />
+            <span className="border-t opacity-30 border-dashboard-border/60" />
           </div>
         {points.map((point) => {
           const doneHeight = point.done > 0 ? Math.max(12, (point.done / max) * 100) : 0;

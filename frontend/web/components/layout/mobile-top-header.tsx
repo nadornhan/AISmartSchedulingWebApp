@@ -16,8 +16,10 @@ export function MobileTopHeader({
   const isCalendarPage = title === 'Calendar';
   const isNotificationsPage = title === 'Notifications';
   const isFocusPage = title === 'Focus Mode';
-  const showPageTitle = isTaskPage || isCalendarPage || isNotificationsPage || isFocusPage;
-  const hideSearch = isCalendarPage || isNotificationsPage || isFocusPage;
+  const isProfilePage = title === 'Profile';
+  const showPageTitle =
+    isTaskPage || isCalendarPage || isNotificationsPage || isFocusPage || isProfilePage;
+  const hideSearch = isCalendarPage || isNotificationsPage || isFocusPage || isProfilePage;
 
   return (
     <header className="relative z-[180] border-b border-dashboard-border bg-[#04111a]/95 px-6 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))] backdrop-blur-xl lg:hidden">

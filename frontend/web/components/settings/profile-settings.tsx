@@ -57,8 +57,8 @@ export function ProfileSettings({
   return (
     <SettingsSection
       eyebrow="Profile"
-      title="Profile Settings"
-      description="Keep account details ready for scheduling and reminders."
+      title="Your Profile"
+      description="View your account details and manage your profile photo."
     >
       <div className="flex flex-col gap-6">
         <div className="flex flex-col items-start gap-4 rounded-[var(--radius-md)] border border-dashboard-border bg-[var(--bg-surface-raised)] p-4 sm:flex-row sm:items-center">

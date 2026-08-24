@@ -3,9 +3,8 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { HeaderDropdown } from './header-dropdown';
-import { BellIcon, ChevronDownIcon, FilterIcon, SearchIcon } from './icons';
+import { BellIcon, FilterIcon, SearchIcon } from './icons';
 import { NotificationDropdown, type NotificationDropdownItem } from './notification-dropdown';
-import { ProfileMenu } from './profile-menu';
 import type { UserResponse } from '../../lib/auth';
 import { onTaskDataChanged } from '../../lib/data-events';
 import {
@@ -114,7 +113,7 @@ export function HeaderActions({
 }>) {
   const router = useRouter();
   const pathname = usePathname();
-  const [openMenu, setOpenMenu] = useState<'notifications' | 'profile' | null>(null);
+  const [openMenu, setOpenMenu] = useState<'notifications' | null>(null);
   const [notifications, setNotifications] = useState<NotificationListResponse>({
     items: [],
     unread_count: 0,
@@ -123,7 +122,6 @@ export function HeaderActions({
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
-  const profileButtonRef = useRef<HTMLButtonElement>(null);
 
   const refreshNotifications = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -267,12 +265,9 @@ export function HeaderActions({
       </button>
 
       <button
-        aria-expanded={openMenu === 'profile'}
-        aria-haspopup="dialog"
-        aria-label="Open profile menu"
+        aria-label="Open profile"
         className="flex items-center gap-3 rounded-full text-dashboard-muted transition hover:text-dashboard-text"
-        onClick={() => setOpenMenu((current) => (current === 'profile' ? null : 'profile'))}
-        ref={profileButtonRef}
+        onClick={() => router.push('/profile')}
         type="button"
       >
         <UserAvatar
@@ -282,7 +277,6 @@ export function HeaderActions({
           firstName={user?.first_name}
           lastName={user?.last_name}
         />
-        <ChevronDownIcon className="hidden h-5 w-5 shrink-0 sm:block" />
       </button>
 
       {openMenu === 'notifications' ? (
@@ -303,15 +297,6 @@ export function HeaderActions({
         </HeaderDropdown>
       ) : null}
 
-      {openMenu === 'profile' ? (
-        <HeaderDropdown
-          label="Profile menu"
-          onClose={() => setOpenMenu(null)}
-          triggerRef={profileButtonRef}
-        >
-          <ProfileMenu onClose={() => setOpenMenu(null)} user={user} />
-        </HeaderDropdown>
-      ) : null}
     </div>
   );
 }

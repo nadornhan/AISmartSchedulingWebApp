@@ -77,7 +77,7 @@ export function AiRecommendationCard({
           </div>
           <div className="relative flex flex-col gap-2 sm:flex-row">
             <button
-              className="h-11 flex-1 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
+              className="h-11 py-3 flex-1 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
               onClick={() => void startFocus()}
               type="button"
             >

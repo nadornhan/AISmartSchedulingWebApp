@@ -39,6 +39,10 @@ const routeMeta: Record<string, RouteMeta> = {
     title: 'Notifications',
     subtitle: 'Review reminders, deadlines, and schedule updates.',
   },
+  '/profile': {
+    title: 'Profile',
+    subtitle: 'View your account details and manage your profile photo.',
+  },
   '/priority': {
     title: 'Priority View',
     subtitle: 'Focus on what matters most.',
