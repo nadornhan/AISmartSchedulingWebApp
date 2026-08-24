@@ -58,7 +58,7 @@ def normalize_stage(stage: str) -> str:
 
 
 def stage_for_points(points: int, *, mature_at: int = DEFAULT_MATURE_GP) -> str:
-    if points >= mature_at or points >= STAGE_THRESHOLDS["mature"]:
+    if points >= mature_at:
         return "mature"
     if points >= STAGE_THRESHOLDS["growing"]:
         return "growing"

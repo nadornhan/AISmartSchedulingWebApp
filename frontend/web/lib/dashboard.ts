@@ -70,6 +70,7 @@ export type DashboardForestSummary = {
   current_growth_points?: number;
   next_stage_at?: number | null;
   total_trees_grown?: number;
+  unassigned_growth_points?: number;
   needs_plant_selection?: boolean;
   supportive_message?: string;
 };

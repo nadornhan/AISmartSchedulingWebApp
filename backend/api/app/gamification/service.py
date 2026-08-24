@@ -88,6 +88,20 @@ def get_or_create_profile(db: Session, user_id: uuid.UUID) -> UserGamificationPr
     return profile
 
 
+def _profile_for_update(db: Session, user_id: uuid.UUID) -> UserGamificationProfile:
+    """Lock the user's GP balance while rewards or transfers are applied."""
+    profile = get_or_create_profile(db, user_id)
+    db.flush()
+    return (
+        db.scalar(
+            select(UserGamificationProfile)
+            .where(UserGamificationProfile.user_id == user_id)
+            .with_for_update()
+        )
+        or profile
+    )
+
+
 def _growing_plant(db: Session, user_id: uuid.UUID) -> UserPlant | None:
     return db.scalar(
         select(UserPlant)
@@ -333,6 +347,7 @@ def _profile_response(
     plant = _growing_plant(db, user_id)
     return GamificationProfileResponse(
         total_growth_points=profile.total_growth_points,
+        unassigned_growth_points=profile.unassigned_growth_points,
         total_trees_grown=profile.total_trees_grown,
         streak=StreakSummary(
             current_streak=profile.current_streak,
@@ -369,6 +384,7 @@ def get_forest(db: Session, user_id: uuid.UUID) -> ForestResponse:
         )
     return ForestResponse(
         forest_name=_forest_display_name(profile),
+        unassigned_growth_points=profile.unassigned_growth_points,
         current_plant=_plant_response(plant, user_id=user_id, db=db) if plant else None,
         completed_plants=completed,
         needs_plant_selection=plant is None,
@@ -417,6 +433,7 @@ def select_plant(
     user_id: uuid.UUID,
     species_id: str,
 ) -> GamificationProfileResponse:
+    profile = _profile_for_update(db, user_id)
     if _growing_plant(db, user_id) is not None:
         raise ValueError("You already have a plant growing. Finish it before selecting another.")
 
@@ -426,16 +443,25 @@ def select_plant(
     if not _is_species_unlocked(db, user_id, species):
         raise PermissionError("This plant is still locked")
 
+    transferred_points = profile.unassigned_growth_points
+    mature_at = species.required_growth_points or DEFAULT_MATURE_GP
+    growth_stage = stage_for_points(transferred_points, mature_at=mature_at)
+    plant_completed = transferred_points >= mature_at
     plant = UserPlant(
         user_id=user_id,
         species_id=species.id,
-        current_growth_points=0,
-        growth_stage=GrowthStage.SEEDLING.value,
-        status=PlantStatus.GROWING.value,
+        current_growth_points=transferred_points,
+        growth_stage=growth_stage,
+        status=(
+            PlantStatus.COMPLETED.value if plant_completed else PlantStatus.GROWING.value
+        ),
         custom_name=None,
+        completed_at=utc_now() if plant_completed else None,
     )
     db.add(plant)
-    get_or_create_profile(db, user_id)
+    profile.unassigned_growth_points = 0
+    if plant_completed:
+        profile.total_trees_grown += 1
     db.commit()
     return _profile_response(db, user_id)
 
@@ -554,6 +580,7 @@ def get_dashboard_widget(db: Session, user_id: uuid.UUID) -> DashboardForestWidg
     if plant is None:
         return DashboardForestWidget(
             total_trees_grown=profile.total_trees_grown,
+            unassigned_growth_points=profile.unassigned_growth_points,
             needs_plant_selection=True,
             supportive_message=SUPPORTIVE_MESSAGES["no_plant"],
         )
@@ -565,6 +592,7 @@ def get_dashboard_widget(db: Session, user_id: uuid.UUID) -> DashboardForestWidg
         current_growth_points=plant.current_growth_points,
         next_stage_at=plant.next_stage_at or plant.required_growth_points,
         total_trees_grown=profile.total_trees_grown,
+        unassigned_growth_points=profile.unassigned_growth_points,
         needs_plant_selection=False,
         supportive_message=plant.supportive_message,
     )
@@ -645,7 +673,9 @@ def _apply_points_to_plant(
 ) -> tuple[UserPlant | None, bool, str | None, str | None, bool]:
     plant = _growing_plant(db, user_id)
     if plant is None or points <= 0:
-        profile.total_growth_points += max(points, 0)
+        awarded_points = max(points, 0)
+        profile.total_growth_points += awarded_points
+        profile.unassigned_growth_points += awarded_points
         return None, False, None, None, False
 
     previous_stage = plant.growth_stage
@@ -832,7 +862,7 @@ def award_for_task_completion(
     if event is None:
         return RewardFeedback(awarded=False, profile=_profile_response(db, user_id))
 
-    profile = get_or_create_profile(db, user_id)
+    profile = _profile_for_update(db, user_id)
     streak_bonus = _update_streak(db, profile)
     if streak_bonus:
         _record_reward(
@@ -857,8 +887,10 @@ def award_for_task_completion(
     unlocked = _evaluate_achievements(db, user_id)
     db.commit()
 
-    plant_name = _display_name(plant) if plant is not None else "forest"
-    if plant_completed:
+    plant_name = _display_name(plant) if plant is not None else None
+    if plant is None:
+        plant_message = f"{points} Growth Points saved until you choose a plant"
+    elif plant_completed:
         plant_message = SUPPORTIVE_MESSAGES["stage_mature"].format(name=plant_name)
     elif stage_changed:
         plant_message = SUPPORTIVE_MESSAGES["stage_up"].format(name=plant_name)
@@ -923,7 +955,7 @@ def award_for_focus_session(
     if event is None:
         return RewardFeedback(awarded=False, profile=_profile_response(db, user_id))
 
-    profile = get_or_create_profile(db, user_id)
+    profile = _profile_for_update(db, user_id)
     streak_bonus = _update_streak(db, profile)
     if streak_bonus:
         _record_reward(
@@ -945,8 +977,10 @@ def award_for_focus_session(
     unlocked = _evaluate_achievements(db, user_id)
     db.commit()
 
-    plant_name = _display_name(plant) if plant is not None else "forest"
-    if plant_completed:
+    plant_name = _display_name(plant) if plant is not None else None
+    if plant is None:
+        plant_message = f"{points} Growth Points saved until you choose a plant"
+    elif plant_completed:
         plant_message = SUPPORTIVE_MESSAGES["stage_mature"].format(name=plant_name)
     elif stage_changed:
         plant_message = SUPPORTIVE_MESSAGES["stage_up"].format(name=plant_name)
