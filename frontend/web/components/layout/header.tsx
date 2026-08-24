@@ -11,6 +11,8 @@ import { onTaskDataChanged } from '../../lib/data-events';
 import {
   listNotifications,
   markAllNotificationsRead,
+  markNotificationsRead,
+  notificationTypeLabel,
   type NotificationListResponse,
   type NotificationResponse,
 } from '../../lib/notifications';
@@ -117,7 +119,7 @@ function HeaderActions({
   const refreshNotifications = useCallback(async (signal?: AbortSignal) => {
     try {
       setNotificationsError(null);
-      const response = await listNotifications(5, { signal });
+      const response = await listNotifications(20, { signal });
       setNotifications(response);
       return response;
     } catch (error) {
@@ -188,6 +190,33 @@ function HeaderActions({
     }
   }
 
+  async function selectNotification(notification: NotificationResponse) {
+    if (!notification.is_read) {
+      setNotifications((current) => ({
+        items: current.items.map((item) =>
+          item.id === notification.id
+            ? { ...item, is_read: true, read_at: new Date().toISOString() }
+            : item,
+        ),
+        unread_count: Math.max(0, current.unread_count - 1),
+      }));
+    }
+
+    router.push(notification.target_url);
+
+    if (notification.is_read) return;
+
+    try {
+      const nextNotifications = await markNotificationsRead([notification.id]);
+      setNotifications(nextNotifications);
+    } catch (error) {
+      setNotificationsError(
+        error instanceof Error ? error.message : 'Unable to update notifications.',
+      );
+      void refreshNotifications();
+    }
+  }
+
   function notificationDescription(notification: NotificationResponse) {
     const details = [
       notification.task?.project_name,
@@ -204,9 +233,10 @@ function HeaderActions({
     description: notificationDescription(notification),
     createdAt: notification.created_at,
     isRead: notification.is_read,
+    type: notification.type,
+    typeLabel: notificationTypeLabel(notification.type),
     onSelect: () => {
-      const projectId = notification.task?.project_id;
-      router.push(projectId ? `/tasks?project_id=${encodeURIComponent(projectId)}` : '/tasks');
+      void selectNotification(notification);
     },
   }));
 
