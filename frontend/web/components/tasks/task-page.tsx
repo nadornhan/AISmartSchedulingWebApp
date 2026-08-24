@@ -926,14 +926,9 @@ export function TaskPage() {
 
                 <div className="space-y-2">
                   {task.overdue ? (
-                    <span
-                      className={cn(
-                        'inline-flex rounded-[var(--radius-pill)] border px-3 py-1.5 text-xs font-medium',
-                        statusClass('Overdue'),
-                      )}
-                    >
+                    <p className="text-xs font-semibold text-[var(--red-light)]">
                       Overdue
-                    </span>
+                    </p>
                   ) : null}
                   <label className="relative inline-flex w-fit items-center">
                     <span className="sr-only">Status for {task.title}</span>
