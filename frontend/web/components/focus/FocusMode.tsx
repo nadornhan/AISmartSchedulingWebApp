@@ -201,21 +201,21 @@ export function FocusMode() {
   }
 
   return (
-    <div className="mx-auto max-w-[1450px] space-y-7">
+    <div className="mx-auto max-w-[1450px] space-y-5 sm:space-y-7">
       <section className="focus-mode-panel relative overflow-hidden rounded-2xl border border-dashboard-border">
         <button
           aria-label="Focus settings"
-          className="absolute right-6 top-6 grid h-11 w-11 place-items-center rounded-xl border border-dashboard-border bg-dashboard-surface text-dashboard-text hover:border-dashboard-accent/50"
+          className="absolute right-3 top-3 z-20 grid h-10 w-10 place-items-center rounded-xl border border-dashboard-border bg-dashboard-surface text-dashboard-text hover:border-dashboard-accent/50 sm:right-6 sm:top-6 sm:h-11 sm:w-11"
           onClick={() => setSettingsOpen(true)}
           type="button"
         >
           <GearIcon />
         </button>
 
-        <div className="mx-auto flex w-fit overflow-hidden rounded-xl border border-dashboard-border bg-dashboard-bg/70 p-1">
+        <div className="mx-auto flex w-full overflow-hidden rounded-xl border border-dashboard-border bg-dashboard-bg/70 p-1 sm:w-fit">
           {modes.map((item) => (
             <button
-              className={`min-w-28 rounded-lg px-5 py-2.5 text-sm transition ${
+              className={`min-w-0 flex-1 rounded-lg px-2 py-2.5 text-sm transition sm:min-w-28 sm:flex-none sm:px-5 ${
                 mode === item
                   ? 'bg-dashboard-accent/15 font-semibold text-dashboard-accent'
                   : 'text-dashboard-muted hover:text-dashboard-text'
@@ -253,9 +253,9 @@ export function FocusMode() {
           </svg>
 
           <div className="relative z-10 flex flex-col items-center">
-            <div className="mb-5 flex items-center gap-2 text-dashboard-accent">
+            <div className="mb-3 flex items-center gap-2 text-dashboard-accent sm:mb-5">
               <ClockIcon />
-              <span className="text-lg font-medium">
+              <span className="text-sm font-medium sm:text-lg">
                 {mode === 'Pomodoro' ? 'Focus Time' : mode}
               </span>
             </div>
@@ -266,7 +266,7 @@ export function FocusMode() {
 
             <div className="focus-timer-controls">
               <button
-                className="focus-timer-action rounded-full bg-gradient-to-r from-dashboard-accent-strong to-dashboard-accent px-8 py-3 text-lg font-semibold text-white shadow-glow transition hover:brightness-110"
+                className="focus-timer-action rounded-full bg-gradient-to-r from-dashboard-accent-strong to-dashboard-accent px-6 py-2.5 text-base font-semibold text-white shadow-glow transition hover:brightness-110 sm:px-8 sm:py-3 sm:text-lg"
                 onClick={toggleTimer}
                 type="button"
               >
@@ -286,9 +286,9 @@ export function FocusMode() {
           </div>
         </div>
 
-        <div className="relative z-10 mt-7 text-center">
-          <p className="text-lg text-dashboard-muted">#1</p>
-          <p className="mt-1 text-lg font-medium text-dashboard-text">
+        <div className="relative z-10 mt-4 text-center sm:mt-7">
+          <p className="text-sm text-dashboard-muted sm:text-lg">#1</p>
+          <p className="mt-1 text-sm font-medium text-dashboard-text sm:text-lg">
             {mode === 'Pomodoro' ? 'Time to focus!' : 'Take a breather'}
           </p>
         </div>

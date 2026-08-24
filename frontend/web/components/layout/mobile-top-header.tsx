@@ -15,19 +15,27 @@ export function MobileTopHeader({
   const isTaskPage = title === 'All Tasks';
   const isCalendarPage = title === 'Calendar';
   const isNotificationsPage = title === 'Notifications';
-  const showPageTitle = isTaskPage || isCalendarPage || isNotificationsPage;
+  const isFocusPage = title === 'Focus Mode';
+  const showPageTitle = isTaskPage || isCalendarPage || isNotificationsPage || isFocusPage;
+  const hideSearch = isCalendarPage || isNotificationsPage || isFocusPage;
 
   return (
     <header className="relative z-[180] border-b border-dashboard-border bg-[#04111a]/95 px-6 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))] backdrop-blur-xl lg:hidden">
       <div className="mx-auto max-w-lg">
         <div
           className={`flex items-center justify-between gap-5 ${
-            isNotificationsPage ? '' : 'mb-6'
+            hideSearch ? '' : 'mb-6'
           }`}
         >
           {showPageTitle ? (
             <h1 className="font-poppins text-2xl font-semibold text-dashboard-text">
-              {isTaskPage ? 'Tasks' : isNotificationsPage ? 'Notification' : title}
+              {isTaskPage
+                ? 'Tasks'
+                : isNotificationsPage
+                  ? 'Notification'
+                  : isFocusPage
+                    ? 'Focus'
+                    : title}
             </h1>
           ) : (
             <Link
@@ -47,7 +55,7 @@ export function MobileTopHeader({
           <HeaderActions compact user={user} />
         </div>
 
-        {!isCalendarPage && !isNotificationsPage ? (
+        {!hideSearch ? (
           <SearchBox compact showFilterButton={isTaskPage} />
         ) : null}
       </div>

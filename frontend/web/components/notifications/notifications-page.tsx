@@ -176,8 +176,8 @@ export function NotificationsPage() {
   }
 
   return (
-    <section className="-mx-6 lg:mx-auto lg:max-w-3xl lg:overflow-hidden lg:rounded-[var(--radius-lg)] lg:border lg:border-dashboard-border lg:bg-dashboard-surface/45 lg:shadow-panel">
-      <div className="px-6 pb-3 lg:px-7 lg:pt-6">
+    <section className="-mx-6 -mt-3 lg:mx-auto lg:mt-0 lg:max-w-3xl lg:overflow-hidden lg:rounded-[var(--radius-lg)] lg:border lg:border-dashboard-border lg:bg-dashboard-surface/45 lg:shadow-panel">
+      <div className="px-5 pb-2 lg:px-7 lg:pt-6">
         <h2 className="font-poppins text-base font-semibold text-dashboard-text">Recent</h2>
       </div>
 
@@ -188,7 +188,7 @@ export function NotificationsPage() {
       ) : null}
 
       {isLoading ? (
-        <div aria-busy="true" aria-label="Loading notifications" className="divide-y divide-dashboard-border/70">
+        <div aria-busy="true" aria-label="Loading notifications">
           {[0, 1, 2, 3].map((item) => (
             <div className="flex min-h-28 animate-pulse items-center gap-3 px-6" key={item}>
               <span className="h-11 w-11 rounded-full bg-dashboard-surface" />
@@ -216,14 +216,14 @@ export function NotificationsPage() {
       ) : null}
 
       {!isLoading && notifications.length > 0 ? (
-        <div className="divide-y divide-dashboard-border/70 border-y border-dashboard-border/70 lg:border-b-0">
+        <div>
           {notifications.map((notification) => {
             const { Icon, iconClasses } = notificationPresentation(notification);
             const copy = notificationCopy(notification);
 
             return (
               <button
-                className={`grid min-h-[106px] w-full grid-cols-[8px_44px_minmax(0,1fr)_32px] items-start gap-3 px-5 py-5 text-left transition hover:bg-dashboard-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-dashboard-accent ${
+                className={`grid min-h-[96px] w-full grid-cols-[6px_50px_minmax(0,1fr)_28px] items-start gap-2 px-3.5 py-4 text-left transition hover:bg-dashboard-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-dashboard-accent ${
                   notification.is_read ? 'bg-transparent' : 'bg-[#091a27]'
                 }`}
                 key={notification.id}
@@ -232,12 +232,12 @@ export function NotificationsPage() {
               >
                 <span
                   aria-hidden="true"
-                  className={`mt-[21px] h-2 w-2 rounded-full ${
+                  className={`mt-[22px] h-1.5 w-1.5 rounded-full ${
                     notification.is_read ? 'bg-transparent' : 'bg-[var(--blue)]'
                   }`}
                 />
-                <span className={`grid h-11 w-11 place-items-center rounded-full ${iconClasses}`}>
-                  <Icon className="h-5 w-5" />
+                <span className={`grid h-[50px] w-[50px] place-items-center rounded-full ${iconClasses}`}>
+                  <Icon className="h-6 w-6" />
                 </span>
                 <span className="min-w-0 pt-0.5">
                   <span className="block text-sm font-semibold leading-5 text-dashboard-text">
