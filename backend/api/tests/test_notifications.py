@@ -104,14 +104,18 @@ def test_task_creation_creates_unread_notification(
     assert response.status_code == 200
 
     data = response.json()
-    notification = data["items"][0]
+    task_notifications = [
+        item for item in data["items"] if item["type"] == "task_created"
+    ]
+    notification = task_notifications[0]
 
-    assert data["unread_count"] == 1
+    assert data["unread_count"] == 2
     assert notification["is_read"] is False
     assert notification["type"] == "task_created"
     assert notification["title"] == "Task created"
     assert notification["message"] == "Write notification tests"
     assert notification["task_id"] == task["id"]
+    assert notification["target_url"] == f"/tasks?task_id={task['id']}"
     assert notification["task"]["id"] == task["id"]
     assert notification["task"]["project_id"] == project["id"]
     assert notification["task"]["project_name"] == project["name"]
@@ -140,14 +144,13 @@ def test_notifications_are_newest_first_and_limited(
 
     data = response.json()
 
-    assert data["unread_count"] == 6
+    assert data["unread_count"] == 7
     assert len(data["items"]) == 5
-    assert [item["message"] for item in data["items"]] == [
+    assert [item["message"] for item in data["items"] if item["type"] == "task_created"] == [
         "Task 5",
         "Task 4",
         "Task 3",
         "Task 2",
-        "Task 1",
     ]
 
 
@@ -179,8 +182,11 @@ def test_mark_notifications_read_only_marks_current_user_notifications(
     )
 
     assert response.status_code == 200
-    assert response.json()["unread_count"] == 0
-    assert response.json()["items"][0]["task_id"] == own_task["id"]
+    assert response.json()["unread_count"] == 1
+    assert any(
+        notification["task_id"] == own_task["id"]
+        for notification in response.json()["items"]
+    )
 
     other_response = client.get(
         "/notifications",
@@ -188,8 +194,11 @@ def test_mark_notifications_read_only_marks_current_user_notifications(
     )
 
     assert other_response.status_code == 200
-    assert other_response.json()["unread_count"] == 1
-    assert other_response.json()["items"][0]["task_id"] == other_task["id"]
+    assert other_response.json()["unread_count"] == 2
+    assert any(
+        notification["task_id"] == other_task["id"]
+        for notification in other_response.json()["items"]
+    )
 
 
 def test_upcoming_deadline_reminder_created_once(
@@ -227,8 +236,143 @@ def test_upcoming_deadline_reminder_created_once(
 
     assert len(reminders) == 1
     assert reminders[0]["task_id"] == task["id"]
-    assert reminders[0]["dedupe_key"] == f"task_reminder:{task['id']}"
+    assert reminders[0]["dedupe_key"].startswith(f"task_reminder:{task['id']}:")
+    assert reminders[0]["target_url"] == f"/tasks?task_id={task['id']}"
     assert reminders[0]["scheduled_for"] is not None
+
+
+def test_completing_task_removes_actionable_reminders(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    task = create_task(
+        client,
+        auth_headers,
+        "Complete reminder task",
+        due_date=(datetime.now(UTC) + timedelta(hours=2)).isoformat(),
+    )
+
+    reminder_response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+    assert reminder_response.status_code == 200
+    assert any(
+        notification["type"] == "task_reminder"
+        for notification in reminder_response.json()["items"]
+    )
+
+    update_response = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={"status": "done"},
+    )
+    assert update_response.status_code == 200
+
+    notifications_response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+    assert notifications_response.status_code == 200
+    assert all(
+        notification["type"] != "task_reminder"
+        for notification in notifications_response.json()["items"]
+    )
+
+
+def test_deleting_task_removes_related_notifications(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    task = create_task(
+        client,
+        auth_headers,
+        "Delete notification task",
+        due_date=(datetime.now(UTC) + timedelta(hours=2)).isoformat(),
+    )
+
+    notifications_response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+    assert notifications_response.status_code == 200
+    assert any(
+        notification["task_id"] == task["id"]
+        for notification in notifications_response.json()["items"]
+    )
+
+    delete_response = client.delete(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+    )
+    assert delete_response.status_code == 204
+
+    next_response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+    assert next_response.status_code == 200
+    assert all(
+        notification["task_id"] != task["id"]
+        for notification in next_response.json()["items"]
+    )
+
+
+def test_rescheduling_task_replaces_existing_reminder(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    task = create_task(
+        client,
+        auth_headers,
+        "Reschedule reminder task",
+        due_date=(datetime.now(UTC) + timedelta(hours=2)).isoformat(),
+    )
+
+    first_response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+    assert first_response.status_code == 200
+    first_reminders = [
+        notification
+        for notification in first_response.json()["items"]
+        if notification["type"] == "task_reminder"
+    ]
+    assert len(first_reminders) == 1
+    first_dedupe_key = first_reminders[0]["dedupe_key"]
+
+    next_due_date = (datetime.now(UTC) + timedelta(hours=3)).isoformat()
+    update_response = client.post(
+        f"/tasks/{task['id']}/reschedule",
+        headers=auth_headers,
+        json={"due_date": next_due_date},
+    )
+    assert update_response.status_code == 200
+
+    second_response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+    assert second_response.status_code == 200
+    second_reminders = [
+        notification
+        for notification in second_response.json()["items"]
+        if notification["type"] == "task_reminder"
+    ]
+
+    assert len(second_reminders) == 1
+    assert second_reminders[0]["task_id"] == task["id"]
+    assert second_reminders[0]["dedupe_key"] != first_dedupe_key
+    assert second_reminders[0]["dedupe_key"].startswith(
+        f"task_reminder:{task['id']}:"
+    )
 
 
 def test_task_reminder_respects_settings_preference(
@@ -312,10 +456,15 @@ def test_overdue_alert_respects_settings_preference(
     )
 
     assert enabled_response.status_code == 200
-    assert any(
-        notification["type"] == "overdue_alert"
+    overdue_alerts = [
+        notification
         for notification in enabled_response.json()["items"]
-    )
+        if notification["type"] == "overdue_alert"
+    ]
+    assert overdue_alerts
+    assert overdue_alerts[0]["title"] == "Gentle overdue reset"
+    assert "Reset it when you are ready" in overdue_alerts[0]["message"]
+    assert overdue_alerts[0]["metadata"]["suggested_action"] == "reschedule"
 
 
 def test_productivity_message_respects_settings_preference(
@@ -364,6 +513,68 @@ def test_productivity_message_respects_settings_preference(
         notification["type"] == "productivity_reminder"
         for notification in enabled_response.json()["items"]
     )
+    productivity_reminders = [
+        notification
+        for notification in enabled_response.json()["items"]
+        if notification["type"] == "productivity_reminder"
+    ]
+    assert productivity_reminders[0]["target_url"] == "/tasks"
+    assert productivity_reminders[0]["metadata"]["suggested_action"] == "choose_next_task"
+
+
+def test_productivity_message_is_not_blocked_by_task_created_notification(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    create_task(client, auth_headers, "Unread created notification")
+
+    response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+
+    assert response.status_code == 200
+    notifications = response.json()["items"]
+
+    assert any(
+        notification["type"] == "task_created"
+        for notification in notifications
+    )
+    assert any(
+        notification["type"] == "productivity_reminder"
+        for notification in notifications
+    )
+
+
+def test_productivity_message_waits_when_actionable_notification_is_unread(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    create_task(
+        client,
+        auth_headers,
+        "Unread overdue notification",
+        due_date=(datetime.now(UTC) - timedelta(hours=2)).isoformat(),
+    )
+
+    response = client.get(
+        "/notifications",
+        headers=auth_headers,
+        params={"limit": 10},
+    )
+
+    assert response.status_code == 200
+    notifications = response.json()["items"]
+
+    assert any(
+        notification["type"] == "overdue_alert"
+        for notification in notifications
+    )
+    assert all(
+        notification["type"] != "productivity_reminder"
+        for notification in notifications
+    )
 
 
 def test_mark_all_notifications_read_only_marks_current_user(
@@ -389,7 +600,7 @@ def test_mark_all_notifications_read_only_marks_current_user(
     )
 
     assert other_response.status_code == 200
-    assert other_response.json()["unread_count"] == 1
+    assert other_response.json()["unread_count"] == 2
 
 
 def test_notifications_require_authentication(

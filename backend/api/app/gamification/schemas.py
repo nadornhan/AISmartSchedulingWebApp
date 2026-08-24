@@ -59,6 +59,7 @@ class StreakSummary(BaseModel):
 
 class GamificationProfileResponse(BaseModel):
     total_growth_points: int = Field(ge=0)
+    unassigned_growth_points: int = Field(ge=0)
     total_trees_grown: int = Field(ge=0)
     streak: StreakSummary
     current_plant: UserPlantResponse | None
@@ -69,6 +70,7 @@ class GamificationProfileResponse(BaseModel):
 
 class ForestResponse(BaseModel):
     forest_name: str
+    unassigned_growth_points: int = Field(ge=0)
     current_plant: UserPlantResponse | None
     completed_plants: list[UserPlantResponse]
     needs_plant_selection: bool
@@ -168,5 +170,6 @@ class DashboardForestWidget(BaseModel):
     current_growth_points: int = 0
     next_stage_at: int | None = None
     total_trees_grown: int = 0
+    unassigned_growth_points: int = 0
     needs_plant_selection: bool = False
     supportive_message: str

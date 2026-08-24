@@ -4,8 +4,18 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.gamification.models import GrowthStage, PlantStatus, UserPlant
-from app.gamification.rules import FOCUS_SESSION_GP, MIN_VALID_FOCUS_MINUTES, TASK_COMPLETE_GP
+from app.gamification.models import (
+    GrowthStage,
+    PlantStatus,
+    UserGamificationProfile,
+    UserPlant,
+)
+from app.gamification.rules import (
+    FOCUS_SESSION_GP,
+    MIN_VALID_FOCUS_MINUTES,
+    TASK_COMPLETE_GP,
+    stage_for_points,
+)
 
 
 def auth_headers(client: TestClient) -> tuple[dict[str, str], str]:
@@ -44,6 +54,11 @@ def select_oak(client: TestClient, headers: dict[str, str]) -> dict:
     assert body["current_plant"]["species"]["id"] == "oak"
     assert body["current_plant"]["growth_stage"] == "seedling"
     return body
+
+
+def test_stage_calculation_respects_species_maturity_threshold() -> None:
+    assert stage_for_points(100, mature_at=110) == GrowthStage.GROWING.value
+    assert stage_for_points(110, mature_at=110) == GrowthStage.MATURE.value
 
 
 def test_select_plant_and_forest_state(client: TestClient) -> None:
@@ -97,6 +112,7 @@ def test_task_completion_awards_gp_once(client: TestClient) -> None:
 
     forest = client.get("/gamification/forest", headers=headers)
     assert forest.json()["current_plant"]["current_growth_points"] >= TASK_COMPLETE_GP
+    assert forest.json()["unassigned_growth_points"] == 0
 
     again = client.patch(
         f"/tasks/{task_id}",
@@ -106,6 +122,49 @@ def test_task_completion_awards_gp_once(client: TestClient) -> None:
     assert again.status_code == 200
     second = again.json().get("growth_reward")
     assert second is None or second.get("awarded") is False
+
+
+def test_task_rewards_are_stored_until_a_plant_is_selected(client: TestClient) -> None:
+    headers, _user_id = auth_headers(client)
+
+    create = client.post(
+        "/tasks",
+        headers=headers,
+        json={"title": "Save growth for later", "priority": "medium"},
+    )
+    assert create.status_code == 201
+    task_id = create.json()["id"]
+
+    done = client.patch(
+        f"/tasks/{task_id}",
+        headers=headers,
+        json={"status": "done"},
+    )
+    assert done.status_code == 200
+    reward = done.json()["growth_reward"]
+    earned_points = reward["growth_points"]
+    assert earned_points >= TASK_COMPLETE_GP
+    assert reward["stage_changed"] is False
+    assert reward["plant_completed"] is False
+
+    profile = client.get("/gamification/profile", headers=headers)
+    assert profile.status_code == 200
+    assert profile.json()["current_plant"] is None
+    assert profile.json()["unassigned_growth_points"] == earned_points
+    assert profile.json()["total_growth_points"] == earned_points
+
+    repeated = client.patch(
+        f"/tasks/{task_id}",
+        headers=headers,
+        json={"status": "done"},
+    )
+    assert repeated.status_code == 200
+    after_repeat = client.get("/gamification/profile", headers=headers).json()
+    assert after_repeat["unassigned_growth_points"] == earned_points
+
+    selected = select_oak(client, headers)
+    assert selected["unassigned_growth_points"] == 0
+    assert selected["current_plant"]["current_growth_points"] == earned_points
 
 
 def test_focus_session_awards_gp_and_short_session_does_not(
@@ -146,6 +205,69 @@ def test_focus_session_awards_gp_and_short_session_does_not(
     assert short.status_code == 201
     short_reward = short.json().get("growth_reward")
     assert short_reward is None or short_reward.get("awarded") is False
+
+
+def test_focus_reward_is_unassigned_without_an_active_plant(client: TestClient) -> None:
+    headers, _user_id = auth_headers(client)
+    started = datetime.now(UTC) - timedelta(minutes=20)
+
+    response = client.post(
+        "/scheduling/focus-sessions",
+        headers=headers,
+        json={
+            "started_at": started.isoformat(),
+            "ended_at": datetime.now(UTC).isoformat(),
+            "duration_minutes": 20,
+            "completed": True,
+        },
+    )
+    assert response.status_code == 201
+    reward = response.json()["growth_reward"]
+    assert reward["awarded"] is True
+
+    profile = client.get("/gamification/profile", headers=headers).json()
+    assert profile["current_plant"] is None
+    assert profile["unassigned_growth_points"] == reward["growth_points"]
+
+
+def test_select_plant_transfers_all_points_and_calculates_final_stage(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    headers, user_id = auth_headers(client)
+    initial = client.get("/gamification/profile", headers=headers)
+    assert initial.status_code == 200
+
+    profile = db_session.get(UserGamificationProfile, uuid.UUID(user_id))
+    assert profile is not None
+    profile.unassigned_growth_points = 125
+    profile.total_growth_points = 125
+    db_session.commit()
+
+    selected = client.post(
+        "/gamification/plants/select",
+        headers=headers,
+        json={"species_id": "oak"},
+    )
+    assert selected.status_code == 200, selected.text
+
+    db_session.expire_all()
+    updated_profile = db_session.get(UserGamificationProfile, uuid.UUID(user_id))
+    assert updated_profile is not None
+    assert updated_profile.unassigned_growth_points == 0
+    assert updated_profile.total_growth_points == 125
+    assert updated_profile.total_trees_grown == 1
+
+    plant = db_session.query(UserPlant).filter(UserPlant.user_id == uuid.UUID(user_id)).one()
+    assert plant.current_growth_points == 125
+    assert plant.growth_stage == GrowthStage.MATURE.value
+    assert plant.status == PlantStatus.COMPLETED.value
+    assert plant.completed_at is not None
+
+    forest = client.get("/gamification/forest", headers=headers).json()
+    assert forest["unassigned_growth_points"] == 0
+    assert len(forest["completed_plants"]) == 1
+    assert forest["completed_plants"][0]["current_growth_points"] == 125
 
 
 def test_rename_plant(client: TestClient) -> None:

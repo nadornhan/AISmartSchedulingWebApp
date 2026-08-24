@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import {
   onGrowthReward,
@@ -15,8 +15,14 @@ type ToastItem = {
   achievements: AchievementProgress[];
 };
 
+const TOAST_DURATION_MS = 3000;
+
 export function GrowthRewardToast() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((current) => current.filter((item) => item.id !== id));
+  }, []);
 
   useEffect(() => {
     return onGrowthReward((reward: RewardFeedback) => {
@@ -43,20 +49,25 @@ export function GrowthRewardToast() {
         },
       ]);
       window.setTimeout(() => {
-        setToasts((current) => current.filter((item) => item.id !== id));
-      }, 5200);
+        dismissToast(id);
+      }, TOAST_DURATION_MS);
     });
-  }, []);
+  }, [dismissToast]);
 
   if (toasts.length === 0) return null;
 
   return (
-    <div className="pointer-events-none fixed bottom-6 right-6 z-[240] flex w-[min(92vw,360px)] flex-col gap-3">
+    <div
+      aria-live="polite"
+      className="pointer-events-none fixed bottom-6 right-6 z-[240] flex w-[min(92vw,360px)] flex-col gap-3"
+    >
       {toasts.map((toast) => (
-        <div
-          className="pointer-events-auto rounded-xl border border-dashboard-accent/40 bg-[#071923]/95 p-4 shadow-panel backdrop-blur-md"
+        <button
+          aria-label={`Dismiss ${toast.title} notification`}
+          className="pointer-events-auto w-full cursor-pointer rounded-xl border border-dashboard-accent/40 bg-[#071923]/95 p-4 text-left shadow-panel backdrop-blur-md transition hover:border-dashboard-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dashboard-accent"
           key={toast.id}
-          role="status"
+          onClick={() => dismissToast(toast.id)}
+          type="button"
         >
           <p className="text-sm font-semibold text-dashboard-accent">{toast.title}</p>
           <p className="mt-1 text-sm text-dashboard-text">{toast.body}</p>
@@ -69,7 +80,7 @@ export function GrowthRewardToast() {
               ))}
             </ul>
           ) : null}
-        </div>
+        </button>
       ))}
     </div>
   );

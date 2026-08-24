@@ -4,6 +4,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -34,12 +35,21 @@ class GrowthStage(str, enum.Enum):
 
 class UserGamificationProfile(Base):
     __tablename__ = "user_gamification_profiles"
+    __table_args__ = (
+        CheckConstraint(
+            "unassigned_growth_points >= 0",
+            name="ck_user_gamification_profiles_unassigned_gp_nonnegative",
+        ),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     )
     total_growth_points: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    unassigned_growth_points: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
     current_streak: Mapped[int] = mapped_column(

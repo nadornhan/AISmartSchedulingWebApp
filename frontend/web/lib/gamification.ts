@@ -78,6 +78,7 @@ export type AchievementCategoryGroup = {
 
 export type GamificationProfile = {
   total_growth_points: number;
+  unassigned_growth_points: number;
   total_trees_grown: number;
   streak: StreakSummary;
   current_plant: UserPlant | null;
@@ -88,6 +89,7 @@ export type GamificationProfile = {
 
 export type ForestResponse = {
   forest_name: string;
+  unassigned_growth_points: number;
   current_plant: UserPlant | null;
   completed_plants: UserPlant[];
   needs_plant_selection: boolean;

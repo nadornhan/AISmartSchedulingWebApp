@@ -65,6 +65,7 @@ class DashboardForestSummary(BaseModel):
     current_growth_points: int = 0
     next_stage_at: int | None = None
     total_trees_grown: int = 0
+    unassigned_growth_points: int = 0
     needs_plant_selection: bool = False
     supportive_message: str = ""
 

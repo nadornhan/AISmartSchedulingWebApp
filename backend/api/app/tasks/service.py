@@ -239,14 +239,28 @@ def update_task(
         _replace_subtasks(task, subtasks)
 
     next_status = update_data.get("status", previous_status)
-    if next_status == TaskStatus.DONE and previous_status != TaskStatus.DONE:
+    completed_now = (
+        next_status == TaskStatus.DONE and previous_status != TaskStatus.DONE
+    )
+    due_date_changed = (
+        "due_date" in update_data and update_data["due_date"] != previous_due_date
+    )
+
+    if completed_now:
         task.completed_at = utc_now()
     elif next_status != TaskStatus.DONE:
         task.completed_at = None
     elif task.completed_at is None:
         task.completed_at = utc_now()
 
-    if "due_date" in update_data and update_data["due_date"] != previous_due_date:
+    if completed_now or due_date_changed:
+        notification_service.delete_actionable_task_notifications(
+            db,
+            user_id=task.user_id,
+            task_id=task.id,
+        )
+
+    if due_date_changed:
         notification_service.create_notification_once(
             db,
             user_id=task.user_id,
@@ -259,9 +273,6 @@ def update_task(
         )
 
     user_id = task.user_id
-    completed_now = (
-        next_status == TaskStatus.DONE and previous_status != TaskStatus.DONE
-    )
     db.commit()
     db.refresh(task)
     _invalidate_ai_plan(db, user_id)
@@ -281,6 +292,11 @@ def update_task(
 
 def delete_task(db: Session, task: Task) -> None:
     user_id = task.user_id
+    notification_service.delete_task_notifications(
+        db,
+        user_id=user_id,
+        task_id=task.id,
+    )
     db.delete(task)
     db.commit()
     _invalidate_ai_plan(db, user_id)
@@ -349,6 +365,11 @@ def bulk_delete_tasks(
         raise LookupError("One or more tasks were not found")
 
     for task in tasks:
+        notification_service.delete_task_notifications(
+            db,
+            user_id=user_id,
+            task_id=task.id,
+        )
         db.delete(task)
     db.commit()
     _invalidate_ai_plan(db, user_id)
