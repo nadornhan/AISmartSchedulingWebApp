@@ -278,7 +278,7 @@ button {
   }
 
   .focus-timer-stage {
-    width: min(72vw, 30dvh, 250px);
+    width: min(76vw, 33dvh, 270px);
     min-width: 0;
     margin-top: 20px;
   }
