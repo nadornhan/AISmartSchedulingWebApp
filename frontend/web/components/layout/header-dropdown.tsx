@@ -85,7 +85,7 @@ export function HeaderDropdown({
     <div
       aria-label={label}
       className={cn(
-        'absolute right-0 top-full z-[200] mt-3 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-dashboard-border bg-[#071923] p-2 text-dashboard-text shadow-panel outline-none',
+        'absolute right-0 top-full z-[200] mt-3 max-h-[calc(100vh-8rem)] w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-dashboard-border bg-[#071923] p-2 text-dashboard-text shadow-panel outline-none',
         className,
       )}
       onKeyDown={handlePanelKeyDown}

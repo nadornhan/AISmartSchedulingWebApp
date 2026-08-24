@@ -12,6 +12,7 @@ import {
   createTask,
   deleteTask,
   duplicateTask,
+  getTask,
   listTasks,
   rescheduleTask,
   updateTask,
@@ -231,6 +232,7 @@ export function TaskPage() {
   const searchParams = useSearchParams();
   const activeProjectId = searchParams.get('project_id') || '';
   const searchQuery = searchParams.get('search')?.trim() || '';
+  const targetTaskId = searchParams.get('task_id') || '';
   const shouldOpenCreate = searchParams.get('create') === '1';
   const createPriorityParam = searchParams.get('priority');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -265,10 +267,10 @@ export function TaskPage() {
   useEffect(() => {
     setPage(1);
     setSelected([]);
-    if (searchQuery) {
+    if (searchQuery || targetTaskId) {
       setActiveFilter('All');
     }
-  }, [activeProjectId, searchQuery]);
+  }, [activeProjectId, searchQuery, targetTaskId]);
 
   useEffect(() => {
     setCreateProjectId(activeProjectId);
@@ -320,6 +322,15 @@ export function TaskPage() {
     setError(null);
 
     try {
+      if (targetTaskId) {
+        const task = await getTask(targetTaskId);
+        setTasks([toTask(task)]);
+        setTotalPages(1);
+        setSelected([]);
+        setMenuTaskId(null);
+        return;
+      }
+
       const response = await listTasks({
         projectId: activeProjectId || undefined,
         search: searchQuery || undefined,
@@ -350,6 +361,7 @@ export function TaskPage() {
     searchQuery,
     sortAscending,
     sortBy,
+    targetTaskId,
   ]);
 
   const refreshCounts = useCallback(async () => {
@@ -434,6 +446,9 @@ export function TaskPage() {
 
   const allVisibleSelected =
     visibleTasks.length > 0 && visibleTasks.every((task) => selected.includes(task.id));
+  const visibleTotal = targetTaskId ? visibleTasks.length : counts[activeFilter];
+  const visibleStart = visibleTotal === 0 ? 0 : (page - 1) * pageSize + 1;
+  const visibleEnd = targetTaskId ? visibleTasks.length : Math.min(page * pageSize, visibleTotal);
 
   function toggleSelected(id: string) {
     setSelected((current) =>
@@ -614,8 +629,36 @@ export function TaskPage() {
     router.push(query ? `/tasks?${query}` : '/tasks');
   }
 
+  function clearTargetTask() {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('task_id');
+    const query = nextParams.toString();
+    router.push(query ? `/tasks?${query}` : '/tasks');
+  }
+
   return (
     <>
+      {targetTaskId ? (
+        <section
+          aria-label="Selected task"
+          className="mb-5 flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-dashboard-accent/30 bg-dashboard-accent-soft px-4 py-3"
+        >
+          <p className="text-sm text-dashboard-muted">
+            Showing selected task{' '}
+            {visibleTasks[0]?.id === targetTaskId ? (
+              <span className="font-semibold text-dashboard-text">{visibleTasks[0].title}</span>
+            ) : null}
+          </p>
+          <button
+            className="ml-auto rounded-[var(--radius-sm)] border border-dashboard-border px-3 py-1.5 text-sm font-medium text-dashboard-muted transition hover:border-dashboard-accent/50 hover:text-dashboard-accent"
+            onClick={clearTargetTask}
+            type="button"
+          >
+            Clear
+          </button>
+        </section>
+      ) : null}
+
       {activeProjectId ? (
         <section
           aria-label="Active folder filter"
@@ -798,6 +841,8 @@ export function TaskPage() {
                 className={cn(
                   'group grid gap-4 bg-[var(--bg-surface)]/45 px-4 py-5 transition hover:bg-[var(--bg-surface-hover)]/65 lg:grid-cols-[32px_minmax(240px,1.6fr)_minmax(94px,0.8fr)_minmax(104px,0.85fr)_minmax(92px,0.75fr)_minmax(116px,0.95fr)_76px] lg:items-center lg:gap-2',
                   selected.includes(task.id) && 'bg-dashboard-accent-soft',
+                  targetTaskId === task.id &&
+                    'bg-dashboard-accent-soft shadow-[inset_3px_0_0_var(--dashboard-accent)]',
                   menuTaskId === task.id && 'relative z-30',
                   taskIndex === visibleTasks.length - 1 && 'rounded-b-[var(--radius-lg)]',
                 )}
@@ -1023,8 +1068,7 @@ export function TaskPage() {
 
         <div className="ml-auto flex flex-wrap items-center justify-end gap-3 text-sm text-dashboard-muted">
           <span>
-            {counts[activeFilter] === 0 ? 0 : (page - 1) * pageSize + 1}–
-            {Math.min(page * pageSize, counts[activeFilter])} of {counts[activeFilter]} tasks
+            {visibleStart}–{visibleEnd} of {visibleTotal} tasks
           </span>
           <div className="flex items-center gap-1">
             <button

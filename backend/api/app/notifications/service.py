@@ -2,7 +2,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.notifications.models import Notification
@@ -11,6 +11,7 @@ from app.tasks.models import Task, TaskStatus
 from app.tasks.overdue import normalize_due_datetime, utc_now
 
 UPCOMING_DEADLINE_WINDOW = timedelta(hours=24)
+ACTIONABLE_TASK_NOTIFICATION_TYPES = ("task_reminder", "overdue_alert")
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,7 @@ class NotificationWithTask:
     metadata: dict[str, object] | None
     scheduled_for: datetime | None
     dedupe_key: str | None
+    target_url: str
     read_at: datetime | None
     created_at: datetime
     task: NotificationTaskSummary | None
@@ -96,6 +98,49 @@ def create_notification_once(
     return notification
 
 
+def _due_date_key(due_date: datetime) -> str:
+    return normalize_due_datetime(due_date).isoformat()
+
+
+def delete_task_notifications(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    task_id: uuid.UUID,
+    notification_types: tuple[str, ...] | None = None,
+) -> int:
+    conditions = [
+        Notification.user_id == user_id,
+        Notification.task_id == task_id,
+    ]
+    if notification_types is not None:
+        conditions.append(Notification.type.in_(notification_types))
+
+    result = db.execute(delete(Notification).where(*conditions))
+    return result.rowcount or 0
+
+
+def delete_actionable_task_notifications(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    task_id: uuid.UUID,
+) -> int:
+    return delete_task_notifications(
+        db,
+        user_id=user_id,
+        task_id=task_id,
+        notification_types=ACTIONABLE_TASK_NOTIFICATION_TYPES,
+    )
+
+
+def notification_target_url(notification: Notification) -> str:
+    if notification.task_id is not None:
+        return f"/tasks?task_id={notification.task_id}"
+
+    return "/tasks"
+
+
 def sync_user_reminders(
     db: Session,
     user_id: uuid.UUID,
@@ -116,7 +161,10 @@ def sync_user_reminders(
     if settings.notify_overdue_alerts:
         created_count += create_overdue_alerts(db, user_id, reference)
 
-    if settings.notify_productivity_reminders and get_unread_count(db, user_id) == 0:
+    if (
+        settings.notify_productivity_reminders
+        and get_unread_actionable_count(db, user_id) == 0
+    ):
         created_count += create_productivity_message(db, user_id, reference)
 
     if created_count > 0:
@@ -132,6 +180,18 @@ def get_unread_count(db: Session, user_id: uuid.UUID) -> int:
         .where(
             Notification.user_id == user_id,
             Notification.read_at.is_(None),
+        )
+    ) or 0
+
+
+def get_unread_actionable_count(db: Session, user_id: uuid.UUID) -> int:
+    return db.scalar(
+        select(func.count())
+        .select_from(Notification)
+        .where(
+            Notification.user_id == user_id,
+            Notification.read_at.is_(None),
+            Notification.type.in_(ACTIONABLE_TASK_NOTIFICATION_TYPES),
         )
     ) or 0
 
@@ -170,7 +230,7 @@ def create_upcoming_deadline_reminders(
                 "due_date": due_date.isoformat(),
             },
             scheduled_for=due_date,
-            dedupe_key=f"task_reminder:{task.id}",
+            dedupe_key=f"task_reminder:{task.id}:{_due_date_key(due_date)}",
         )
         if notification is not None:
             created_count += 1
@@ -203,14 +263,15 @@ def create_overdue_alerts(
             user_id=user_id,
             task=task,
             notification_type="overdue_alert",
-            title="Task overdue",
-            message=f"{task.title} is overdue.",
+            title="Gentle overdue reset",
+            message=f"{task.title} slipped past its due time. Reset it when you are ready.",
             metadata={
                 "task_title": task.title,
                 "due_date": due_date.isoformat(),
+                "suggested_action": "reschedule",
             },
             scheduled_for=due_date,
-            dedupe_key=f"overdue_alert:{task.id}",
+            dedupe_key=f"overdue_alert:{task.id}:{_due_date_key(due_date)}",
         )
         if notification is not None:
             created_count += 1
@@ -229,8 +290,8 @@ def create_productivity_message(
         user_id=user_id,
         notification_type="productivity_reminder",
         title="Momentum check",
-        message="Pick one focused task for your next work block.",
-        metadata={"date": day_key},
+        message="Pick one focused task for your next work block, or reset anything that slipped.",
+        metadata={"date": day_key, "suggested_action": "choose_next_task"},
         scheduled_for=now,
         dedupe_key=f"productivity_reminder:{user_id}:{day_key}",
     )
@@ -271,6 +332,7 @@ def list_notifications(
             metadata=notification.data,
             scheduled_for=notification.scheduled_for,
             dedupe_key=notification.dedupe_key,
+            target_url=notification_target_url(notification),
             read_at=notification.read_at,
             created_at=notification.created_at,
             task=(

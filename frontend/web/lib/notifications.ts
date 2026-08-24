@@ -1,5 +1,22 @@
 import { apiRequest } from './api';
 
+export type KnownNotificationType =
+  | 'overdue_alert'
+  | 'productivity_reminder'
+  | 'task_created'
+  | 'task_reminder'
+  | 'task_rescheduled';
+
+export type NotificationType = KnownNotificationType | (string & {});
+
+const notificationTypeLabels: Record<KnownNotificationType, string> = {
+  overdue_alert: 'Overdue',
+  productivity_reminder: 'Momentum',
+  task_created: 'Task',
+  task_reminder: 'Reminder',
+  task_rescheduled: 'Rescheduled',
+};
+
 export type NotificationTaskSummary = {
   id: string;
   title: string;
@@ -12,12 +29,13 @@ export type NotificationTaskSummary = {
 export type NotificationResponse = {
   id: string;
   task_id: string | null;
-  type: string;
+  type: NotificationType;
   title: string;
   message: string | null;
   metadata: Record<string, unknown> | null;
   scheduled_for: string | null;
   dedupe_key: string | null;
+  target_url: string;
   is_read: boolean;
   read_at: string | null;
   created_at: string;
@@ -32,6 +50,10 @@ export type NotificationListResponse = {
 type RequestOptions = {
   signal?: AbortSignal;
 };
+
+export function notificationTypeLabel(type: NotificationType) {
+  return notificationTypeLabels[type as KnownNotificationType] ?? 'Notification';
+}
 
 export function listNotifications(limit = 5, options: RequestOptions = {}) {
   const query = new URLSearchParams({

@@ -26,6 +26,7 @@ class NotificationResponse(BaseModel):
     metadata: dict[str, object] | None = None
     scheduled_for: datetime | None
     dedupe_key: str | None
+    target_url: str
     is_read: bool = Field(validation_alias="is_read")
     read_at: datetime | None
     created_at: datetime
