@@ -1,0 +1,37 @@
+# Version control
+.git
+.gitignore
+
+# JavaScript dependencies and generated output
+node_modules
+**/node_modules
+**/.next
+**/out
+**/dist
+**/coverage
+
+# Python environments and caches
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+
+# Local environment files and secrets
+.env
+**/.env
+**/.env.local
+
+# Logs and editor files
+*.log
+**/*.log
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Runtime uploads and generated documents
+backend/api/uploads
+outputs

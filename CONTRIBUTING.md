@@ -2,6 +2,8 @@
 
 This project uses a feature-branch workflow. Six members can each own one or more feature branches, but branches should be named by feature, not by member.
 
+For the shared Next.js/Tailwind and Capacitor mobile workflow, see [Mobile Development Contribution Guide](MOBILE_CONTRIBUTING.md).
+
 ## Branch Rules
 
 - `main` is stable milestone/demo-ready code.

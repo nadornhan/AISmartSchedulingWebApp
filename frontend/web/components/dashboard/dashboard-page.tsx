@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCurrentUser } from '../auth/current-user-provider';
@@ -13,8 +14,10 @@ import { DashboardErrorState } from './dashboard-error-state';
 import { DashboardLoadingState } from './dashboard-loading-state';
 import { DashboardStatCard } from './dashboard-stat-card';
 import { ForestWidget } from '../gamification/forest-widget';
+import { PlantVisual } from '../gamification/plant-visual';
 import { InProgressList } from './in-progress-list';
 import { AiRecommendationCard } from './ai-recommendation-card';
+import { NextBestTaskCard } from './next-best-task-card';
 import { QuickWinsCard } from './quick-wins-card';
 import { WeeklyActivityCard } from './weekly-activity-card';
 
@@ -31,6 +34,14 @@ function displayName(firstName?: string, lastName?: string) {
 
 function formatFocusMinutes(minutes: number) {
   return minutes > 0 ? formatDurationLabel(minutes) : '0 min';
+}
+
+function todayLabel() {
+  return new Intl.DateTimeFormat('en-AU', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date());
 }
 
 export function DashboardPage() {
@@ -119,6 +130,16 @@ export function DashboardPage() {
   const focusGoal = summary.focus_goal;
   const focusValue = formatFocusMinutes(focusGoal.completed_minutes);
   const focusMeta = `of ${formatFocusMinutes(focusGoal.goal_minutes)} daily goal`;
+  const remainingToday = Math.max(
+    0,
+    summary.today_progress.total - summary.today_progress.completed,
+  );
+  const dailyMessage =
+    remainingToday === 0 && summary.today_progress.total > 0
+      ? 'Everything planned for today is complete.'
+      : remainingToday > 0
+        ? `${remainingToday} task${remainingToday === 1 ? '' : 's'} left in today’s plan.`
+        : 'Add a task or plan your day when you are ready.';
 
   const hasDashboardTasks =
     summary.task_progress.total > 0 ||
@@ -127,17 +148,38 @@ export function DashboardPage() {
     summary.in_progress.length > 0;
 
   return (
-    <div className="mx-auto max-w-[1480px] space-y-6">
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="mx-auto max-w-[1480px] space-y-8">
+      <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-medium text-dashboard-muted">Overview</p>
+          <p className="text-sm font-medium text-dashboard-accent">{todayLabel()}</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-normal text-dashboard-text sm:text-4xl">
             {greeting}
           </h1>
+          <p className="mt-2 text-sm text-dashboard-muted sm:text-base">{dailyMessage}</p>
+          <PlantVisual
+            className="pointer-events-none -ml-7 mt-3 drop-shadow-[0_10px_18px_rgba(26,190,139,.2)] lg:hidden"
+            size={88}
+            speciesKey={summary.forest?.species_name?.toLowerCase().replace(/\s+/g, '_')}
+            stage={summary.forest?.growth_stage || 'seedling'}
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            className="inline-flex h-10 items-center justify-center rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 px-4 text-sm font-medium text-dashboard-muted transition hover:border-dashboard-border-strong hover:text-dashboard-text"
+            href="/calendar"
+          >
+            Open calendar
+          </Link>
+          <Link
+            className="inline-flex h-10 items-center justify-center rounded-[var(--radius-sm)] bg-dashboard-accent px-4 text-sm font-semibold text-[#04110d] transition hover:bg-dashboard-accent-strong"
+            href="/tasks"
+          >
+            View all tasks
+          </Link>
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Today at a glance" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <DashboardStatCard
           icon={<CheckIcon className="h-5 w-5" />}
           label="Today Progress"
@@ -181,22 +223,55 @@ export function DashboardPage() {
 
       {!hasDashboardTasks ? <DashboardEmptyState /> : null}
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
-        <div className="space-y-5">
+      <section>
+        <div className="mb-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-accent">
+            Start here
+          </p>
+          <h2 className="mt-1 text-xl font-semibold text-dashboard-text">Your next move</h2>
+        </div>
+        {summary.ai_recommendation ? (
           <AiRecommendationCard
             item={summary.ai_recommendation}
             onChanged={() => void loadSummary()}
           />
-          <WeeklyActivityCard points={summary.weekly_activity} />
+        ) : (
+          <NextBestTaskCard item={summary.next_best_task} />
+        )}
+      </section>
+
+      <section>
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-muted">
+              Today
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-dashboard-text">Keep things moving</h2>
+          </div>
+          <Link className="text-sm font-semibold text-dashboard-accent hover:underline" href="/tasks">
+            View all
+          </Link>
         </div>
-        <div className="space-y-5">
-          <ForestWidget forest={summary.forest} />
+        <div className="grid gap-5 xl:grid-cols-2">
+          <InProgressList tasks={summary.in_progress} />
           <QuickWinsCard
             completingTaskId={completingTaskId}
             onComplete={completeQuickWin}
             tasks={summary.quick_wins}
           />
-          <InProgressList tasks={summary.in_progress} />
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-muted">
+            Progress
+          </p>
+          <h2 className="mt-1 text-xl font-semibold text-dashboard-text">This week</h2>
+        </div>
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
+          <WeeklyActivityCard points={summary.weekly_activity} />
+          <ForestWidget forest={summary.forest} />
         </div>
       </section>
     </div>

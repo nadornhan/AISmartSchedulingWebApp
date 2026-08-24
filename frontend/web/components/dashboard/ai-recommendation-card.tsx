@@ -47,16 +47,17 @@ export function AiRecommendationCard({
   }
 
   return (
-    <section className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-5 shadow-panel">
+    <section className="relative overflow-hidden rounded-[var(--radius-md)] border border-dashboard-accent/25 bg-[linear-gradient(135deg,rgba(53,227,181,0.09),rgba(10,21,30,0.78)_45%)] p-5 shadow-panel sm:p-6">
+      <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-dashboard-accent/10 blur-3xl" />
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-dashboard-text">AI Recommendation</h2>
+          <h2 className="text-lg font-semibold text-dashboard-text">Smart priority</h2>
           <p className="mt-1 text-xs text-dashboard-muted">
-            Based on your tasks, focus history, and Settings priorities.
+            Ranked from deadlines, priority, duration, and your scheduling preferences.
           </p>
         </div>
-        <span className="shrink-0 rounded-[var(--radius-pill)] border border-dashboard-accent/40 bg-dashboard-accent-soft px-3 py-1 text-[11px] font-medium text-dashboard-accent">
-          AI based on your patterns
+        <span className="relative hidden shrink-0 rounded-[var(--radius-pill)] border border-dashboard-accent/40 bg-dashboard-accent-soft px-3 py-1 text-[11px] font-medium text-dashboard-accent sm:inline-flex">
+          Smart pick
         </span>
       </div>
 
@@ -74,13 +75,13 @@ export function AiRecommendationCard({
               </span>
             ))}
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex flex-col gap-2 sm:flex-row">
             <button
               className="h-11 flex-1 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
               onClick={() => void startFocus()}
               type="button"
             >
-              Accept & Start {focusMinutes}-min Focus
+              Start {focusMinutes}-min Focus
             </button>
             <button
               className="h-11 rounded-[var(--radius-sm)] border border-dashboard-border px-4 text-sm font-medium text-dashboard-muted transition hover:border-dashboard-border-strong hover:text-dashboard-text"
@@ -94,7 +95,7 @@ export function AiRecommendationCard({
               onClick={() => router.push('/analytics')}
               type="button"
             >
-              Review schedule
+              See insights
             </button>
           </div>
         </div>
