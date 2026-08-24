@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { onProjectDataChanged, onTaskDataChanged } from '../../lib/data-events';
 import { listProjects, type Project } from '../../lib/projects';
@@ -15,6 +15,7 @@ import {
 import { CreateTaskModal, type TaskPriorityLabel } from '../tasks/create-task-modal';
 import { PriorityColumn } from './PriorityColumn';
 import { PrioritySummaryGrid } from './PrioritySummaryGrid';
+import { PriorityTaskPreview } from './PriorityTaskPreview';
 import { PriorityTipBar } from './PriorityTipBar';
 import type { PriorityColumnData, PriorityLevel, PriorityTask } from './priority.types';
 
@@ -67,6 +68,13 @@ const priorityLabelByLevel: Record<PriorityLevel, TaskPriorityLabel> = {
   none: 'No priority',
 };
 
+const priorityValueByLevel: Record<PriorityLevel, TaskPriorityValue> = {
+  high: 'high',
+  low: 'low',
+  medium: 'medium',
+  none: 'no_priority',
+};
+
 function formatDueDate(value: string | null) {
   if (!value) return undefined;
 
@@ -93,11 +101,15 @@ function toPriorityTask(task: TaskResponse): PriorityTask {
   return {
     id: task.id,
     title: task.title,
+    description: task.description ?? undefined,
     dueDate: task.status === 'overdue' ? 'Overdue' : formatDueDate(task.due_date),
+    deadline: task.due_date ?? undefined,
     overdue: task.status === 'overdue',
     folder: task.project?.name ?? 'Unassigned',
     folderColor: task.project?.color ?? 'var(--dashboard-muted)',
     priority: priorityMap[task.priority],
+    status: task.status,
+    estimatedDurationMinutes: task.estimated_duration_minutes ?? undefined,
     completed: task.status === 'done',
   };
 }
@@ -131,6 +143,11 @@ export function PriorityBoard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [createPriority, setCreatePriority] = useState<TaskPriorityLabel>('No priority');
   const [error, setError] = useState<string | null>(null);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<PriorityLevel | null>(null);
+  const [movingTaskId, setMovingTaskId] = useState<string | null>(null);
+  const [previewTask, setPreviewTask] = useState<PriorityTask | null>(null);
+  const suppressNextTaskRefresh = useRef(false);
 
   const refreshTasks = useCallback(async () => {
     try {
@@ -169,6 +186,10 @@ export function PriorityBoard() {
   useEffect(
     () =>
       onTaskDataChanged(() => {
+        if (suppressNextTaskRefresh.current) {
+          suppressNextTaskRefresh.current = false;
+          return;
+        }
         void refreshTasks();
       }),
     [refreshTasks],
@@ -219,6 +240,57 @@ export function PriorityBoard() {
     }
   }
 
+  function startDragging(taskId: string) {
+    if (movingTaskId) return;
+    setDraggedTaskId(taskId);
+    setError(null);
+  }
+
+  function stopDragging() {
+    setDraggedTaskId(null);
+    setDropTarget(null);
+  }
+
+  async function moveTask(taskId: string, targetPriority: PriorityLevel) {
+    const sourceColumn = columns.find((column) =>
+      column.tasks.some((task) => task.id === taskId),
+    );
+    const task = sourceColumn?.tasks.find((item) => item.id === taskId);
+
+    stopDragging();
+    if (!sourceColumn || !task || sourceColumn.id === targetPriority || movingTaskId) return;
+
+    const previousColumns = columns;
+    const movedTask: PriorityTask = { ...task, priority: targetPriority };
+
+    setMovingTaskId(taskId);
+    setError(null);
+    setColumns((current) =>
+      current.map((column) => ({
+        ...column,
+        tasks:
+          column.id === targetPriority
+            ? [movedTask, ...column.tasks.filter((item) => item.id !== taskId)]
+            : column.tasks.filter((item) => item.id !== taskId),
+      })),
+    );
+
+    try {
+      suppressNextTaskRefresh.current = true;
+      await updateTask(taskId, { priority: priorityValueByLevel[targetPriority] });
+    } catch (requestError) {
+      suppressNextTaskRefresh.current = false;
+      setColumns(previousColumns);
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to update task priority.',
+      );
+    } finally {
+      setMovingTaskId(null);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-[1500px] space-y-4">
       <PrioritySummaryGrid columns={columns} />
@@ -244,9 +316,17 @@ export function PriorityBoard() {
           {columns.map((column) => (
             <PriorityColumn
               column={column}
+              draggedTaskId={draggedTaskId}
+              isDropTarget={dropTarget === column.id}
               key={column.id}
               onAddTask={openCreateTask}
+              onDragEnd={stopDragging}
+              onDragEnter={setDropTarget}
+              onDragStart={startDragging}
+              onDropTask={(taskId) => void moveTask(taskId, column.id)}
+              onPreview={setPreviewTask}
               onToggle={toggleTask}
+              movingTaskId={movingTaskId}
             />
           ))}
         </section>
@@ -264,6 +344,8 @@ export function PriorityBoard() {
           projects={projects}
         />
       ) : null}
+
+      <PriorityTaskPreview onClose={() => setPreviewTask(null)} task={previewTask} />
     </div>
   );
 }
