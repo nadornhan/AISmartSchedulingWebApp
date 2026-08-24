@@ -35,6 +35,13 @@ class ScheduleSuggestionStatus(str, enum.Enum):
     ADJUSTED = "adjusted"
 
 
+class FocusSessionStatus(str, enum.Enum):
+    ACTIVE = "active"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
 class FocusSession(Base):
     __tablename__ = "focus_sessions"
 
@@ -53,11 +60,22 @@ class FocusSession(Base):
         DateTime(timezone=True),
         nullable=False,
     )
-    ended_at: Mapped[datetime] = mapped_column(
+    ended_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        nullable=False,
+        nullable=True,
     )
     duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    planned_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    actual_duration_seconds: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(24),
+        default=FocusSessionStatus.ACTIVE.value,
+        server_default=FocusSessionStatus.ACTIVE.value,
+        nullable=False,
+        index=True,
+    )
     completed: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
@@ -67,6 +85,12 @@ class FocusSession(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
         nullable=False,
     )
 

@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.dashboard.schemas import DashboardTaskSummary
 from app.gamification.schemas import RewardFeedback
+from app.scheduling.models import FocusSessionStatus
 
 
 class AiWeightsSnapshot(BaseModel):
@@ -64,6 +65,33 @@ class FocusSessionResponse(BaseModel):
     ended_at: datetime
     duration_minutes: int
     completed: bool
+    growth_reward: RewardFeedback | None = None
+
+
+class FocusSessionStart(BaseModel):
+    task_id: uuid.UUID | None = None
+    planned_duration_minutes: int = Field(gt=0, le=24 * 60)
+
+
+class FocusSessionProgress(BaseModel):
+    actual_duration_seconds: int = Field(ge=0, le=24 * 60 * 60)
+    status: FocusSessionStatus
+
+
+class FocusSessionFinish(BaseModel):
+    actual_duration_seconds: int = Field(ge=0, le=24 * 60 * 60)
+
+
+class FocusSessionDetail(BaseModel):
+    id: uuid.UUID
+    task_id: uuid.UUID | None
+    planned_duration_minutes: int
+    actual_duration_seconds: int
+    status: FocusSessionStatus
+    started_at: datetime
+    ended_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
     growth_reward: RewardFeedback | None = None
 
 
