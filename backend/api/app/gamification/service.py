@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
+from app.focus.models import FocusSession
 from app.gamification.models import (
     Achievement,
     GrowthStage,
@@ -55,7 +56,6 @@ from app.gamification.schemas import (
     UpdatePlantRequest,
     UserPlantResponse,
 )
-from app.scheduling.models import FocusSession
 from app.tasks.models import Task, TaskPriority, TaskStatus
 from app.tasks.overdue import utc_now
 

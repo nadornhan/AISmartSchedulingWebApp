@@ -7,7 +7,7 @@ import {
   getActiveFocusSession,
   startFocusSession,
   updateFocusSession,
-} from '../../lib/scheduling';
+} from '../../lib/focus';
 import { FocusSettingsModal, type FocusDurations } from './FocusSettingsModal';
 
 type Mode = 'Pomodoro' | 'Short Break' | 'Long Break';
@@ -57,6 +57,7 @@ export function FocusMode() {
   const selectedTaskId = searchParams.get('task_id');
   const selectedTaskTitle = searchParams.get('task_title');
   const selectedDuration = Number(searchParams.get('duration'));
+  const focusTaskId = selectedTaskId && selectedTaskId.trim() ? selectedTaskId : null;
 
   const totalSeconds = getModeSeconds(mode, durations);
   const progress = totalSeconds > 0 ? seconds / totalSeconds : 0;
@@ -269,7 +270,7 @@ export function FocusMode() {
     try {
       if (mode === 'Pomodoro' && !sessionIdRef.current) {
         const session = await startFocusSession({
-          task_id: selectedTaskId,
+          task_id: focusTaskId,
           planned_duration_minutes: Math.max(1, Math.round(totalSeconds / 60)),
         });
         sessionIdRef.current = session.id;

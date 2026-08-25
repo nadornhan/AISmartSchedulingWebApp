@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from collections import Counter
 
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority
 from app.tasks.overdue import is_task_overdue, normalize_due_datetime
-
 
 PRIORITY_SCORE = {
     TaskPriority.HIGH: 1.0,
@@ -126,8 +125,10 @@ def rank_open_tasks(
             f"Deadline urgency weight ({settings.ai_deadline_urgency_weight})",
             f"Priority weight ({settings.ai_priority_weight})",
             f"Estimated duration weight ({settings.ai_estimated_duration_weight})",
-            f"Work hours {settings.work_start.strftime('%H:%M')}"
-            f"-{settings.work_end.strftime('%H:%M')}",
+            (
+                f"Work hours {settings.work_start.strftime('%H:%M')}"
+                f"-{settings.work_end.strftime('%H:%M')}"
+            ),
         ]
         if preferred_focus_hours:
             top_hour = preferred_focus_hours.most_common(1)[0][0]

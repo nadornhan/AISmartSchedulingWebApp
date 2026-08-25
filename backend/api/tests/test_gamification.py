@@ -176,7 +176,7 @@ def test_focus_session_awards_gp_and_short_session_does_not(
     started = datetime.now(UTC) - timedelta(minutes=20)
     ended = datetime.now(UTC)
     valid = client.post(
-        "/scheduling/focus-sessions",
+        "/focus/sessions",
         headers=headers,
         json={
             "started_at": started.isoformat(),
@@ -193,7 +193,7 @@ def test_focus_session_awards_gp_and_short_session_does_not(
 
     short_started = datetime.now(UTC) - timedelta(minutes=2)
     short = client.post(
-        "/scheduling/focus-sessions",
+        "/focus/sessions",
         headers=headers,
         json={
             "started_at": short_started.isoformat(),
@@ -212,7 +212,7 @@ def test_focus_reward_is_unassigned_without_an_active_plant(client: TestClient) 
     started = datetime.now(UTC) - timedelta(minutes=20)
 
     response = client.post(
-        "/scheduling/focus-sessions",
+        "/focus/sessions",
         headers=headers,
         json={
             "started_at": started.isoformat(),

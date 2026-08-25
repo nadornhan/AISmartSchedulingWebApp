@@ -77,7 +77,7 @@ def test_focus_session_and_regenerate(client: TestClient) -> None:
     started = datetime.now(UTC) - timedelta(minutes=25)
     ended = datetime.now(UTC)
     session = client.post(
-        "/scheduling/focus-sessions",
+        "/focus/sessions",
         headers=headers,
         json={
             "task_id": task_id,
