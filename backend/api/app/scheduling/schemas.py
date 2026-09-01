@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.dashboard.schemas import DashboardTaskSummary
 
@@ -55,3 +55,44 @@ class ScheduleAdjustRequest(BaseModel):
 
 class ApplyScheduleRequest(BaseModel):
     suggestion_ids: list[uuid.UUID] | None = None
+
+
+class AiPreviewRequest(BaseModel):
+    task_ids: list[uuid.UUID] = Field(min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def reject_duplicate_task_ids(self) -> "AiPreviewRequest":
+        if len(set(self.task_ids)) != len(self.task_ids):
+            raise ValueError("task_ids must not contain duplicates")
+
+        return self
+
+
+class GeminiScheduleSlot(BaseModel):
+    task_id: uuid.UUID
+    suggested_start: datetime
+    suggested_end: datetime
+    explanation: str = Field(min_length=1, max_length=500)
+
+
+class GeminiSchedulePreview(BaseModel):
+    schedule: list[GeminiScheduleSlot] = Field(min_length=1, max_length=5)
+
+
+class AiPreviewSlotResponse(BaseModel):
+    task_id: uuid.UUID
+    task_title: str
+    project_name: str | None = None
+    suggested_start: datetime
+    suggested_end: datetime
+    explanation: str
+    position: int
+
+
+class AiPreviewResponse(BaseModel):
+    schedule: list[AiPreviewSlotResponse]
+    generated_at: datetime
+    model: str
+    footnote: str = (
+        "Gemini preview only. Review before applying; no database changes were made."
+    )

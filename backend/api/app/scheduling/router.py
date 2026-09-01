@@ -1,19 +1,36 @@
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.ai import AIService, get_ai_service
+from app.ai.exceptions import (
+    AIAuthenticationError,
+    AIConfigurationError,
+    AIDisabledError,
+    AIInvalidResponseError,
+    AIModelUnavailableError,
+    AIQuotaError,
+    AIRequestLimitError,
+    AITimeoutError,
+    AIUpstreamError,
+)
 from app.auth.dependencies import CurrentUser, DatabaseSession
 from app.scheduling import service
 from app.scheduling.models import RecommendationStatus, ScheduleSuggestionStatus
 from app.scheduling.schemas import (
+    AiPreviewRequest,
+    AiPreviewResponse,
     AiRecommendationResponse,
     ApplyScheduleRequest,
     ScheduleAdjustRequest,
     ScheduleSuggestionResponse,
     SchedulingPlanResponse,
 )
+from app.scheduling.validation import DeterministicScheduleValidationError
 
 router = APIRouter(prefix="/scheduling", tags=["scheduling"])
+AIServiceDependency = Annotated[AIService, Depends(get_ai_service)]
 
 
 @router.get("/plan", response_model=SchedulingPlanResponse)
@@ -30,6 +47,50 @@ def regenerate_plan(
     current_user: CurrentUser,
 ) -> SchedulingPlanResponse:
     return service.generate_plan(db, current_user.id, force=True)
+
+
+@router.post("/ai-preview", response_model=AiPreviewResponse)
+def generate_ai_preview(
+    payload: AiPreviewRequest,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+    ai_service: AIServiceDependency,
+) -> AiPreviewResponse:
+    try:
+        return service.generate_ai_preview(
+            db,
+            current_user.id,
+            payload,
+            ai_service=ai_service,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except (AIConfigurationError, AIDisabledError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI scheduling preview is not configured",
+        ) from exc
+    except (AIQuotaError, AIRequestLimitError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="AI quota or rate limit was reached",
+        ) from exc
+    except AITimeoutError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="AI scheduling preview timed out",
+        ) from exc
+    except (
+        AIAuthenticationError,
+        AIModelUnavailableError,
+        AIInvalidResponseError,
+        AIUpstreamError,
+        DeterministicScheduleValidationError,
+    ) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI could not produce a valid schedule preview",
+        ) from exc
 
 
 @router.post(
