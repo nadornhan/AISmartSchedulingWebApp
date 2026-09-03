@@ -144,6 +144,72 @@ def test_patch_settings_partially_updates_without_overwriting_other_fields(
     }
 
 
+def test_patch_settings_accepts_active_scheduling_fields_without_duration_weight(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+
+    response = client.patch(
+        "/settings",
+        headers=auth_headers,
+        json={
+            "ai_scheduling": {
+                "ai_assistant_enabled": True,
+                "ai_deadline_urgency_weight": 95,
+                "ai_priority_weight": 5,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ai_scheduling"] == {
+        "ai_assistant_enabled": True,
+        "ai_deadline_urgency_weight": 95,
+        "ai_priority_weight": 5,
+        "ai_estimated_duration_weight": 50,
+    }
+
+
+def test_patch_settings_accepts_legacy_duration_weight_payload(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+
+    response = client.patch(
+        "/settings",
+        headers=auth_headers,
+        json={
+            "ai_scheduling": {
+                "ai_estimated_duration_weight": 10,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ai_scheduling"]["ai_estimated_duration_weight"] == 10
+
+
+def test_get_settings_preserves_existing_legacy_duration_weight(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    legacy_update = client.patch(
+        "/settings",
+        headers=auth_headers,
+        json={
+            "ai_scheduling": {
+                "ai_estimated_duration_weight": 0,
+            },
+        },
+    )
+    assert legacy_update.status_code == 200
+
+    response = client.get("/settings", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["ai_scheduling"]["ai_estimated_duration_weight"] == 0
+
+
 def test_patch_settings_validates_input(client: TestClient) -> None:
     auth_headers = create_auth_headers(client)
 

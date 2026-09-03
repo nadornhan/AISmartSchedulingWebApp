@@ -224,6 +224,42 @@ def test_scheduling_v1_keeps_legacy_short_duration_bias() -> None:
     assert medium_score.score > high_score.score
 
 
+def test_scheduling_v1_remains_sensitive_to_legacy_duration_weight() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    task = _task(
+        priority=TaskPriority.NO_PRIORITY,
+        due_date=None,
+        estimated_duration_minutes=10,
+    )
+
+    no_duration_weight = score_task(
+        task,
+        SchedulingProfileV1.from_settings(
+            UserSettings(
+                ai_deadline_urgency_weight=80,
+                ai_priority_weight=70,
+                ai_estimated_duration_weight=0,
+            )
+        ),
+        now=now,
+        preferred_focus_hours=Counter(),
+    )
+    high_duration_weight = score_task(
+        task,
+        SchedulingProfileV1.from_settings(
+            UserSettings(
+                ai_deadline_urgency_weight=80,
+                ai_priority_weight=70,
+                ai_estimated_duration_weight=100,
+            )
+        ),
+        now=now,
+        preferred_focus_hours=Counter(),
+    )
+
+    assert high_duration_weight.score > no_duration_weight.score
+
+
 def test_scheduling_v2_removes_generic_short_duration_bias() -> None:
     now = datetime(2026, 1, 1, 9, tzinfo=UTC)
     due = now + timedelta(hours=23)

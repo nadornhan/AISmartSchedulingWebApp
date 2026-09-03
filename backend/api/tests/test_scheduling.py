@@ -271,6 +271,98 @@ def test_rank_open_tasks_score_excludes_current_hour_focus_bonus() -> None:
     assert "Matches your usual focus hours" not in ranked[0].reasons
 
 
+def test_production_v4_output_ignores_estimated_duration_weight() -> None:
+    now = datetime(2026, 1, 1, 8, tzinfo=UTC)
+    due = now + timedelta(hours=8)
+    high_long_id = uuid.UUID("11111111-1111-4111-8111-111111111111")
+    medium_short_id = uuid.UUID("22222222-2222-4222-8222-222222222222")
+
+    def generate(duration_weight: int) -> tuple[list[tuple[uuid.UUID, float]], list[tuple]]:
+        settings = _settings(duration_weight=duration_weight)
+        tasks = [
+            _task(
+                task_id=medium_short_id,
+                priority=TaskPriority.MEDIUM,
+                due_date=due,
+                estimated_duration_minutes=10,
+            ),
+            _task(
+                task_id=high_long_id,
+                priority=TaskPriority.HIGH,
+                due_date=due,
+                estimated_duration_minutes=90,
+            ),
+        ]
+        ranked = rank_open_tasks(
+            tasks,
+            settings,
+            now=now,
+            preferred_focus_hours=Counter(),
+            dismissed_task_ids=set(),
+        )
+        slots = build_schedule_slots(
+            ranked,
+            settings,
+            now=now,
+            existing_tasks=tasks,
+            preferred_focus_hours=Counter(),
+        )
+        return (
+            [(item.task.id, item.score) for item in ranked],
+            [(task.id, start, end) for task, start, end, _explanation in slots],
+        )
+
+    assert generate(0) == generate(100)
+
+
+def test_deadline_weight_still_affects_production_task_importance() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    urgent_low = _task(
+        task_id=uuid.UUID("11111111-1111-4111-8111-111111111111"),
+        priority=TaskPriority.LOW,
+        due_date=now + timedelta(hours=4),
+    )
+    later_high = _task(
+        task_id=uuid.UUID("22222222-2222-4222-8222-222222222222"),
+        priority=TaskPriority.HIGH,
+        due_date=now + timedelta(days=14),
+    )
+
+    ranked = rank_open_tasks(
+        [later_high, urgent_low],
+        _settings(deadline_weight=100, priority_weight=0),
+        now=now,
+        preferred_focus_hours=Counter(),
+        dismissed_task_ids=set(),
+    )
+
+    assert ranked[0].task.id == urgent_low.id
+
+
+def test_priority_weight_still_affects_production_task_importance() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    urgent_low = _task(
+        task_id=uuid.UUID("11111111-1111-4111-8111-111111111111"),
+        priority=TaskPriority.LOW,
+        due_date=now + timedelta(hours=4),
+    )
+    later_high = _task(
+        task_id=uuid.UUID("22222222-2222-4222-8222-222222222222"),
+        priority=TaskPriority.HIGH,
+        due_date=now + timedelta(days=14),
+    )
+
+    ranked = rank_open_tasks(
+        [urgent_low, later_high],
+        _settings(deadline_weight=0, priority_weight=100),
+        now=now,
+        preferred_focus_hours=Counter(),
+        dismissed_task_ids=set(),
+    )
+
+    assert ranked[0].task.id == later_high.id
+
+
 def test_constraints_reject_existing_scheduled_task_overlap() -> None:
     day = datetime(2099, 1, 1, tzinfo=UTC)
     candidate = _task()

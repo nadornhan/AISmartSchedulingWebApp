@@ -42,6 +42,7 @@ class AiSchedulingSettings(BaseModel):
     ai_assistant_enabled: bool
     ai_deadline_urgency_weight: int = Field(ge=0, le=100)
     ai_priority_weight: int = Field(ge=0, le=100)
+    # Deprecated compatibility field; production scheduling/v4 ignores it.
     ai_estimated_duration_weight: int = Field(ge=0, le=100)
 
 
