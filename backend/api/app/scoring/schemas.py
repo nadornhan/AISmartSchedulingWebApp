@@ -28,6 +28,8 @@ class FactorResult:
 
 @dataclass(frozen=True)
 class ScoreBreakdown:
+    profile_name: str
+    scoring_version: str
     factors: tuple[FactorResult, ...]
     weighted_score: float
     focus_bonus: float

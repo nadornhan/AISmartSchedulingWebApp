@@ -25,6 +25,40 @@ class SchedulingProfileV1:
             duration_weight=settings.ai_estimated_duration_weight / 100,
         )
 
+    def factor_weights(self) -> dict[str, float]:
+        return {
+            "deadline_urgency": self.deadline_weight,
+            "priority": self.priority_weight,
+            "duration_preference": self.duration_weight,
+        }
+
+    def should_apply_focus_bonus(self, *, active_weight_sum: float) -> bool:
+        return True
+
+
+@dataclass(frozen=True)
+class SchedulingProfileV2:
+    deadline_weight: float
+    priority_weight: float
+    profile_name: ClassVar[str] = "scheduling"
+    scoring_version: ClassVar[str] = "v2"
+
+    @classmethod
+    def from_settings(cls, settings: UserSettings) -> SchedulingProfileV2:
+        return cls(
+            deadline_weight=settings.ai_deadline_urgency_weight / 100,
+            priority_weight=settings.ai_priority_weight / 100,
+        )
+
+    def factor_weights(self) -> dict[str, float]:
+        return {
+            "deadline_urgency": self.deadline_weight,
+            "priority": self.priority_weight,
+        }
+
+    def should_apply_focus_bonus(self, *, active_weight_sum: float) -> bool:
+        return active_weight_sum > 0
+
 
 LegacySchedulingProfile = SchedulingProfileV1
 

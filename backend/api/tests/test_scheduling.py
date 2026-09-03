@@ -12,7 +12,7 @@ from app.scheduling.models import AiScheduleSuggestion, ScheduleSuggestionStatus
 from app.scoring.constraints import validate_schedule_candidate
 from app.scoring.criteria import deadline_urgency, duration_preference
 from app.scoring.engine import score_task
-from app.scoring.profiles import LegacySchedulingProfile
+from app.scoring.profiles import LegacySchedulingProfile, SchedulingProfileV2
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
 
@@ -214,6 +214,38 @@ def test_scoring_parity_equal_scores_keep_task_id_tie_break() -> None:
     )
 
     assert [item.task.id for item in ranked] == [earlier_id, later_id]
+
+
+def test_rank_open_tasks_uses_scheduling_v2_without_duration_bias() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    due = now + timedelta(hours=23)
+    high_long = _task(
+        priority=TaskPriority.HIGH,
+        due_date=due,
+        estimated_duration_minutes=90,
+    )
+    medium_short = _task(
+        priority=TaskPriority.MEDIUM,
+        due_date=due,
+        estimated_duration_minutes=10,
+    )
+
+    ranked = rank_open_tasks(
+        [medium_short, high_long],
+        _settings(),
+        now=now,
+        preferred_focus_hours=Counter(),
+        dismissed_task_ids=set(),
+    )
+
+    assert ranked[0].task.id == high_long.id
+    assert ranked[0].score == score_task(
+        high_long,
+        SchedulingProfileV2.from_settings(_settings()),
+        now=now,
+        preferred_focus_hours=Counter(),
+    ).score
+    assert "Short estimated duration" not in ranked[1].reasons
 
 
 def test_constraints_reject_existing_scheduled_task_overlap() -> None:

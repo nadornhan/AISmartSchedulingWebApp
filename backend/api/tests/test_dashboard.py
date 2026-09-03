@@ -207,7 +207,7 @@ def test_dashboard_next_best_task_ordering(
     ]
 
 
-def test_dashboard_ai_recommendation_prefers_high_priority_short_tasks(
+def test_dashboard_ai_recommendation_prefers_scheduling_profile_result(
     client: TestClient,
     db_session: Session,
 ) -> None:
@@ -217,7 +217,7 @@ def test_dashboard_ai_recommendation_prefers_high_priority_short_tasks(
         hours=15
     )
 
-    add_task(
+    short_medium = add_task(
         db_session,
         user_id=user_id,
         title="Medium same due",
@@ -225,7 +225,7 @@ def test_dashboard_ai_recommendation_prefers_high_priority_short_tasks(
         due_date=due_date,
         estimated_duration_minutes=5,
     )
-    high_long = add_task(
+    high_task = add_task(
         db_session,
         user_id=user_id,
         title="High same due long",
@@ -233,23 +233,15 @@ def test_dashboard_ai_recommendation_prefers_high_priority_short_tasks(
         due_date=due_date,
         estimated_duration_minutes=30,
     )
-    high_short = add_task(
-        db_session,
-        user_id=user_id,
-        title="High same due short",
-        priority=TaskPriority.HIGH,
-        due_date=due_date,
-        estimated_duration_minutes=10,
-    )
 
     response = client.get("/dashboard/summary", headers=headers)
     assert response.status_code == 200
     payload = response.json()
 
-    assert payload["ai_recommendation"]["task"]["title"] == "High same due short"
-    assert payload["ai_recommendation"]["task"]["id"] == str(high_short.id)
-    assert payload["ai_recommendation"]["task"]["id"] != str(high_long.id)
-    assert payload["next_best_task"]["task"]["id"] == str(high_short.id)
+    assert payload["ai_recommendation"]["task"]["title"] == "High same due long"
+    assert payload["ai_recommendation"]["task"]["id"] == str(high_task.id)
+    assert payload["ai_recommendation"]["task"]["id"] != str(short_medium.id)
+    assert payload["next_best_task"]["task"]["id"] == str(high_task.id)
     assert "High priority" in payload["ai_recommendation"]["reasons"]
     assert any("weight" in item.lower() for item in payload["ai_recommendation"]["based_on"])
     assert payload["ai_recommendation"]["footnote"] == "AI based on your patterns"

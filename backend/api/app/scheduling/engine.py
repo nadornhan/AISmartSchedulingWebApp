@@ -5,7 +5,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from app.scoring import SchedulingProfileV1, score_task
+from app.scoring import SchedulingProfileV2, score_task
 from app.scoring.constraints import validate_schedule_candidate
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority
@@ -27,7 +27,7 @@ def rank_open_tasks(
     preferred_focus_hours: Counter[int],
     dismissed_task_ids: set,
 ) -> list[RankedTask]:
-    profile = SchedulingProfileV1.from_settings(settings)
+    profile = SchedulingProfileV2.from_settings(settings)
     ranked: list[RankedTask] = []
 
     for task in tasks:
@@ -50,16 +50,15 @@ def rank_open_tasks(
             reasons.append("High priority")
         elif task.priority == TaskPriority.MEDIUM:
             reasons.append("Medium priority")
-        dur_reason = factors_by_name["duration_preference"].reason
-        if dur_reason:
-            reasons.append(dur_reason)
+        dur_factor = factors_by_name.get("duration_preference")
+        if dur_factor and dur_factor.reason:
+            reasons.append(dur_factor.reason)
         if scored.breakdown.focus_bonus > 0:
             reasons.append("Matches your usual focus hours")
 
         based_on = [
             f"Deadline urgency weight ({settings.ai_deadline_urgency_weight})",
             f"Priority weight ({settings.ai_priority_weight})",
-            f"Estimated duration weight ({settings.ai_estimated_duration_weight})",
             (
                 f"Work hours {settings.work_start.strftime('%H:%M')}"
                 f"-{settings.work_end.strftime('%H:%M')}"

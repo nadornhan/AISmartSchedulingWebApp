@@ -2,7 +2,12 @@ import uuid
 from collections import Counter
 from datetime import UTC, datetime, timedelta
 
-from app.scoring import NextTaskProfileV1, QuickWinProfileV1, SchedulingProfileV1
+from app.scoring import (
+    NextTaskProfileV1,
+    QuickWinProfileV1,
+    SchedulingProfileV1,
+    SchedulingProfileV2,
+)
 from app.scoring.engine import score_task
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
@@ -37,11 +42,14 @@ def _settings() -> UserSettings:
 
 def test_profile_identity_metadata_is_available_without_persistence() -> None:
     scheduling = SchedulingProfileV1.from_settings(_settings())
+    scheduling_v2 = SchedulingProfileV2.from_settings(_settings())
     next_task = NextTaskProfileV1()
     quick_win = QuickWinProfileV1()
 
     assert scheduling.profile_name == "scheduling"
     assert scheduling.scoring_version == "v1"
+    assert scheduling_v2.profile_name == "scheduling"
+    assert scheduling_v2.scoring_version == "v2"
     assert next_task.profile_name == "next_task"
     assert next_task.scoring_version == "v1"
     assert quick_win.profile_name == "quick_win"
@@ -175,3 +183,141 @@ def test_scheduling_and_quick_win_profiles_treat_duration_differently() -> None:
     )
     assert scored.breakdown.factors[2].name == "duration_preference"
     assert scored.score == 0.42
+
+
+def test_scheduling_v1_keeps_legacy_short_duration_bias() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    due = now + timedelta(hours=23)
+    high_long = _task(
+        priority=TaskPriority.HIGH,
+        due_date=due,
+        estimated_duration_minutes=90,
+    )
+    medium_short = _task(
+        priority=TaskPriority.MEDIUM,
+        due_date=due,
+        estimated_duration_minutes=10,
+    )
+
+    high_score = score_task(
+        high_long,
+        SchedulingProfileV1.from_settings(_settings()),
+        now=now,
+        preferred_focus_hours=Counter(),
+    )
+    medium_score = score_task(
+        medium_short,
+        SchedulingProfileV1.from_settings(_settings()),
+        now=now,
+        preferred_focus_hours=Counter(),
+    )
+
+    assert high_score.score == 0.805
+    assert medium_score.score == 0.875
+    assert medium_score.score > high_score.score
+
+
+def test_scheduling_v2_removes_generic_short_duration_bias() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    due = now + timedelta(hours=23)
+    high_long = _task(
+        priority=TaskPriority.HIGH,
+        due_date=due,
+        estimated_duration_minutes=90,
+    )
+    medium_short = _task(
+        priority=TaskPriority.MEDIUM,
+        due_date=due,
+        estimated_duration_minutes=10,
+    )
+
+    high_score = score_task(
+        high_long,
+        SchedulingProfileV2.from_settings(_settings()),
+        now=now,
+        preferred_focus_hours=Counter(),
+    )
+    medium_score = score_task(
+        medium_short,
+        SchedulingProfileV2.from_settings(_settings()),
+        now=now,
+        preferred_focus_hours=Counter(),
+    )
+
+    assert [factor.name for factor in high_score.breakdown.factors] == [
+        "deadline_urgency",
+        "priority",
+    ]
+    assert high_score.breakdown.profile_name == "scheduling"
+    assert high_score.breakdown.scoring_version == "v2"
+    assert high_score.score > medium_score.score
+
+
+def test_scheduling_v2_scores_equal_when_only_duration_differs() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    due = now + timedelta(hours=23)
+    short = _task(
+        priority=TaskPriority.HIGH,
+        due_date=due,
+        estimated_duration_minutes=10,
+    )
+    long = _task(
+        priority=TaskPriority.HIGH,
+        due_date=due,
+        estimated_duration_minutes=120,
+    )
+
+    short_score = score_task(
+        short,
+        SchedulingProfileV2.from_settings(_settings()),
+        now=now,
+        preferred_focus_hours=Counter(),
+    )
+    long_score = score_task(
+        long,
+        SchedulingProfileV2.from_settings(_settings()),
+        now=now,
+        preferred_focus_hours=Counter(),
+    )
+
+    assert short_score.score == long_score.score
+
+
+def test_scheduling_v2_all_active_weights_zero_is_deterministic() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    settings = UserSettings(
+        ai_deadline_urgency_weight=0,
+        ai_priority_weight=0,
+        ai_estimated_duration_weight=100,
+    )
+
+    scored = score_task(
+        _task(
+            priority=TaskPriority.HIGH,
+            due_date=now + timedelta(hours=1),
+            estimated_duration_minutes=5,
+        ),
+        SchedulingProfileV2.from_settings(settings),
+        now=now,
+        preferred_focus_hours=Counter({9: 5}),
+    )
+
+    assert scored.breakdown.weighted_score == 0
+    assert scored.breakdown.focus_bonus == 0
+    assert scored.score == 0
+
+
+def test_next_task_profile_keeps_current_duration_ordering_independent_of_v2() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    short_medium = _task(
+        priority=TaskPriority.MEDIUM,
+        due_date=now + timedelta(days=1),
+        estimated_duration_minutes=10,
+    )
+    long_high = _task(
+        priority=TaskPriority.HIGH,
+        due_date=now + timedelta(days=1),
+        estimated_duration_minutes=90,
+    )
+
+    assert NextTaskProfileV1().select([long_high, short_medium], now=now) == short_medium

@@ -4,6 +4,7 @@ from app.scoring.profiles import (
     NextTaskProfileV1,
     QuickWinProfileV1,
     SchedulingProfileV1,
+    SchedulingProfileV2,
 )
 from app.scoring.schemas import (
     ConstraintResult,
@@ -21,6 +22,7 @@ __all__ = [
     "NextTaskProfileV1",
     "QuickWinProfileV1",
     "SchedulingProfileV1",
+    "SchedulingProfileV2",
     "ScoreBreakdown",
     "ScoredCandidate",
     "score_task",
