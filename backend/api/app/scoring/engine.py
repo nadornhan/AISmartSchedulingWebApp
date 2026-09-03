@@ -2,15 +2,23 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import UTC, datetime
+from typing import Any
 
 from app.scoring.criteria import (
     deadline_urgency,
     duration_preference,
+    duration_slot_fit,
     explicit_priority,
     focus_hour_bonus,
 )
-from app.scoring.profiles import SchedulingProfileV1, SchedulingProfileV2
-from app.scoring.schemas import FactorResult, ScoreBreakdown, ScoredCandidate
+from app.scoring.profiles import SchedulingProfileV1, SchedulingProfileV2, SchedulingProfileV3
+from app.scoring.schemas import (
+    CandidateScoreBreakdown,
+    FactorResult,
+    ScoreBreakdown,
+    ScoredCandidate,
+    ScoredWindowCandidate,
+)
 from app.tasks.models import Task
 
 
@@ -74,4 +82,44 @@ def score_task(
             focus_bonus=hour_bonus,
             final_score=round(final_score, 4),
         ),
+    )
+
+
+def score_window_candidate(
+    candidate: Any,
+    profile: SchedulingProfileV3,
+    *,
+    task_importance_score: float,
+) -> ScoredWindowCandidate:
+    fit_score, _fit_reason = duration_slot_fit(
+        required_minutes=candidate.required_minutes,
+        window_minutes=candidate.window.duration_minutes,
+    )
+
+    return ScoredWindowCandidate(
+        candidate=candidate,
+        task_importance_score=task_importance_score,
+        duration_slot_fit_score=round(fit_score, 4),
+        breakdown=CandidateScoreBreakdown(
+            profile_name=profile.profile_name,
+            scoring_version=profile.scoring_version,
+            task_importance_score=task_importance_score,
+            task_importance_profile=(
+                f"{profile.task_importance_profile_name}/"
+                f"{profile.task_importance_scoring_version}"
+            ),
+            duration_slot_fit_score=round(fit_score, 4),
+            required_minutes=candidate.required_minutes,
+            window_minutes=candidate.window.duration_minutes,
+        ),
+    )
+
+
+def window_candidate_sort_key(scored: ScoredWindowCandidate) -> tuple:
+    candidate = scored.candidate
+    return (
+        -scored.task_importance_score,
+        -scored.duration_slot_fit_score,
+        candidate.proposed_start,
+        str(candidate.task.id),
     )

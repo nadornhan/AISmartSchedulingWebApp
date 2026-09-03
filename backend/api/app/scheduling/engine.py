@@ -7,7 +7,6 @@ from datetime import UTC, datetime, timedelta
 
 from app.scheduling.windows import (
     CandidateWindow,
-    TaskWindowCandidate,
     allocate_from_window,
     build_task_window_candidate,
     derive_free_windows,
@@ -15,7 +14,13 @@ from app.scheduling.windows import (
     occupied_intervals_from_tasks,
     work_window_for_day,
 )
-from app.scoring import SchedulingProfileV2, score_task
+from app.scoring import (
+    SchedulingProfileV2,
+    SchedulingProfileV3,
+    score_task,
+    score_window_candidate,
+    window_candidate_sort_key,
+)
 from app.scoring.constraints import validate_schedule_candidate
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority
@@ -129,47 +134,59 @@ def build_schedule_slots(
         occupied_intervals=occupied_intervals,
     )
 
-    for item in ranked:
+    remaining_ranked = [
+        item
+        for item in ranked
+        if not (
+            item.task.scheduled_start is not None
+            and item.task.scheduled_end is not None
+        )
+    ]
+    placement_profile = SchedulingProfileV3()
+
+    while remaining_ranked:
         if len(slots) >= max_slots:
             break
         if not free_windows:
             break
 
-        if item.task.scheduled_start is not None and item.task.scheduled_end is not None:
-            continue
+        scored_candidates = []
+        for item in remaining_ranked:
+            for window in free_windows:
+                candidate = build_task_window_candidate(
+                    task=item.task,
+                    window=window,
+                    settings=settings,
+                )
+                if candidate is None:
+                    continue
 
-        chosen: tuple[CandidateWindow, TaskWindowCandidate] | None = None
-        for window in free_windows:
-            candidate = build_task_window_candidate(
-                task=item.task,
-                window=window,
-                settings=settings,
-            )
-            if candidate is None:
-                continue
+                validation = validate_schedule_candidate(
+                    task=item.task,
+                    start=candidate.proposed_start,
+                    end=candidate.proposed_end,
+                    settings=settings,
+                    existing_tasks=blockers,
+                    existing_candidates=accepted_candidates,
+                    require_unscheduled_task=True,
+                )
+                if not validation.valid:
+                    continue
 
-            validation = validate_schedule_candidate(
-                task=item.task,
-                start=candidate.proposed_start,
-                end=candidate.proposed_end,
-                settings=settings,
-                existing_tasks=blockers,
-                existing_candidates=accepted_candidates,
-                require_unscheduled_task=True,
-            )
-            if validation.valid:
-                chosen = (window, candidate)
-                break
-            if any(
-                not check.passed and check.name == "deadline_feasible"
-                for check in validation.checks
-            ):
-                continue
+                scored_candidates.append(
+                    score_window_candidate(
+                        candidate,
+                        placement_profile,
+                        task_importance_score=item.score,
+                    )
+                )
 
-        if chosen is None:
-            continue
+        if not scored_candidates:
+            break
 
-        window, candidate = chosen
+        scored = min(scored_candidates, key=window_candidate_sort_key)
+        candidate = scored.candidate
+        window = candidate.window
         start = candidate.proposed_start
         end = candidate.proposed_end
 
@@ -178,12 +195,17 @@ def build_schedule_slots(
             f"{'deadline urgency' if settings.ai_deadline_urgency_weight >= settings.ai_priority_weight else 'priority'} "
             f"preference."
         )
-        slots.append((item.task, start, end, explanation))
-        accepted_candidates.append((item.task.id, start, end))
+        slots.append((candidate.task, start, end, explanation))
+        accepted_candidates.append((candidate.task.id, start, end))
         free_windows = allocate_from_window(
             windows=free_windows,
             used_window=window,
             candidate=candidate,
         )
+        remaining_ranked = [
+            item
+            for item in remaining_ranked
+            if item.task.id != candidate.task.id
+        ]
 
     return slots

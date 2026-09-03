@@ -60,6 +60,14 @@ class SchedulingProfileV2:
         return active_weight_sum > 0
 
 
+@dataclass(frozen=True)
+class SchedulingProfileV3:
+    profile_name: ClassVar[str] = "scheduling"
+    scoring_version: ClassVar[str] = "v3"
+    task_importance_profile_name: ClassVar[str] = SchedulingProfileV2.profile_name
+    task_importance_scoring_version: ClassVar[str] = SchedulingProfileV2.scoring_version
+
+
 LegacySchedulingProfile = SchedulingProfileV1
 
 

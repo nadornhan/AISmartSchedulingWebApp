@@ -255,6 +255,110 @@ def test_later_feasible_window_is_used_when_first_window_is_too_small() -> None:
     )
 
 
+def test_same_task_prefers_tighter_fit_window_over_earlier_loose_window() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+    blocker = _task(
+        scheduled_start=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        scheduled_end=datetime(2099, 1, 1, 16, tzinfo=UTC),
+    )
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task, blocker],
+    )
+
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 1, 16, tzinfo=UTC),
+        datetime(2099, 1, 1, 17, tzinfo=UTC),
+    )
+
+
+def test_higher_importance_task_beats_better_slot_fit_in_allocation() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    high_long = _task(
+        priority=TaskPriority.HIGH,
+        estimated_duration_minutes=60,
+    )
+    medium_short = _task(
+        priority=TaskPriority.MEDIUM,
+        estimated_duration_minutes=30,
+    )
+    blocker = _task(
+        scheduled_start=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        scheduled_end=datetime(2099, 1, 1, 11, 30, tzinfo=UTC),
+    )
+
+    slots = build_schedule_slots(
+        [
+            RankedTask(high_long, 0.9, [], []),
+            RankedTask(medium_short, 0.8, [], []),
+        ],
+        _settings(work_end=time(12, 0)),
+        now=now,
+        existing_tasks=[high_long, medium_short, blocker],
+    )
+
+    assert slots[0][0].id == high_long.id
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 1, 9, tzinfo=UTC),
+        datetime(2099, 1, 1, 10, tzinfo=UTC),
+    )
+
+
+def test_short_medium_task_does_not_recover_v1_bias_through_slot_fit() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    high_long = _task(priority=TaskPriority.HIGH, estimated_duration_minutes=90)
+    medium_short = _task(priority=TaskPriority.MEDIUM, estimated_duration_minutes=10)
+
+    slots = build_schedule_slots(
+        [
+            RankedTask(high_long, 0.9, [], []),
+            RankedTask(medium_short, 0.8, [], []),
+        ],
+        _settings(),
+        now=now,
+        existing_tasks=[high_long, medium_short],
+    )
+
+    assert slots[0][0].id == high_long.id
+
+
+def test_tighter_fit_preserves_large_block_for_long_task() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    short_task = _task(estimated_duration_minutes=60)
+    long_task = _task(estimated_duration_minutes=120)
+    blocker = _task(
+        scheduled_start=datetime(2099, 1, 1, 10, tzinfo=UTC),
+        scheduled_end=datetime(2099, 1, 1, 11, tzinfo=UTC),
+    )
+
+    slots = build_schedule_slots(
+        [
+            RankedTask(short_task, 1.0, [], []),
+            RankedTask(long_task, 0.9, [], []),
+        ],
+        _settings(),
+        now=now,
+        existing_tasks=[short_task, long_task, blocker],
+    )
+
+    assert [(slot[0].id, slot[1], slot[2]) for slot in slots] == [
+        (
+            short_task.id,
+            datetime(2099, 1, 1, 9, tzinfo=UTC),
+            datetime(2099, 1, 1, 10, tzinfo=UTC),
+        ),
+        (
+            long_task.id,
+            datetime(2099, 1, 1, 11, tzinfo=UTC),
+            datetime(2099, 1, 1, 13, tzinfo=UTC),
+        ),
+    ]
+
+
 def test_multiple_tasks_can_consume_one_large_window_sequentially() -> None:
     now = datetime(2099, 1, 1, 8, tzinfo=UTC)
     first = _task(estimated_duration_minutes=60)

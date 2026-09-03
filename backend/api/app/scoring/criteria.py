@@ -54,6 +54,22 @@ def duration_preference(minutes: int | None) -> tuple[float, str | None]:
     return 0.3, "Longer estimated duration"
 
 
+def duration_slot_fit(
+    *,
+    required_minutes: int,
+    window_minutes: int,
+) -> tuple[float, str | None]:
+    if required_minutes <= 0 or window_minutes <= 0:
+        return 0.0, "Invalid duration slot fit"
+    if required_minutes > window_minutes:
+        return 0.0, "Task does not fit candidate window"
+
+    fit = max(0.0, min(1.0, required_minutes / window_minutes))
+    if fit == 1.0:
+        return fit, "Exact duration fit"
+    return fit, "Fits within candidate window"
+
+
 def focus_hour_bonus(
     preferred_hours: Counter[int],
     *,

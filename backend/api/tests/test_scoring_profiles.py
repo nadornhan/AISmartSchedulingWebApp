@@ -2,12 +2,17 @@ import uuid
 from collections import Counter
 from datetime import UTC, datetime, timedelta
 
+from app.scheduling.windows import CandidateWindow, build_task_window_candidate
 from app.scoring import (
     NextTaskProfileV1,
     QuickWinProfileV1,
     SchedulingProfileV1,
     SchedulingProfileV2,
+    SchedulingProfileV3,
+    score_window_candidate,
+    window_candidate_sort_key,
 )
+from app.scoring.criteria import duration_slot_fit
 from app.scoring.engine import score_task
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
@@ -321,3 +326,120 @@ def test_next_task_profile_keeps_current_duration_ordering_independent_of_v2() -
     )
 
     assert NextTaskProfileV1().select([long_high, short_medium], now=now) == short_medium
+
+
+def test_scheduling_v3_profile_identity_metadata_is_available() -> None:
+    profile = SchedulingProfileV3()
+
+    assert profile.profile_name == "scheduling"
+    assert profile.scoring_version == "v3"
+    assert profile.task_importance_profile_name == "scheduling"
+    assert profile.task_importance_scoring_version == "v2"
+
+
+def test_duration_slot_fit_scores_exact_and_loose_fit() -> None:
+    assert duration_slot_fit(required_minutes=60, window_minutes=60)[0] == 1.0
+    assert duration_slot_fit(required_minutes=60, window_minutes=120)[0] == 0.5
+    assert duration_slot_fit(required_minutes=30, window_minutes=120)[0] == 0.25
+
+
+def test_duration_slot_fit_rejects_infeasible_candidate_before_scoring() -> None:
+    task = _task(estimated_duration_minutes=120)
+    window = CandidateWindow(
+        start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+        end=datetime(2099, 1, 1, 10, tzinfo=UTC),
+    )
+
+    assert build_task_window_candidate(
+        task=task,
+        window=window,
+        settings=_settings(),
+    ) is None
+
+
+def test_scheduling_v3_task_importance_beats_better_slot_fit() -> None:
+    high_candidate = build_task_window_candidate(
+        task=_task(priority=TaskPriority.HIGH, estimated_duration_minutes=60),
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    medium_candidate = build_task_window_candidate(
+        task=_task(priority=TaskPriority.MEDIUM, estimated_duration_minutes=60),
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 11, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 12, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert high_candidate is not None
+    assert medium_candidate is not None
+
+    profile = SchedulingProfileV3()
+    ordered = sorted(
+        [
+            score_window_candidate(
+                medium_candidate,
+                profile,
+                task_importance_score=0.8,
+            ),
+            score_window_candidate(
+                high_candidate,
+                profile,
+                task_importance_score=0.9,
+            ),
+        ],
+        key=window_candidate_sort_key,
+    )
+
+    assert ordered[0].candidate == high_candidate
+    assert ordered[0].duration_slot_fit_score == 0.5
+    assert ordered[1].duration_slot_fit_score == 1.0
+
+
+def test_scheduling_v3_equal_importance_uses_slot_fit_then_time_and_id() -> None:
+    profile = SchedulingProfileV3()
+    earlier_id = uuid.UUID("11111111-1111-4111-8111-111111111111")
+    later_id = uuid.UUID("22222222-2222-4222-8222-222222222222")
+    loose = build_task_window_candidate(
+        task=_task(task_id=later_id, estimated_duration_minutes=60),
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    exact_later = build_task_window_candidate(
+        task=_task(task_id=later_id, estimated_duration_minutes=60),
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 11, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 12, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    exact_earlier = build_task_window_candidate(
+        task=_task(task_id=earlier_id, estimated_duration_minutes=60),
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 11, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 12, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert loose is not None
+    assert exact_later is not None
+    assert exact_earlier is not None
+
+    ordered = sorted(
+        [
+            score_window_candidate(loose, profile, task_importance_score=0.8),
+            score_window_candidate(exact_later, profile, task_importance_score=0.8),
+            score_window_candidate(exact_earlier, profile, task_importance_score=0.8),
+        ],
+        key=window_candidate_sort_key,
+    )
+
+    assert ordered[0].candidate == exact_earlier
+    assert ordered[1].candidate == exact_later
+    assert ordered[2].candidate == loose

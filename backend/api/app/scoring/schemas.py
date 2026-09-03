@@ -41,3 +41,22 @@ class ScoredCandidate:
     candidate: Any
     score: float
     breakdown: ScoreBreakdown
+
+
+@dataclass(frozen=True)
+class CandidateScoreBreakdown:
+    profile_name: str
+    scoring_version: str
+    task_importance_score: float
+    task_importance_profile: str
+    duration_slot_fit_score: float
+    required_minutes: int
+    window_minutes: int
+
+
+@dataclass(frozen=True)
+class ScoredWindowCandidate:
+    candidate: Any
+    task_importance_score: float
+    duration_slot_fit_score: float
+    breakdown: CandidateScoreBreakdown
