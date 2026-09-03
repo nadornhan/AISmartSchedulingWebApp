@@ -5,6 +5,16 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from app.scheduling.windows import (
+    CandidateWindow,
+    TaskWindowCandidate,
+    allocate_from_window,
+    build_task_window_candidate,
+    derive_free_windows,
+    occupied_intervals_from_candidates,
+    occupied_intervals_from_tasks,
+    work_window_for_day,
+)
 from app.scoring import SchedulingProfileV2, score_task
 from app.scoring.constraints import validate_schedule_candidate
 from app.settings.models import UserSettings
@@ -96,57 +106,72 @@ def build_schedule_slots(
 
     blockers = existing_tasks or []
     day = now.astimezone(UTC).date()
-    cursor = datetime.combine(day, settings.work_start, tzinfo=UTC)
-    work_end = datetime.combine(day, settings.work_end, tzinfo=UTC)
-    if cursor < now.astimezone(UTC):
+    work_window = work_window_for_day(day=day, settings=settings)
+    if work_window.start < now.astimezone(UTC):
         # Snap to next 15-minute boundary after now within the workday.
         snapped = now.astimezone(UTC).replace(second=0, microsecond=0)
         extra = (15 - snapped.minute % 15) % 15
-        cursor = max(cursor, snapped + timedelta(minutes=extra))
+        work_window = CandidateWindow(
+            start=max(work_window.start, snapped + timedelta(minutes=extra)),
+            end=work_window.end,
+        )
 
     slots: list[tuple[Task, datetime, datetime, str]] = []
     accepted_candidates: list[tuple[uuid.UUID, datetime, datetime]] = list(
         existing_candidates or []
     )
+    occupied_intervals = [
+        *occupied_intervals_from_tasks(blockers),
+        *occupied_intervals_from_candidates(accepted_candidates),
+    ]
+    free_windows = derive_free_windows(
+        work_window=work_window,
+        occupied_intervals=occupied_intervals,
+    )
+
     for item in ranked:
         if len(slots) >= max_slots:
             break
-        if cursor >= work_end:
+        if not free_windows:
             break
 
         if item.task.scheduled_start is not None and item.task.scheduled_end is not None:
             continue
 
-        duration = item.task.estimated_duration_minutes or settings.pomodoro_minutes
-        duration = max(15, min(duration, 120))
-        candidate_cursor = cursor
-        chosen: tuple[datetime, datetime] | None = None
-        while candidate_cursor < work_end:
-            start = candidate_cursor
-            end = start + timedelta(minutes=duration)
+        chosen: tuple[CandidateWindow, TaskWindowCandidate] | None = None
+        for window in free_windows:
+            candidate = build_task_window_candidate(
+                task=item.task,
+                window=window,
+                settings=settings,
+            )
+            if candidate is None:
+                continue
+
             validation = validate_schedule_candidate(
                 task=item.task,
-                start=start,
-                end=end,
+                start=candidate.proposed_start,
+                end=candidate.proposed_end,
                 settings=settings,
                 existing_tasks=blockers,
                 existing_candidates=accepted_candidates,
                 require_unscheduled_task=True,
             )
             if validation.valid:
-                chosen = (start, end)
+                chosen = (window, candidate)
                 break
             if any(
                 not check.passed and check.name == "deadline_feasible"
                 for check in validation.checks
             ):
-                break
-            candidate_cursor += timedelta(minutes=15)
+                continue
 
         if chosen is None:
             continue
 
-        start, end = chosen
+        window, candidate = chosen
+        start = candidate.proposed_start
+        end = candidate.proposed_end
 
         explanation = (
             f"Scheduled using your work hours and "
@@ -155,6 +180,10 @@ def build_schedule_slots(
         )
         slots.append((item.task, start, end, explanation))
         accepted_candidates.append((item.task.id, start, end))
-        cursor = end + timedelta(minutes=5)
+        free_windows = allocate_from_window(
+            windows=free_windows,
+            used_window=window,
+            candidate=candidate,
+        )
 
     return slots

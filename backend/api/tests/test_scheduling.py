@@ -512,7 +512,7 @@ def test_adjusted_suggestion_cannot_move_onto_occupied_period(
         headers=headers,
         json={
             "suggested_start": "2099-01-01T09:30:00+00:00",
-            "suggested_end": "2099-01-01T10:30:00+00:00",
+            "suggested_end": "2099-01-01T10:00:00+00:00",
         },
     )
 

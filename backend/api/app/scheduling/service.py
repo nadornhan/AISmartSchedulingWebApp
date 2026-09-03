@@ -32,6 +32,7 @@ from app.scheduling.schemas import (
     SchedulingPlanResponse,
 )
 from app.scheduling.validation import validate_ai_preview_schedule
+from app.scheduling.windows import scheduling_required_minutes
 from app.scoring.constraints import normalize_schedule_datetime, validate_schedule_candidate
 from app.settings import service as settings_service
 from app.settings.models import UserSettings
@@ -229,6 +230,16 @@ def _validate_suggestion_candidate(
     existing_tasks: list[Task],
     existing_candidates: list[tuple[uuid.UUID, datetime, datetime]] | None = None,
 ) -> None:
+    duration_minutes = int(
+        (
+            normalize_schedule_datetime(end) - normalize_schedule_datetime(start)
+        ).total_seconds()
+        // 60
+    )
+    required_minutes = scheduling_required_minutes(task, settings)
+    if duration_minutes != required_minutes:
+        raise ValueError("Schedule duration does not match task duration")
+
     validation = validate_schedule_candidate(
         task=task,
         start=start,
