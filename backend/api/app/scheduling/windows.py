@@ -37,7 +37,7 @@ class TaskWindowCandidate:
 
 
 def scheduling_required_minutes(task: Task, settings: UserSettings) -> int:
-    return task.estimated_duration_minutes or settings.pomodoro_minutes
+    return task.estimated_duration_minutes or settings.pomodoro_minutes or 25
 
 
 def task_fits_window(task: Task, window: CandidateWindow, settings: UserSettings) -> bool:

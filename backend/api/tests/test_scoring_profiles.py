@@ -10,11 +10,17 @@ from app.scoring import (
     SchedulingProfileV2,
     SchedulingProfileV3,
     SchedulingProfileV4,
+    SchedulingProfileV5,
+    calculate_slack_aware_task_importance,
     calculate_task_importance,
     score_window_candidate,
     window_candidate_sort_key,
 )
-from app.scoring.criteria import duration_slot_fit, focus_slot_fit
+from app.scoring.criteria import (
+    duration_slot_fit,
+    focus_slot_fit,
+    slack_aware_deadline_urgency,
+)
 from app.scoring.engine import score_task
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
@@ -382,6 +388,193 @@ def test_scheduling_v4_profile_identity_metadata_is_available() -> None:
     assert profile.scoring_version == "v4"
     assert profile.task_importance_profile_name == "scheduling"
     assert profile.task_importance_scoring_version == "task_importance"
+
+
+def test_scheduling_v5_profile_identity_metadata_is_available() -> None:
+    profile = SchedulingProfileV5.from_settings(_settings())
+
+    assert profile.profile_name == "scheduling"
+    assert profile.scoring_version == "v5"
+    assert profile.factor_weights() == {
+        "deadline_urgency": 0.8,
+        "priority": 0.7,
+    }
+
+
+def test_slack_aware_deadline_urgency_same_deadline_rewards_less_slack() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    due = now + timedelta(hours=10)
+
+    long_score = slack_aware_deadline_urgency(
+        due_date=due,
+        now=now,
+        required_minutes=8 * 60,
+    )[0]
+    short_score = slack_aware_deadline_urgency(
+        due_date=due,
+        now=now,
+        required_minutes=30,
+    )[0]
+
+    assert long_score > short_score
+
+
+def test_slack_aware_deadline_urgency_same_work_prefers_earlier_deadline() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+
+    earlier = slack_aware_deadline_urgency(
+        due_date=now + timedelta(hours=6),
+        now=now,
+        required_minutes=60,
+    )[0]
+    later = slack_aware_deadline_urgency(
+        due_date=now + timedelta(hours=48),
+        now=now,
+        required_minutes=60,
+    )[0]
+
+    assert earlier > later
+
+
+def test_slack_aware_deadline_urgency_handles_negative_and_zero_slack() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+
+    negative_slack = slack_aware_deadline_urgency(
+        due_date=now + timedelta(hours=2),
+        now=now,
+        required_minutes=3 * 60,
+    )[0]
+    zero_slack = slack_aware_deadline_urgency(
+        due_date=now + timedelta(hours=2),
+        now=now,
+        required_minutes=2 * 60,
+    )[0]
+
+    assert negative_slack == 1.0
+    assert zero_slack == 1.0
+
+
+def test_slack_aware_deadline_urgency_no_deadline_and_large_slack_floor() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+
+    no_deadline = slack_aware_deadline_urgency(
+        due_date=None,
+        now=now,
+        required_minutes=60,
+    )[0]
+    large_slack = slack_aware_deadline_urgency(
+        due_date=now + timedelta(days=30),
+        now=now,
+        required_minutes=60,
+    )[0]
+
+    assert no_deadline == 0.15
+    assert large_slack == 0.25
+
+
+def test_slack_aware_deadline_urgency_interpolates_smoothly_near_boundaries() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+
+    for boundary_hours in (24, 72, 168):
+        before = slack_aware_deadline_urgency(
+            due_date=now + timedelta(hours=boundary_hours, minutes=-1),
+            now=now,
+            required_minutes=0,
+        )[0]
+        after = slack_aware_deadline_urgency(
+            due_date=now + timedelta(hours=boundary_hours, minutes=1),
+            now=now,
+            required_minutes=0,
+        )[0]
+
+        assert before > after
+        assert before - after < 0.01
+
+
+def test_slack_aware_task_importance_uses_required_minutes_metadata() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    task = _task(
+        priority=TaskPriority.HIGH,
+        due_date=now + timedelta(hours=10),
+        estimated_duration_minutes=None,
+    )
+
+    scored = calculate_slack_aware_task_importance(
+        task,
+        SchedulingProfileV5.from_settings(_settings()),
+        now=now,
+        required_minutes=25,
+    )
+    deadline_factor = scored.breakdown.factors[0]
+
+    assert scored.breakdown.scoring_version == "v5"
+    assert deadline_factor.name == "deadline_urgency"
+    assert deadline_factor.metadata is not None
+    assert deadline_factor.metadata["required_minutes"] == 25
+    assert deadline_factor.metadata["model"] == "slack-aware"
+
+
+def test_slack_aware_task_importance_respects_active_weight_controls() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    urgent_low = _task(
+        priority=TaskPriority.LOW,
+        due_date=now + timedelta(hours=2),
+    )
+    relaxed_high = _task(
+        priority=TaskPriority.HIGH,
+        due_date=now + timedelta(days=30),
+    )
+
+    deadline_only_settings = UserSettings(
+        ai_deadline_urgency_weight=100,
+        ai_priority_weight=0,
+        ai_estimated_duration_weight=100,
+    )
+    priority_only_settings = UserSettings(
+        ai_deadline_urgency_weight=0,
+        ai_priority_weight=100,
+        ai_estimated_duration_weight=100,
+    )
+    zero_settings = UserSettings(
+        ai_deadline_urgency_weight=0,
+        ai_priority_weight=0,
+        ai_estimated_duration_weight=100,
+    )
+
+    deadline_only_urgent = calculate_slack_aware_task_importance(
+        urgent_low,
+        SchedulingProfileV5.from_settings(deadline_only_settings),
+        now=now,
+        required_minutes=60,
+    )
+    deadline_only_relaxed = calculate_slack_aware_task_importance(
+        relaxed_high,
+        SchedulingProfileV5.from_settings(deadline_only_settings),
+        now=now,
+        required_minutes=60,
+    )
+    priority_only_urgent = calculate_slack_aware_task_importance(
+        urgent_low,
+        SchedulingProfileV5.from_settings(priority_only_settings),
+        now=now,
+        required_minutes=60,
+    )
+    priority_only_relaxed = calculate_slack_aware_task_importance(
+        relaxed_high,
+        SchedulingProfileV5.from_settings(priority_only_settings),
+        now=now,
+        required_minutes=60,
+    )
+    zero_weighted = calculate_slack_aware_task_importance(
+        relaxed_high,
+        SchedulingProfileV5.from_settings(zero_settings),
+        now=now,
+        required_minutes=60,
+    )
+
+    assert deadline_only_urgent.score > deadline_only_relaxed.score
+    assert priority_only_relaxed.score > priority_only_urgent.score
+    assert zero_weighted.score == 0.0
 
 
 def test_focus_slot_fit_no_history_is_neutral() -> None:

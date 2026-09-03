@@ -24,6 +24,7 @@ class FactorResult:
     score: float
     weight: float
     reason: str | None = None
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)

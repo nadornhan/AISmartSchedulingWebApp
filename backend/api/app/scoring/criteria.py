@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import UTC, datetime
+from itertools import pairwise
 
 from app.tasks.models import TaskPriority, TaskStatus
 from app.tasks.overdue import is_task_overdue, normalize_due_datetime
@@ -35,6 +36,58 @@ def deadline_urgency(
     if hours <= 168:
         return 0.55, "Due this week"
     return 0.35, "Upcoming deadline"
+
+
+SLACK_URGENCY_ANCHORS: tuple[tuple[int, float], ...] = (
+    (0, 1.0),
+    (6 * 60, 0.95),
+    (24 * 60, 0.85),
+    (72 * 60, 0.65),
+    (168 * 60, 0.45),
+    (336 * 60, 0.25),
+)
+
+
+def slack_aware_deadline_urgency(
+    *,
+    due_date: datetime | None,
+    now: datetime,
+    required_minutes: int,
+) -> tuple[float, str | None, dict[str, float | int | str | None]]:
+    if due_date is None:
+        return (
+            0.15,
+            None,
+            {
+                "model": "slack-aware",
+                "time_until_deadline_minutes": None,
+                "required_minutes": required_minutes,
+                "slack_minutes": None,
+            },
+        )
+
+    due = normalize_due_datetime(due_date)
+    time_until_deadline = (due - now.astimezone(UTC)).total_seconds() / 60
+    slack_minutes = time_until_deadline - required_minutes
+    metadata = {
+        "model": "slack-aware",
+        "time_until_deadline_minutes": round(time_until_deadline, 2),
+        "required_minutes": required_minutes,
+        "slack_minutes": round(slack_minutes, 2),
+    }
+
+    if time_until_deadline <= 0 or slack_minutes <= 0:
+        return 1.0, "No deadline slack remaining", metadata
+
+    for (left_minutes, left_score), (right_minutes, right_score) in pairwise(
+        SLACK_URGENCY_ANCHORS
+    ):
+        if slack_minutes <= right_minutes:
+            ratio = (slack_minutes - left_minutes) / (right_minutes - left_minutes)
+            score = left_score + ratio * (right_score - left_score)
+            return max(0.0, min(1.0, score)), "Slack-aware deadline urgency", metadata
+
+    return 0.25, "Large deadline slack", metadata
 
 
 def explicit_priority(priority: TaskPriority) -> tuple[float, str | None]:

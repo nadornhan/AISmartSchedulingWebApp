@@ -9,10 +9,11 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.scheduling.engine import RankedTask, build_schedule_slots, rank_open_tasks
 from app.scheduling.models import AiScheduleSuggestion, ScheduleSuggestionStatus
+from app.scheduling.windows import scheduling_required_minutes
 from app.scoring.constraints import validate_schedule_candidate
 from app.scoring.criteria import deadline_urgency, duration_preference
-from app.scoring.engine import calculate_task_importance, score_task
-from app.scoring.profiles import LegacySchedulingProfile, SchedulingProfileV2
+from app.scoring.engine import calculate_slack_aware_task_importance, score_task
+from app.scoring.profiles import LegacySchedulingProfile, SchedulingProfileV5
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
 
@@ -216,7 +217,7 @@ def test_scoring_parity_equal_scores_keep_task_id_tie_break() -> None:
     assert [item.task.id for item in ranked] == [earlier_id, later_id]
 
 
-def test_rank_open_tasks_uses_scheduling_v2_without_duration_bias() -> None:
+def test_rank_open_tasks_uses_scheduling_v5_without_duration_bias() -> None:
     now = datetime(2026, 1, 1, 9, tzinfo=UTC)
     due = now + timedelta(hours=23)
     high_long = _task(
@@ -239,11 +240,11 @@ def test_rank_open_tasks_uses_scheduling_v2_without_duration_bias() -> None:
     )
 
     assert ranked[0].task.id == high_long.id
-    assert ranked[0].score == score_task(
+    assert ranked[0].score == calculate_slack_aware_task_importance(
         high_long,
-        SchedulingProfileV2.from_settings(_settings()),
+        SchedulingProfileV5.from_settings(_settings()),
         now=now,
-        preferred_focus_hours=Counter(),
+        required_minutes=scheduling_required_minutes(high_long, _settings()),
     ).score
     assert "Short estimated duration" not in ranked[1].reasons
 
@@ -263,15 +264,16 @@ def test_rank_open_tasks_score_excludes_current_hour_focus_bonus() -> None:
         dismissed_task_ids=set(),
     )
 
-    assert ranked[0].score == calculate_task_importance(
+    assert ranked[0].score == calculate_slack_aware_task_importance(
         task,
-        SchedulingProfileV2.from_settings(_settings()),
+        SchedulingProfileV5.from_settings(_settings()),
         now=now,
+        required_minutes=scheduling_required_minutes(task, _settings()),
     ).score
     assert "Matches your usual focus hours" not in ranked[0].reasons
 
 
-def test_production_v4_output_ignores_estimated_duration_weight() -> None:
+def test_production_v5_output_ignores_estimated_duration_weight() -> None:
     now = datetime(2026, 1, 1, 8, tzinfo=UTC)
     due = now + timedelta(hours=8)
     high_long_id = uuid.UUID("11111111-1111-4111-8111-111111111111")

@@ -12,12 +12,12 @@ from app.scheduling.windows import (
     derive_free_windows,
     occupied_intervals_from_candidates,
     occupied_intervals_from_tasks,
+    scheduling_required_minutes,
     work_window_for_day,
 )
 from app.scoring import (
-    SchedulingProfileV2,
-    SchedulingProfileV4,
-    calculate_task_importance,
+    SchedulingProfileV5,
+    calculate_slack_aware_task_importance,
     score_window_candidate,
     window_candidate_sort_key,
 )
@@ -43,17 +43,18 @@ def rank_open_tasks(
     preferred_focus_hours: Counter[int],
     dismissed_task_ids: set,
 ) -> list[RankedTask]:
-    profile = SchedulingProfileV2.from_settings(settings)
+    profile = SchedulingProfileV5.from_settings(settings)
     ranked: list[RankedTask] = []
 
     for task in tasks:
         if task.id in dismissed_task_ids:
             continue
 
-        scored = calculate_task_importance(
+        scored = calculate_slack_aware_task_importance(
             task,
             profile,
             now=now,
+            required_minutes=scheduling_required_minutes(task, settings),
         )
         factors_by_name = {factor.name: factor for factor in scored.breakdown.factors}
 
@@ -140,7 +141,7 @@ def build_schedule_slots(
             and item.task.scheduled_end is not None
         )
     ]
-    placement_profile = SchedulingProfileV4()
+    placement_profile = SchedulingProfileV5.from_settings(settings)
     focus_hours = preferred_focus_hours or Counter()
 
     while remaining_ranked:

@@ -322,7 +322,7 @@ def test_same_task_same_duration_fit_prefers_focus_slot_in_allocation() -> None:
     )
 
 
-def test_build_schedule_slots_uses_scheduling_v4_for_candidate_placement(
+def test_build_schedule_slots_uses_scheduling_v5_for_candidate_placement(
     monkeypatch,
 ) -> None:
     seen_versions: list[str] = []
@@ -350,7 +350,7 @@ def test_build_schedule_slots_uses_scheduling_v4_for_candidate_placement(
 
     assert slots
     assert seen_versions
-    assert set(seen_versions) == {"v4"}
+    assert set(seen_versions) == {"v5"}
 
 
 def test_higher_importance_task_beats_better_slot_fit_in_allocation() -> None:
