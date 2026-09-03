@@ -3,13 +3,16 @@ from __future__ import annotations
 import uuid
 from collections import Counter
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.ai import AIService, get_ai_service
 from app.dashboard.schemas import DashboardTaskSummary
 from app.focus.models import FocusSession
 from app.scheduling.engine import RankedTask, build_schedule_slots, rank_open_tasks
+from app.scheduling.gemini_prompt import build_ai_preview_prompt
 from app.scheduling.models import (
     AiRecommendation,
     AiScheduleSuggestion,
@@ -17,18 +20,93 @@ from app.scheduling.models import (
     ScheduleSuggestionStatus,
 )
 from app.scheduling.schemas import (
+    AiPreviewRequest,
+    AiPreviewResponse,
+    AiPreviewSlotResponse,
     AiRecommendationResponse,
     AiWeightsSnapshot,
     ApplyScheduleRequest,
+    GeminiSchedulePreview,
     ScheduleAdjustRequest,
     ScheduleSuggestionResponse,
     SchedulingPlanResponse,
 )
+from app.scheduling.validation import validate_ai_preview_schedule
 from app.settings import service as settings_service
+from app.settings.models import UserSettings
 from app.tasks import service as task_service
 from app.tasks.models import Task, TaskStatus
 from app.tasks.overdue import is_task_overdue, utc_now
 from app.tasks.schemas import TaskDisplayStatus, TaskUpdate
+
+
+def _preview_settings(db: Session, user_id: uuid.UUID):
+    settings = db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+    if settings is not None:
+        return settings
+
+    return SimpleNamespace(
+        work_start=settings_service.DEFAULT_WORK_START,
+        work_end=settings_service.DEFAULT_WORK_END,
+        pomodoro_minutes=25,
+        ai_assistant_enabled=True,
+        ai_deadline_urgency_weight=80,
+        ai_priority_weight=70,
+        ai_estimated_duration_weight=50,
+    )
+
+
+def generate_ai_preview(
+    db: Session,
+    user_id: uuid.UUID,
+    payload: AiPreviewRequest,
+    *,
+    ai_service: AIService | None = None,
+) -> AiPreviewResponse:
+    requested_tasks = task_service.get_tasks_by_ids(db, user_id, payload.task_ids)
+    if len(requested_tasks) != len(payload.task_ids):
+        raise LookupError("One or more tasks were not found")
+
+    settings = _preview_settings(db, user_id)
+    prompt = build_ai_preview_prompt(tasks=requested_tasks, settings=settings)
+    result = (ai_service or get_ai_service()).generate_structured(
+        user_key=str(user_id),
+        prompt=prompt,
+        response_schema=GeminiSchedulePreview,
+        feature="schedule_preview",
+        prompt_version="schedule-preview-v1",
+    )
+    preview = result.data
+
+    existing_tasks = _open_tasks(db, user_id)
+    validated_slots = validate_ai_preview_schedule(
+        preview=preview,
+        requested_tasks=requested_tasks,
+        settings=settings,
+        existing_tasks=existing_tasks,
+    )
+    task_by_id = {task.id: task for task in requested_tasks}
+
+    return AiPreviewResponse(
+        schedule=[
+            AiPreviewSlotResponse(
+                task_id=slot.task_id,
+                task_title=task_by_id[slot.task_id].title,
+                project_name=(
+                    task_by_id[slot.task_id].project.name
+                    if task_by_id[slot.task_id].project
+                    else None
+                ),
+                suggested_start=slot.suggested_start,
+                suggested_end=slot.suggested_end,
+                explanation=slot.explanation,
+                position=position,
+            )
+            for position, slot in enumerate(validated_slots)
+        ],
+        generated_at=utc_now(),
+        model=result.metadata.model,
+    )
 
 
 def _task_summary(task: Task, *, now: datetime) -> DashboardTaskSummary:
