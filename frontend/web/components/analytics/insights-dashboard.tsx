@@ -17,6 +17,7 @@ import {
   type ScheduleSuggestion,
   type SchedulingPlan,
 } from '../../lib/scheduling';
+import { formatScheduleSuggestionRange } from '../../lib/scheduling-format';
 
 function formatWeeklySummary(summary: InsightsSummary) {
   const change = summary.week_over_week_change_percent;
@@ -43,13 +44,6 @@ function formatWeeklySummary(summary: InsightsSummary) {
       than last week!
     </>
   );
-}
-
-function formatSlotTime(value: string) {
-  return new Intl.DateTimeFormat('en-AU', {
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(value));
 }
 
 function TrendChart({ points }: { points: InsightsSummary['trend'] }) {
@@ -402,8 +396,10 @@ export function InsightsDashboard() {
                       {suggestion.task_title}
                     </p>
                     <p className="mt-1 text-xs text-dashboard-muted">
-                      {formatSlotTime(suggestion.suggested_start)} –{' '}
-                      {formatSlotTime(suggestion.suggested_end)}
+                      {formatScheduleSuggestionRange(
+                        suggestion.suggested_start,
+                        suggestion.suggested_end,
+                      )}
                       {suggestion.project_name ? ` · ${suggestion.project_name}` : ''}
                       {suggestion.status === 'adjusted' ? ' · Adjusted' : ''}
                     </p>

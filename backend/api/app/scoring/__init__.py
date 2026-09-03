@@ -4,6 +4,7 @@ from app.scoring.engine import (
     score_task,
     score_window_candidate,
     window_candidate_sort_key,
+    window_candidate_sort_key_v6,
 )
 from app.scoring.profiles import (
     LegacySchedulingProfile,
@@ -14,6 +15,7 @@ from app.scoring.profiles import (
     SchedulingProfileV3,
     SchedulingProfileV4,
     SchedulingProfileV5,
+    SchedulingProfileV6,
 )
 from app.scoring.schemas import (
     CandidateScoreBreakdown,
@@ -38,6 +40,7 @@ __all__ = [
     "SchedulingProfileV3",
     "SchedulingProfileV4",
     "SchedulingProfileV5",
+    "SchedulingProfileV6",
     "ScoreBreakdown",
     "ScoredCandidate",
     "ScoredWindowCandidate",
@@ -46,4 +49,5 @@ __all__ = [
     "score_task",
     "score_window_candidate",
     "window_candidate_sort_key",
+    "window_candidate_sort_key_v6",
 ]

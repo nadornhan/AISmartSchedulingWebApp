@@ -292,6 +292,21 @@ def _to_schedule_response(
     )
 
 
+def _schedule_response_sort_key(response: ScheduleSuggestionResponse) -> tuple:
+    return (
+        normalize_schedule_datetime(response.suggested_start),
+        normalize_schedule_datetime(response.suggested_end),
+        response.position,
+        str(response.id),
+    )
+
+
+def _chronological_schedule(
+    responses: list[ScheduleSuggestionResponse],
+) -> list[ScheduleSuggestionResponse]:
+    return sorted(responses, key=_schedule_response_sort_key)
+
+
 def invalidate_pending_plan(
     db: Session,
     user_id: uuid.UUID,
@@ -473,10 +488,12 @@ def generate_plan(
             if recommendation is not None
             else None
         ),
-        schedule=[
-            _to_schedule_response(suggestion, task)
-            for suggestion, task in created_suggestions
-        ],
+        schedule=_chronological_schedule(
+            [
+                _to_schedule_response(suggestion, task)
+                for suggestion, task in created_suggestions
+            ]
+        ),
         generated_at=now,
     )
 
@@ -541,11 +558,13 @@ def get_current_plan(db: Session, user_id: uuid.UUID) -> SchedulingPlanResponse:
             if recommendation is not None
             else None
         ),
-        schedule=[
-            _to_schedule_response(item, tasks[item.task_id])
-            for item in suggestions
-            if item.task_id in tasks
-        ],
+        schedule=_chronological_schedule(
+            [
+                _to_schedule_response(item, tasks[item.task_id])
+                for item in suggestions
+                if item.task_id in tasks
+            ]
+        ),
         generated_at=recommendation.generated_at if recommendation else now,
     )
 

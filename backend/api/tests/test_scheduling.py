@@ -7,8 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
+from app.scheduling import service as scheduling_service
 from app.scheduling.engine import RankedTask, build_schedule_slots, rank_open_tasks
 from app.scheduling.models import AiScheduleSuggestion, ScheduleSuggestionStatus
+from app.scheduling.schemas import ScheduleSuggestionResponse
 from app.scheduling.windows import scheduling_required_minutes
 from app.scoring.constraints import validate_schedule_candidate
 from app.scoring.criteria import deadline_urgency, duration_preference
@@ -561,6 +563,38 @@ def test_constraints_ignore_completed_scheduled_tasks_as_blockers() -> None:
     assert result.valid
 
 
+def test_schedule_response_presentation_is_chronological_without_rewriting_position() -> None:
+    task_id = uuid.uuid4()
+    tomorrow = ScheduleSuggestionResponse(
+        id=uuid.uuid4(),
+        task_id=task_id,
+        task_title="Tomorrow selection",
+        suggested_start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+        suggested_end=datetime(2099, 1, 2, 10, tzinfo=UTC),
+        explanation="Selected first by task importance.",
+        status=ScheduleSuggestionStatus.PENDING.value,
+        position=0,
+    )
+    today = ScheduleSuggestionResponse(
+        id=uuid.uuid4(),
+        task_id=task_id,
+        task_title="Today selection",
+        suggested_start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+        suggested_end=datetime(2099, 1, 1, 10, tzinfo=UTC),
+        explanation="Selected second but displayed first.",
+        status=ScheduleSuggestionStatus.PENDING.value,
+        position=1,
+    )
+
+    ordered = scheduling_service._chronological_schedule([tomorrow, today])
+
+    assert [item.suggested_start for item in ordered] == [
+        datetime(2099, 1, 1, 9, tzinfo=UTC),
+        datetime(2099, 1, 2, 9, tzinfo=UTC),
+    ]
+    assert [item.position for item in ordered] == [1, 0]
+
+
 def test_build_schedule_slots_skips_task_with_existing_active_schedule() -> None:
     now = datetime(2099, 1, 1, 8, tzinfo=UTC)
     scheduled_task = _task(
@@ -635,6 +669,88 @@ def test_adjusted_suggestion_cannot_move_onto_occupied_period(
 
     assert response.status_code == 422
     assert response.json()["detail"] == "Schedule conflicts with an existing scheduled task"
+
+
+def test_adjusted_future_suggestion_remains_future_dated(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    headers, email = auth_context(client)
+    user = db_session.scalar(select(User).where(User.email == email))
+    assert user is not None
+
+    target = client.post(
+        "/tasks",
+        headers=headers,
+        json={"title": "Adjust future slot", "estimated_duration_minutes": 60},
+    )
+    assert target.status_code == 201
+    task_id = uuid.UUID(target.json()["id"])
+    suggestion = AiScheduleSuggestion(
+        user_id=user.id,
+        task_id=task_id,
+        suggested_start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+        suggested_end=datetime(2099, 1, 2, 10, tzinfo=UTC),
+        explanation="Initial future suggestion.",
+        status=ScheduleSuggestionStatus.PENDING.value,
+        position=0,
+    )
+    db_session.add(suggestion)
+    db_session.commit()
+
+    response = client.post(
+        f"/scheduling/suggestions/{suggestion.id}/adjust",
+        headers=headers,
+        json={
+            "suggested_start": "2099-01-03T11:00:00+00:00",
+            "suggested_end": "2099-01-03T12:00:00+00:00",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "adjusted"
+    assert response.json()["suggested_start"] == "2099-01-03T11:00:00Z"
+    assert response.json()["suggested_end"] == "2099-01-03T12:00:00Z"
+
+
+def test_applied_future_suggestion_persists_task_schedule(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    headers, email = auth_context(client)
+    user = db_session.scalar(select(User).where(User.email == email))
+    assert user is not None
+
+    target = client.post(
+        "/tasks",
+        headers=headers,
+        json={"title": "Apply future slot", "estimated_duration_minutes": 60},
+    )
+    assert target.status_code == 201
+    task_id = uuid.UUID(target.json()["id"])
+    suggestion = AiScheduleSuggestion(
+        user_id=user.id,
+        task_id=task_id,
+        suggested_start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+        suggested_end=datetime(2099, 1, 2, 10, tzinfo=UTC),
+        explanation="Future suggestion.",
+        status=ScheduleSuggestionStatus.ACCEPTED.value,
+        position=0,
+    )
+    db_session.add(suggestion)
+    db_session.commit()
+
+    response = client.post(
+        "/scheduling/suggestions/apply",
+        headers=headers,
+        json={"suggestion_ids": [str(suggestion.id)]},
+    )
+    task = client.get(f"/tasks/{task_id}", headers=headers)
+
+    assert response.status_code == 200
+    assert task.status_code == 200
+    assert task.json()["scheduled_start"] == "2099-01-02T09:00:00Z"
+    assert task.json()["scheduled_end"] == "2099-01-02T10:00:00Z"
 
 
 def test_generate_plan_and_apply_schedule(client: TestClient) -> None:

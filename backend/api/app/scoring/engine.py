@@ -19,6 +19,7 @@ from app.scoring.profiles import (
     SchedulingProfileV3,
     SchedulingProfileV4,
     SchedulingProfileV5,
+    SchedulingProfileV6,
 )
 from app.scoring.schemas import (
     CandidateScoreBreakdown,
@@ -189,7 +190,9 @@ def score_task(
 
 def score_window_candidate(
     candidate: Any,
-    profile: SchedulingProfileV3 | SchedulingProfileV4 | SchedulingProfileV5,
+    profile: (
+        SchedulingProfileV3 | SchedulingProfileV4 | SchedulingProfileV5 | SchedulingProfileV6
+    ),
     *,
     task_importance_score: float,
     preferred_focus_hours: Counter[int] | None = None,
@@ -204,7 +207,7 @@ def score_window_candidate(
             preferred_focus_hours or Counter(),
             candidate_hour=candidate_hour,
         )
-        if isinstance(profile, SchedulingProfileV4 | SchedulingProfileV5)
+        if isinstance(profile, SchedulingProfileV4 | SchedulingProfileV5 | SchedulingProfileV6)
         else (0.0, None, None)
     )
 
@@ -235,6 +238,18 @@ def window_candidate_sort_key(scored: ScoredWindowCandidate) -> tuple:
     candidate = scored.candidate
     return (
         -scored.task_importance_score,
+        -scored.duration_slot_fit_score,
+        -scored.focus_slot_fit_score,
+        candidate.proposed_start,
+        str(candidate.task.id),
+    )
+
+
+def window_candidate_sort_key_v6(scored: ScoredWindowCandidate) -> tuple:
+    candidate = scored.candidate
+    return (
+        -scored.task_importance_score,
+        candidate.proposed_start.astimezone(UTC).date(),
         -scored.duration_slot_fit_score,
         -scored.focus_slot_fit_score,
         candidate.proposed_start,

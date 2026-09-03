@@ -11,10 +11,12 @@ from app.scoring import (
     SchedulingProfileV3,
     SchedulingProfileV4,
     SchedulingProfileV5,
+    SchedulingProfileV6,
     calculate_slack_aware_task_importance,
     calculate_task_importance,
     score_window_candidate,
     window_candidate_sort_key,
+    window_candidate_sort_key_v6,
 )
 from app.scoring.criteria import (
     duration_slot_fit,
@@ -56,6 +58,7 @@ def _settings() -> UserSettings:
 def test_profile_identity_metadata_is_available_without_persistence() -> None:
     scheduling = SchedulingProfileV1.from_settings(_settings())
     scheduling_v2 = SchedulingProfileV2.from_settings(_settings())
+    scheduling_v6 = SchedulingProfileV6.from_settings(_settings())
     next_task = NextTaskProfileV1()
     quick_win = QuickWinProfileV1()
 
@@ -63,6 +66,10 @@ def test_profile_identity_metadata_is_available_without_persistence() -> None:
     assert scheduling.scoring_version == "v1"
     assert scheduling_v2.profile_name == "scheduling"
     assert scheduling_v2.scoring_version == "v2"
+    assert scheduling_v6.profile_name == "scheduling"
+    assert scheduling_v6.scoring_version == "v6"
+    assert scheduling_v6.task_importance_profile_name == "scheduling"
+    assert scheduling_v6.task_importance_scoring_version == "v5"
     assert next_task.profile_name == "next_task"
     assert next_task.scoring_version == "v1"
     assert quick_win.profile_name == "quick_win"
@@ -912,3 +919,183 @@ def test_scheduling_v4_duration_fit_beats_focus_slot_fit() -> None:
     assert ordered[0].candidate == exact_weak_focus
     assert ordered[0].duration_slot_fit_score == 1.0
     assert ordered[1].focus_slot_fit_score == 1.0
+
+
+def test_scheduling_v5_cross_day_ordering_remains_reproducible() -> None:
+    profile = SchedulingProfileV5.from_settings(_settings())
+    task = _task(estimated_duration_minutes=60)
+    today_loose = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    tomorrow_exact = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 2, 10, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert today_loose is not None
+    assert tomorrow_exact is not None
+
+    ordered = sorted(
+        [
+            score_window_candidate(today_loose, profile, task_importance_score=0.8),
+            score_window_candidate(tomorrow_exact, profile, task_importance_score=0.8),
+        ],
+        key=window_candidate_sort_key,
+    )
+
+    assert ordered[0].candidate == tomorrow_exact
+    assert ordered[0].breakdown.scoring_version == "v5"
+
+
+def test_scheduling_v6_prefers_earlier_day_before_slot_fit() -> None:
+    profile = SchedulingProfileV6.from_settings(_settings())
+    task = _task(estimated_duration_minutes=60)
+    today_loose = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    tomorrow_exact = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 2, 10, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert today_loose is not None
+    assert tomorrow_exact is not None
+
+    ordered = sorted(
+        [
+            score_window_candidate(today_loose, profile, task_importance_score=0.8),
+            score_window_candidate(tomorrow_exact, profile, task_importance_score=0.8),
+        ],
+        key=window_candidate_sort_key_v6,
+    )
+
+    assert ordered[0].candidate == today_loose
+    assert ordered[0].breakdown.scoring_version == "v6"
+    assert ordered[0].breakdown.task_importance_profile == "scheduling/v5"
+
+
+def test_scheduling_v6_still_optimizes_slot_quality_within_same_day() -> None:
+    profile = SchedulingProfileV6.from_settings(_settings())
+    task = _task(estimated_duration_minutes=60)
+    loose = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    exact = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 13, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 14, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert loose is not None
+    assert exact is not None
+
+    ordered = sorted(
+        [
+            score_window_candidate(loose, profile, task_importance_score=0.8),
+            score_window_candidate(exact, profile, task_importance_score=0.8),
+        ],
+        key=window_candidate_sort_key_v6,
+    )
+
+    assert ordered[0].candidate == exact
+    assert ordered[0].duration_slot_fit_score == 1.0
+
+
+def test_scheduling_v6_same_day_same_duration_fit_uses_focus_then_start() -> None:
+    profile = SchedulingProfileV6.from_settings(_settings())
+    task = _task(estimated_duration_minutes=60)
+    focused_later = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 15, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 17, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    unfocused_earlier = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert focused_later is not None
+    assert unfocused_earlier is not None
+
+    ordered = sorted(
+        [
+            score_window_candidate(
+                unfocused_earlier,
+                profile,
+                task_importance_score=0.8,
+                preferred_focus_hours=Counter({15: 5}),
+            ),
+            score_window_candidate(
+                focused_later,
+                profile,
+                task_importance_score=0.8,
+                preferred_focus_hours=Counter({15: 5}),
+            ),
+        ],
+        key=window_candidate_sort_key_v6,
+    )
+
+    assert ordered[0].candidate == focused_later
+    assert ordered[0].focus_slot_fit_score == 1.0
+
+
+def test_scheduling_v6_same_placement_quality_uses_earlier_start() -> None:
+    profile = SchedulingProfileV6.from_settings(_settings())
+    task = _task(estimated_duration_minutes=60)
+    earlier = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 10, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    later = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 10, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert earlier is not None
+    assert later is not None
+
+    ordered = sorted(
+        [
+            score_window_candidate(later, profile, task_importance_score=0.8),
+            score_window_candidate(earlier, profile, task_importance_score=0.8),
+        ],
+        key=window_candidate_sort_key_v6,
+    )
+
+    assert ordered[0].candidate == earlier

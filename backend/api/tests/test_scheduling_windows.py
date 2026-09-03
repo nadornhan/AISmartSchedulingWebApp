@@ -88,6 +88,15 @@ def _occupied(hour_start: int, hour_end: int) -> OccupiedInterval:
     )
 
 
+def _blocking_task(day: int, hour_start: int, hour_end: int) -> Task:
+    window = _window_on(day, hour_start, hour_end)
+    return _task(scheduled_start=window.start, scheduled_end=window.end)
+
+
+def _full_day_blockers(*days: int) -> list[Task]:
+    return [_blocking_task(day, 9, 17) for day in days]
+
+
 def test_free_windows_without_occupied_intervals() -> None:
     assert derive_free_windows(
         work_window=_window(9, 17),
@@ -675,7 +684,7 @@ def test_same_task_same_duration_fit_prefers_focus_slot_in_allocation() -> None:
     )
 
 
-def test_build_schedule_slots_uses_scheduling_v5_for_candidate_placement(
+def test_build_schedule_slots_uses_scheduling_v6_for_candidate_placement(
     monkeypatch,
 ) -> None:
     seen_versions: list[str] = []
@@ -703,7 +712,267 @@ def test_build_schedule_slots_uses_scheduling_v5_for_candidate_placement(
 
     assert slots
     assert seen_versions
-    assert set(seen_versions) == {"v5"}
+    assert set(seen_versions) == {"v6"}
+
+
+def test_today_full_tomorrow_free_gets_tomorrow_suggestion() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task, *_full_day_blockers(1)],
+    )
+
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 2, 9, tzinfo=UTC),
+        datetime(2099, 1, 2, 10, tzinfo=UTC),
+    )
+
+
+def test_today_candidate_wins_over_tomorrow_exact_fit() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[
+            task,
+            _blocking_task(1, 11, 17),
+            _blocking_task(2, 10, 17),
+        ],
+    )
+
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 1, 9, tzinfo=UTC),
+        datetime(2099, 1, 1, 10, tzinfo=UTC),
+    )
+
+
+def test_after_work_end_today_contributes_no_candidate_period() -> None:
+    now = datetime(2099, 1, 1, 18, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task],
+    )
+
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 2, 9, tzinfo=UTC),
+        datetime(2099, 1, 2, 10, tzinfo=UTC),
+    )
+
+
+def test_current_day_start_preserves_fifteen_minute_boundary() -> None:
+    now = datetime(2099, 1, 1, 9, 7, 20, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=30)
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task],
+    )
+
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 1, 9, 15, tzinfo=UTC),
+        datetime(2099, 1, 1, 9, 45, tzinfo=UTC),
+    )
+
+
+def test_future_scheduled_task_blocks_tomorrow_interval() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[
+            task,
+            *_full_day_blockers(1),
+            _blocking_task(2, 9, 10),
+        ],
+    )
+
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 2, 10, tzinfo=UTC),
+        datetime(2099, 1, 2, 11, tzinfo=UTC),
+    )
+
+
+def test_future_completed_task_does_not_block_tomorrow_interval() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+    completed = _task(
+        scheduled_start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+        scheduled_end=datetime(2099, 1, 2, 10, tzinfo=UTC),
+        status=TaskStatus.DONE,
+    )
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task, *_full_day_blockers(1), completed],
+    )
+
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 2, 9, tzinfo=UTC),
+        datetime(2099, 1, 2, 10, tzinfo=UTC),
+    )
+
+
+def test_deadline_tomorrow_clips_multi_day_candidate_windows() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(
+        due_date=datetime(2099, 1, 2, 10, tzinfo=UTC),
+        estimated_duration_minutes=60,
+    )
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[
+            task,
+            *_full_day_blockers(1),
+            _blocking_task(2, 10, 17),
+        ],
+    )
+
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 2, 9, tzinfo=UTC),
+        datetime(2099, 1, 2, 10, tzinfo=UTC),
+    )
+
+
+def test_candidate_after_deadline_is_excluded_across_days() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(
+        due_date=datetime(2099, 1, 2, 9, tzinfo=UTC),
+        estimated_duration_minutes=60,
+    )
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task, *_full_day_blockers(1)],
+    )
+
+    assert slots == []
+
+
+def test_task_without_deadline_can_use_later_horizon_window() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task, *_full_day_blockers(1, 2, 3)],
+    )
+
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 4, 9, tzinfo=UTC),
+        datetime(2099, 1, 4, 10, tzinfo=UTC),
+    )
+
+
+def test_no_suggestion_is_created_beyond_planning_horizon() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task, *_full_day_blockers(1, 2, 3, 4, 5, 6, 7)],
+    )
+
+    assert slots == []
+
+
+def test_fragmented_free_windows_across_days_do_not_satisfy_long_task() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=120)
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[
+            task,
+            _blocking_task(1, 10, 17),
+            _blocking_task(2, 10, 17),
+            *_full_day_blockers(3, 4, 5, 6, 7),
+        ],
+    )
+
+    assert slots == []
+
+
+def test_multiple_tasks_can_be_placed_across_days_without_overlap() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    first = _task(estimated_duration_minutes=480)
+    second = _task(estimated_duration_minutes=480)
+
+    slots = build_schedule_slots(
+        [
+            RankedTask(first, 1.0, [], []),
+            RankedTask(second, 0.9, [], []),
+        ],
+        _settings(),
+        now=now,
+        existing_tasks=[first, second],
+    )
+
+    assert [(task.id, start, end) for task, start, end, _explanation in slots] == [
+        (
+            first.id,
+            datetime(2099, 1, 1, 9, tzinfo=UTC),
+            datetime(2099, 1, 1, 17, tzinfo=UTC),
+        ),
+        (
+            second.id,
+            datetime(2099, 1, 2, 9, tzinfo=UTC),
+            datetime(2099, 1, 2, 17, tzinfo=UTC),
+        ),
+    ]
+
+
+def test_higher_importance_tomorrow_task_and_today_task_both_get_suggestions() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    high_tomorrow = _task(estimated_duration_minutes=480)
+    low_today = _task(estimated_duration_minutes=60)
+
+    slots = build_schedule_slots(
+        [
+            RankedTask(high_tomorrow, 1.0, [], []),
+            RankedTask(low_today, 0.5, [], []),
+        ],
+        _settings(),
+        now=now,
+        existing_tasks=[
+            high_tomorrow,
+            low_today,
+            _blocking_task(1, 10, 17),
+        ],
+    )
+
+    assert [(task.id, start) for task, start, _end, _explanation in slots] == [
+        (high_tomorrow.id, datetime(2099, 1, 2, 9, tzinfo=UTC)),
+        (low_today.id, datetime(2099, 1, 1, 9, tzinfo=UTC)),
+    ]
 
 
 def test_higher_importance_task_beats_better_slot_fit_in_allocation() -> None:

@@ -6,20 +6,22 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from app.scheduling.windows import (
-    CandidateWindow,
     allocate_from_window,
     build_task_window_candidate,
-    derive_free_windows,
+    candidate_windows_before_deadline,
+    derive_free_windows_for_periods,
     occupied_intervals_from_candidates,
     occupied_intervals_from_tasks,
+    planning_horizon,
     scheduling_required_minutes,
-    work_window_for_day,
+    working_periods_for_horizon,
 )
 from app.scoring import (
     SchedulingProfileV5,
+    SchedulingProfileV6,
     calculate_slack_aware_task_importance,
     score_window_candidate,
-    window_candidate_sort_key,
+    window_candidate_sort_key_v6,
 )
 from app.scoring.constraints import validate_schedule_candidate
 from app.scoring.criteria import peak_focus_hour
@@ -33,6 +35,13 @@ class RankedTask:
     score: float
     reasons: list[str]
     based_on: list[str]
+
+
+def _snapped_horizon_start(now: datetime) -> datetime:
+    normalized = now.astimezone(UTC)
+    snapped = normalized.replace(second=0, microsecond=0)
+    extra = (15 - snapped.minute % 15) % 15
+    return snapped + timedelta(minutes=extra)
 
 
 def rank_open_tasks(
@@ -109,16 +118,11 @@ def build_schedule_slots(
         return []
 
     blockers = existing_tasks or []
-    day = now.astimezone(UTC).date()
-    work_window = work_window_for_day(day=day, settings=settings)
-    if work_window.start < now.astimezone(UTC):
-        # Snap to next 15-minute boundary after now within the workday.
-        snapped = now.astimezone(UTC).replace(second=0, microsecond=0)
-        extra = (15 - snapped.minute % 15) % 15
-        work_window = CandidateWindow(
-            start=max(work_window.start, snapped + timedelta(minutes=extra)),
-            end=work_window.end,
-        )
+    horizon = planning_horizon(now=_snapped_horizon_start(now))
+    working_periods = working_periods_for_horizon(
+        horizon=horizon,
+        settings=settings,
+    )
 
     slots: list[tuple[Task, datetime, datetime, str]] = []
     accepted_candidates: list[tuple[uuid.UUID, datetime, datetime]] = list(
@@ -128,8 +132,8 @@ def build_schedule_slots(
         *occupied_intervals_from_tasks(blockers),
         *occupied_intervals_from_candidates(accepted_candidates),
     ]
-    free_windows = derive_free_windows(
-        work_window=work_window,
+    free_windows = derive_free_windows_for_periods(
+        working_periods=working_periods,
         occupied_intervals=occupied_intervals,
     )
 
@@ -141,7 +145,7 @@ def build_schedule_slots(
             and item.task.scheduled_end is not None
         )
     ]
-    placement_profile = SchedulingProfileV5.from_settings(settings)
+    placement_profile = SchedulingProfileV6.from_settings(settings)
     focus_hours = preferred_focus_hours or Counter()
 
     while remaining_ranked:
@@ -152,7 +156,11 @@ def build_schedule_slots(
 
         scored_candidates = []
         for item in remaining_ranked:
-            for window in free_windows:
+            task_windows = candidate_windows_before_deadline(
+                task=item.task,
+                windows=free_windows,
+            )
+            for window in task_windows:
                 candidate = build_task_window_candidate(
                     task=item.task,
                     window=window,
@@ -185,7 +193,7 @@ def build_schedule_slots(
         if not scored_candidates:
             break
 
-        scored = min(scored_candidates, key=window_candidate_sort_key)
+        scored = min(scored_candidates, key=window_candidate_sort_key_v6)
         candidate = scored.candidate
         window = candidate.window
         start = candidate.proposed_start

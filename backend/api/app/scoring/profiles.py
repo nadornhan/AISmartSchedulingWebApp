@@ -99,6 +99,29 @@ class SchedulingProfileV5:
         }
 
 
+@dataclass(frozen=True)
+class SchedulingProfileV6:
+    deadline_weight: float
+    priority_weight: float
+    profile_name: ClassVar[str] = "scheduling"
+    scoring_version: ClassVar[str] = "v6"
+    task_importance_profile_name: ClassVar[str] = "scheduling"
+    task_importance_scoring_version: ClassVar[str] = "v5"
+
+    @classmethod
+    def from_settings(cls, settings: UserSettings) -> SchedulingProfileV6:
+        return cls(
+            deadline_weight=settings.ai_deadline_urgency_weight / 100,
+            priority_weight=settings.ai_priority_weight / 100,
+        )
+
+    def factor_weights(self) -> dict[str, float]:
+        return {
+            "deadline_urgency": self.deadline_weight,
+            "priority": self.priority_weight,
+        }
+
+
 LegacySchedulingProfile = SchedulingProfileV1
 
 
