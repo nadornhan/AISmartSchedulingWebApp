@@ -397,11 +397,12 @@ def generate_plan(
             return existing
 
     open_tasks = _open_tasks(db, user_id)
+    preferred_focus_hours = _preferred_focus_hours(db, user_id)
     ranked = rank_open_tasks(
         open_tasks,
         settings,
         now=now,
-        preferred_focus_hours=_preferred_focus_hours(db, user_id),
+        preferred_focus_hours=preferred_focus_hours,
         dismissed_task_ids=_recently_dismissed_task_ids(db, user_id),
     )
 
@@ -436,6 +437,7 @@ def generate_plan(
         now=now,
         existing_tasks=open_tasks,
         existing_candidates=_active_suggestion_candidates(db, user_id),
+        preferred_focus_hours=preferred_focus_hours,
     )
     created_suggestions: list[tuple[AiScheduleSuggestion, Task]] = []
     for position, (task, start, end, explanation) in enumerate(slots):

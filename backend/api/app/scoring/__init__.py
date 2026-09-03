@@ -1,4 +1,9 @@
-from app.scoring.engine import score_task, score_window_candidate, window_candidate_sort_key
+from app.scoring.engine import (
+    calculate_task_importance,
+    score_task,
+    score_window_candidate,
+    window_candidate_sort_key,
+)
 from app.scoring.profiles import (
     LegacySchedulingProfile,
     NextTaskProfileV1,
@@ -6,6 +11,7 @@ from app.scoring.profiles import (
     SchedulingProfileV1,
     SchedulingProfileV2,
     SchedulingProfileV3,
+    SchedulingProfileV4,
 )
 from app.scoring.schemas import (
     CandidateScoreBreakdown,
@@ -28,9 +34,11 @@ __all__ = [
     "SchedulingProfileV1",
     "SchedulingProfileV2",
     "SchedulingProfileV3",
+    "SchedulingProfileV4",
     "ScoreBreakdown",
     "ScoredCandidate",
     "ScoredWindowCandidate",
+    "calculate_task_importance",
     "score_task",
     "score_window_candidate",
     "window_candidate_sort_key",

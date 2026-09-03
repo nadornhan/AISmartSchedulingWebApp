@@ -9,10 +9,12 @@ from app.scoring import (
     SchedulingProfileV1,
     SchedulingProfileV2,
     SchedulingProfileV3,
+    SchedulingProfileV4,
+    calculate_task_importance,
     score_window_candidate,
     window_candidate_sort_key,
 )
-from app.scoring.criteria import duration_slot_fit
+from app.scoring.criteria import duration_slot_fit, focus_slot_fit
 from app.scoring.engine import score_task
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
@@ -337,6 +339,89 @@ def test_scheduling_v3_profile_identity_metadata_is_available() -> None:
     assert profile.task_importance_scoring_version == "v2"
 
 
+def test_scheduling_v4_profile_identity_metadata_is_available() -> None:
+    profile = SchedulingProfileV4()
+
+    assert profile.profile_name == "scheduling"
+    assert profile.scoring_version == "v4"
+    assert profile.task_importance_profile_name == "scheduling"
+    assert profile.task_importance_scoring_version == "task_importance"
+
+
+def test_focus_slot_fit_no_history_is_neutral() -> None:
+    score, reason, peak = focus_slot_fit(Counter(), candidate_hour=9)
+
+    assert score == 0.0
+    assert reason is None
+    assert peak is None
+
+
+def test_focus_slot_fit_scores_exact_near_far_and_circular_hours() -> None:
+    exact, exact_reason, exact_peak = focus_slot_fit(
+        Counter({9: 4}),
+        candidate_hour=9,
+    )
+    near, near_reason, near_peak = focus_slot_fit(
+        Counter({9: 4}),
+        candidate_hour=11,
+    )
+    far, far_reason, far_peak = focus_slot_fit(
+        Counter({9: 4}),
+        candidate_hour=15,
+    )
+    circular, circular_reason, circular_peak = focus_slot_fit(
+        Counter({23: 4}),
+        candidate_hour=0,
+    )
+
+    assert (exact, exact_reason, exact_peak) == (1.0, "Exact focus hour fit", 9)
+    assert (near, near_reason, near_peak) == (0.5, "Near focus hour fit", 9)
+    assert (far, far_reason, far_peak) == (0.0, None, 9)
+    assert (circular, circular_reason, circular_peak) == (
+        0.5,
+        "Near focus hour fit",
+        23,
+    )
+
+
+def test_focus_slot_fit_uses_candidate_hour_not_current_clock() -> None:
+    preferred = Counter({9: 3})
+
+    morning = focus_slot_fit(preferred, candidate_hour=9)
+    same_morning = focus_slot_fit(preferred, candidate_hour=9)
+    afternoon = focus_slot_fit(preferred, candidate_hour=15)
+
+    assert morning == same_morning
+    assert morning[0] == 1.0
+    assert afternoon[0] == 0.0
+
+
+def test_task_importance_excludes_legacy_current_hour_focus_bonus() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    task = _task(
+        priority=TaskPriority.HIGH,
+        due_date=now + timedelta(hours=1),
+    )
+
+    legacy_v2 = score_task(
+        task,
+        SchedulingProfileV2.from_settings(_settings()),
+        now=now,
+        preferred_focus_hours=Counter({9: 5}),
+    )
+    importance = calculate_task_importance(
+        task,
+        SchedulingProfileV2.from_settings(_settings()),
+        now=now,
+    )
+
+    assert legacy_v2.breakdown.focus_bonus == 0.15
+    assert legacy_v2.score == 1.0
+    assert importance.breakdown.focus_bonus == 0.0
+    assert importance.breakdown.scoring_version == "task_importance"
+    assert importance.score == 0.9733
+
+
 def test_duration_slot_fit_scores_exact_and_loose_fit() -> None:
     assert duration_slot_fit(required_minutes=60, window_minutes=60)[0] == 1.0
     assert duration_slot_fit(required_minutes=60, window_minutes=120)[0] == 0.5
@@ -443,3 +528,158 @@ def test_scheduling_v3_equal_importance_uses_slot_fit_then_time_and_id() -> None
     assert ordered[0].candidate == exact_earlier
     assert ordered[1].candidate == exact_later
     assert ordered[2].candidate == loose
+
+
+def test_scheduling_v3_remains_reproducible_without_focus_slot_fit() -> None:
+    profile = SchedulingProfileV3()
+    candidate = build_task_window_candidate(
+        task=_task(estimated_duration_minutes=60),
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 10, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert candidate is not None
+
+    scored = score_window_candidate(
+        candidate,
+        profile,
+        task_importance_score=0.8,
+        preferred_focus_hours=Counter({9: 5}),
+    )
+
+    assert scored.breakdown.scoring_version == "v3"
+    assert scored.focus_slot_fit_score == 0.0
+    assert scored.breakdown.focus_peak_hour is None
+
+
+def test_scheduling_v4_same_duration_fit_prefers_focus_slot() -> None:
+    profile = SchedulingProfileV4()
+    task = _task(estimated_duration_minutes=60)
+    focused = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    unfocused = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 15, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 17, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert focused is not None
+    assert unfocused is not None
+
+    ordered = sorted(
+        [
+            score_window_candidate(
+                unfocused,
+                profile,
+                task_importance_score=0.8,
+                preferred_focus_hours=Counter({9: 5}),
+            ),
+            score_window_candidate(
+                focused,
+                profile,
+                task_importance_score=0.8,
+                preferred_focus_hours=Counter({9: 5}),
+            ),
+        ],
+        key=window_candidate_sort_key,
+    )
+
+    assert ordered[0].candidate == focused
+    assert ordered[0].focus_slot_fit_score == 1.0
+    assert ordered[1].focus_slot_fit_score == 0.0
+
+
+def test_scheduling_v4_task_importance_beats_better_focus_slot_fit() -> None:
+    profile = SchedulingProfileV4()
+    high_importance_poor_focus = build_task_window_candidate(
+        task=_task(priority=TaskPriority.HIGH, estimated_duration_minutes=60),
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 15, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 16, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    lower_importance_perfect_focus = build_task_window_candidate(
+        task=_task(priority=TaskPriority.MEDIUM, estimated_duration_minutes=60),
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 10, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert high_importance_poor_focus is not None
+    assert lower_importance_perfect_focus is not None
+
+    ordered = sorted(
+        [
+            score_window_candidate(
+                lower_importance_perfect_focus,
+                profile,
+                task_importance_score=0.8,
+                preferred_focus_hours=Counter({9: 5}),
+            ),
+            score_window_candidate(
+                high_importance_poor_focus,
+                profile,
+                task_importance_score=0.9,
+                preferred_focus_hours=Counter({9: 5}),
+            ),
+        ],
+        key=window_candidate_sort_key,
+    )
+
+    assert ordered[0].candidate == high_importance_poor_focus
+
+
+def test_scheduling_v4_duration_fit_beats_focus_slot_fit() -> None:
+    profile = SchedulingProfileV4()
+    exact_weak_focus = build_task_window_candidate(
+        task=_task(estimated_duration_minutes=60),
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 15, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 16, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    loose_perfect_focus = build_task_window_candidate(
+        task=_task(estimated_duration_minutes=60),
+        window=CandidateWindow(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert exact_weak_focus is not None
+    assert loose_perfect_focus is not None
+
+    ordered = sorted(
+        [
+            score_window_candidate(
+                loose_perfect_focus,
+                profile,
+                task_importance_score=0.8,
+                preferred_focus_hours=Counter({9: 5}),
+            ),
+            score_window_candidate(
+                exact_weak_focus,
+                profile,
+                task_importance_score=0.8,
+                preferred_focus_hours=Counter({9: 5}),
+            ),
+        ],
+        key=window_candidate_sort_key,
+    )
+
+    assert ordered[0].candidate == exact_weak_focus
+    assert ordered[0].duration_slot_fit_score == 1.0
+    assert ordered[1].focus_slot_fit_score == 1.0

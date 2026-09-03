@@ -52,6 +52,9 @@ class CandidateScoreBreakdown:
     duration_slot_fit_score: float
     required_minutes: int
     window_minutes: int
+    focus_slot_fit_score: float = 0.0
+    focus_peak_hour: int | None = None
+    candidate_hour: int | None = None
 
 
 @dataclass(frozen=True)
@@ -60,3 +63,4 @@ class ScoredWindowCandidate:
     task_importance_score: float
     duration_slot_fit_score: float
     breakdown: CandidateScoreBreakdown
+    focus_slot_fit_score: float = 0.0

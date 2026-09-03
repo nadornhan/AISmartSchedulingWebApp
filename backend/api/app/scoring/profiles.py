@@ -68,6 +68,14 @@ class SchedulingProfileV3:
     task_importance_scoring_version: ClassVar[str] = SchedulingProfileV2.scoring_version
 
 
+@dataclass(frozen=True)
+class SchedulingProfileV4:
+    profile_name: ClassVar[str] = "scheduling"
+    scoring_version: ClassVar[str] = "v4"
+    task_importance_profile_name: ClassVar[str] = SchedulingProfileV2.profile_name
+    task_importance_scoring_version: ClassVar[str] = "task_importance"
+
+
 LegacySchedulingProfile = SchedulingProfileV1
 
 

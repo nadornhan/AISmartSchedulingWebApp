@@ -1,6 +1,8 @@
 import uuid
+from collections import Counter
 from datetime import UTC, datetime, time
 
+from app.scheduling import engine as scheduling_engine
 from app.scheduling.engine import RankedTask, build_schedule_slots
 from app.scheduling.windows import (
     CandidateWindow,
@@ -274,6 +276,81 @@ def test_same_task_prefers_tighter_fit_window_over_earlier_loose_window() -> Non
         datetime(2099, 1, 1, 16, tzinfo=UTC),
         datetime(2099, 1, 1, 17, tzinfo=UTC),
     )
+
+
+def test_no_focus_history_does_not_change_candidate_placement() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+    blocker = _task(
+        scheduled_start=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        scheduled_end=datetime(2099, 1, 1, 15, tzinfo=UTC),
+    )
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task, blocker],
+        preferred_focus_hours=Counter(),
+    )
+
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 1, 9, tzinfo=UTC),
+        datetime(2099, 1, 1, 10, tzinfo=UTC),
+    )
+
+
+def test_same_task_same_duration_fit_prefers_focus_slot_in_allocation() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+    blocker = _task(
+        scheduled_start=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        scheduled_end=datetime(2099, 1, 1, 15, tzinfo=UTC),
+    )
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task, blocker],
+        preferred_focus_hours=Counter({15: 4}),
+    )
+
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 1, 15, tzinfo=UTC),
+        datetime(2099, 1, 1, 16, tzinfo=UTC),
+    )
+
+
+def test_build_schedule_slots_uses_scheduling_v4_for_candidate_placement(
+    monkeypatch,
+) -> None:
+    seen_versions: list[str] = []
+    original = scheduling_engine.score_window_candidate
+
+    def spy_score_window_candidate(candidate, profile, **kwargs):
+        seen_versions.append(profile.scoring_version)
+        return original(candidate, profile, **kwargs)
+
+    monkeypatch.setattr(
+        scheduling_engine,
+        "score_window_candidate",
+        spy_score_window_candidate,
+    )
+
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task],
+        preferred_focus_hours=Counter({9: 1}),
+    )
+
+    assert slots
+    assert seen_versions
+    assert set(seen_versions) == {"v4"}
 
 
 def test_higher_importance_task_beats_better_slot_fit_in_allocation() -> None:

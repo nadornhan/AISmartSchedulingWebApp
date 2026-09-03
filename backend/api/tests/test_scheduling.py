@@ -11,7 +11,7 @@ from app.scheduling.engine import RankedTask, build_schedule_slots, rank_open_ta
 from app.scheduling.models import AiScheduleSuggestion, ScheduleSuggestionStatus
 from app.scoring.constraints import validate_schedule_candidate
 from app.scoring.criteria import deadline_urgency, duration_preference
-from app.scoring.engine import score_task
+from app.scoring.engine import calculate_task_importance, score_task
 from app.scoring.profiles import LegacySchedulingProfile, SchedulingProfileV2
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
@@ -246,6 +246,29 @@ def test_rank_open_tasks_uses_scheduling_v2_without_duration_bias() -> None:
         preferred_focus_hours=Counter(),
     ).score
     assert "Short estimated duration" not in ranked[1].reasons
+
+
+def test_rank_open_tasks_score_excludes_current_hour_focus_bonus() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    task = _task(
+        priority=TaskPriority.HIGH,
+        due_date=now + timedelta(hours=1),
+    )
+
+    ranked = rank_open_tasks(
+        [task],
+        _settings(),
+        now=now,
+        preferred_focus_hours=Counter({9: 5}),
+        dismissed_task_ids=set(),
+    )
+
+    assert ranked[0].score == calculate_task_importance(
+        task,
+        SchedulingProfileV2.from_settings(_settings()),
+        now=now,
+    ).score
+    assert "Matches your usual focus hours" not in ranked[0].reasons
 
 
 def test_constraints_reject_existing_scheduled_task_overlap() -> None:

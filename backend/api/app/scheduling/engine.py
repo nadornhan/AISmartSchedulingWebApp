@@ -16,12 +16,13 @@ from app.scheduling.windows import (
 )
 from app.scoring import (
     SchedulingProfileV2,
-    SchedulingProfileV3,
-    score_task,
+    SchedulingProfileV4,
+    calculate_task_importance,
     score_window_candidate,
     window_candidate_sort_key,
 )
 from app.scoring.constraints import validate_schedule_candidate
+from app.scoring.criteria import peak_focus_hour
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority
 
@@ -49,11 +50,10 @@ def rank_open_tasks(
         if task.id in dismissed_task_ids:
             continue
 
-        scored = score_task(
+        scored = calculate_task_importance(
             task,
             profile,
             now=now,
-            preferred_focus_hours=preferred_focus_hours,
         )
         factors_by_name = {factor.name: factor for factor in scored.breakdown.factors}
 
@@ -68,9 +68,6 @@ def rank_open_tasks(
         dur_factor = factors_by_name.get("duration_preference")
         if dur_factor and dur_factor.reason:
             reasons.append(dur_factor.reason)
-        if scored.breakdown.focus_bonus > 0:
-            reasons.append("Matches your usual focus hours")
-
         based_on = [
             f"Deadline urgency weight ({settings.ai_deadline_urgency_weight})",
             f"Priority weight ({settings.ai_priority_weight})",
@@ -80,7 +77,7 @@ def rank_open_tasks(
             ),
         ]
         if preferred_focus_hours:
-            top_hour = preferred_focus_hours.most_common(1)[0][0]
+            top_hour = peak_focus_hour(preferred_focus_hours)
             based_on.append(f"Focus pattern peak around {top_hour:02d}:00")
         based_on.append("Task history and open deadlines")
 
@@ -105,6 +102,7 @@ def build_schedule_slots(
     max_slots: int = 5,
     existing_tasks: list[Task] | None = None,
     existing_candidates: list[tuple[uuid.UUID, datetime, datetime]] | None = None,
+    preferred_focus_hours: Counter[int] | None = None,
 ) -> list[tuple[Task, datetime, datetime, str]]:
     if not ranked:
         return []
@@ -142,7 +140,8 @@ def build_schedule_slots(
             and item.task.scheduled_end is not None
         )
     ]
-    placement_profile = SchedulingProfileV3()
+    placement_profile = SchedulingProfileV4()
+    focus_hours = preferred_focus_hours or Counter()
 
     while remaining_ranked:
         if len(slots) >= max_slots:
@@ -178,6 +177,7 @@ def build_schedule_slots(
                         candidate,
                         placement_profile,
                         task_importance_score=item.score,
+                        preferred_focus_hours=focus_hours,
                     )
                 )
 

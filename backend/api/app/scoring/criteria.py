@@ -70,6 +70,31 @@ def duration_slot_fit(
     return fit, "Fits within candidate window"
 
 
+def peak_focus_hour(preferred_hours: Counter[int]) -> int | None:
+    if not preferred_hours:
+        return None
+
+    max_count = max(preferred_hours.values())
+    return min(hour for hour, count in preferred_hours.items() if count == max_count)
+
+
+def focus_slot_fit(
+    preferred_hours: Counter[int],
+    *,
+    candidate_hour: int,
+) -> tuple[float, str | None, int | None]:
+    peak = peak_focus_hour(preferred_hours)
+    if peak is None:
+        return 0.0, None, None
+
+    distance = min(abs(candidate_hour - peak), 24 - abs(candidate_hour - peak))
+    if distance == 0:
+        return 1.0, "Exact focus hour fit", peak
+    if distance <= 2:
+        return 0.5, "Near focus hour fit", peak
+    return 0.0, None, peak
+
+
 def focus_hour_bonus(
     preferred_hours: Counter[int],
     *,
