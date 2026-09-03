@@ -32,6 +32,7 @@ from app.scheduling.schemas import (
     SchedulingPlanResponse,
 )
 from app.scheduling.validation import validate_ai_preview_schedule
+from app.scoring.constraints import normalize_schedule_datetime, validate_schedule_candidate
 from app.settings import service as settings_service
 from app.settings.models import UserSettings
 from app.tasks import service as task_service
@@ -188,6 +189,58 @@ def _recently_dismissed_task_ids(db: Session, user_id: uuid.UUID) -> set[uuid.UU
         )
     ).all()
     return {task_id for task_id in rows if task_id is not None}
+
+
+def _active_suggestion_candidates(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    exclude_suggestion_id: uuid.UUID | None = None,
+) -> list[tuple[uuid.UUID, datetime, datetime]]:
+    query = select(AiScheduleSuggestion).where(
+        AiScheduleSuggestion.user_id == user_id,
+        AiScheduleSuggestion.status.in_(
+            [
+                ScheduleSuggestionStatus.PENDING.value,
+                ScheduleSuggestionStatus.ADJUSTED.value,
+                ScheduleSuggestionStatus.ACCEPTED.value,
+            ]
+        ),
+    )
+    if exclude_suggestion_id is not None:
+        query = query.where(AiScheduleSuggestion.id != exclude_suggestion_id)
+
+    return [
+        (
+            suggestion.id,
+            normalize_schedule_datetime(suggestion.suggested_start),
+            normalize_schedule_datetime(suggestion.suggested_end),
+        )
+        for suggestion in db.scalars(query).all()
+    ]
+
+
+def _validate_suggestion_candidate(
+    *,
+    task: Task,
+    start: datetime,
+    end: datetime,
+    settings: UserSettings,
+    existing_tasks: list[Task],
+    existing_candidates: list[tuple[uuid.UUID, datetime, datetime]] | None = None,
+) -> None:
+    validation = validate_schedule_candidate(
+        task=task,
+        start=start,
+        end=end,
+        settings=settings,
+        existing_tasks=existing_tasks,
+        existing_candidates=existing_candidates,
+        require_unscheduled_task=True,
+    )
+    if not validation.valid:
+        failed = next(check for check in validation.checks if not check.passed)
+        raise ValueError(failed.reason or "Invalid schedule")
 
 
 def _to_recommendation_response(
@@ -366,7 +419,13 @@ def generate_plan(
         db.add(recommendation)
         db.flush()
 
-    slots = build_schedule_slots(ranked, settings, now=now)
+    slots = build_schedule_slots(
+        ranked,
+        settings,
+        now=now,
+        existing_tasks=open_tasks,
+        existing_candidates=_active_suggestion_candidates(db, user_id),
+    )
     created_suggestions: list[tuple[AiScheduleSuggestion, Task]] = []
     for position, (task, start, end, explanation) in enumerate(slots):
         suggestion = AiScheduleSuggestion(
@@ -560,9 +619,6 @@ def adjust_suggestion(
     suggestion_id: uuid.UUID,
     payload: ScheduleAdjustRequest,
 ) -> ScheduleSuggestionResponse:
-    if payload.suggested_end <= payload.suggested_start:
-        raise ValueError("suggested_end must be later than suggested_start")
-
     suggestion = db.scalar(
         select(AiScheduleSuggestion).where(
             AiScheduleSuggestion.id == suggestion_id,
@@ -572,16 +628,31 @@ def adjust_suggestion(
     if suggestion is None:
         raise LookupError("Schedule suggestion not found")
 
-    suggestion.suggested_start = payload.suggested_start
-    suggestion.suggested_end = payload.suggested_end
+    task = task_service.get_task_by_id(db, suggestion.task_id, user_id)
+    if task is None:
+        raise LookupError("Task not found")
+
+    settings = settings_service.get_or_create_user_settings(db, user_id)
+    _validate_suggestion_candidate(
+        task=task,
+        start=payload.suggested_start,
+        end=payload.suggested_end,
+        settings=settings,
+        existing_tasks=_open_tasks(db, user_id),
+        existing_candidates=_active_suggestion_candidates(
+            db,
+            user_id,
+            exclude_suggestion_id=suggestion.id,
+        ),
+    )
+
+    suggestion.suggested_start = normalize_schedule_datetime(payload.suggested_start)
+    suggestion.suggested_end = normalize_schedule_datetime(payload.suggested_end)
     suggestion.status = ScheduleSuggestionStatus.ADJUSTED.value
     suggestion.updated_at = utc_now()
     db.commit()
     db.refresh(suggestion)
 
-    task = task_service.get_task_by_id(db, suggestion.task_id, user_id)
-    if task is None:
-        raise LookupError("Task not found")
     return _to_schedule_response(suggestion, task)
 
 
@@ -604,6 +675,29 @@ def apply_suggestions(
         query = query.where(AiScheduleSuggestion.id.in_(payload.suggestion_ids))
 
     suggestions = list(db.scalars(query).all())
+    settings = settings_service.get_or_create_user_settings(db, user_id)
+    existing_tasks = _open_tasks(db, user_id)
+    selected_candidates: list[tuple[uuid.UUID, datetime, datetime]] = []
+    for suggestion in suggestions:
+        task = task_service.get_task_by_id(db, suggestion.task_id, user_id)
+        if task is None:
+            continue
+        _validate_suggestion_candidate(
+            task=task,
+            start=suggestion.suggested_start,
+            end=suggestion.suggested_end,
+            settings=settings,
+            existing_tasks=existing_tasks,
+            existing_candidates=selected_candidates,
+        )
+        selected_candidates.append(
+            (
+                suggestion.id,
+                normalize_schedule_datetime(suggestion.suggested_start),
+                normalize_schedule_datetime(suggestion.suggested_end),
+            )
+        )
+
     for suggestion in suggestions:
         task = task_service.get_task_by_id(db, suggestion.task_id, user_id)
         if task is None:

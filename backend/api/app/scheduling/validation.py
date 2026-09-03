@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from itertools import pairwise
 
+from app.scoring.constraints import (
+    has_no_existing_schedule_conflict,
+    normalize_schedule_datetime,
+    validate_schedule_candidate,
+)
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskStatus
-from app.tasks.overdue import normalize_due_datetime
 
 from .schemas import GeminiSchedulePreview, GeminiScheduleSlot
 
@@ -42,8 +46,8 @@ def validate_ai_preview_schedule(
         if task.status == TaskStatus.DONE:
             raise DeterministicScheduleValidationError("Completed tasks cannot be scheduled")
 
-        start = _normalize(slot.suggested_start)
-        end = _normalize(slot.suggested_end)
+        start = normalize_schedule_datetime(slot.suggested_start)
+        end = normalize_schedule_datetime(slot.suggested_end)
         _validate_slot_time(start=start, end=end, task=task, settings=settings)
 
         accepted_slots.append(
@@ -84,27 +88,24 @@ def _validate_slot_time(
     if duration_minutes != expected_duration:
         raise DeterministicScheduleValidationError("Schedule duration does not match task duration")
 
-    work_start = datetime.combine(
-        start.date(),
-        settings.work_start,
-        tzinfo=UTC,
+    validation = validate_schedule_candidate(
+        task=task,
+        start=start,
+        end=end,
+        settings=settings,
+        existing_tasks=[],
     )
-    work_end = datetime.combine(
-        start.date(),
-        settings.work_end,
-        tzinfo=UTC,
-    )
-    if start < work_start or end > work_end:
-        raise DeterministicScheduleValidationError("Schedule is outside work hours")
-
-    if task.due_date is not None and end > normalize_due_datetime(task.due_date):
-        raise DeterministicScheduleValidationError("Schedule ends after task deadline")
+    if not validation.valid:
+        failed = next(check for check in validation.checks if not check.passed)
+        raise DeterministicScheduleValidationError(failed.reason or "Invalid schedule")
 
 
 def _validate_no_internal_overlaps(slots: list[GeminiScheduleSlot]) -> None:
-    ordered = sorted(slots, key=lambda slot: _normalize(slot.suggested_start))
+    ordered = sorted(slots, key=lambda slot: normalize_schedule_datetime(slot.suggested_start))
     for previous, current in pairwise(ordered):
-        if _normalize(current.suggested_start) < _normalize(previous.suggested_end):
+        if normalize_schedule_datetime(
+            current.suggested_start
+        ) < normalize_schedule_datetime(previous.suggested_end):
             raise DeterministicScheduleValidationError("Schedule contains overlapping slots")
 
 
@@ -114,36 +115,26 @@ def _validate_no_existing_overlaps(
     requested_task_ids: set[uuid.UUID],
     existing_tasks: list[Task],
 ) -> None:
-    existing_ranges = [
-        (
-            task.id,
-            _normalize(task.scheduled_start),
-            _normalize(task.scheduled_end),
-        )
-        for task in existing_tasks
-        if task.status != TaskStatus.DONE
-        and task.id not in requested_task_ids
-        and task.scheduled_start is not None
-        and task.scheduled_end is not None
-    ]
-
     for slot in accepted_slots:
-        start = _normalize(slot.suggested_start)
-        end = _normalize(slot.suggested_end)
-        for _task_id, existing_start, existing_end in existing_ranges:
-            if start < existing_end and end > existing_start:
-                raise DeterministicScheduleValidationError(
-                    "Schedule conflicts with an existing scheduled task"
-                )
+        task = next(
+            existing_task
+            for existing_task in existing_tasks
+            if existing_task.id == slot.task_id
+        )
+        result = has_no_existing_schedule_conflict(
+            task=task,
+            start=normalize_schedule_datetime(slot.suggested_start),
+            end=normalize_schedule_datetime(slot.suggested_end),
+            existing_tasks=[
+                existing_task
+                for existing_task in existing_tasks
+                if existing_task.id not in requested_task_ids
+            ],
+        )
+        if not result.passed:
+            raise DeterministicScheduleValidationError(result.reason or "Invalid schedule")
 
 
 def _expected_duration_minutes(task: Task, settings: UserSettings) -> int:
     duration = task.estimated_duration_minutes or settings.pomodoro_minutes
     return max(MIN_SLOT_MINUTES, min(duration, MAX_SLOT_MINUTES))
-
-
-def _normalize(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-
-    return value.astimezone(UTC)

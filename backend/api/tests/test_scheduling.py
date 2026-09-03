@@ -3,8 +3,13 @@ from collections import Counter
 from datetime import UTC, datetime, time, timedelta
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from app.scheduling.engine import rank_open_tasks
+from app.auth.models import User
+from app.scheduling.engine import RankedTask, build_schedule_slots, rank_open_tasks
+from app.scheduling.models import AiScheduleSuggestion, ScheduleSuggestionStatus
+from app.scoring.constraints import validate_schedule_candidate
 from app.scoring.criteria import deadline_urgency, duration_preference
 from app.scoring.engine import score_task
 from app.scoring.profiles import LegacySchedulingProfile
@@ -14,13 +19,15 @@ from app.tasks.models import Task, TaskPriority, TaskStatus
 
 def _settings(
     *,
+    work_start: time = time(9, 0),
+    work_end: time = time(17, 0),
     deadline_weight: int = 80,
     priority_weight: int = 70,
     duration_weight: int = 50,
 ) -> UserSettings:
     return UserSettings(
-        work_start=time(9, 0),
-        work_end=time(17, 0),
+        work_start=work_start,
+        work_end=work_end,
         ai_deadline_urgency_weight=deadline_weight,
         ai_priority_weight=priority_weight,
         ai_estimated_duration_weight=duration_weight,
@@ -33,6 +40,8 @@ def _task(
     priority: TaskPriority = TaskPriority.NO_PRIORITY,
     due_date: datetime | None = None,
     estimated_duration_minutes: int | None = None,
+    scheduled_start: datetime | None = None,
+    scheduled_end: datetime | None = None,
     status: TaskStatus = TaskStatus.PENDING,
 ) -> Task:
     return Task(
@@ -42,6 +51,8 @@ def _task(
         priority=priority,
         due_date=due_date,
         estimated_duration_minutes=estimated_duration_minutes,
+        scheduled_start=scheduled_start,
+        scheduled_end=scheduled_end,
         status=status,
     )
 
@@ -69,6 +80,21 @@ def auth_headers(client: TestClient) -> dict[str, str]:
     )
     assert login.status_code == 200
     return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
+def auth_context(client: TestClient) -> tuple[dict[str, str], str]:
+    email = f"schedule-{uuid.uuid4()}@example.com"
+    password = "TestPassword123"
+    assert client.post(
+        "/auth/register",
+        json={"email": email, "password": password},
+    ).status_code == 201
+    login = client.post(
+        "/auth/login",
+        json={"email": email, "password": password},
+    )
+    assert login.status_code == 200
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}, email
 
 
 def test_scoring_parity_short_medium_beats_long_high_under_defaults() -> None:
@@ -188,6 +214,278 @@ def test_scoring_parity_equal_scores_keep_task_id_tie_break() -> None:
     )
 
     assert [item.task.id for item in ranked] == [earlier_id, later_id]
+
+
+def test_constraints_reject_existing_scheduled_task_overlap() -> None:
+    day = datetime(2099, 1, 1, tzinfo=UTC)
+    candidate = _task()
+    existing = _task(
+        scheduled_start=day.replace(hour=9),
+        scheduled_end=day.replace(hour=10),
+    )
+
+    result = validate_schedule_candidate(
+        task=candidate,
+        start=day.replace(hour=9, minute=30),
+        end=day.replace(hour=10, minute=30),
+        settings=_settings(),
+        existing_tasks=[existing],
+    )
+
+    assert not result.valid
+    assert any(
+        not check.passed and check.name == "existing_schedule_conflict"
+        for check in result.checks
+    )
+
+
+def test_constraints_allow_boundary_touching_existing_schedule() -> None:
+    day = datetime(2099, 1, 1, tzinfo=UTC)
+    candidate = _task()
+    existing = _task(
+        scheduled_start=day.replace(hour=9),
+        scheduled_end=day.replace(hour=10),
+    )
+
+    result = validate_schedule_candidate(
+        task=candidate,
+        start=day.replace(hour=10),
+        end=day.replace(hour=10, minute=30),
+        settings=_settings(),
+        existing_tasks=[existing],
+    )
+
+    assert result.valid
+
+
+def test_constraints_reject_candidate_fully_inside_occupied_interval() -> None:
+    day = datetime(2099, 1, 1, tzinfo=UTC)
+    result = validate_schedule_candidate(
+        task=_task(),
+        start=day.replace(hour=9, minute=15),
+        end=day.replace(hour=9, minute=45),
+        settings=_settings(),
+        existing_tasks=[
+            _task(
+                scheduled_start=day.replace(hour=9),
+                scheduled_end=day.replace(hour=10),
+            )
+        ],
+    )
+
+    assert not result.valid
+
+
+def test_constraints_reject_candidate_containing_occupied_interval() -> None:
+    day = datetime(2099, 1, 1, tzinfo=UTC)
+    result = validate_schedule_candidate(
+        task=_task(),
+        start=day.replace(hour=8, minute=30),
+        end=day.replace(hour=10, minute=30),
+        settings=_settings(work_start=time(8, 0)),
+        existing_tasks=[
+            _task(
+                scheduled_start=day.replace(hour=9),
+                scheduled_end=day.replace(hour=10),
+            )
+        ],
+    )
+
+    assert not result.valid
+
+
+def test_constraints_allow_candidate_before_and_after_occupied_interval() -> None:
+    day = datetime(2099, 1, 1, tzinfo=UTC)
+    existing = _task(
+        scheduled_start=day.replace(hour=10),
+        scheduled_end=day.replace(hour=11),
+    )
+
+    before = validate_schedule_candidate(
+        task=_task(),
+        start=day.replace(hour=9),
+        end=day.replace(hour=10),
+        settings=_settings(),
+        existing_tasks=[existing],
+    )
+    after = validate_schedule_candidate(
+        task=_task(),
+        start=day.replace(hour=11),
+        end=day.replace(hour=12),
+        settings=_settings(),
+        existing_tasks=[existing],
+    )
+
+    assert before.valid
+    assert after.valid
+
+
+def test_constraints_reject_outside_working_hours() -> None:
+    day = datetime(2099, 1, 1, tzinfo=UTC)
+    result = validate_schedule_candidate(
+        task=_task(),
+        start=day.replace(hour=8, minute=30),
+        end=day.replace(hour=9, minute=30),
+        settings=_settings(),
+        existing_tasks=[],
+    )
+
+    assert not result.valid
+    assert any(
+        not check.passed and check.name == "working_hours"
+        for check in result.checks
+    )
+
+
+def test_constraints_allow_ending_exactly_at_work_end() -> None:
+    day = datetime(2099, 1, 1, tzinfo=UTC)
+    result = validate_schedule_candidate(
+        task=_task(),
+        start=day.replace(hour=16, minute=30),
+        end=day.replace(hour=17),
+        settings=_settings(),
+        existing_tasks=[],
+    )
+
+    assert result.valid
+
+
+def test_constraints_reject_ending_after_work_end() -> None:
+    day = datetime(2099, 1, 1, tzinfo=UTC)
+    result = validate_schedule_candidate(
+        task=_task(),
+        start=day.replace(hour=16, minute=45),
+        end=day.replace(hour=17, minute=15),
+        settings=_settings(),
+        existing_tasks=[],
+    )
+
+    assert not result.valid
+
+
+def test_constraints_allow_ending_on_or_before_deadline() -> None:
+    day = datetime(2099, 1, 1, tzinfo=UTC)
+    result = validate_schedule_candidate(
+        task=_task(due_date=day.replace(hour=10)),
+        start=day.replace(hour=9),
+        end=day.replace(hour=10),
+        settings=_settings(),
+        existing_tasks=[],
+    )
+
+    assert result.valid
+
+
+def test_constraints_reject_ending_after_deadline() -> None:
+    day = datetime(2099, 1, 1, tzinfo=UTC)
+    result = validate_schedule_candidate(
+        task=_task(due_date=day.replace(hour=10)),
+        start=day.replace(hour=9, minute=30),
+        end=day.replace(hour=10, minute=30),
+        settings=_settings(),
+        existing_tasks=[],
+    )
+
+    assert not result.valid
+    assert any(
+        not check.passed and check.name == "deadline_feasible"
+        for check in result.checks
+    )
+
+
+def test_constraints_ignore_completed_scheduled_tasks_as_blockers() -> None:
+    day = datetime(2099, 1, 1, tzinfo=UTC)
+    result = validate_schedule_candidate(
+        task=_task(),
+        start=day.replace(hour=9, minute=30),
+        end=day.replace(hour=10, minute=30),
+        settings=_settings(),
+        existing_tasks=[
+            _task(
+                scheduled_start=day.replace(hour=9),
+                scheduled_end=day.replace(hour=10),
+                status=TaskStatus.DONE,
+            )
+        ],
+    )
+
+    assert result.valid
+
+
+def test_build_schedule_slots_skips_task_with_existing_active_schedule() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    scheduled_task = _task(
+        scheduled_start=now.replace(hour=9),
+        scheduled_end=now.replace(hour=10),
+        estimated_duration_minutes=30,
+    )
+    unscheduled_task = _task(
+        priority=TaskPriority.MEDIUM,
+        estimated_duration_minutes=30,
+    )
+    ranked = [
+        RankedTask(scheduled_task, 1.0, [], []),
+        RankedTask(unscheduled_task, 0.7, [], []),
+    ]
+
+    slots = build_schedule_slots(
+        ranked,
+        _settings(),
+        now=now,
+        existing_tasks=[scheduled_task, unscheduled_task],
+    )
+
+    assert [task.id for task, *_rest in slots] == [unscheduled_task.id]
+
+
+def test_adjusted_suggestion_cannot_move_onto_occupied_period(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    headers, email = auth_context(client)
+    user = db_session.scalar(select(User).where(User.email == email))
+    assert user is not None
+
+    occupied = client.post(
+        "/tasks",
+        headers=headers,
+        json={
+            "title": "Already scheduled",
+            "scheduled_start": "2099-01-01T09:00:00+00:00",
+            "scheduled_end": "2099-01-01T10:00:00+00:00",
+        },
+    )
+    assert occupied.status_code == 201
+    target = client.post(
+        "/tasks",
+        headers=headers,
+        json={"title": "Move suggestion here", "estimated_duration_minutes": 30},
+    )
+    assert target.status_code == 201
+
+    suggestion = AiScheduleSuggestion(
+        user_id=user.id,
+        task_id=uuid.UUID(target.json()["id"]),
+        suggested_start=datetime(2099, 1, 1, 10, tzinfo=UTC),
+        suggested_end=datetime(2099, 1, 1, 10, 30, tzinfo=UTC),
+        explanation="Initial valid suggestion.",
+        status=ScheduleSuggestionStatus.PENDING.value,
+        position=0,
+    )
+    db_session.add(suggestion)
+    db_session.commit()
+
+    response = client.post(
+        f"/scheduling/suggestions/{suggestion.id}/adjust",
+        headers=headers,
+        json={
+            "suggested_start": "2099-01-01T09:30:00+00:00",
+            "suggested_end": "2099-01-01T10:30:00+00:00",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Schedule conflicts with an existing scheduled task"
 
 
 def test_generate_plan_and_apply_schedule(client: TestClient) -> None:

@@ -5,6 +5,20 @@ from typing import Any
 
 
 @dataclass(frozen=True)
+class ConstraintResult:
+    name: str
+    passed: bool
+    reason: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class ConstraintValidationResult:
+    valid: bool
+    checks: tuple[ConstraintResult, ...]
+
+
+@dataclass(frozen=True)
 class FactorResult:
     name: str
     score: float

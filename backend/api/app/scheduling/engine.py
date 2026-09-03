@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import uuid
 from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from app.scoring import LegacySchedulingProfile, score_task
+from app.scoring.constraints import validate_schedule_candidate
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority
 
@@ -87,10 +89,13 @@ def build_schedule_slots(
     *,
     now: datetime,
     max_slots: int = 5,
+    existing_tasks: list[Task] | None = None,
+    existing_candidates: list[tuple[uuid.UUID, datetime, datetime]] | None = None,
 ) -> list[tuple[Task, datetime, datetime, str]]:
     if not ranked:
         return []
 
+    blockers = existing_tasks or []
     day = now.astimezone(UTC).date()
     cursor = datetime.combine(day, settings.work_start, tzinfo=UTC)
     work_end = datetime.combine(day, settings.work_end, tzinfo=UTC)
@@ -101,18 +106,48 @@ def build_schedule_slots(
         cursor = max(cursor, snapped + timedelta(minutes=extra))
 
     slots: list[tuple[Task, datetime, datetime, str]] = []
+    accepted_candidates: list[tuple[uuid.UUID, datetime, datetime]] = list(
+        existing_candidates or []
+    )
     for item in ranked:
         if len(slots) >= max_slots:
             break
         if cursor >= work_end:
             break
 
+        if item.task.scheduled_start is not None and item.task.scheduled_end is not None:
+            continue
+
         duration = item.task.estimated_duration_minutes or settings.pomodoro_minutes
         duration = max(15, min(duration, 120))
-        start = cursor
-        end = start + timedelta(minutes=duration)
-        if end > work_end:
-            break
+        candidate_cursor = cursor
+        chosen: tuple[datetime, datetime] | None = None
+        while candidate_cursor < work_end:
+            start = candidate_cursor
+            end = start + timedelta(minutes=duration)
+            validation = validate_schedule_candidate(
+                task=item.task,
+                start=start,
+                end=end,
+                settings=settings,
+                existing_tasks=blockers,
+                existing_candidates=accepted_candidates,
+                require_unscheduled_task=True,
+            )
+            if validation.valid:
+                chosen = (start, end)
+                break
+            if any(
+                not check.passed and check.name == "deadline_feasible"
+                for check in validation.checks
+            ):
+                break
+            candidate_cursor += timedelta(minutes=15)
+
+        if chosen is None:
+            continue
+
+        start, end = chosen
 
         explanation = (
             f"Scheduled using your work hours and "
@@ -120,6 +155,7 @@ def build_schedule_slots(
             f"preference."
         )
         slots.append((item.task, start, end, explanation))
+        accepted_candidates.append((item.task.id, start, end))
         cursor = end + timedelta(minutes=5)
 
     return slots
