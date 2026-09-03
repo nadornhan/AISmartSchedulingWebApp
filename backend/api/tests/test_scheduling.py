@@ -1,7 +1,59 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from collections import Counter
+from datetime import UTC, datetime, time, timedelta
 
 from fastapi.testclient import TestClient
+
+from app.scheduling.engine import rank_open_tasks
+from app.scoring.criteria import deadline_urgency, duration_preference
+from app.scoring.engine import score_task
+from app.scoring.profiles import LegacySchedulingProfile
+from app.settings.models import UserSettings
+from app.tasks.models import Task, TaskPriority, TaskStatus
+
+
+def _settings(
+    *,
+    deadline_weight: int = 80,
+    priority_weight: int = 70,
+    duration_weight: int = 50,
+) -> UserSettings:
+    return UserSettings(
+        work_start=time(9, 0),
+        work_end=time(17, 0),
+        ai_deadline_urgency_weight=deadline_weight,
+        ai_priority_weight=priority_weight,
+        ai_estimated_duration_weight=duration_weight,
+    )
+
+
+def _task(
+    *,
+    task_id: uuid.UUID | None = None,
+    priority: TaskPriority = TaskPriority.NO_PRIORITY,
+    due_date: datetime | None = None,
+    estimated_duration_minutes: int | None = None,
+    status: TaskStatus = TaskStatus.PENDING,
+) -> Task:
+    return Task(
+        id=task_id or uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        title="Scoring parity",
+        priority=priority,
+        due_date=due_date,
+        estimated_duration_minutes=estimated_duration_minutes,
+        status=status,
+    )
+
+
+def _score_without_focus(task: Task, *, now: datetime) -> float:
+    scored = score_task(
+        task,
+        LegacySchedulingProfile.from_settings(_settings()),
+        now=now,
+        preferred_focus_hours=Counter(),
+    )
+    return scored.score
 
 
 def auth_headers(client: TestClient) -> dict[str, str]:
@@ -17,6 +69,125 @@ def auth_headers(client: TestClient) -> dict[str, str]:
     )
     assert login.status_code == 200
     return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
+def test_scoring_parity_short_medium_beats_long_high_under_defaults() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    due = now + timedelta(hours=23)
+    high_long = _task(
+        priority=TaskPriority.HIGH,
+        due_date=due,
+        estimated_duration_minutes=90,
+    )
+    medium_short = _task(
+        priority=TaskPriority.MEDIUM,
+        due_date=due,
+        estimated_duration_minutes=10,
+    )
+
+    assert _score_without_focus(high_long, now=now) == 0.805
+    assert _score_without_focus(medium_short, now=now) == 0.875
+    assert _score_without_focus(high_long, now=now) < _score_without_focus(
+        medium_short,
+        now=now,
+    )
+
+
+def test_scoring_parity_deadline_23_vs_25_hour_threshold() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+
+    assert (
+        deadline_urgency(
+            due_date=now + timedelta(hours=23),
+            status=TaskStatus.PENDING,
+            now=now,
+        )[0]
+        == 0.95
+    )
+    assert (
+        deadline_urgency(
+            due_date=now + timedelta(hours=25),
+            status=TaskStatus.PENDING,
+            now=now,
+        )[0]
+        == 0.75
+    )
+
+
+def test_scoring_parity_overdue_deadlines_share_factor() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+
+    five_minutes_overdue = deadline_urgency(
+        due_date=now - timedelta(minutes=5),
+        status=TaskStatus.PENDING,
+        now=now,
+    )[0]
+    multi_day_overdue = deadline_urgency(
+        due_date=now - timedelta(days=3),
+        status=TaskStatus.PENDING,
+        now=now,
+    )[0]
+
+    assert five_minutes_overdue == 1.0
+    assert multi_day_overdue == 1.0
+
+
+def test_scoring_parity_no_duration_fallback() -> None:
+    assert duration_preference(None)[0] == 0.4
+
+
+def test_scoring_parity_all_factor_weights_zero() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    scored = score_task(
+        _task(
+            priority=TaskPriority.HIGH,
+            due_date=now + timedelta(hours=1),
+            estimated_duration_minutes=5,
+        ),
+        LegacySchedulingProfile.from_settings(
+            _settings(deadline_weight=0, priority_weight=0, duration_weight=0),
+        ),
+        now=now,
+        preferred_focus_hours=Counter(),
+    )
+
+    assert scored.score == 0
+
+
+def test_scoring_parity_focus_bonus_clamps_to_one() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    scored = score_task(
+        _task(
+            priority=TaskPriority.HIGH,
+            due_date=now + timedelta(hours=1),
+            estimated_duration_minutes=5,
+        ),
+        LegacySchedulingProfile.from_settings(_settings()),
+        now=now,
+        preferred_focus_hours=Counter({9: 3}),
+    )
+
+    assert scored.breakdown.focus_bonus == 0.15
+    assert scored.score == 1.0
+
+
+def test_scoring_parity_equal_scores_keep_task_id_tie_break() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    later_id = uuid.UUID("22222222-2222-4222-8222-222222222222")
+    earlier_id = uuid.UUID("11111111-1111-4111-8111-111111111111")
+
+    ranked = rank_open_tasks(
+        [
+            _task(task_id=later_id),
+            _task(task_id=earlier_id),
+        ],
+        _settings(),
+        now=now,
+        preferred_focus_hours=Counter(),
+        dismissed_task_ids=set(),
+    )
+
+    assert [item.task.id for item in ranked] == [earlier_id, later_id]
 
 
 def test_generate_plan_and_apply_schedule(client: TestClient) -> None:

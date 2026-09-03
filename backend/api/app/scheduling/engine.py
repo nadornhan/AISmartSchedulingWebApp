@@ -4,16 +4,9 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from app.scoring import LegacySchedulingProfile, score_task
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority
-from app.tasks.overdue import is_task_overdue, normalize_due_datetime
-
-PRIORITY_SCORE = {
-    TaskPriority.HIGH: 1.0,
-    TaskPriority.MEDIUM: 0.7,
-    TaskPriority.LOW: 0.4,
-    TaskPriority.NO_PRIORITY: 0.2,
-}
 
 
 @dataclass(frozen=True)
@@ -24,57 +17,6 @@ class RankedTask:
     based_on: list[str]
 
 
-def _clamp01(value: float) -> float:
-    return max(0.0, min(1.0, value))
-
-
-def deadline_score(task: Task, *, now: datetime) -> tuple[float, str | None]:
-    if task.due_date is None:
-        return 0.25, None
-
-    due = normalize_due_datetime(task.due_date)
-    hours = (due - now.astimezone(UTC)).total_seconds() / 3600
-
-    if is_task_overdue(status=task.status, due_date=task.due_date, now=now):
-        return 1.0, "Overdue deadline"
-    if hours <= 24:
-        return 0.95, "Due within 24 hours"
-    if hours <= 72:
-        return 0.75, "Due within 3 days"
-    if hours <= 168:
-        return 0.55, "Due this week"
-    return 0.35, "Upcoming deadline"
-
-
-def duration_score(task: Task) -> tuple[float, str | None]:
-    minutes = task.estimated_duration_minutes
-    if minutes is None:
-        return 0.4, None
-    if minutes <= 10:
-        return 1.0, "Short estimated duration"
-    if minutes <= 30:
-        return 0.8, "Fits a focused block"
-    if minutes <= 60:
-        return 0.55, "Medium estimated duration"
-    return 0.3, "Longer estimated duration"
-
-
-def focus_hour_bonus(
-    preferred_hours: Counter[int],
-    *,
-    candidate_hour: int,
-) -> float:
-    if not preferred_hours:
-        return 0.0
-    top = preferred_hours.most_common(1)[0][0]
-    distance = min(abs(candidate_hour - top), 24 - abs(candidate_hour - top))
-    if distance == 0:
-        return 0.15
-    if distance <= 2:
-        return 0.08
-    return 0.0
-
-
 def rank_open_tasks(
     tasks: list[Task],
     settings: UserSettings,
@@ -83,42 +25,33 @@ def rank_open_tasks(
     preferred_focus_hours: Counter[int],
     dismissed_task_ids: set,
 ) -> list[RankedTask]:
-    deadline_w = settings.ai_deadline_urgency_weight / 100
-    priority_w = settings.ai_priority_weight / 100
-    duration_w = settings.ai_estimated_duration_weight / 100
-    weight_sum = max(deadline_w + priority_w + duration_w, 0.01)
-
+    profile = LegacySchedulingProfile.from_settings(settings)
     ranked: list[RankedTask] = []
 
     for task in tasks:
         if task.id in dismissed_task_ids:
             continue
 
-        d_score, d_reason = deadline_score(task, now=now)
-        p_score = PRIORITY_SCORE[task.priority]
-        dur_score, dur_reason = duration_score(task)
-        hour_bonus = focus_hour_bonus(
-            preferred_focus_hours,
-            candidate_hour=now.astimezone(UTC).hour,
+        scored = score_task(
+            task,
+            profile,
+            now=now,
+            preferred_focus_hours=preferred_focus_hours,
         )
-
-        weighted = (
-            (d_score * deadline_w)
-            + (p_score * priority_w)
-            + (dur_score * duration_w)
-        ) / weight_sum
-        score = _clamp01(weighted + hour_bonus)
+        factors_by_name = {factor.name: factor for factor in scored.breakdown.factors}
 
         reasons: list[str] = []
+        d_reason = factors_by_name["deadline_urgency"].reason
         if d_reason:
             reasons.append(d_reason)
         if task.priority == TaskPriority.HIGH:
             reasons.append("High priority")
         elif task.priority == TaskPriority.MEDIUM:
             reasons.append("Medium priority")
+        dur_reason = factors_by_name["duration_preference"].reason
         if dur_reason:
             reasons.append(dur_reason)
-        if hour_bonus > 0:
+        if scored.breakdown.focus_bonus > 0:
             reasons.append("Matches your usual focus hours")
 
         based_on = [
@@ -138,7 +71,7 @@ def rank_open_tasks(
         ranked.append(
             RankedTask(
                 task=task,
-                score=round(score, 4),
+                score=scored.score,
                 reasons=reasons or ["Balanced fit for your preferences"],
                 based_on=based_on,
             )

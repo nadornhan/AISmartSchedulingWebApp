@@ -104,6 +104,7 @@ def _due_sort_value(task: Task) -> datetime:
 
 
 def _next_best_sort_key(task: Task, *, now: datetime) -> tuple:
+    # Dashboard fallback heuristic remains here until feature-specific profiles exist.
     today_start, today_end = _day_bounds(now.date())
     due_today = _is_between(task.due_date, today_start, today_end)
 
@@ -117,6 +118,7 @@ def _next_best_sort_key(task: Task, *, now: datetime) -> tuple:
 
 
 def _quick_win_sort_key(task: Task) -> tuple:
+    # Quick wins still use the dashboard-specific heuristic in Phase 1.
     return (
         _due_sort_value(task),
         PRIORITY_RANK[task.priority],
