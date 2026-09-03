@@ -8,6 +8,8 @@ from app.scoring.constraints import normalize_schedule_datetime
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskStatus
 
+DEFAULT_PLANNING_HORIZON_DAYS = 7
+
 
 @dataclass(frozen=True)
 class CandidateWindow:
@@ -25,6 +27,35 @@ class OccupiedInterval:
     end: datetime
     source_id: uuid.UUID
     source_type: str
+
+
+@dataclass(frozen=True)
+class PlanningHorizon:
+    start: datetime
+    end: datetime
+    days: int
+
+
+@dataclass(frozen=True)
+class WorkingPeriod:
+    start: datetime
+    end: datetime
+
+    @property
+    def as_window(self) -> CandidateWindow:
+        return CandidateWindow(start=self.start, end=self.end)
+
+
+@dataclass(frozen=True)
+class TaskCapacitySummary:
+    task_id: uuid.UUID
+    required_minutes: int
+    total_available_minutes: int
+    largest_window_minutes: int
+    feasible_window_count: int
+    has_contiguous_capacity: bool
+    earliest_feasible_start: datetime | None = None
+    latest_feasible_start: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -69,6 +100,125 @@ def work_window_for_day(*, day, settings: UserSettings) -> CandidateWindow:
     return CandidateWindow(
         start=datetime.combine(day, settings.work_start, tzinfo=UTC),
         end=datetime.combine(day, settings.work_end, tzinfo=UTC),
+    )
+
+
+def planning_horizon(
+    *,
+    now: datetime,
+    days: int = DEFAULT_PLANNING_HORIZON_DAYS,
+) -> PlanningHorizon:
+    if days < 1:
+        raise ValueError("planning horizon must include at least one day")
+
+    start = normalize_schedule_datetime(now)
+    return PlanningHorizon(
+        start=start,
+        end=start + timedelta(days=days),
+        days=days,
+    )
+
+
+def working_periods_for_horizon(
+    *,
+    horizon: PlanningHorizon,
+    settings: UserSettings,
+) -> list[WorkingPeriod]:
+    periods: list[WorkingPeriod] = []
+    day = horizon.start.date()
+    final_day = horizon.end.date()
+
+    while day <= final_day:
+        work_window = work_window_for_day(day=day, settings=settings)
+        start = max(work_window.start, horizon.start)
+        end = min(work_window.end, horizon.end)
+        if end > start:
+            periods.append(WorkingPeriod(start=start, end=end))
+        day += timedelta(days=1)
+
+    return periods
+
+
+def derive_free_windows_for_periods(
+    *,
+    working_periods: list[WorkingPeriod],
+    occupied_intervals: list[OccupiedInterval],
+) -> list[CandidateWindow]:
+    free_windows: list[CandidateWindow] = []
+    for period in sorted(working_periods, key=lambda item: item.start):
+        free_windows.extend(
+            derive_free_windows(
+                work_window=period.as_window,
+                occupied_intervals=occupied_intervals,
+            )
+        )
+
+    return free_windows
+
+
+def candidate_windows_before_deadline(
+    *,
+    task: Task,
+    windows: list[CandidateWindow],
+) -> list[CandidateWindow]:
+    if task.due_date is None:
+        return list(windows)
+
+    deadline = normalize_schedule_datetime(task.due_date)
+    clipped: list[CandidateWindow] = []
+    for window in windows:
+        if window.start >= deadline:
+            continue
+
+        clipped_window = CandidateWindow(
+            start=window.start,
+            end=min(window.end, deadline),
+        )
+        if clipped_window.end > clipped_window.start:
+            clipped.append(clipped_window)
+
+    return clipped
+
+
+def summarize_task_capacity(
+    *,
+    task: Task,
+    windows: list[CandidateWindow],
+    settings: UserSettings,
+) -> TaskCapacitySummary:
+    required_minutes = scheduling_required_minutes(task, settings)
+    candidate_windows = candidate_windows_before_deadline(task=task, windows=windows)
+    total_available_minutes = sum(window.duration_minutes for window in candidate_windows)
+    largest_window_minutes = max(
+        (window.duration_minutes for window in candidate_windows),
+        default=0,
+    )
+    feasible_windows = [
+        window
+        for window in candidate_windows
+        if window.duration_minutes >= required_minutes
+    ]
+
+    latest_feasible_start = None
+    if feasible_windows:
+        latest_feasible_start = max(
+            window.end - timedelta(minutes=required_minutes)
+            for window in feasible_windows
+        )
+
+    return TaskCapacitySummary(
+        task_id=task.id,
+        required_minutes=required_minutes,
+        total_available_minutes=total_available_minutes,
+        largest_window_minutes=largest_window_minutes,
+        feasible_window_count=len(feasible_windows),
+        has_contiguous_capacity=bool(feasible_windows),
+        earliest_feasible_start=(
+            min(window.start for window in feasible_windows)
+            if feasible_windows
+            else None
+        ),
+        latest_feasible_start=latest_feasible_start,
     )
 
 

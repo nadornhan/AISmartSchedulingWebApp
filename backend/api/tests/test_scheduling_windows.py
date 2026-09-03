@@ -7,10 +7,17 @@ from app.scheduling.engine import RankedTask, build_schedule_slots
 from app.scheduling.windows import (
     CandidateWindow,
     OccupiedInterval,
+    PlanningHorizon,
+    WorkingPeriod,
     build_task_window_candidate,
+    candidate_windows_before_deadline,
     derive_free_windows,
+    derive_free_windows_for_periods,
+    planning_horizon,
     scheduling_required_minutes,
+    summarize_task_capacity,
     task_fits_window,
+    working_periods_for_horizon,
 )
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
@@ -60,6 +67,14 @@ def _window(hour_start: int, hour_end: int) -> CandidateWindow:
     return CandidateWindow(
         start=day.replace(hour=hour_start),
         end=day.replace(hour=hour_end),
+    )
+
+
+def _window_on(day: int, hour_start: int, hour_end: int) -> CandidateWindow:
+    base = datetime(2099, 1, day, tzinfo=UTC)
+    return CandidateWindow(
+        start=base.replace(hour=hour_start),
+        end=base.replace(hour=hour_end),
     )
 
 
@@ -161,6 +176,344 @@ def test_missing_duration_uses_pomodoro_fallback() -> None:
     task = _task(estimated_duration_minutes=None)
 
     assert scheduling_required_minutes(task, _settings(pomodoro_minutes=25)) == 25
+
+
+def test_planning_horizon_defaults_to_seven_days_from_now() -> None:
+    now = datetime(2099, 1, 1, 10, 15, tzinfo=UTC)
+
+    horizon = planning_horizon(now=now)
+
+    assert horizon == PlanningHorizon(
+        start=now,
+        end=datetime(2099, 1, 8, 10, 15, tzinfo=UTC),
+        days=7,
+    )
+
+
+def test_planning_horizon_rejects_non_positive_days() -> None:
+    now = datetime(2099, 1, 1, 10, tzinfo=UTC)
+
+    try:
+        planning_horizon(now=now, days=0)
+    except ValueError as exc:
+        assert str(exc) == "planning horizon must include at least one day"
+    else:
+        raise AssertionError("expected planning_horizon to reject zero days")
+
+
+def test_working_periods_for_horizon_create_one_period_per_day() -> None:
+    horizon = PlanningHorizon(
+        start=datetime(2099, 1, 1, 8, tzinfo=UTC),
+        end=datetime(2099, 1, 4, 8, tzinfo=UTC),
+        days=3,
+    )
+
+    assert working_periods_for_horizon(
+        horizon=horizon,
+        settings=_settings(),
+    ) == [
+        WorkingPeriod(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 17, tzinfo=UTC),
+        ),
+        WorkingPeriod(
+            start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 2, 17, tzinfo=UTC),
+        ),
+        WorkingPeriod(
+            start=datetime(2099, 1, 3, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 3, 17, tzinfo=UTC),
+        ),
+    ]
+
+
+def test_working_periods_clip_first_day_to_now_inside_work_hours() -> None:
+    horizon = PlanningHorizon(
+        start=datetime(2099, 1, 1, 10, 30, tzinfo=UTC),
+        end=datetime(2099, 1, 2, 12, tzinfo=UTC),
+        days=1,
+    )
+
+    assert working_periods_for_horizon(
+        horizon=horizon,
+        settings=_settings(),
+    )[0] == WorkingPeriod(
+        start=datetime(2099, 1, 1, 10, 30, tzinfo=UTC),
+        end=datetime(2099, 1, 1, 17, tzinfo=UTC),
+    )
+
+
+def test_working_periods_start_at_work_start_before_work_hours() -> None:
+    horizon = PlanningHorizon(
+        start=datetime(2099, 1, 1, 6, tzinfo=UTC),
+        end=datetime(2099, 1, 1, 12, tzinfo=UTC),
+        days=1,
+    )
+
+    assert working_periods_for_horizon(
+        horizon=horizon,
+        settings=_settings(),
+    ) == [
+        WorkingPeriod(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 12, tzinfo=UTC),
+        )
+    ]
+
+
+def test_working_periods_skip_current_day_after_work_end() -> None:
+    horizon = PlanningHorizon(
+        start=datetime(2099, 1, 1, 18, tzinfo=UTC),
+        end=datetime(2099, 1, 2, 12, tzinfo=UTC),
+        days=1,
+    )
+
+    assert working_periods_for_horizon(
+        horizon=horizon,
+        settings=_settings(),
+    ) == [
+        WorkingPeriod(
+            start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 2, 12, tzinfo=UTC),
+        )
+    ]
+
+
+def test_working_periods_clip_final_period_to_horizon_end() -> None:
+    horizon = PlanningHorizon(
+        start=datetime(2099, 1, 1, 8, tzinfo=UTC),
+        end=datetime(2099, 1, 2, 14, 30, tzinfo=UTC),
+        days=1,
+    )
+
+    assert working_periods_for_horizon(
+        horizon=horizon,
+        settings=_settings(),
+    )[-1] == WorkingPeriod(
+        start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+        end=datetime(2099, 1, 2, 14, 30, tzinfo=UTC),
+    )
+
+
+def test_free_windows_for_periods_do_not_merge_across_days() -> None:
+    periods = [
+        WorkingPeriod(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 17, tzinfo=UTC),
+        ),
+        WorkingPeriod(
+            start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 2, 17, tzinfo=UTC),
+        ),
+    ]
+
+    assert derive_free_windows_for_periods(
+        working_periods=periods,
+        occupied_intervals=[],
+    ) == [_window_on(1, 9, 17), _window_on(2, 9, 17)]
+
+
+def test_free_windows_for_periods_respect_future_day_occupancy() -> None:
+    periods = [
+        WorkingPeriod(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 17, tzinfo=UTC),
+        ),
+        WorkingPeriod(
+            start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 2, 17, tzinfo=UTC),
+        ),
+    ]
+    occupied = OccupiedInterval(
+        start=datetime(2099, 1, 2, 10, tzinfo=UTC),
+        end=datetime(2099, 1, 2, 12, tzinfo=UTC),
+        source_id=uuid.uuid4(),
+        source_type="task",
+    )
+
+    assert derive_free_windows_for_periods(
+        working_periods=periods,
+        occupied_intervals=[occupied],
+    ) == [_window_on(1, 9, 17), _window_on(2, 9, 10), _window_on(2, 12, 17)]
+
+
+def test_free_windows_for_periods_merge_overlapping_future_occupancy() -> None:
+    periods = [
+        WorkingPeriod(
+            start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 2, 17, tzinfo=UTC),
+        )
+    ]
+    occupied = [
+        OccupiedInterval(
+            start=datetime(2099, 1, 2, 10, tzinfo=UTC),
+            end=datetime(2099, 1, 2, 11, 30, tzinfo=UTC),
+            source_id=uuid.uuid4(),
+            source_type="task",
+        ),
+        OccupiedInterval(
+            start=datetime(2099, 1, 2, 11, tzinfo=UTC),
+            end=datetime(2099, 1, 2, 12, tzinfo=UTC),
+            source_id=uuid.uuid4(),
+            source_type="task",
+        ),
+    ]
+
+    assert derive_free_windows_for_periods(
+        working_periods=periods,
+        occupied_intervals=occupied,
+    ) == [_window_on(2, 9, 10), _window_on(2, 12, 17)]
+
+
+def test_completed_future_tasks_do_not_create_occupied_intervals() -> None:
+    done = _task(
+        scheduled_start=datetime(2099, 1, 2, 10, tzinfo=UTC),
+        scheduled_end=datetime(2099, 1, 2, 12, tzinfo=UTC),
+        status=TaskStatus.DONE,
+    )
+    periods = [
+        WorkingPeriod(
+            start=datetime(2099, 1, 2, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 2, 17, tzinfo=UTC),
+        )
+    ]
+
+    assert derive_free_windows_for_periods(
+        working_periods=periods,
+        occupied_intervals=scheduling_engine.occupied_intervals_from_tasks([done]),
+    ) == [_window_on(2, 9, 17)]
+
+
+def test_capacity_summary_requires_one_contiguous_window() -> None:
+    task = _task(estimated_duration_minutes=120)
+
+    summary = summarize_task_capacity(
+        task=task,
+        windows=[
+            CandidateWindow(
+                start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+                end=datetime(2099, 1, 1, 10, tzinfo=UTC),
+            ),
+            CandidateWindow(
+                start=datetime(2099, 1, 1, 11, tzinfo=UTC),
+                end=datetime(2099, 1, 1, 12, tzinfo=UTC),
+            ),
+        ],
+        settings=_settings(),
+    )
+
+    assert summary.required_minutes == 120
+    assert summary.total_available_minutes == 120
+    assert summary.largest_window_minutes == 60
+    assert summary.feasible_window_count == 0
+    assert not summary.has_contiguous_capacity
+    assert summary.earliest_feasible_start is None
+    assert summary.latest_feasible_start is None
+
+
+def test_capacity_summary_identifies_contiguous_capacity() -> None:
+    task = _task(estimated_duration_minutes=120)
+
+    summary = summarize_task_capacity(
+        task=task,
+        windows=[
+            CandidateWindow(
+                start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+                end=datetime(2099, 1, 1, 10, tzinfo=UTC),
+            ),
+            CandidateWindow(
+                start=datetime(2099, 1, 2, 13, tzinfo=UTC),
+                end=datetime(2099, 1, 2, 16, tzinfo=UTC),
+            ),
+        ],
+        settings=_settings(),
+    )
+
+    assert summary.required_minutes == 120
+    assert summary.total_available_minutes == 240
+    assert summary.largest_window_minutes == 180
+    assert summary.feasible_window_count == 1
+    assert summary.has_contiguous_capacity
+    assert summary.earliest_feasible_start == datetime(2099, 1, 2, 13, tzinfo=UTC)
+    assert summary.latest_feasible_start == datetime(2099, 1, 2, 14, tzinfo=UTC)
+
+
+def test_deadline_clips_candidate_windows_before_capacity_summary() -> None:
+    task = _task(
+        due_date=datetime(2099, 1, 1, 10, 30, tzinfo=UTC),
+        estimated_duration_minutes=90,
+    )
+    windows = [_window_on(1, 9, 12), _window_on(1, 13, 17)]
+
+    clipped = candidate_windows_before_deadline(task=task, windows=windows)
+    summary = summarize_task_capacity(task=task, windows=windows, settings=_settings())
+
+    assert clipped == [
+        CandidateWindow(
+            start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+            end=datetime(2099, 1, 1, 10, 30, tzinfo=UTC),
+        )
+    ]
+    assert summary.total_available_minutes == 90
+    assert summary.has_contiguous_capacity
+
+
+def test_deadline_excludes_windows_starting_after_deadline() -> None:
+    task = _task(due_date=datetime(2099, 1, 1, 12, tzinfo=UTC))
+
+    assert candidate_windows_before_deadline(
+        task=task,
+        windows=[_window_on(1, 12, 13), _window_on(2, 9, 17)],
+    ) == []
+
+
+def test_no_deadline_uses_all_horizon_windows_for_capacity() -> None:
+    task = _task(estimated_duration_minutes=60)
+
+    summary = summarize_task_capacity(
+        task=task,
+        windows=[_window_on(1, 9, 10), _window_on(2, 9, 10)],
+        settings=_settings(),
+    )
+
+    assert summary.total_available_minutes == 120
+    assert summary.feasible_window_count == 2
+
+
+def test_capacity_summary_uses_pomodoro_for_missing_duration() -> None:
+    task = _task(estimated_duration_minutes=None)
+
+    summary = summarize_task_capacity(
+        task=task,
+        windows=[
+            CandidateWindow(
+                start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+                end=datetime(2099, 1, 1, 9, 25, tzinfo=UTC),
+            )
+        ],
+        settings=_settings(pomodoro_minutes=25),
+    )
+
+    assert summary.required_minutes == 25
+    assert summary.has_contiguous_capacity
+
+
+def test_capacity_summary_keeps_deterministic_earliest_and_largest_metrics() -> None:
+    task = _task(estimated_duration_minutes=30)
+
+    summary = summarize_task_capacity(
+        task=task,
+        windows=[
+            _window_on(2, 13, 17),
+            _window_on(1, 9, 10),
+            _window_on(3, 9, 11),
+        ],
+        settings=_settings(),
+    )
+
+    assert summary.earliest_feasible_start == datetime(2099, 1, 1, 9, tzinfo=UTC)
+    assert summary.latest_feasible_start == datetime(2099, 1, 3, 10, 30, tzinfo=UTC)
+    assert summary.largest_window_minutes == 240
 
 
 def test_long_task_is_not_truncated_to_120_minutes() -> None:
