@@ -249,6 +249,7 @@ def test_dashboard_ai_recommendation_prefers_high_priority_short_tasks(
     assert payload["ai_recommendation"]["task"]["title"] == "High same due short"
     assert payload["ai_recommendation"]["task"]["id"] == str(high_short.id)
     assert payload["ai_recommendation"]["task"]["id"] != str(high_long.id)
+    assert payload["next_best_task"]["task"]["id"] == str(high_short.id)
     assert "High priority" in payload["ai_recommendation"]["reasons"]
     assert any("weight" in item.lower() for item in payload["ai_recommendation"]["based_on"])
     assert payload["ai_recommendation"]["footnote"] == "AI based on your patterns"

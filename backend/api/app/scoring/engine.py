@@ -9,7 +9,7 @@ from app.scoring.criteria import (
     explicit_priority,
     focus_hour_bonus,
 )
-from app.scoring.profiles import LegacySchedulingProfile
+from app.scoring.profiles import SchedulingProfileV1
 from app.scoring.schemas import FactorResult, ScoreBreakdown, ScoredCandidate
 from app.tasks.models import Task
 
@@ -20,7 +20,7 @@ def _clamp01(value: float) -> float:
 
 def score_task(
     task: Task,
-    profile: LegacySchedulingProfile,
+    profile: SchedulingProfileV1,
     *,
     now: datetime,
     preferred_focus_hours: Counter[int],

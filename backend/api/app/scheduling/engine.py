@@ -5,7 +5,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from app.scoring import LegacySchedulingProfile, score_task
+from app.scoring import SchedulingProfileV1, score_task
 from app.scoring.constraints import validate_schedule_candidate
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority
@@ -27,7 +27,7 @@ def rank_open_tasks(
     preferred_focus_hours: Counter[int],
     dismissed_task_ids: set,
 ) -> list[RankedTask]:
-    profile = LegacySchedulingProfile.from_settings(settings)
+    profile = SchedulingProfileV1.from_settings(settings)
     ranked: list[RankedTask] = []
 
     for task in tasks:

@@ -1,5 +1,10 @@
 from app.scoring.engine import score_task
-from app.scoring.profiles import LegacySchedulingProfile
+from app.scoring.profiles import (
+    LegacySchedulingProfile,
+    NextTaskProfileV1,
+    QuickWinProfileV1,
+    SchedulingProfileV1,
+)
 from app.scoring.schemas import (
     ConstraintResult,
     ConstraintValidationResult,
@@ -13,6 +18,9 @@ __all__ = [
     "ConstraintValidationResult",
     "FactorResult",
     "LegacySchedulingProfile",
+    "NextTaskProfileV1",
+    "QuickWinProfileV1",
+    "SchedulingProfileV1",
     "ScoreBreakdown",
     "ScoredCandidate",
     "score_task",
