@@ -11,7 +11,12 @@ from sqlalchemy.orm import Session, selectinload
 from app.ai import AIService, get_ai_service
 from app.dashboard.schemas import DashboardTaskSummary
 from app.focus.models import FocusSession
-from app.scheduling.engine import RankedTask, build_schedule_slots, rank_open_tasks
+from app.scheduling.engine import (
+    RankedTask,
+    build_schedule_slots,
+    free_windows_for_current_state,
+    rank_open_tasks,
+)
 from app.scheduling.gemini_prompt import build_ai_preview_prompt
 from app.scheduling.models import (
     AiRecommendation,
@@ -429,12 +434,20 @@ def generate_plan(
         user_id,
         timezone_name=settings.timezone,
     )
+    active_suggestion_candidates = _active_suggestion_candidates(db, user_id)
+    capacity_windows = free_windows_for_current_state(
+        settings=settings,
+        now=now,
+        existing_tasks=open_tasks,
+        existing_candidates=active_suggestion_candidates,
+    )
     ranked = rank_open_tasks(
         open_tasks,
         settings,
         now=now,
         preferred_focus_hours=preferred_focus_hours,
         dismissed_task_ids=_recently_dismissed_task_ids(db, user_id),
+        capacity_windows=capacity_windows,
     )
 
     invalidate_pending_plan(db, user_id, commit=False)
@@ -467,7 +480,7 @@ def generate_plan(
         settings,
         now=now,
         existing_tasks=open_tasks,
-        existing_candidates=_active_suggestion_candidates(db, user_id),
+        existing_candidates=active_suggestion_candidates,
         preferred_focus_hours=preferred_focus_hours,
     )
     created_suggestions: list[tuple[AiScheduleSuggestion, Task]] = []

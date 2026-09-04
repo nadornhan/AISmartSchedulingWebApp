@@ -1,4 +1,5 @@
 from app.scoring.engine import (
+    calculate_capacity_aware_task_importance,
     calculate_slack_aware_task_importance,
     calculate_task_importance,
     score_task,
@@ -16,6 +17,7 @@ from app.scoring.profiles import (
     SchedulingProfileV4,
     SchedulingProfileV5,
     SchedulingProfileV6,
+    SchedulingProfileV7,
 )
 from app.scoring.schemas import (
     CandidateScoreBreakdown,
@@ -41,9 +43,11 @@ __all__ = [
     "SchedulingProfileV4",
     "SchedulingProfileV5",
     "SchedulingProfileV6",
+    "SchedulingProfileV7",
     "ScoreBreakdown",
     "ScoredCandidate",
     "ScoredWindowCandidate",
+    "calculate_capacity_aware_task_importance",
     "calculate_slack_aware_task_importance",
     "calculate_task_importance",
     "score_task",

@@ -11,6 +11,7 @@ from app.scoring.criteria import (
     explicit_priority,
     focus_hour_bonus,
     focus_slot_fit,
+    scheduling_flexibility_pressure,
     slack_aware_deadline_urgency,
 )
 from app.scoring.profiles import (
@@ -20,6 +21,7 @@ from app.scoring.profiles import (
     SchedulingProfileV4,
     SchedulingProfileV5,
     SchedulingProfileV6,
+    SchedulingProfileV7,
 )
 from app.scoring.schemas import (
     CandidateScoreBreakdown,
@@ -130,6 +132,72 @@ def calculate_slack_aware_task_importance(
     )
 
 
+def calculate_capacity_aware_task_importance(
+    task: Task,
+    profile: SchedulingProfileV7,
+    *,
+    now: datetime,
+    capacity,
+) -> ScoredCandidate:
+    slack_score, slack_reason, slack_metadata = slack_aware_deadline_urgency(
+        due_date=task.due_date,
+        now=now,
+        required_minutes=capacity.required_minutes,
+    )
+    pressure_score, pressure_reason, pressure_metadata = scheduling_flexibility_pressure(
+        due_date=task.due_date,
+        now=now,
+        capacity=capacity,
+    )
+    deadline_score = max(slack_score, pressure_score)
+    deadline_reason = pressure_reason if pressure_score > slack_score else slack_reason
+    deadline_metadata = {
+        "model": "capacity-aware-deadline-pressure",
+        "deadline_pressure": round(deadline_score, 4),
+        "wall_clock_slack_urgency": round(slack_score, 4),
+        "scheduling_flexibility_pressure": round(pressure_score, 4),
+        "wall_clock_slack": slack_metadata,
+        "scheduling_flexibility": pressure_metadata,
+    }
+
+    priority_score, priority_reason = explicit_priority(task.priority)
+    scores = {
+        "deadline_urgency": (deadline_score, deadline_reason, deadline_metadata),
+        "priority": (priority_score, priority_reason, None),
+    }
+    factors = tuple(
+        FactorResult(
+            name=name,
+            score=scores[name][0],
+            weight=weight,
+            reason=scores[name][1],
+            metadata=scores[name][2],
+        )
+        for name, weight in profile.factor_weights().items()
+    )
+
+    active_weight_sum = sum(factor.weight for factor in factors)
+    if active_weight_sum <= 0:
+        weighted = 0.0
+    else:
+        weighted = (
+            sum(factor.score * factor.weight for factor in factors) / active_weight_sum
+        )
+
+    return ScoredCandidate(
+        candidate=task,
+        score=round(_clamp01(weighted), 4),
+        breakdown=ScoreBreakdown(
+            profile_name=profile.profile_name,
+            scoring_version=profile.scoring_version,
+            factors=factors,
+            weighted_score=weighted,
+            focus_bonus=0.0,
+            final_score=round(_clamp01(weighted), 4),
+        ),
+    )
+
+
 def score_task(
     task: Task,
     profile: SchedulingProfileV1 | SchedulingProfileV2,
@@ -192,7 +260,11 @@ def score_task(
 def score_window_candidate(
     candidate: Any,
     profile: (
-        SchedulingProfileV3 | SchedulingProfileV4 | SchedulingProfileV5 | SchedulingProfileV6
+        SchedulingProfileV3
+        | SchedulingProfileV4
+        | SchedulingProfileV5
+        | SchedulingProfileV6
+        | SchedulingProfileV7
     ),
     *,
     task_importance_score: float,
@@ -209,7 +281,10 @@ def score_window_candidate(
             preferred_focus_hours or Counter(),
             candidate_hour=candidate_hour,
         )
-        if isinstance(profile, SchedulingProfileV4 | SchedulingProfileV5 | SchedulingProfileV6)
+        if isinstance(
+            profile,
+            SchedulingProfileV4 | SchedulingProfileV5 | SchedulingProfileV6 | SchedulingProfileV7,
+        )
         else (0.0, None, None)
     )
 

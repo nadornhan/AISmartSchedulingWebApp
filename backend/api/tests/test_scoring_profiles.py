@@ -2,7 +2,11 @@ import uuid
 from collections import Counter
 from datetime import UTC, datetime, timedelta
 
-from app.scheduling.windows import CandidateWindow, build_task_window_candidate
+from app.scheduling.windows import (
+    CandidateWindow,
+    TaskCapacitySummary,
+    build_task_window_candidate,
+)
 from app.scoring import (
     NextTaskProfileV1,
     QuickWinProfileV1,
@@ -12,6 +16,8 @@ from app.scoring import (
     SchedulingProfileV4,
     SchedulingProfileV5,
     SchedulingProfileV6,
+    SchedulingProfileV7,
+    calculate_capacity_aware_task_importance,
     calculate_slack_aware_task_importance,
     calculate_task_importance,
     score_window_candidate,
@@ -21,6 +27,7 @@ from app.scoring import (
 from app.scoring.criteria import (
     duration_slot_fit,
     focus_slot_fit,
+    scheduling_flexibility_pressure,
     slack_aware_deadline_urgency,
 )
 from app.scoring.engine import score_task
@@ -55,6 +62,28 @@ def _settings() -> UserSettings:
     )
 
 
+def _capacity(
+    *,
+    task_id: uuid.UUID | None = None,
+    required_minutes: int = 60,
+    total_available_minutes: int = 60,
+    largest_window_minutes: int = 60,
+    feasible_window_count: int = 1,
+    earliest_feasible_start: datetime | None = None,
+    latest_feasible_start: datetime | None = None,
+) -> TaskCapacitySummary:
+    return TaskCapacitySummary(
+        task_id=task_id or uuid.uuid4(),
+        required_minutes=required_minutes,
+        total_available_minutes=total_available_minutes,
+        largest_window_minutes=largest_window_minutes,
+        feasible_window_count=feasible_window_count,
+        has_contiguous_capacity=feasible_window_count > 0,
+        earliest_feasible_start=earliest_feasible_start,
+        latest_feasible_start=latest_feasible_start,
+    )
+
+
 def test_profile_identity_metadata_is_available_without_persistence() -> None:
     scheduling = SchedulingProfileV1.from_settings(_settings())
     scheduling_v2 = SchedulingProfileV2.from_settings(_settings())
@@ -74,6 +103,19 @@ def test_profile_identity_metadata_is_available_without_persistence() -> None:
     assert next_task.scoring_version == "v1"
     assert quick_win.profile_name == "quick_win"
     assert quick_win.scoring_version == "v1"
+
+
+def test_scheduling_v7_profile_identity_metadata_is_available() -> None:
+    profile = SchedulingProfileV7.from_settings(_settings())
+
+    assert profile.profile_name == "scheduling"
+    assert profile.scoring_version == "v7"
+    assert profile.task_importance_profile_name == "scheduling"
+    assert profile.task_importance_scoring_version == "v7"
+    assert profile.factor_weights() == {
+        "deadline_urgency": 0.8,
+        "priority": 0.7,
+    }
 
 
 def test_next_task_profile_prefers_due_today_candidate() -> None:
@@ -598,6 +640,140 @@ def test_slack_aware_task_importance_respects_active_weight_controls() -> None:
     assert deadline_only_urgent.score > deadline_only_relaxed.score
     assert priority_only_relaxed.score > priority_only_urgent.score
     assert zero_weighted.score == 0.0
+
+
+def test_scheduling_flexibility_pressure_uses_latest_feasible_start() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    early_only = _capacity(
+        earliest_feasible_start=now + timedelta(hours=2),
+        latest_feasible_start=now + timedelta(hours=2),
+    )
+    late_option = _capacity(
+        earliest_feasible_start=now + timedelta(hours=2),
+        latest_feasible_start=now + timedelta(days=2),
+    )
+
+    early_pressure, early_reason, early_metadata = scheduling_flexibility_pressure(
+        due_date=now + timedelta(days=3),
+        now=now,
+        capacity=early_only,
+    )
+    late_pressure = scheduling_flexibility_pressure(
+        due_date=now + timedelta(days=3),
+        now=now,
+        capacity=late_option,
+    )[0]
+
+    assert early_pressure > late_pressure
+    assert early_reason == "Scheduling flexibility pressure"
+    assert early_metadata["flexibility_minutes"] == 120
+
+
+def test_scheduling_flexibility_pressure_no_contiguous_window_is_maximum() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    fragmented = _capacity(
+        required_minutes=120,
+        total_available_minutes=120,
+        largest_window_minutes=60,
+        feasible_window_count=0,
+    )
+
+    pressure, reason, metadata = scheduling_flexibility_pressure(
+        due_date=now + timedelta(days=1),
+        now=now,
+        capacity=fragmented,
+    )
+
+    assert pressure == 1.0
+    assert reason == "No feasible contiguous window before deadline"
+    assert metadata["total_available_minutes"] == 120
+    assert metadata["has_contiguous_capacity"] is False
+
+
+def test_scheduling_flexibility_pressure_without_deadline_stays_low() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+
+    pressure, reason, metadata = scheduling_flexibility_pressure(
+        due_date=None,
+        now=now,
+        capacity=_capacity(latest_feasible_start=now),
+    )
+
+    assert pressure == 0.15
+    assert reason is None
+    assert metadata["model"] == "scheduling-flexibility"
+
+
+def test_capacity_aware_importance_uses_max_deadline_pressure() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    profile = SchedulingProfileV7.from_settings(
+        UserSettings(
+            ai_deadline_urgency_weight=100,
+            ai_priority_weight=0,
+            ai_estimated_duration_weight=100,
+        )
+    )
+    urgent_wall_clock = _task(
+        due_date=now + timedelta(hours=2),
+        estimated_duration_minutes=60,
+    )
+    scarce_calendar = _task(
+        due_date=now + timedelta(days=3),
+        estimated_duration_minutes=60,
+    )
+
+    urgent_score = calculate_capacity_aware_task_importance(
+        urgent_wall_clock,
+        profile,
+        now=now,
+        capacity=_capacity(
+            required_minutes=60,
+            latest_feasible_start=now + timedelta(days=2),
+        ),
+    )
+    scarce_score = calculate_capacity_aware_task_importance(
+        scarce_calendar,
+        profile,
+        now=now,
+        capacity=_capacity(
+            required_minutes=60,
+            latest_feasible_start=now + timedelta(hours=2),
+        ),
+    )
+
+    assert urgent_score.score == 0.9917
+    assert scarce_score.score == 0.9833
+    assert urgent_score.breakdown.scoring_version == "v7"
+    assert scarce_score.breakdown.factors[0].metadata is not None
+    assert (
+        scarce_score.breakdown.factors[0].metadata[
+            "scheduling_flexibility_pressure"
+        ]
+        > scarce_score.breakdown.factors[0].metadata["wall_clock_slack_urgency"]
+    )
+
+
+def test_capacity_aware_importance_respects_active_weight_controls() -> None:
+    now = datetime(2026, 1, 1, 9, tzinfo=UTC)
+    zero_profile = SchedulingProfileV7.from_settings(
+        UserSettings(
+            ai_deadline_urgency_weight=0,
+            ai_priority_weight=0,
+            ai_estimated_duration_weight=100,
+        )
+    )
+
+    scored = calculate_capacity_aware_task_importance(
+        _task(
+            priority=TaskPriority.HIGH,
+            due_date=now + timedelta(hours=1),
+        ),
+        zero_profile,
+        now=now,
+        capacity=_capacity(latest_feasible_start=now),
+    )
+
+    assert scored.score == 0.0
 
 
 def test_focus_slot_fit_no_history_is_neutral() -> None:

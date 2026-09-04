@@ -21,6 +21,7 @@ from app.scheduling.windows import (
     work_window_for_day,
     working_periods_for_horizon,
 )
+from app.scoring.criteria import scheduling_flexibility_pressure
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
 
@@ -31,14 +32,16 @@ def _settings(
     work_end: time = time(17, 0),
     pomodoro_minutes: int = 25,
     timezone: str = "UTC",
+    deadline_weight: int = 80,
+    priority_weight: int = 70,
 ) -> UserSettings:
     return UserSettings(
         work_start=work_start,
         work_end=work_end,
         timezone=timezone,
         pomodoro_minutes=pomodoro_minutes,
-        ai_deadline_urgency_weight=80,
-        ai_priority_weight=70,
+        ai_deadline_urgency_weight=deadline_weight,
+        ai_priority_weight=priority_weight,
         ai_estimated_duration_weight=50,
     )
 
@@ -231,6 +234,53 @@ def test_work_window_for_day_keeps_sydney_nine_am_across_dst_transition() -> Non
     assert before_dst.start.utcoffset() == UTC.utcoffset(before_dst.start)
     assert after_dst.start < after_dst.end
     assert before_dst.start.hour != after_dst.start.hour
+
+
+def test_v7_capacity_pressure_preserves_sydney_work_hours_across_dst() -> None:
+    settings = _settings(timezone="Australia/Sydney")
+    timezone = ZoneInfo("Australia/Sydney")
+    horizon = PlanningHorizon(
+        start=datetime(2026, 10, 2, 22, tzinfo=UTC),
+        end=datetime(2026, 10, 5, 8, tzinfo=UTC),
+        days=2,
+    )
+    periods = working_periods_for_horizon(
+        horizon=horizon,
+        settings=settings,
+        timezone_name=settings.timezone,
+    )
+    windows = [period.as_window for period in periods]
+    task = _task(
+        due_date=datetime(2026, 10, 5, 17, tzinfo=timezone),
+        estimated_duration_minutes=60,
+    )
+
+    summary = summarize_task_capacity(
+        task=task,
+        windows=windows,
+        settings=settings,
+    )
+    pressure, _reason, metadata = scheduling_flexibility_pressure(
+        due_date=task.due_date,
+        now=horizon.start,
+        capacity=summary,
+    )
+
+    assert [period.start.astimezone(timezone).time() for period in periods] == [
+        time(9, 0),
+        time(9, 0),
+        time(9, 0),
+    ]
+    assert summary.latest_feasible_start is not None
+    assert summary.latest_feasible_start.astimezone(timezone) == datetime(
+        2026,
+        10,
+        5,
+        16,
+        tzinfo=timezone,
+    )
+    assert pressure < 1.0
+    assert metadata["latest_feasible_start"] == summary.latest_feasible_start.isoformat()
 
 
 def test_production_schedule_uses_user_local_work_start() -> None:
@@ -774,7 +824,7 @@ def test_same_task_same_duration_fit_prefers_focus_slot_in_allocation() -> None:
     )
 
 
-def test_build_schedule_slots_uses_scheduling_v6_for_candidate_placement(
+def test_build_schedule_slots_uses_scheduling_v7_for_candidate_placement(
     monkeypatch,
 ) -> None:
     seen_versions: list[str] = []
@@ -802,7 +852,7 @@ def test_build_schedule_slots_uses_scheduling_v6_for_candidate_placement(
 
     assert slots
     assert seen_versions
-    assert set(seen_versions) == {"v6"}
+    assert set(seen_versions) == {"v7"}
 
 
 def test_today_full_tomorrow_free_gets_tomorrow_suggestion() -> None:
@@ -1013,7 +1063,7 @@ def test_fragmented_free_windows_across_days_do_not_satisfy_long_task() -> None:
 
 def test_multiple_tasks_can_be_placed_across_days_without_overlap() -> None:
     now = datetime(2099, 1, 1, 8, tzinfo=UTC)
-    first = _task(estimated_duration_minutes=480)
+    first = _task(priority=TaskPriority.HIGH, estimated_duration_minutes=480)
     second = _task(estimated_duration_minutes=480)
 
     slots = build_schedule_slots(
@@ -1042,7 +1092,11 @@ def test_multiple_tasks_can_be_placed_across_days_without_overlap() -> None:
 
 def test_higher_importance_tomorrow_task_and_today_task_both_get_suggestions() -> None:
     now = datetime(2099, 1, 1, 8, tzinfo=UTC)
-    high_tomorrow = _task(estimated_duration_minutes=480)
+    high_tomorrow = _task(
+        priority=TaskPriority.HIGH,
+        due_date=datetime(2099, 1, 2, 17, tzinfo=UTC),
+        estimated_duration_minutes=480,
+    )
     low_today = _task(estimated_duration_minutes=60)
 
     slots = build_schedule_slots(
@@ -1150,7 +1204,10 @@ def test_tighter_fit_preserves_large_block_for_long_task() -> None:
 
 def test_multiple_tasks_can_consume_one_large_window_sequentially() -> None:
     now = datetime(2099, 1, 1, 8, tzinfo=UTC)
-    first = _task(estimated_duration_minutes=60)
+    first = _task(
+        priority=TaskPriority.HIGH,
+        estimated_duration_minutes=60,
+    )
     second = _task(estimated_duration_minutes=90)
 
     slots = build_schedule_slots(
@@ -1202,3 +1259,93 @@ def test_task_window_candidate_represents_entire_required_duration() -> None:
     assert candidate.required_minutes == 90
     assert candidate.proposed_start == datetime(2099, 1, 1, 9, tzinfo=UTC)
     assert candidate.proposed_end == datetime(2099, 1, 1, 10, 30, tzinfo=UTC)
+
+
+def test_deadline_clipped_capacity_uses_latest_start_inside_clipped_window() -> None:
+    task = _task(
+        due_date=datetime(2099, 1, 1, 16, tzinfo=UTC),
+        estimated_duration_minutes=60,
+    )
+
+    summary = summarize_task_capacity(
+        task=task,
+        windows=[
+            CandidateWindow(
+                start=datetime(2099, 1, 1, 14, tzinfo=UTC),
+                end=datetime(2099, 1, 1, 18, tzinfo=UTC),
+            )
+        ],
+        settings=_settings(),
+    )
+
+    assert summary.total_available_minutes == 120
+    assert summary.latest_feasible_start == datetime(2099, 1, 1, 15, tzinfo=UTC)
+
+
+def test_capacity_summary_large_window_latest_start_is_end_minus_duration() -> None:
+    task = _task(estimated_duration_minutes=60)
+
+    summary = summarize_task_capacity(
+        task=task,
+        windows=[_window(9, 17)],
+        settings=_settings(),
+    )
+
+    assert summary.earliest_feasible_start == datetime(2099, 1, 1, 9, tzinfo=UTC)
+    assert summary.latest_feasible_start == datetime(2099, 1, 1, 16, tzinfo=UTC)
+
+
+def test_build_schedule_slots_recomputes_v7_capacity_after_allocation(
+    monkeypatch,
+) -> None:
+    seen_latest_starts: dict[uuid.UUID, list[str | None]] = {}
+    original = scheduling_engine.calculate_capacity_aware_task_importance
+
+    def spy_calculate_capacity_aware_task_importance(task, profile, **kwargs):
+        scored = original(task, profile, **kwargs)
+        factor = scored.breakdown.factors[0]
+        assert factor.metadata is not None
+        flexibility = factor.metadata["scheduling_flexibility"]
+        assert isinstance(flexibility, dict)
+        seen_latest_starts.setdefault(task.id, []).append(
+            flexibility["latest_feasible_start"]
+        )
+        return scored
+
+    monkeypatch.setattr(
+        scheduling_engine,
+        "calculate_capacity_aware_task_importance",
+        spy_calculate_capacity_aware_task_importance,
+    )
+
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    first = _task(
+        priority=TaskPriority.HIGH,
+        due_date=datetime(2099, 1, 1, 17, tzinfo=UTC),
+        estimated_duration_minutes=120,
+    )
+    second = _task(
+        priority=TaskPriority.NO_PRIORITY,
+        due_date=datetime(2099, 1, 1, 17, tzinfo=UTC),
+        estimated_duration_minutes=60,
+    )
+    blocker = _blocking_task(1, 12, 15)
+
+    slots = build_schedule_slots(
+        [
+            RankedTask(first, 1.0, [], []),
+            RankedTask(second, 0.5, [], []),
+        ],
+        _settings(deadline_weight=0, priority_weight=100),
+        now=now,
+        existing_tasks=[first, second, blocker],
+    )
+
+    assert [(task.id, start) for task, start, _end, _explanation in slots] == [
+        (first.id, datetime(2099, 1, 1, 15, tzinfo=UTC)),
+        (second.id, datetime(2099, 1, 1, 9, tzinfo=UTC)),
+    ]
+    assert seen_latest_starts[second.id] == [
+        "2099-01-01T16:00:00+00:00",
+        "2099-01-01T11:00:00+00:00",
+    ]

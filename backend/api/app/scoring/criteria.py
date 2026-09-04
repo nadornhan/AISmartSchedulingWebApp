@@ -48,6 +48,22 @@ SLACK_URGENCY_ANCHORS: tuple[tuple[int, float], ...] = (
 )
 
 
+def _interpolate_pressure(
+    *,
+    minutes: float,
+    anchors: tuple[tuple[int, float], ...],
+) -> float:
+    if minutes <= anchors[0][0]:
+        return anchors[0][1]
+
+    for (left_minutes, left_score), (right_minutes, right_score) in pairwise(anchors):
+        if minutes <= right_minutes:
+            ratio = (minutes - left_minutes) / (right_minutes - left_minutes)
+            return left_score + ratio * (right_score - left_score)
+
+    return anchors[-1][1]
+
+
 def slack_aware_deadline_urgency(
     *,
     due_date: datetime | None,
@@ -79,15 +95,70 @@ def slack_aware_deadline_urgency(
     if time_until_deadline <= 0 or slack_minutes <= 0:
         return 1.0, "No deadline slack remaining", metadata
 
-    for (left_minutes, left_score), (right_minutes, right_score) in pairwise(
-        SLACK_URGENCY_ANCHORS
-    ):
-        if slack_minutes <= right_minutes:
-            ratio = (slack_minutes - left_minutes) / (right_minutes - left_minutes)
-            score = left_score + ratio * (right_score - left_score)
-            return max(0.0, min(1.0, score)), "Slack-aware deadline urgency", metadata
+    score = _interpolate_pressure(
+        minutes=slack_minutes,
+        anchors=SLACK_URGENCY_ANCHORS,
+    )
+    reason = (
+        "Large deadline slack"
+        if slack_minutes >= SLACK_URGENCY_ANCHORS[-1][0]
+        else "Slack-aware deadline urgency"
+    )
+    return max(0.0, min(1.0, score)), reason, metadata
 
-    return 0.25, "Large deadline slack", metadata
+
+def scheduling_flexibility_pressure(
+    *,
+    due_date: datetime | None,
+    now: datetime,
+    capacity,
+) -> tuple[float, str | None, dict[str, float | int | str | None | bool]]:
+    largest_window_slack = capacity.largest_window_minutes - capacity.required_minutes
+    metadata: dict[str, float | int | str | None | bool] = {
+        "model": "scheduling-flexibility",
+        "required_minutes": capacity.required_minutes,
+        "total_available_minutes": capacity.total_available_minutes,
+        "largest_window_minutes": capacity.largest_window_minutes,
+        "largest_window_slack_minutes": largest_window_slack,
+        "feasible_window_count": capacity.feasible_window_count,
+        "has_contiguous_capacity": capacity.has_contiguous_capacity,
+        "earliest_feasible_start": (
+            capacity.earliest_feasible_start.isoformat()
+            if capacity.earliest_feasible_start
+            else None
+        ),
+        "latest_feasible_start": (
+            capacity.latest_feasible_start.isoformat()
+            if capacity.latest_feasible_start
+            else None
+        ),
+        "flexibility_minutes": None,
+    }
+
+    if due_date is None:
+        return 0.15, None, metadata
+
+    if not capacity.has_contiguous_capacity or capacity.latest_feasible_start is None:
+        return 1.0, "No feasible contiguous window before deadline", metadata
+
+    flexibility_minutes = (
+        capacity.latest_feasible_start - now.astimezone(UTC)
+    ).total_seconds() / 60
+    metadata["flexibility_minutes"] = round(flexibility_minutes, 2)
+
+    if flexibility_minutes <= 0:
+        return 1.0, "No scheduling flexibility remaining", metadata
+
+    score = _interpolate_pressure(
+        minutes=flexibility_minutes,
+        anchors=SLACK_URGENCY_ANCHORS,
+    )
+    reason = (
+        "Large scheduling flexibility"
+        if flexibility_minutes >= SLACK_URGENCY_ANCHORS[-1][0]
+        else "Scheduling flexibility pressure"
+    )
+    return max(0.0, min(1.0, score)), reason, metadata
 
 
 def explicit_priority(priority: TaskPriority) -> tuple[float, str | None]:

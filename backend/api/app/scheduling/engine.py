@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from app.scheduling.windows import (
+    CandidateWindow,
     allocate_from_window,
     build_task_window_candidate,
     candidate_windows_before_deadline,
@@ -14,11 +15,13 @@ from app.scheduling.windows import (
     occupied_intervals_from_tasks,
     planning_horizon,
     scheduling_required_minutes,
+    summarize_task_capacity,
     working_periods_for_horizon,
 )
 from app.scoring import (
     SchedulingProfileV5,
-    SchedulingProfileV6,
+    SchedulingProfileV7,
+    calculate_capacity_aware_task_importance,
     calculate_slack_aware_task_importance,
     score_window_candidate,
     window_candidate_sort_key_v6,
@@ -44,6 +47,29 @@ def _snapped_horizon_start(now: datetime) -> datetime:
     return snapped + timedelta(minutes=extra)
 
 
+def free_windows_for_current_state(
+    *,
+    settings: UserSettings,
+    now: datetime,
+    existing_tasks: list[Task] | None = None,
+    existing_candidates: list[tuple[uuid.UUID, datetime, datetime]] | None = None,
+) -> list[CandidateWindow]:
+    horizon = planning_horizon(now=_snapped_horizon_start(now))
+    working_periods = working_periods_for_horizon(
+        horizon=horizon,
+        settings=settings,
+        timezone_name=settings.timezone,
+    )
+    occupied_intervals = [
+        *occupied_intervals_from_tasks(existing_tasks or []),
+        *occupied_intervals_from_candidates(existing_candidates or []),
+    ]
+    return derive_free_windows_for_periods(
+        working_periods=working_periods,
+        occupied_intervals=occupied_intervals,
+    )
+
+
 def rank_open_tasks(
     tasks: list[Task],
     settings: UserSettings,
@@ -51,20 +77,37 @@ def rank_open_tasks(
     now: datetime,
     preferred_focus_hours: Counter[int],
     dismissed_task_ids: set,
+    capacity_windows: list[CandidateWindow] | None = None,
 ) -> list[RankedTask]:
-    profile = SchedulingProfileV5.from_settings(settings)
+    profile = (
+        SchedulingProfileV7.from_settings(settings)
+        if capacity_windows is not None
+        else SchedulingProfileV5.from_settings(settings)
+    )
     ranked: list[RankedTask] = []
 
     for task in tasks:
         if task.id in dismissed_task_ids:
             continue
 
-        scored = calculate_slack_aware_task_importance(
-            task,
-            profile,
-            now=now,
-            required_minutes=scheduling_required_minutes(task, settings),
-        )
+        if capacity_windows is None:
+            scored = calculate_slack_aware_task_importance(
+                task,
+                profile,
+                now=now,
+                required_minutes=scheduling_required_minutes(task, settings),
+            )
+        else:
+            scored = calculate_capacity_aware_task_importance(
+                task,
+                profile,
+                now=now,
+                capacity=summarize_task_capacity(
+                    task=task,
+                    windows=capacity_windows,
+                    settings=settings,
+                ),
+            )
         factors_by_name = {factor.name: factor for factor in scored.breakdown.factors}
 
         reasons: list[str] = []
@@ -118,24 +161,16 @@ def build_schedule_slots(
         return []
 
     blockers = existing_tasks or []
-    horizon = planning_horizon(now=_snapped_horizon_start(now))
-    working_periods = working_periods_for_horizon(
-        horizon=horizon,
-        settings=settings,
-        timezone_name=settings.timezone,
-    )
 
     slots: list[tuple[Task, datetime, datetime, str]] = []
     accepted_candidates: list[tuple[uuid.UUID, datetime, datetime]] = list(
         existing_candidates or []
     )
-    occupied_intervals = [
-        *occupied_intervals_from_tasks(blockers),
-        *occupied_intervals_from_candidates(accepted_candidates),
-    ]
-    free_windows = derive_free_windows_for_periods(
-        working_periods=working_periods,
-        occupied_intervals=occupied_intervals,
+    free_windows = free_windows_for_current_state(
+        settings=settings,
+        now=now,
+        existing_tasks=blockers,
+        existing_candidates=accepted_candidates,
     )
 
     remaining_ranked = [
@@ -146,7 +181,7 @@ def build_schedule_slots(
             and item.task.scheduled_end is not None
         )
     ]
-    placement_profile = SchedulingProfileV6.from_settings(settings)
+    placement_profile = SchedulingProfileV7.from_settings(settings)
     focus_hours = preferred_focus_hours or Counter()
 
     while remaining_ranked:
@@ -157,6 +192,17 @@ def build_schedule_slots(
 
         scored_candidates = []
         for item in remaining_ranked:
+            capacity = summarize_task_capacity(
+                task=item.task,
+                windows=free_windows,
+                settings=settings,
+            )
+            importance = calculate_capacity_aware_task_importance(
+                item.task,
+                placement_profile,
+                now=now,
+                capacity=capacity,
+            )
             task_windows = candidate_windows_before_deadline(
                 task=item.task,
                 windows=free_windows,
@@ -186,7 +232,7 @@ def build_schedule_slots(
                     score_window_candidate(
                         candidate,
                         placement_profile,
-                        task_importance_score=item.score,
+                        task_importance_score=importance.score,
                         preferred_focus_hours=focus_hours,
                         timezone_name=settings.timezone,
                     )
