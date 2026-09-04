@@ -16,6 +16,7 @@ from app.dashboard.schemas import (
 )
 from app.gamification import service as gamification_service
 from app.scheduling import service as scheduling_service
+from app.scoring import NextTaskProfileV1, QuickWinProfileV1
 from app.tasks.models import Task, TaskPriority, TaskStatus
 from app.tasks.overdue import is_task_overdue, task_overdue_condition, utc_now
 from app.tasks.schemas import TaskDisplayStatus
@@ -23,13 +24,6 @@ from app.tasks.schemas import TaskDisplayStatus
 QUICK_WINS_LIMIT = 5
 WEEKLY_ACTIVITY_DAYS = 7
 DAILY_FOCUS_GOAL_MINUTES = 360
-
-PRIORITY_RANK = {
-    TaskPriority.HIGH: 0,
-    TaskPriority.MEDIUM: 1,
-    TaskPriority.LOW: 2,
-    TaskPriority.NO_PRIORITY: 3,
-}
 
 
 def _progress_percent(completed: int, total: int) -> int | None:
@@ -47,13 +41,6 @@ def _day_bounds(day: date) -> tuple[datetime, datetime]:
     start = datetime.combine(day, datetime.min.time(), tzinfo=UTC)
     end = start + timedelta(days=1)
     return start, end
-
-
-def _is_between(value: datetime | None, start: datetime, end: datetime) -> bool:
-    if value is None:
-        return False
-
-    return start <= value.astimezone(UTC) < end
 
 
 def _open_tasks(db: Session, user_id: uuid.UUID) -> list[Task]:
@@ -97,56 +84,6 @@ def _task_summary(task: Task, *, now: datetime) -> DashboardTaskSummary:
         subtask_progress=task.subtask_progress,
         is_overdue=overdue,
     )
-
-
-def _due_sort_value(task: Task) -> datetime:
-    return task.due_date or datetime.max.replace(tzinfo=UTC)
-
-
-def _next_best_sort_key(task: Task, *, now: datetime) -> tuple:
-    today_start, today_end = _day_bounds(now.date())
-    due_today = _is_between(task.due_date, today_start, today_end)
-
-    return (
-        not due_today,
-        task.estimated_duration_minutes or 999999,
-        PRIORITY_RANK[task.priority],
-        _due_sort_value(task),
-        str(task.id),
-    )
-
-
-def _quick_win_sort_key(task: Task) -> tuple:
-    return (
-        _due_sort_value(task),
-        PRIORITY_RANK[task.priority],
-        task.estimated_duration_minutes or 999999,
-        str(task.id),
-    )
-
-
-def _next_best_reasons(task: Task, *, now: datetime) -> list[str]:
-    reasons: list[str] = []
-
-    today_start, today_end = _day_bounds(now.date())
-
-    if _is_between(task.due_date, today_start, today_end):
-        reasons.append("Due today")
-    elif is_task_overdue(status=task.status, due_date=task.due_date, now=now):
-        reasons.append("Overdue")
-    elif task.due_date is not None:
-        reasons.append("Due soon")
-
-    if task.priority == TaskPriority.HIGH:
-        reasons.append("High priority")
-
-    if (
-        task.estimated_duration_minutes is not None
-        and task.estimated_duration_minutes <= 10
-    ):
-        reasons.append("Short estimated duration")
-
-    return reasons
 
 
 def _today_progress(
@@ -355,6 +292,8 @@ def get_dashboard_summary(
     )
 
     open_tasks = _open_tasks(db, user_id)
+    next_task_profile = NextTaskProfileV1()
+    quick_win_profile = QuickWinProfileV1()
     ai_recommendation_response = scheduling_service.get_dashboard_recommendation(
         db,
         user_id,
@@ -384,20 +323,8 @@ def get_dashboard_summary(
             None,
         )
     if next_task is None:
-        next_task = min(
-            open_tasks,
-            key=lambda task: _next_best_sort_key(task, now=now),
-            default=None,
-        )
-    quick_wins = sorted(
-        (
-            task
-            for task in open_tasks
-            if task.estimated_duration_minutes is not None
-            and task.estimated_duration_minutes <= 10
-        ),
-        key=_quick_win_sort_key,
-    )[:QUICK_WINS_LIMIT]
+        next_task = next_task_profile.select(open_tasks, now=now)
+    quick_wins = quick_win_profile.select(open_tasks, limit=QUICK_WINS_LIMIT)
 
     status_order = case(
         (Task.priority == TaskPriority.HIGH, 0),
@@ -440,7 +367,7 @@ def get_dashboard_summary(
                     "Fallback ranking from your open tasks while AI preferences "
                     "are unavailable."
                 ),
-                reasons=_next_best_reasons(next_task, now=now),
+                reasons=next_task_profile.reasons(next_task, now=now),
                 based_on=["Open tasks", "Due dates", "Priority"],
                 score=0,
             )
@@ -450,7 +377,7 @@ def get_dashboard_summary(
         next_best_task=(
             NextBestTask(
                 task=_task_summary(next_task, now=now),
-                reasons=_next_best_reasons(next_task, now=now),
+                reasons=next_task_profile.reasons(next_task, now=now),
             )
             if next_task is not None
             else None

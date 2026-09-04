@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from collections import Counter
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 from sqlalchemy import select
@@ -11,7 +11,14 @@ from sqlalchemy.orm import Session, selectinload
 from app.ai import AIService, get_ai_service
 from app.dashboard.schemas import DashboardTaskSummary
 from app.focus.models import FocusSession
-from app.scheduling.engine import RankedTask, build_schedule_slots, rank_open_tasks
+from app.scheduling.engine import (
+    RankedTask,
+    build_schedule_result,
+    free_windows_for_current_state,
+    planning_horizon_for_scheduling,
+    rank_open_tasks,
+    scheduling_issues_for_final_state,
+)
 from app.scheduling.gemini_prompt import build_ai_preview_prompt
 from app.scheduling.models import (
     AiRecommendation,
@@ -29,15 +36,19 @@ from app.scheduling.schemas import (
     GeminiSchedulePreview,
     ScheduleAdjustRequest,
     ScheduleSuggestionResponse,
+    SchedulingIssueResponse,
     SchedulingPlanResponse,
 )
 from app.scheduling.validation import validate_ai_preview_schedule
+from app.scheduling.windows import scheduling_required_minutes
+from app.scoring.constraints import normalize_schedule_datetime, validate_schedule_candidate
 from app.settings import service as settings_service
 from app.settings.models import UserSettings
 from app.tasks import service as task_service
 from app.tasks.models import Task, TaskStatus
 from app.tasks.overdue import is_task_overdue, utc_now
 from app.tasks.schemas import TaskDisplayStatus, TaskUpdate
+from app.timezones import local_hour
 
 
 def _preview_settings(db: Session, user_id: uuid.UUID):
@@ -48,6 +59,7 @@ def _preview_settings(db: Session, user_id: uuid.UUID):
     return SimpleNamespace(
         work_start=settings_service.DEFAULT_WORK_START,
         work_end=settings_service.DEFAULT_WORK_END,
+        timezone=settings_service.DEFAULT_TIMEZONE,
         pomodoro_minutes=25,
         ai_assistant_enabled=True,
         ai_deadline_urgency_weight=80,
@@ -143,6 +155,7 @@ def _weights_snapshot(settings) -> AiWeightsSnapshot:
         ai_assistant_enabled=settings.ai_assistant_enabled,
         work_start=settings.work_start.strftime("%H:%M"),
         work_end=settings.work_end.strftime("%H:%M"),
+        timezone=settings.timezone,
         pomodoro_minutes=settings.pomodoro_minutes,
     )
 
@@ -163,7 +176,12 @@ def _open_tasks(db: Session, user_id: uuid.UUID) -> list[Task]:
     )
 
 
-def _preferred_focus_hours(db: Session, user_id: uuid.UUID) -> Counter[int]:
+def _preferred_focus_hours(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    timezone_name: str,
+) -> Counter[int]:
     sessions = list(
         db.scalars(
             select(FocusSession).where(
@@ -174,7 +192,10 @@ def _preferred_focus_hours(db: Session, user_id: uuid.UUID) -> Counter[int]:
             )
         ).all()
     )
-    return Counter(session.started_at.astimezone(UTC).hour for session in sessions)
+    return Counter(
+        local_hour(session.started_at, timezone_name)
+        for session in sessions
+    )
 
 
 def _recently_dismissed_task_ids(db: Session, user_id: uuid.UUID) -> set[uuid.UUID]:
@@ -188,6 +209,68 @@ def _recently_dismissed_task_ids(db: Session, user_id: uuid.UUID) -> set[uuid.UU
         )
     ).all()
     return {task_id for task_id in rows if task_id is not None}
+
+
+def _active_suggestion_candidates(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    exclude_suggestion_id: uuid.UUID | None = None,
+) -> list[tuple[uuid.UUID, datetime, datetime]]:
+    query = select(AiScheduleSuggestion).where(
+        AiScheduleSuggestion.user_id == user_id,
+        AiScheduleSuggestion.status.in_(
+            [
+                ScheduleSuggestionStatus.PENDING.value,
+                ScheduleSuggestionStatus.ADJUSTED.value,
+                ScheduleSuggestionStatus.ACCEPTED.value,
+            ]
+        ),
+    )
+    if exclude_suggestion_id is not None:
+        query = query.where(AiScheduleSuggestion.id != exclude_suggestion_id)
+
+    return [
+        (
+            suggestion.id,
+            normalize_schedule_datetime(suggestion.suggested_start),
+            normalize_schedule_datetime(suggestion.suggested_end),
+        )
+        for suggestion in db.scalars(query).all()
+    ]
+
+
+def _validate_suggestion_candidate(
+    *,
+    task: Task,
+    start: datetime,
+    end: datetime,
+    settings: UserSettings,
+    existing_tasks: list[Task],
+    existing_candidates: list[tuple[uuid.UUID, datetime, datetime]] | None = None,
+) -> None:
+    duration_minutes = int(
+        (
+            normalize_schedule_datetime(end) - normalize_schedule_datetime(start)
+        ).total_seconds()
+        // 60
+    )
+    required_minutes = scheduling_required_minutes(task, settings)
+    if duration_minutes != required_minutes:
+        raise ValueError("Schedule duration does not match task duration")
+
+    validation = validate_schedule_candidate(
+        task=task,
+        start=start,
+        end=end,
+        settings=settings,
+        existing_tasks=existing_tasks,
+        existing_candidates=existing_candidates,
+        require_unscheduled_task=True,
+    )
+    if not validation.valid:
+        failed = next(check for check in validation.checks if not check.passed)
+        raise ValueError(failed.reason or "Invalid schedule")
 
 
 def _to_recommendation_response(
@@ -226,6 +309,32 @@ def _to_schedule_response(
         status=suggestion.status,
         position=suggestion.position,
     )
+
+
+def _to_issue_response(issue) -> SchedulingIssueResponse:
+    return SchedulingIssueResponse(
+        task_id=issue.task_id,
+        task_title=issue.task_title,
+        code=issue.code,
+        severity=issue.severity,
+        reason=issue.reason,
+        metadata=issue.metadata,
+    )
+
+
+def _schedule_response_sort_key(response: ScheduleSuggestionResponse) -> tuple:
+    return (
+        normalize_schedule_datetime(response.suggested_start),
+        normalize_schedule_datetime(response.suggested_end),
+        response.position,
+        str(response.id),
+    )
+
+
+def _chronological_schedule(
+    responses: list[ScheduleSuggestionResponse],
+) -> list[ScheduleSuggestionResponse]:
+    return sorted(responses, key=_schedule_response_sort_key)
 
 
 def invalidate_pending_plan(
@@ -286,6 +395,7 @@ def _plan_is_stale(
         or snapshot.ai_assistant_enabled != settings.ai_assistant_enabled
         or snapshot.work_start != settings.work_start.strftime("%H:%M")
         or snapshot.work_end != settings.work_end.strftime("%H:%M")
+        or snapshot.timezone != settings.timezone
         or snapshot.pomodoro_minutes != settings.pomodoro_minutes
     ):
         return True
@@ -333,12 +443,25 @@ def generate_plan(
             return existing
 
     open_tasks = _open_tasks(db, user_id)
+    preferred_focus_hours = _preferred_focus_hours(
+        db,
+        user_id,
+        timezone_name=settings.timezone,
+    )
+    active_suggestion_candidates = _active_suggestion_candidates(db, user_id)
+    capacity_windows = free_windows_for_current_state(
+        settings=settings,
+        now=now,
+        existing_tasks=open_tasks,
+        existing_candidates=active_suggestion_candidates,
+    )
     ranked = rank_open_tasks(
         open_tasks,
         settings,
         now=now,
-        preferred_focus_hours=_preferred_focus_hours(db, user_id),
+        preferred_focus_hours=preferred_focus_hours,
         dismissed_task_ids=_recently_dismissed_task_ids(db, user_id),
+        capacity_windows=capacity_windows,
     )
 
     invalidate_pending_plan(db, user_id, commit=False)
@@ -366,9 +489,16 @@ def generate_plan(
         db.add(recommendation)
         db.flush()
 
-    slots = build_schedule_slots(ranked, settings, now=now)
+    schedule_result = build_schedule_result(
+        ranked,
+        settings,
+        now=now,
+        existing_tasks=open_tasks,
+        existing_candidates=active_suggestion_candidates,
+        preferred_focus_hours=preferred_focus_hours,
+    )
     created_suggestions: list[tuple[AiScheduleSuggestion, Task]] = []
-    for position, (task, start, end, explanation) in enumerate(slots):
+    for position, (task, start, end, explanation) in enumerate(schedule_result.slots):
         suggestion = AiScheduleSuggestion(
             user_id=user_id,
             recommendation_id=recommendation.id if recommendation else None,
@@ -401,16 +531,20 @@ def generate_plan(
             if recommendation is not None
             else None
         ),
-        schedule=[
-            _to_schedule_response(suggestion, task)
-            for suggestion, task in created_suggestions
-        ],
+        schedule=_chronological_schedule(
+            [
+                _to_schedule_response(suggestion, task)
+                for suggestion, task in created_suggestions
+            ]
+        ),
+        issues=[_to_issue_response(issue) for issue in schedule_result.issues],
         generated_at=now,
     )
 
 
 def get_current_plan(db: Session, user_id: uuid.UUID) -> SchedulingPlanResponse:
     now = utc_now()
+    settings = settings_service.get_or_create_user_settings(db, user_id)
     recommendation = db.scalar(
         select(AiRecommendation)
         .where(
@@ -458,6 +592,35 @@ def get_current_plan(db: Session, user_id: uuid.UUID) -> SchedulingPlanResponse:
             .where(Task.id.in_(task_ids))
         ).all()
     } if task_ids else {}
+    open_tasks = _open_tasks(db, user_id)
+    active_suggestion_candidates = _active_suggestion_candidates(db, user_id)
+    capacity_windows = free_windows_for_current_state(
+        settings=settings,
+        now=now,
+        existing_tasks=open_tasks,
+        existing_candidates=active_suggestion_candidates,
+    )
+    ranked_for_issues = rank_open_tasks(
+        open_tasks,
+        settings,
+        now=now,
+        preferred_focus_hours=_preferred_focus_hours(
+            db,
+            user_id,
+            timezone_name=settings.timezone,
+        ),
+        dismissed_task_ids=_recently_dismissed_task_ids(db, user_id),
+        capacity_windows=capacity_windows,
+    )
+    horizon = planning_horizon_for_scheduling(now)
+    suggested_task_ids = {suggestion.task_id for suggestion in suggestions}
+    issues = scheduling_issues_for_final_state(
+        ranked=ranked_for_issues,
+        settings=settings,
+        windows=capacity_windows,
+        planning_horizon_end=horizon.end,
+        scheduled_task_ids=suggested_task_ids,
+    )
 
     return SchedulingPlanResponse(
         recommendation=(
@@ -469,11 +632,14 @@ def get_current_plan(db: Session, user_id: uuid.UUID) -> SchedulingPlanResponse:
             if recommendation is not None
             else None
         ),
-        schedule=[
-            _to_schedule_response(item, tasks[item.task_id])
-            for item in suggestions
-            if item.task_id in tasks
-        ],
+        schedule=_chronological_schedule(
+            [
+                _to_schedule_response(item, tasks[item.task_id])
+                for item in suggestions
+                if item.task_id in tasks
+            ]
+        ),
+        issues=[_to_issue_response(issue) for issue in issues],
         generated_at=recommendation.generated_at if recommendation else now,
     )
 
@@ -560,9 +726,6 @@ def adjust_suggestion(
     suggestion_id: uuid.UUID,
     payload: ScheduleAdjustRequest,
 ) -> ScheduleSuggestionResponse:
-    if payload.suggested_end <= payload.suggested_start:
-        raise ValueError("suggested_end must be later than suggested_start")
-
     suggestion = db.scalar(
         select(AiScheduleSuggestion).where(
             AiScheduleSuggestion.id == suggestion_id,
@@ -572,16 +735,31 @@ def adjust_suggestion(
     if suggestion is None:
         raise LookupError("Schedule suggestion not found")
 
-    suggestion.suggested_start = payload.suggested_start
-    suggestion.suggested_end = payload.suggested_end
+    task = task_service.get_task_by_id(db, suggestion.task_id, user_id)
+    if task is None:
+        raise LookupError("Task not found")
+
+    settings = settings_service.get_or_create_user_settings(db, user_id)
+    _validate_suggestion_candidate(
+        task=task,
+        start=payload.suggested_start,
+        end=payload.suggested_end,
+        settings=settings,
+        existing_tasks=_open_tasks(db, user_id),
+        existing_candidates=_active_suggestion_candidates(
+            db,
+            user_id,
+            exclude_suggestion_id=suggestion.id,
+        ),
+    )
+
+    suggestion.suggested_start = normalize_schedule_datetime(payload.suggested_start)
+    suggestion.suggested_end = normalize_schedule_datetime(payload.suggested_end)
     suggestion.status = ScheduleSuggestionStatus.ADJUSTED.value
     suggestion.updated_at = utc_now()
     db.commit()
     db.refresh(suggestion)
 
-    task = task_service.get_task_by_id(db, suggestion.task_id, user_id)
-    if task is None:
-        raise LookupError("Task not found")
     return _to_schedule_response(suggestion, task)
 
 
@@ -604,6 +782,29 @@ def apply_suggestions(
         query = query.where(AiScheduleSuggestion.id.in_(payload.suggestion_ids))
 
     suggestions = list(db.scalars(query).all())
+    settings = settings_service.get_or_create_user_settings(db, user_id)
+    existing_tasks = _open_tasks(db, user_id)
+    selected_candidates: list[tuple[uuid.UUID, datetime, datetime]] = []
+    for suggestion in suggestions:
+        task = task_service.get_task_by_id(db, suggestion.task_id, user_id)
+        if task is None:
+            continue
+        _validate_suggestion_candidate(
+            task=task,
+            start=suggestion.suggested_start,
+            end=suggestion.suggested_end,
+            settings=settings,
+            existing_tasks=existing_tasks,
+            existing_candidates=selected_candidates,
+        )
+        selected_candidates.append(
+            (
+                suggestion.id,
+                normalize_schedule_datetime(suggestion.suggested_start),
+                normalize_schedule_datetime(suggestion.suggested_end),
+            )
+        )
+
     for suggestion in suggestions:
         task = task_service.get_task_by_id(db, suggestion.task_id, user_id)
         if task is None:

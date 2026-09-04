@@ -205,4 +205,10 @@ def apply_suggestions(
     db: DatabaseSession,
     current_user: CurrentUser,
 ) -> SchedulingPlanResponse:
-    return service.apply_suggestions(db, current_user.id, payload)
+    try:
+        return service.apply_suggestions(db, current_user.id, payload)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc

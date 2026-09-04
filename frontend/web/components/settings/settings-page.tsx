@@ -6,6 +6,7 @@ import { useCurrentUser } from '../auth/current-user-provider';
 import { deleteCurrentUserAvatar, uploadCurrentUserAvatar } from '../../lib/auth';
 import { emitSettingsDataChanged } from '../../lib/data-events';
 import {
+  getBrowserTimezone,
   getSettings,
   settingsFormValueToUpdateInput,
   settingsResponseToFormValue,
@@ -81,6 +82,10 @@ export function SettingsPage() {
       try {
         const settings = await getSettings({ signal: controller.signal });
         const formValue = settingsResponseToFormValue(settings);
+        const browserTimezone = getBrowserTimezone();
+        if (settings.work_pattern.timezone === 'UTC' && browserTimezone !== 'UTC') {
+          formValue.workPreferences.timezone = browserTimezone;
+        }
 
         setSavedSettings(settings);
         setWorkPreferences(formValue.workPreferences);

@@ -3,6 +3,7 @@ import { apiRequest } from './api';
 export type WorkPatternSettings = {
   work_start: string;
   work_end: string;
+  timezone: string;
   pomodoro_minutes: number;
 };
 
@@ -10,7 +11,15 @@ export type AiSchedulingSettings = {
   ai_assistant_enabled: boolean;
   ai_deadline_urgency_weight: number;
   ai_priority_weight: number;
+  /** Deprecated compatibility field; production scheduling does not use it. */
   ai_estimated_duration_weight: number;
+};
+
+export type AiSchedulingSettingsUpdate = {
+  ai_assistant_enabled?: boolean;
+  ai_deadline_urgency_weight?: number;
+  ai_priority_weight?: number;
+  ai_estimated_duration_weight?: number;
 };
 
 export type NotificationPreferences = {
@@ -41,7 +50,7 @@ export type UserSettingsResponse = {
 
 export type UserSettingsUpdate = {
   work_pattern?: Partial<WorkPatternSettings>;
-  ai_scheduling?: Partial<AiSchedulingSettings>;
+  ai_scheduling?: AiSchedulingSettingsUpdate;
   notifications?: Partial<NotificationPreferences>;
   channels?: Partial<ChannelPreferences>;
 };
@@ -49,6 +58,7 @@ export type UserSettingsUpdate = {
 export type SettingsWorkPreferencesValue = {
   workStart: string;
   workEnd: string;
+  timezone: string;
   pomodoroMinutes: number;
 };
 
@@ -70,7 +80,6 @@ export type SettingsSchedulingWeightsValue = {
   aiAssistantEnabled: boolean;
   deadlineUrgency: number;
   priorityLevel: number;
-  estimatedDuration: number;
 };
 
 export type SettingsFormValue = {
@@ -86,7 +95,6 @@ export type AiSchedulingConfig = {
   weights: {
     deadlineUrgency: number;
     priority: number;
-    estimatedDuration: number;
   };
 };
 
@@ -100,6 +108,10 @@ export const SETTINGS_DATA_SOURCE = 'fastapi-postgresql' as const;
 type RequestOptions = {
   signal?: AbortSignal;
 };
+
+export function getBrowserTimezone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+}
 
 export function getSettings(options: RequestOptions = {}) {
   return apiRequest<UserSettingsResponse>('/settings', {
@@ -120,6 +132,7 @@ export function settingsResponseToFormValue(settings: UserSettingsResponse): Set
     workPreferences: {
       workStart: settings.work_pattern.work_start,
       workEnd: settings.work_pattern.work_end,
+      timezone: settings.work_pattern.timezone,
       pomodoroMinutes: settings.work_pattern.pomodoro_minutes,
     },
     notifications: {
@@ -139,7 +152,6 @@ export function settingsResponseToFormValue(settings: UserSettingsResponse): Set
       aiAssistantEnabled: settings.ai_scheduling.ai_assistant_enabled,
       deadlineUrgency: settings.ai_scheduling.ai_deadline_urgency_weight,
       priorityLevel: settings.ai_scheduling.ai_priority_weight,
-      estimatedDuration: settings.ai_scheduling.ai_estimated_duration_weight,
     },
   };
 }
@@ -149,13 +161,13 @@ export function settingsFormValueToUpdateInput(value: SettingsFormValue): UserSe
     work_pattern: {
       work_start: value.workPreferences.workStart,
       work_end: value.workPreferences.workEnd,
+      timezone: value.workPreferences.timezone,
       pomodoro_minutes: value.workPreferences.pomodoroMinutes,
     },
     ai_scheduling: {
       ai_assistant_enabled: value.schedulingWeights.aiAssistantEnabled,
       ai_deadline_urgency_weight: value.schedulingWeights.deadlineUrgency,
       ai_priority_weight: value.schedulingWeights.priorityLevel,
-      ai_estimated_duration_weight: value.schedulingWeights.estimatedDuration,
     },
     notifications: {
       notify_task_reminders: value.notifications.taskReminders,
@@ -185,7 +197,7 @@ export function getFocusDurationMinutes(
   return task?.estimated_duration_minutes ?? getFocusDefaultMinutes(settings);
 }
 
-// #74: AI scheduling consumes work hours, enabled flag, and scoring weights.
+// #74: Scheduling consumes work hours, enabled flag, and active production weights.
 export function getAiSchedulingConfig(settings: UserSettingsResponse): AiSchedulingConfig {
   return {
     workStart: settings.work_pattern.work_start,
@@ -194,7 +206,6 @@ export function getAiSchedulingConfig(settings: UserSettingsResponse): AiSchedul
     weights: {
       deadlineUrgency: settings.ai_scheduling.ai_deadline_urgency_weight,
       priority: settings.ai_scheduling.ai_priority_weight,
-      estimatedDuration: settings.ai_scheduling.ai_estimated_duration_weight,
     },
   };
 }
