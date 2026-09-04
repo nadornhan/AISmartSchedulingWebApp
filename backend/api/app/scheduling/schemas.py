@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -42,9 +43,33 @@ class ScheduleSuggestionResponse(BaseModel):
     position: int
 
 
+class SchedulingIssueMetadata(BaseModel):
+    required_minutes: int
+    total_available_minutes: int
+    largest_available_block_minutes: int
+    feasible_window_count: int
+    due_date: str | None = None
+    planning_horizon_end: str
+
+
+class SchedulingIssueResponse(BaseModel):
+    task_id: uuid.UUID
+    task_title: str
+    code: Literal[
+        "NO_WINDOW_BEFORE_DEADLINE",
+        "NO_CONTIGUOUS_WINDOW_BEFORE_DEADLINE",
+        "NO_CAPACITY_IN_HORIZON",
+        "NO_CONTIGUOUS_WINDOW_IN_HORIZON",
+    ]
+    severity: Literal["warning", "critical"]
+    reason: str
+    metadata: SchedulingIssueMetadata
+
+
 class SchedulingPlanResponse(BaseModel):
     recommendation: AiRecommendationResponse | None
     schedule: list[ScheduleSuggestionResponse]
+    issues: list[SchedulingIssueResponse] = Field(default_factory=list)
     generated_at: datetime
     footnote: str = "AI based on your patterns"
 

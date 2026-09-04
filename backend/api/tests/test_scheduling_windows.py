@@ -4,7 +4,7 @@ from datetime import UTC, datetime, time
 from zoneinfo import ZoneInfo
 
 from app.scheduling import engine as scheduling_engine
-from app.scheduling.engine import RankedTask, build_schedule_slots
+from app.scheduling.engine import RankedTask, build_schedule_result, build_schedule_slots
 from app.scheduling.windows import (
     CandidateWindow,
     OccupiedInterval,
@@ -1349,3 +1349,147 @@ def test_build_schedule_slots_recomputes_v7_capacity_after_allocation(
         "2099-01-01T16:00:00+00:00",
         "2099-01-01T11:00:00+00:00",
     ]
+
+
+def test_schedule_result_reports_fragmented_deadline_capacity_issue() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(
+        due_date=datetime(2099, 1, 1, 17, tzinfo=UTC),
+        estimated_duration_minutes=120,
+    )
+
+    result = build_schedule_result(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[
+            task,
+            _blocking_task(1, 10, 15),
+            _blocking_task(1, 16, 17),
+        ],
+    )
+
+    assert result.slots == []
+    assert len(result.issues) == 1
+    issue = result.issues[0]
+    assert issue.code == "NO_CONTIGUOUS_WINDOW_BEFORE_DEADLINE"
+    assert issue.severity == "critical"
+    assert "Requires 120 continuous minutes" in issue.reason
+    assert issue.metadata["total_available_minutes"] == 120
+    assert issue.metadata["largest_available_block_minutes"] == 60
+
+
+def test_schedule_result_reports_no_window_before_deadline_issue() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(
+        due_date=datetime(2099, 1, 1, 10, 30, tzinfo=UTC),
+        estimated_duration_minutes=90,
+    )
+
+    result = build_schedule_result(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task, _blocking_task(1, 9, 11)],
+    )
+
+    assert result.slots == []
+    assert len(result.issues) == 1
+    assert result.issues[0].code == "NO_WINDOW_BEFORE_DEADLINE"
+    assert result.issues[0].metadata["due_date"] == "2099-01-01T10:30:00+00:00"
+    assert "before the deadline" in result.issues[0].reason
+
+
+def test_schedule_result_reports_no_deadline_horizon_capacity_issue() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=481)
+
+    result = build_schedule_result(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task],
+    )
+
+    assert result.slots == []
+    assert len(result.issues) == 1
+    assert result.issues[0].code == "NO_CONTIGUOUS_WINDOW_IN_HORIZON"
+    assert result.issues[0].severity == "warning"
+    assert "current 7-day planning horizon" in result.issues[0].reason
+
+
+def test_schedule_result_reports_task_that_loses_only_window_after_allocation() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    first = _task(
+        priority=TaskPriority.HIGH,
+        due_date=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        estimated_duration_minutes=120,
+    )
+    second = _task(
+        priority=TaskPriority.NO_PRIORITY,
+        due_date=datetime(2099, 1, 1, 11, tzinfo=UTC),
+        estimated_duration_minutes=120,
+    )
+
+    result = build_schedule_result(
+        [
+            RankedTask(first, 1.0, [], []),
+            RankedTask(second, 0.2, [], []),
+        ],
+        _settings(deadline_weight=0, priority_weight=100, work_end=time(11, 0)),
+        now=now,
+        existing_tasks=[first, second],
+    )
+
+    assert [(task.id, start) for task, start, _end, _explanation in result.slots] == [
+        (first.id, datetime(2099, 1, 1, 9, tzinfo=UTC)),
+    ]
+    assert len(result.issues) == 1
+    assert result.issues[0].task_id == second.id
+    assert result.issues[0].code == "NO_WINDOW_BEFORE_DEADLINE"
+
+
+def test_schedule_result_does_not_warn_when_only_max_slots_excludes_task() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    first = _task(priority=TaskPriority.HIGH, estimated_duration_minutes=60)
+    second = _task(priority=TaskPriority.MEDIUM, estimated_duration_minutes=60)
+
+    result = build_schedule_result(
+        [
+            RankedTask(first, 1.0, [], []),
+            RankedTask(second, 0.7, [], []),
+        ],
+        _settings(deadline_weight=0, priority_weight=100),
+        now=now,
+        max_slots=1,
+        existing_tasks=[first, second],
+    )
+
+    assert len(result.slots) == 1
+    assert result.issues == []
+
+
+def test_schedule_result_does_not_warn_for_completed_or_already_scheduled_tasks() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    completed = _task(
+        estimated_duration_minutes=481,
+        status=TaskStatus.DONE,
+    )
+    already_scheduled = _task(
+        estimated_duration_minutes=481,
+        scheduled_start=datetime(2099, 1, 1, 9, tzinfo=UTC),
+        scheduled_end=datetime(2099, 1, 1, 17, tzinfo=UTC),
+    )
+
+    result = build_schedule_result(
+        [
+            RankedTask(completed, 1.0, [], []),
+            RankedTask(already_scheduled, 0.9, [], []),
+        ],
+        _settings(),
+        now=now,
+        existing_tasks=[completed, already_scheduled],
+    )
+
+    assert result.slots == []
+    assert result.issues == []

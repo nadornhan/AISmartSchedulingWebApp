@@ -9,7 +9,12 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.scheduling import service as scheduling_service
 from app.scheduling.engine import RankedTask, build_schedule_slots, rank_open_tasks
-from app.scheduling.models import AiScheduleSuggestion, ScheduleSuggestionStatus
+from app.scheduling.models import (
+    AiRecommendation,
+    AiScheduleSuggestion,
+    RecommendationStatus,
+    ScheduleSuggestionStatus,
+)
 from app.scheduling.schemas import ScheduleSuggestionResponse
 from app.scheduling.windows import scheduling_required_minutes
 from app.scoring.constraints import validate_schedule_candidate
@@ -806,6 +811,7 @@ def test_generate_plan_and_apply_schedule(client: TestClient) -> None:
     assert any("weight" in item.lower() for item in body["recommendation"]["based_on"])
     assert body["footnote"] == "AI based on your patterns"
     assert len(body["schedule"]) >= 1
+    assert body["issues"] == []
 
     suggestion_id = body["schedule"][0]["id"]
     accept = client.post(
@@ -826,6 +832,133 @@ def test_generate_plan_and_apply_schedule(client: TestClient) -> None:
     assert task.status_code == 200
     assert task.json()["scheduled_start"] is not None
     assert task.json()["scheduled_end"] is not None
+
+
+def test_generate_plan_includes_unschedulable_issues(
+    client: TestClient,
+) -> None:
+    headers = auth_headers(client)
+    create = client.post(
+        "/tasks",
+        headers=headers,
+        json={
+            "title": "Too large for one block",
+            "estimated_duration_minutes": 600,
+        },
+    )
+    assert create.status_code == 201
+
+    plan = client.get("/scheduling/plan", headers=headers)
+
+    assert plan.status_code == 200
+    body = plan.json()
+    assert body["schedule"] == []
+    assert body["issues"] == [
+        {
+            "task_id": create.json()["id"],
+            "task_title": "Too large for one block",
+            "code": "NO_CONTIGUOUS_WINDOW_IN_HORIZON",
+            "severity": "warning",
+            "reason": (
+                "Requires 600 continuous minutes, but the largest available block "
+                "in the current 7-day planning horizon is 480 minutes."
+            ),
+            "metadata": {
+                "required_minutes": 600,
+                "total_available_minutes": body["issues"][0]["metadata"][
+                    "total_available_minutes"
+                ],
+                "largest_available_block_minutes": 480,
+                "feasible_window_count": 0,
+                "due_date": None,
+                "planning_horizon_end": body["issues"][0]["metadata"][
+                    "planning_horizon_end"
+                ],
+            },
+        }
+    ]
+
+
+def test_generate_plan_suppresses_issues_for_recently_dismissed_task(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    headers, email = auth_context(client)
+    user = db_session.scalar(select(User).where(User.email == email))
+    assert user is not None
+    create = client.post(
+        "/tasks",
+        headers=headers,
+        json={
+            "title": "Dismissed impossible task",
+            "estimated_duration_minutes": 600,
+        },
+    )
+    assert create.status_code == 201
+    task_id = uuid.UUID(create.json()["id"])
+    db_session.add(
+        AiRecommendation(
+            user_id=user.id,
+            task_id=task_id,
+            kind="next_task",
+            title="Dismissed impossible task",
+            explanation="Dismissed by user.",
+            reasons=[],
+            based_on=[],
+            score=1.0,
+            status=RecommendationStatus.DISMISSED.value,
+            weights_snapshot={
+                "deadline_urgency": 80,
+                "priority": 70,
+                "estimated_duration": 50,
+                "ai_assistant_enabled": True,
+                "work_start": "09:00",
+                "work_end": "17:00",
+                "timezone": "UTC",
+                "pomodoro_minutes": 25,
+            },
+            generated_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+    )
+    db_session.commit()
+
+    plan = client.get("/scheduling/plan", headers=headers)
+
+    assert plan.status_code == 200
+    assert plan.json()["issues"] == []
+
+
+def test_regenerate_plan_recomputes_issue_capacity(
+    client: TestClient,
+) -> None:
+    headers = auth_headers(client)
+    create = client.post(
+        "/tasks",
+        headers=headers,
+        json={
+            "title": "Resize into schedule",
+            "estimated_duration_minutes": 600,
+        },
+    )
+    assert create.status_code == 201
+    task_id = create.json()["id"]
+
+    first = client.post("/scheduling/plan/regenerate", headers=headers)
+    assert first.status_code == 200
+    assert first.json()["issues"][0]["code"] == "NO_CONTIGUOUS_WINDOW_IN_HORIZON"
+
+    updated = client.patch(
+        f"/tasks/{task_id}",
+        headers=headers,
+        json={"estimated_duration_minutes": 60},
+    )
+    assert updated.status_code == 200
+
+    refreshed = client.post("/scheduling/plan/regenerate", headers=headers)
+    assert refreshed.status_code == 200
+    assert refreshed.json()["issues"] == []
+    assert refreshed.json()["schedule"]
 
 
 def test_focus_session_and_regenerate(client: TestClient) -> None:

@@ -29,7 +29,7 @@ from app.scoring import (
 from app.scoring.constraints import validate_schedule_candidate
 from app.scoring.criteria import peak_focus_hour
 from app.settings.models import UserSettings
-from app.tasks.models import Task, TaskPriority
+from app.tasks.models import Task, TaskPriority, TaskStatus
 
 
 @dataclass(frozen=True)
@@ -40,11 +40,31 @@ class RankedTask:
     based_on: list[str]
 
 
+@dataclass(frozen=True)
+class SchedulingIssue:
+    task_id: uuid.UUID
+    task_title: str
+    code: str
+    severity: str
+    reason: str
+    metadata: dict[str, int | str | None]
+
+
+@dataclass(frozen=True)
+class ScheduleBuildResult:
+    slots: list[tuple[Task, datetime, datetime, str]]
+    issues: list[SchedulingIssue]
+
+
 def _snapped_horizon_start(now: datetime) -> datetime:
     normalized = now.astimezone(UTC)
     snapped = normalized.replace(second=0, microsecond=0)
     extra = (15 - snapped.minute % 15) % 15
     return snapped + timedelta(minutes=extra)
+
+
+def planning_horizon_for_scheduling(now: datetime):
+    return planning_horizon(now=_snapped_horizon_start(now))
 
 
 def free_windows_for_current_state(
@@ -54,7 +74,7 @@ def free_windows_for_current_state(
     existing_tasks: list[Task] | None = None,
     existing_candidates: list[tuple[uuid.UUID, datetime, datetime]] | None = None,
 ) -> list[CandidateWindow]:
-    horizon = planning_horizon(now=_snapped_horizon_start(now))
+    horizon = planning_horizon_for_scheduling(now)
     working_periods = working_periods_for_horizon(
         horizon=horizon,
         settings=settings,
@@ -67,6 +87,117 @@ def free_windows_for_current_state(
     return derive_free_windows_for_periods(
         working_periods=working_periods,
         occupied_intervals=occupied_intervals,
+    )
+
+
+def _issue_for_unschedulable_task(
+    *,
+    task: Task,
+    settings: UserSettings,
+    windows: list[CandidateWindow],
+    planning_horizon_end: datetime,
+) -> SchedulingIssue | None:
+    if task.scheduled_start is not None and task.scheduled_end is not None:
+        return None
+
+    capacity = summarize_task_capacity(
+        task=task,
+        windows=windows,
+        settings=settings,
+    )
+    if capacity.has_contiguous_capacity:
+        return None
+
+    metadata: dict[str, int | str | None] = {
+        "required_minutes": capacity.required_minutes,
+        "total_available_minutes": capacity.total_available_minutes,
+        "largest_available_block_minutes": capacity.largest_window_minutes,
+        "feasible_window_count": capacity.feasible_window_count,
+        "due_date": task.due_date.isoformat() if task.due_date else None,
+        "planning_horizon_end": planning_horizon_end.isoformat(),
+    }
+
+    if task.due_date is not None:
+        if capacity.total_available_minutes <= 0:
+            return SchedulingIssue(
+                task_id=task.id,
+                task_title=task.title,
+                code="NO_WINDOW_BEFORE_DEADLINE",
+                severity="critical",
+                reason=(
+                    f"No available block before the deadline for this "
+                    f"{capacity.required_minutes}-minute task."
+                ),
+                metadata=metadata,
+            )
+
+        return SchedulingIssue(
+            task_id=task.id,
+            task_title=task.title,
+            code="NO_CONTIGUOUS_WINDOW_BEFORE_DEADLINE",
+            severity="critical",
+            reason=(
+                f"Requires {capacity.required_minutes} continuous minutes, "
+                f"but the largest available block before the deadline is "
+                f"{capacity.largest_window_minutes} minutes."
+            ),
+            metadata=metadata,
+        )
+
+    if capacity.total_available_minutes <= 0:
+        reason = (
+            f"No available block in the current 7-day planning horizon for this "
+            f"{capacity.required_minutes}-minute task."
+        )
+        code = "NO_CAPACITY_IN_HORIZON"
+    else:
+        reason = (
+            f"Requires {capacity.required_minutes} continuous minutes, "
+            f"but the largest available block in the current 7-day planning horizon "
+            f"is {capacity.largest_window_minutes} minutes."
+        )
+        code = "NO_CONTIGUOUS_WINDOW_IN_HORIZON"
+
+    return SchedulingIssue(
+        task_id=task.id,
+        task_title=task.title,
+        code=code,
+        severity="warning",
+        reason=reason,
+        metadata=metadata,
+    )
+
+
+def scheduling_issues_for_final_state(
+    *,
+    ranked: list[RankedTask],
+    settings: UserSettings,
+    windows: list[CandidateWindow],
+    planning_horizon_end: datetime,
+    scheduled_task_ids: set[uuid.UUID],
+) -> list[SchedulingIssue]:
+    issues = []
+    for item in ranked:
+        if item.task.id in scheduled_task_ids:
+            continue
+        if item.task.status == TaskStatus.DONE:
+            continue
+
+        issue = _issue_for_unschedulable_task(
+            task=item.task,
+            settings=settings,
+            windows=windows,
+            planning_horizon_end=planning_horizon_end,
+        )
+        if issue is not None:
+            issues.append(issue)
+
+    return sorted(
+        issues,
+        key=lambda issue: (
+            0 if issue.severity == "critical" else 1,
+            str(issue.task_id),
+        ),
     )
 
 
@@ -147,7 +278,7 @@ def rank_open_tasks(
     return ranked
 
 
-def build_schedule_slots(
+def build_schedule_result(
     ranked: list[RankedTask],
     settings: UserSettings,
     *,
@@ -156,11 +287,12 @@ def build_schedule_slots(
     existing_tasks: list[Task] | None = None,
     existing_candidates: list[tuple[uuid.UUID, datetime, datetime]] | None = None,
     preferred_focus_hours: Counter[int] | None = None,
-) -> list[tuple[Task, datetime, datetime, str]]:
+) -> ScheduleBuildResult:
     if not ranked:
-        return []
+        return ScheduleBuildResult(slots=[], issues=[])
 
     blockers = existing_tasks or []
+    horizon = planning_horizon_for_scheduling(now)
 
     slots: list[tuple[Task, datetime, datetime, str]] = []
     accepted_candidates: list[tuple[uuid.UUID, datetime, datetime]] = list(
@@ -271,4 +403,33 @@ def build_schedule_slots(
             if item.task.id != candidate.task.id
         ]
 
-    return slots
+    issues = scheduling_issues_for_final_state(
+        ranked=remaining_ranked,
+        settings=settings,
+        windows=free_windows,
+        planning_horizon_end=horizon.end,
+        scheduled_task_ids={task.id for task, _start, _end, _explanation in slots},
+    )
+
+    return ScheduleBuildResult(slots=slots, issues=issues)
+
+
+def build_schedule_slots(
+    ranked: list[RankedTask],
+    settings: UserSettings,
+    *,
+    now: datetime,
+    max_slots: int = 5,
+    existing_tasks: list[Task] | None = None,
+    existing_candidates: list[tuple[uuid.UUID, datetime, datetime]] | None = None,
+    preferred_focus_hours: Counter[int] | None = None,
+) -> list[tuple[Task, datetime, datetime, str]]:
+    return build_schedule_result(
+        ranked,
+        settings,
+        now=now,
+        max_slots=max_slots,
+        existing_tasks=existing_tasks,
+        existing_candidates=existing_candidates,
+        preferred_focus_hours=preferred_focus_hours,
+    ).slots

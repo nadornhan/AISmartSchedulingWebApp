@@ -176,6 +176,11 @@ export function InsightsDashboard() {
   }, []);
 
   const recommendationCards = useMemo(() => summary?.recommendations ?? [], [summary]);
+  const visibleSchedulingIssues = useMemo(() => plan?.issues.slice(0, 3) ?? [], [plan]);
+  const hiddenSchedulingIssueCount = Math.max(
+    0,
+    (plan?.issues.length ?? 0) - visibleSchedulingIssues.length,
+  );
 
   async function handleRegenerate() {
     setIsMutating(true);
@@ -468,6 +473,42 @@ export function InsightsDashboard() {
             </p>
           )}
         </div>
+
+        {visibleSchedulingIssues.length ? (
+          <div className="mt-5 rounded-[var(--radius-sm)] border border-[var(--orange-border)] bg-[var(--orange-soft)] p-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-dashboard-text">Scheduling conflicts</p>
+                <p className="text-xs text-dashboard-muted">
+                  Some tasks need a larger continuous block before they can be suggested.
+                </p>
+              </div>
+              {hiddenSchedulingIssueCount > 0 ? (
+                <span className="text-xs font-medium text-[var(--yellow)]">
+                  +{hiddenSchedulingIssueCount} more
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-3 space-y-2">
+              {visibleSchedulingIssues.map((issue) => (
+                <article
+                  className="rounded-[var(--radius-sm)] border border-[var(--orange-border)] bg-dashboard-bg/30 p-3"
+                  key={`${issue.task_id}-${issue.code}`}
+                >
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                    <p className="text-sm font-semibold text-dashboard-text">
+                      {issue.task_title}
+                    </p>
+                    <span className="text-[11px] font-semibold uppercase text-[var(--yellow)]">
+                      {issue.severity}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-dashboard-muted">{issue.reason}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section>

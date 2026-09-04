@@ -13,9 +13,11 @@ from app.dashboard.schemas import DashboardTaskSummary
 from app.focus.models import FocusSession
 from app.scheduling.engine import (
     RankedTask,
-    build_schedule_slots,
+    build_schedule_result,
     free_windows_for_current_state,
+    planning_horizon_for_scheduling,
     rank_open_tasks,
+    scheduling_issues_for_final_state,
 )
 from app.scheduling.gemini_prompt import build_ai_preview_prompt
 from app.scheduling.models import (
@@ -34,6 +36,7 @@ from app.scheduling.schemas import (
     GeminiSchedulePreview,
     ScheduleAdjustRequest,
     ScheduleSuggestionResponse,
+    SchedulingIssueResponse,
     SchedulingPlanResponse,
 )
 from app.scheduling.validation import validate_ai_preview_schedule
@@ -308,6 +311,17 @@ def _to_schedule_response(
     )
 
 
+def _to_issue_response(issue) -> SchedulingIssueResponse:
+    return SchedulingIssueResponse(
+        task_id=issue.task_id,
+        task_title=issue.task_title,
+        code=issue.code,
+        severity=issue.severity,
+        reason=issue.reason,
+        metadata=issue.metadata,
+    )
+
+
 def _schedule_response_sort_key(response: ScheduleSuggestionResponse) -> tuple:
     return (
         normalize_schedule_datetime(response.suggested_start),
@@ -475,7 +489,7 @@ def generate_plan(
         db.add(recommendation)
         db.flush()
 
-    slots = build_schedule_slots(
+    schedule_result = build_schedule_result(
         ranked,
         settings,
         now=now,
@@ -484,7 +498,7 @@ def generate_plan(
         preferred_focus_hours=preferred_focus_hours,
     )
     created_suggestions: list[tuple[AiScheduleSuggestion, Task]] = []
-    for position, (task, start, end, explanation) in enumerate(slots):
+    for position, (task, start, end, explanation) in enumerate(schedule_result.slots):
         suggestion = AiScheduleSuggestion(
             user_id=user_id,
             recommendation_id=recommendation.id if recommendation else None,
@@ -523,12 +537,14 @@ def generate_plan(
                 for suggestion, task in created_suggestions
             ]
         ),
+        issues=[_to_issue_response(issue) for issue in schedule_result.issues],
         generated_at=now,
     )
 
 
 def get_current_plan(db: Session, user_id: uuid.UUID) -> SchedulingPlanResponse:
     now = utc_now()
+    settings = settings_service.get_or_create_user_settings(db, user_id)
     recommendation = db.scalar(
         select(AiRecommendation)
         .where(
@@ -576,6 +592,35 @@ def get_current_plan(db: Session, user_id: uuid.UUID) -> SchedulingPlanResponse:
             .where(Task.id.in_(task_ids))
         ).all()
     } if task_ids else {}
+    open_tasks = _open_tasks(db, user_id)
+    active_suggestion_candidates = _active_suggestion_candidates(db, user_id)
+    capacity_windows = free_windows_for_current_state(
+        settings=settings,
+        now=now,
+        existing_tasks=open_tasks,
+        existing_candidates=active_suggestion_candidates,
+    )
+    ranked_for_issues = rank_open_tasks(
+        open_tasks,
+        settings,
+        now=now,
+        preferred_focus_hours=_preferred_focus_hours(
+            db,
+            user_id,
+            timezone_name=settings.timezone,
+        ),
+        dismissed_task_ids=_recently_dismissed_task_ids(db, user_id),
+        capacity_windows=capacity_windows,
+    )
+    horizon = planning_horizon_for_scheduling(now)
+    suggested_task_ids = {suggestion.task_id for suggestion in suggestions}
+    issues = scheduling_issues_for_final_state(
+        ranked=ranked_for_issues,
+        settings=settings,
+        windows=capacity_windows,
+        planning_horizon_end=horizon.end,
+        scheduled_task_ids=suggested_task_ids,
+    )
 
     return SchedulingPlanResponse(
         recommendation=(
@@ -594,6 +639,7 @@ def get_current_plan(db: Session, user_id: uuid.UUID) -> SchedulingPlanResponse:
                 if item.task_id in tasks
             ]
         ),
+        issues=[_to_issue_response(issue) for issue in issues],
         generated_at=recommendation.generated_at if recommendation else now,
     )
 
