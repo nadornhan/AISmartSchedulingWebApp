@@ -9,6 +9,7 @@ export type AiWeightsSnapshot = {
   ai_assistant_enabled: boolean;
   work_start: string;
   work_end: string;
+  timezone: string;
   pomodoro_minutes: number;
 };
 

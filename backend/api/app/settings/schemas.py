@@ -3,10 +3,13 @@ from datetime import datetime, time
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
+from app.timezones import validate_timezone_name
+
 
 class WorkPatternSettings(BaseModel):
     work_start: time
     work_end: time
+    timezone: str
     pomodoro_minutes: int = Field(ge=1, le=240)
 
     @field_serializer("work_start", "work_end")
@@ -24,16 +27,20 @@ class WorkPatternSettings(BaseModel):
 class WorkPatternSettingsUpdate(BaseModel):
     work_start: time | None = None
     work_end: time | None = None
+    timezone: str | None = None
     pomodoro_minutes: int | None = Field(default=None, ge=1, le=240)
 
     @model_validator(mode="after")
-    def validate_work_window(self) -> "WorkPatternSettingsUpdate":
+    def validate_work_pattern(self) -> "WorkPatternSettingsUpdate":
         if (
             self.work_start is not None
             and self.work_end is not None
             and self.work_end <= self.work_start
         ):
             raise ValueError("work_end must be later than work_start")
+
+        if self.timezone is not None:
+            validate_timezone_name(self.timezone)
 
         return self
 

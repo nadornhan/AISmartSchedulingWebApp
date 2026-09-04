@@ -27,10 +27,12 @@ def _settings(
     deadline_weight: int = 80,
     priority_weight: int = 70,
     duration_weight: int = 50,
+    timezone: str = "UTC",
 ) -> UserSettings:
     return UserSettings(
         work_start=work_start,
         work_end=work_end,
+        timezone=timezone,
         ai_deadline_urgency_weight=deadline_weight,
         ai_priority_weight=priority_weight,
         ai_estimated_duration_weight=duration_weight,
@@ -488,6 +490,34 @@ def test_constraints_reject_outside_working_hours() -> None:
     )
 
 
+def test_constraints_evaluate_working_hours_in_user_timezone() -> None:
+    result = validate_schedule_candidate(
+        task=_task(),
+        start=datetime(2026, 9, 3, 23, tzinfo=UTC),
+        end=datetime(2026, 9, 4, 0, tzinfo=UTC),
+        settings=_settings(timezone="Australia/Sydney"),
+        existing_tasks=[],
+    )
+
+    assert result.valid
+
+
+def test_constraints_reject_after_local_work_end_in_user_timezone() -> None:
+    result = validate_schedule_candidate(
+        task=_task(),
+        start=datetime(2026, 9, 4, 6, 30, tzinfo=UTC),
+        end=datetime(2026, 9, 4, 8, tzinfo=UTC),
+        settings=_settings(timezone="Australia/Sydney"),
+        existing_tasks=[],
+    )
+
+    assert not result.valid
+    assert any(
+        not check.passed and check.name == "working_hours"
+        for check in result.checks
+    )
+
+
 def test_constraints_allow_ending_exactly_at_work_end() -> None:
     day = datetime(2099, 1, 1, tzinfo=UTC)
     result = validate_schedule_candidate(
@@ -755,7 +785,7 @@ def test_applied_future_suggestion_persists_task_schedule(
 
 def test_generate_plan_and_apply_schedule(client: TestClient) -> None:
     headers = auth_headers(client)
-    due = (datetime.now(UTC) + timedelta(hours=6)).isoformat()
+    due = (datetime.now(UTC) + timedelta(days=2)).isoformat()
     create = client.post(
         "/tasks",
         headers=headers,

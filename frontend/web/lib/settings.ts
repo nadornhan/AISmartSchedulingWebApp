@@ -3,6 +3,7 @@ import { apiRequest } from './api';
 export type WorkPatternSettings = {
   work_start: string;
   work_end: string;
+  timezone: string;
   pomodoro_minutes: number;
 };
 
@@ -57,6 +58,7 @@ export type UserSettingsUpdate = {
 export type SettingsWorkPreferencesValue = {
   workStart: string;
   workEnd: string;
+  timezone: string;
   pomodoroMinutes: number;
 };
 
@@ -107,6 +109,10 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
+export function getBrowserTimezone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+}
+
 export function getSettings(options: RequestOptions = {}) {
   return apiRequest<UserSettingsResponse>('/settings', {
     signal: options.signal,
@@ -126,6 +132,7 @@ export function settingsResponseToFormValue(settings: UserSettingsResponse): Set
     workPreferences: {
       workStart: settings.work_pattern.work_start,
       workEnd: settings.work_pattern.work_end,
+      timezone: settings.work_pattern.timezone,
       pomodoroMinutes: settings.work_pattern.pomodoro_minutes,
     },
     notifications: {
@@ -154,6 +161,7 @@ export function settingsFormValueToUpdateInput(value: SettingsFormValue): UserSe
     work_pattern: {
       work_start: value.workPreferences.workStart,
       work_end: value.workPreferences.workEnd,
+      timezone: value.workPreferences.timezone,
       pomodoro_minutes: value.workPreferences.pomodoroMinutes,
     },
     ai_scheduling: {

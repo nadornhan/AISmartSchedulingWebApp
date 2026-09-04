@@ -7,6 +7,7 @@ from app.scoring.schemas import ConstraintResult, ConstraintValidationResult
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskStatus
 from app.tasks.overdue import normalize_due_datetime
+from app.timezones import user_timezone
 
 
 def normalize_schedule_datetime(value: datetime) -> datetime:
@@ -54,17 +55,14 @@ def is_within_working_hours(
     end: datetime,
     settings: UserSettings,
 ) -> ConstraintResult:
-    work_start = datetime.combine(
-        start.date(),
-        settings.work_start,
-        tzinfo=UTC,
-    )
-    work_end = datetime.combine(
-        start.date(),
-        settings.work_end,
-        tzinfo=UTC,
-    )
-    if start < work_start or end > work_end:
+    timezone = user_timezone(getattr(settings, "timezone", None))
+    local_start = start.astimezone(timezone)
+    local_end = end.astimezone(timezone)
+    if (
+        local_start.date() != local_end.date()
+        or local_start.time() < settings.work_start
+        or local_end.time() > settings.work_end
+    ):
         return ConstraintResult(
             name="working_hours",
             passed=False,

@@ -498,6 +498,22 @@ def test_slack_aware_deadline_urgency_interpolates_smoothly_near_boundaries() ->
         assert before - after < 0.01
 
 
+def test_slack_aware_deadline_urgency_treats_offset_equivalent_instants_equally() -> None:
+    now = datetime(2026, 9, 4, 0, tzinfo=UTC)
+    utc_due = datetime(2026, 9, 4, 8, tzinfo=UTC)
+    sydney_due = datetime.fromisoformat("2026-09-04T18:00:00+10:00")
+
+    assert slack_aware_deadline_urgency(
+        due_date=utc_due,
+        now=now,
+        required_minutes=60,
+    )[0] == slack_aware_deadline_urgency(
+        due_date=sydney_due,
+        now=now,
+        required_minutes=60,
+    )[0]
+
+
 def test_slack_aware_task_importance_uses_required_minutes_metadata() -> None:
     now = datetime(2026, 1, 1, 9, tzinfo=UTC)
     task = _task(
@@ -1099,3 +1115,74 @@ def test_scheduling_v6_same_placement_quality_uses_earlier_start() -> None:
     )
 
     assert ordered[0].candidate == earlier
+
+
+def test_scheduling_v6_candidate_day_uses_user_timezone() -> None:
+    profile = SchedulingProfileV6.from_settings(_settings())
+    task = _task(estimated_duration_minutes=60)
+    earlier_local_day = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2026, 9, 4, 13, 30, tzinfo=UTC),
+            end=datetime(2026, 9, 4, 14, 30, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    later_local_day_exact_fit = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2026, 9, 4, 23, 30, tzinfo=UTC),
+            end=datetime(2026, 9, 5, 0, 30, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert earlier_local_day is not None
+    assert later_local_day_exact_fit is not None
+
+    ordered = sorted(
+        [
+            score_window_candidate(
+                later_local_day_exact_fit,
+                profile,
+                task_importance_score=0.8,
+                timezone_name="Australia/Sydney",
+            ),
+            score_window_candidate(
+                earlier_local_day,
+                profile,
+                task_importance_score=0.8,
+                timezone_name="Australia/Sydney",
+            ),
+        ],
+        key=lambda item: window_candidate_sort_key_v6(
+            item,
+            timezone_name="Australia/Sydney",
+        ),
+    )
+
+    assert ordered[0].candidate == earlier_local_day
+
+
+def test_scheduling_v6_focus_slot_uses_user_local_candidate_hour() -> None:
+    profile = SchedulingProfileV6.from_settings(_settings())
+    task = _task(estimated_duration_minutes=60)
+    local_nine_am = build_task_window_candidate(
+        task=task,
+        window=CandidateWindow(
+            start=datetime(2026, 9, 3, 23, tzinfo=UTC),
+            end=datetime(2026, 9, 4, 0, tzinfo=UTC),
+        ),
+        settings=_settings(),
+    )
+    assert local_nine_am is not None
+
+    scored = score_window_candidate(
+        local_nine_am,
+        profile,
+        task_importance_score=0.8,
+        preferred_focus_hours=Counter({9: 5}),
+        timezone_name="Australia/Sydney",
+    )
+
+    assert scored.breakdown.candidate_hour == 9
+    assert scored.focus_slot_fit_score == 1.0

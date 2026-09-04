@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from app.scoring.constraints import normalize_schedule_datetime
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskStatus
+from app.timezones import user_timezone
 
 DEFAULT_PLANNING_HORIZON_DAYS = 7
 
@@ -96,10 +97,16 @@ def build_task_window_candidate(
     )
 
 
-def work_window_for_day(*, day, settings: UserSettings) -> CandidateWindow:
+def work_window_for_day(
+    *,
+    day,
+    settings: UserSettings,
+    timezone_name: str | None = None,
+) -> CandidateWindow:
+    timezone = user_timezone(timezone_name or getattr(settings, "timezone", None))
     return CandidateWindow(
-        start=datetime.combine(day, settings.work_start, tzinfo=UTC),
-        end=datetime.combine(day, settings.work_end, tzinfo=UTC),
+        start=datetime.combine(day, settings.work_start, tzinfo=timezone).astimezone(UTC),
+        end=datetime.combine(day, settings.work_end, tzinfo=timezone).astimezone(UTC),
     )
 
 
@@ -123,13 +130,19 @@ def working_periods_for_horizon(
     *,
     horizon: PlanningHorizon,
     settings: UserSettings,
+    timezone_name: str | None = None,
 ) -> list[WorkingPeriod]:
+    timezone = user_timezone(timezone_name or getattr(settings, "timezone", None))
     periods: list[WorkingPeriod] = []
-    day = horizon.start.date()
-    final_day = horizon.end.date()
+    day = horizon.start.astimezone(timezone).date()
+    final_day = horizon.end.astimezone(timezone).date()
 
     while day <= final_day:
-        work_window = work_window_for_day(day=day, settings=settings)
+        work_window = work_window_for_day(
+            day=day,
+            settings=settings,
+            timezone_name=timezone.key,
+        )
         start = max(work_window.start, horizon.start)
         end = min(work_window.end, horizon.end)
         if end > start:

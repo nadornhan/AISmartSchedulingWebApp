@@ -13,6 +13,7 @@ class AiWeightsSnapshot(BaseModel):
     ai_assistant_enabled: bool = True
     work_start: str
     work_end: str
+    timezone: str = "UTC"
     pomodoro_minutes: int
 
 

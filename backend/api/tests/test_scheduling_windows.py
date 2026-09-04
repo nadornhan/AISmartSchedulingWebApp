@@ -1,6 +1,7 @@
 import uuid
 from collections import Counter
 from datetime import UTC, datetime, time
+from zoneinfo import ZoneInfo
 
 from app.scheduling import engine as scheduling_engine
 from app.scheduling.engine import RankedTask, build_schedule_slots
@@ -17,6 +18,7 @@ from app.scheduling.windows import (
     scheduling_required_minutes,
     summarize_task_capacity,
     task_fits_window,
+    work_window_for_day,
     working_periods_for_horizon,
 )
 from app.settings.models import UserSettings
@@ -28,10 +30,12 @@ def _settings(
     work_start: time = time(9, 0),
     work_end: time = time(17, 0),
     pomodoro_minutes: int = 25,
+    timezone: str = "UTC",
 ) -> UserSettings:
     return UserSettings(
         work_start=work_start,
         work_end=work_end,
+        timezone=timezone,
         pomodoro_minutes=pomodoro_minutes,
         ai_deadline_urgency_weight=80,
         ai_priority_weight=70,
@@ -185,6 +189,92 @@ def test_missing_duration_uses_pomodoro_fallback() -> None:
     task = _task(estimated_duration_minutes=None)
 
     assert scheduling_required_minutes(task, _settings(pomodoro_minutes=25)) == 25
+
+
+def test_work_window_for_day_respects_sydney_local_hours() -> None:
+    settings = _settings(timezone="Australia/Sydney")
+    window = work_window_for_day(
+        day=datetime(2026, 9, 4, tzinfo=UTC).date(),
+        settings=settings,
+    )
+
+    assert window.start.astimezone(ZoneInfo("Australia/Sydney")).time() == time(9, 0)
+    assert window.end.astimezone(ZoneInfo("Australia/Sydney")).time() == time(17, 0)
+
+
+def test_work_window_for_day_respects_non_dst_local_hours() -> None:
+    settings = _settings(timezone="Asia/Ho_Chi_Minh")
+    window = work_window_for_day(
+        day=datetime(2026, 9, 4, tzinfo=UTC).date(),
+        settings=settings,
+    )
+
+    assert window.start == datetime(2026, 9, 4, 2, tzinfo=UTC)
+    assert window.end == datetime(2026, 9, 4, 10, tzinfo=UTC)
+
+
+def test_work_window_for_day_keeps_sydney_nine_am_across_dst_transition() -> None:
+    settings = _settings(timezone="Australia/Sydney")
+    timezone = ZoneInfo("Australia/Sydney")
+
+    before_dst = work_window_for_day(
+        day=datetime(2026, 10, 3, tzinfo=UTC).date(),
+        settings=settings,
+    )
+    after_dst = work_window_for_day(
+        day=datetime(2026, 10, 5, tzinfo=UTC).date(),
+        settings=settings,
+    )
+
+    assert before_dst.start.astimezone(timezone).time() == time(9, 0)
+    assert after_dst.start.astimezone(timezone).time() == time(9, 0)
+    assert before_dst.start.utcoffset() == UTC.utcoffset(before_dst.start)
+    assert after_dst.start < after_dst.end
+    assert before_dst.start.hour != after_dst.start.hour
+
+
+def test_production_schedule_uses_user_local_work_start() -> None:
+    now = datetime(2026, 9, 3, 22, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(timezone="Australia/Sydney"),
+        now=now,
+        existing_tasks=[task],
+    )
+
+    _task_result, start, end, _explanation = slots[0]
+    timezone = ZoneInfo("Australia/Sydney")
+    assert start.astimezone(timezone) == datetime(
+        2026,
+        9,
+        4,
+        9,
+        tzinfo=timezone,
+    )
+    assert end.astimezone(timezone).time() == time(10, 0)
+
+
+def test_production_schedule_does_not_schedule_after_local_work_end() -> None:
+    now = datetime(2026, 9, 4, 6, 30, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=90)
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(timezone="Australia/Sydney"),
+        now=now,
+        existing_tasks=[task],
+    )
+
+    _task_result, start, _end, _explanation = slots[0]
+    assert start.astimezone(ZoneInfo("Australia/Sydney")) == datetime(
+        2026,
+        9,
+        5,
+        9,
+        tzinfo=ZoneInfo("Australia/Sydney"),
+    )
 
 
 def test_planning_horizon_defaults_to_seven_days_from_now() -> None:

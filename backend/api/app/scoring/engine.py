@@ -29,6 +29,7 @@ from app.scoring.schemas import (
     ScoredWindowCandidate,
 )
 from app.tasks.models import Task
+from app.timezones import local_date, local_hour
 
 
 def _clamp01(value: float) -> float:
@@ -196,12 +197,13 @@ def score_window_candidate(
     *,
     task_importance_score: float,
     preferred_focus_hours: Counter[int] | None = None,
+    timezone_name: str | None = None,
 ) -> ScoredWindowCandidate:
     fit_score, _fit_reason = duration_slot_fit(
         required_minutes=candidate.required_minutes,
         window_minutes=candidate.window.duration_minutes,
     )
-    candidate_hour = candidate.proposed_start.astimezone(UTC).hour
+    candidate_hour = local_hour(candidate.proposed_start, timezone_name)
     focus_score, _focus_reason, peak_hour = (
         focus_slot_fit(
             preferred_focus_hours or Counter(),
@@ -245,11 +247,15 @@ def window_candidate_sort_key(scored: ScoredWindowCandidate) -> tuple:
     )
 
 
-def window_candidate_sort_key_v6(scored: ScoredWindowCandidate) -> tuple:
+def window_candidate_sort_key_v6(
+    scored: ScoredWindowCandidate,
+    *,
+    timezone_name: str | None = None,
+) -> tuple:
     candidate = scored.candidate
     return (
         -scored.task_importance_score,
-        candidate.proposed_start.astimezone(UTC).date(),
+        local_date(candidate.proposed_start, timezone_name),
         -scored.duration_slot_fit_score,
         -scored.focus_slot_fit_score,
         candidate.proposed_start,

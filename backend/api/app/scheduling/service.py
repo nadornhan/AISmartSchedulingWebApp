@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from collections import Counter
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 from sqlalchemy import select
@@ -40,6 +40,7 @@ from app.tasks import service as task_service
 from app.tasks.models import Task, TaskStatus
 from app.tasks.overdue import is_task_overdue, utc_now
 from app.tasks.schemas import TaskDisplayStatus, TaskUpdate
+from app.timezones import local_hour
 
 
 def _preview_settings(db: Session, user_id: uuid.UUID):
@@ -50,6 +51,7 @@ def _preview_settings(db: Session, user_id: uuid.UUID):
     return SimpleNamespace(
         work_start=settings_service.DEFAULT_WORK_START,
         work_end=settings_service.DEFAULT_WORK_END,
+        timezone=settings_service.DEFAULT_TIMEZONE,
         pomodoro_minutes=25,
         ai_assistant_enabled=True,
         ai_deadline_urgency_weight=80,
@@ -145,6 +147,7 @@ def _weights_snapshot(settings) -> AiWeightsSnapshot:
         ai_assistant_enabled=settings.ai_assistant_enabled,
         work_start=settings.work_start.strftime("%H:%M"),
         work_end=settings.work_end.strftime("%H:%M"),
+        timezone=settings.timezone,
         pomodoro_minutes=settings.pomodoro_minutes,
     )
 
@@ -165,7 +168,12 @@ def _open_tasks(db: Session, user_id: uuid.UUID) -> list[Task]:
     )
 
 
-def _preferred_focus_hours(db: Session, user_id: uuid.UUID) -> Counter[int]:
+def _preferred_focus_hours(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    timezone_name: str,
+) -> Counter[int]:
     sessions = list(
         db.scalars(
             select(FocusSession).where(
@@ -176,7 +184,10 @@ def _preferred_focus_hours(db: Session, user_id: uuid.UUID) -> Counter[int]:
             )
         ).all()
     )
-    return Counter(session.started_at.astimezone(UTC).hour for session in sessions)
+    return Counter(
+        local_hour(session.started_at, timezone_name)
+        for session in sessions
+    )
 
 
 def _recently_dismissed_task_ids(db: Session, user_id: uuid.UUID) -> set[uuid.UUID]:
@@ -365,6 +376,7 @@ def _plan_is_stale(
         or snapshot.ai_assistant_enabled != settings.ai_assistant_enabled
         or snapshot.work_start != settings.work_start.strftime("%H:%M")
         or snapshot.work_end != settings.work_end.strftime("%H:%M")
+        or snapshot.timezone != settings.timezone
         or snapshot.pomodoro_minutes != settings.pomodoro_minutes
     ):
         return True
@@ -412,7 +424,11 @@ def generate_plan(
             return existing
 
     open_tasks = _open_tasks(db, user_id)
-    preferred_focus_hours = _preferred_focus_hours(db, user_id)
+    preferred_focus_hours = _preferred_focus_hours(
+        db,
+        user_id,
+        timezone_name=settings.timezone,
+    )
     ranked = rank_open_tasks(
         open_tasks,
         settings,

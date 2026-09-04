@@ -122,6 +122,7 @@ def build_schedule_slots(
     working_periods = working_periods_for_horizon(
         horizon=horizon,
         settings=settings,
+        timezone_name=settings.timezone,
     )
 
     slots: list[tuple[Task, datetime, datetime, str]] = []
@@ -187,13 +188,20 @@ def build_schedule_slots(
                         placement_profile,
                         task_importance_score=item.score,
                         preferred_focus_hours=focus_hours,
+                        timezone_name=settings.timezone,
                     )
                 )
 
         if not scored_candidates:
             break
 
-        scored = min(scored_candidates, key=window_candidate_sort_key_v6)
+        scored = min(
+            scored_candidates,
+            key=lambda item: window_candidate_sort_key_v6(
+                item,
+                timezone_name=settings.timezone,
+            ),
+        )
         candidate = scored.candidate
         window = candidate.window
         start = candidate.proposed_start
