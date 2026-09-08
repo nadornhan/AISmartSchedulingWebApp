@@ -4,7 +4,6 @@ export type SchedulingWeightsValue = {
   aiAssistantEnabled: boolean;
   deadlineUrgency: number;
   priorityLevel: number;
-  estimatedDuration: number;
 };
 
 type SchedulingWeightsProps = {
@@ -14,10 +13,17 @@ type SchedulingWeightsProps = {
 };
 
 const weights = [
-  { label: 'Deadline urgency', key: 'deadlineUrgency' },
-  { label: 'Task priority level', key: 'priorityLevel' },
-  { label: 'Estimated duration', key: 'estimatedDuration' },
-] satisfies Array<{ label: string; key: keyof SchedulingWeightsValue }>;
+  {
+    description: 'Controls how strongly approaching deadlines affect task importance.',
+    label: 'Deadline urgency',
+    key: 'deadlineUrgency',
+  },
+  {
+    description: "Controls how strongly each task's explicit priority affects task importance.",
+    label: 'Task priority level',
+    key: 'priorityLevel',
+  },
+] satisfies Array<{ description: string; label: string; key: keyof SchedulingWeightsValue }>;
 
 export function SchedulingWeights({ isDisabled = false, value, onChange }: SchedulingWeightsProps) {
   function updateWeight(key: keyof SchedulingWeightsValue, nextValue: number) {
@@ -28,7 +34,7 @@ export function SchedulingWeights({ isDisabled = false, value, onChange }: Sched
     <SettingsSection
       eyebrow="AI scheduling"
       title="Scheduling Weights"
-      description="Balance the factors used by the scheduling assistant."
+      description="Balance the active factors used for production task importance."
     >
       <div className="grid gap-4">
         <div className="flex items-center justify-between gap-4 border-b border-dashboard-border pb-4">
@@ -66,10 +72,13 @@ export function SchedulingWeights({ isDisabled = false, value, onChange }: Sched
         {weights.map((weight) => (
           <div className="grid gap-2" key={weight.label}>
             <div className="flex items-center justify-between gap-4 text-sm">
-              <label className="font-medium text-dashboard-text" htmlFor={weight.key}>
-                {weight.label}
-              </label>
-              <span className="text-dashboard-muted">{value[weight.key]}%</span>
+              <div className="min-w-0">
+                <label className="font-medium text-dashboard-text" htmlFor={weight.key}>
+                  {weight.label}
+                </label>
+                <p className="mt-0.5 text-xs text-dashboard-muted">{weight.description}</p>
+              </div>
+              <span className="shrink-0 text-dashboard-muted">{value[weight.key]}%</span>
             </div>
             <input
               aria-valuetext={`${value[weight.key]} percent`}

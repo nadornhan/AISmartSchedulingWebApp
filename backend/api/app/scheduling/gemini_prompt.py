@@ -18,9 +18,9 @@ def build_ai_preview_prompt(
         "rules": {
             "work_start": settings.work_start.strftime("%H:%M"),
             "work_end": settings.work_end.strftime("%H:%M"),
+            "timezone": settings.timezone,
             "default_duration_minutes": settings.pomodoro_minutes,
-            "minimum_slot_minutes": 15,
-            "maximum_slot_minutes": 120,
+            "full_duration_required": True,
             "maximum_slots": 5,
             "availability_limitation": (
                 "Only work_start and work_end are available. Meetings, classes, "

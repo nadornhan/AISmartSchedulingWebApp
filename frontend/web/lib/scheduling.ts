@@ -9,6 +9,7 @@ export type AiWeightsSnapshot = {
   ai_assistant_enabled: boolean;
   work_start: string;
   work_end: string;
+  timezone: string;
   pomodoro_minutes: number;
 };
 
@@ -37,9 +38,32 @@ export type ScheduleSuggestion = {
   position: number;
 };
 
+export type SchedulingIssueCode =
+  | 'NO_WINDOW_BEFORE_DEADLINE'
+  | 'NO_CONTIGUOUS_WINDOW_BEFORE_DEADLINE'
+  | 'NO_CAPACITY_IN_HORIZON'
+  | 'NO_CONTIGUOUS_WINDOW_IN_HORIZON';
+
+export type SchedulingIssue = {
+  task_id: string;
+  task_title: string;
+  code: SchedulingIssueCode;
+  severity: 'warning' | 'critical';
+  reason: string;
+  metadata: {
+    required_minutes: number;
+    total_available_minutes: number;
+    largest_available_block_minutes: number;
+    feasible_window_count: number;
+    due_date: string | null;
+    planning_horizon_end: string;
+  };
+};
+
 export type SchedulingPlan = {
   recommendation: AiRecommendation | null;
   schedule: ScheduleSuggestion[];
+  issues: SchedulingIssue[];
   generated_at: string;
   footnote: string;
 };

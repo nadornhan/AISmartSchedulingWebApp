@@ -6,9 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.settings.models import UserSettings
 from app.settings.schemas import UserSettingsResponse, UserSettingsUpdate
+from app.timezones import DEFAULT_USER_TIMEZONE
 
 DEFAULT_WORK_START = time(9, 0)
 DEFAULT_WORK_END = time(17, 0)
+DEFAULT_TIMEZONE = DEFAULT_USER_TIMEZONE
 
 
 def _invalidate_ai_plan(db: Session, user_id: uuid.UUID) -> None:
@@ -43,6 +45,7 @@ def serialize_user_settings(settings: UserSettings) -> UserSettingsResponse:
         work_pattern={
             "work_start": settings.work_start,
             "work_end": settings.work_end,
+            "timezone": settings.timezone,
             "pomodoro_minutes": settings.pomodoro_minutes,
         },
         ai_scheduling={

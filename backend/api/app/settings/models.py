@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, time
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, Time, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Time, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -48,6 +48,12 @@ class UserSettings(Base):
         Time,
         default=time(17, 0),
         server_default="17:00:00",
+        nullable=False,
+    )
+    timezone: Mapped[str] = mapped_column(
+        String(64),
+        default="UTC",
+        server_default="UTC",
         nullable=False,
     )
     pomodoro_minutes: Mapped[int] = mapped_column(

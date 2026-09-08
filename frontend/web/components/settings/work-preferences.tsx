@@ -3,6 +3,7 @@ import { SettingsSection } from './settings-section';
 export type WorkPreferencesValue = {
   workStart: string;
   workEnd: string;
+  timezone: string;
   pomodoroMinutes: number;
 };
 
@@ -25,7 +26,7 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
       title="Work Preferences"
       description="Default planning windows used by the scheduling flow."
     >
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="grid gap-2 text-sm font-medium text-dashboard-text">
           Work start
           <input
@@ -60,6 +61,14 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
               </option>
             ))}
           </select>
+        </label>
+        <label className="grid gap-2 text-sm font-medium text-dashboard-text">
+          Timezone
+          <input
+            className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
+            disabled
+            value={value.timezone}
+          />
         </label>
       </div>
     </SettingsSection>
