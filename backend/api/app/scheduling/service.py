@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.ai import AIService, get_ai_service
+from app.ai import AIFeature, AIService, get_ai_service
 from app.dashboard.schemas import DashboardTaskSummary
 from app.focus.models import FocusSession
 from app.scheduling.engine import (
@@ -85,7 +85,7 @@ def generate_ai_preview(
         user_key=str(user_id),
         prompt=prompt,
         response_schema=GeminiSchedulePreview,
-        feature="schedule_preview",
+        feature=AIFeature.SCHEDULE_PREVIEW,
         prompt_version="schedule-preview-v1",
     )
     preview = result.data

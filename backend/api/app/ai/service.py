@@ -8,8 +8,9 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
-from app.ai.exceptions import AIError
+from app.ai.exceptions import AIContractError, AIError
 from app.ai.limiter import AIRequestLimiter
+from app.ai.policies import AIFeature, get_ai_feature_policy
 from app.ai.provider import AIProvider
 from app.ai.schemas import AIGenerationMetadata, StructuredGenerationResult
 
@@ -28,17 +29,29 @@ class AIService:
         user_key: str,
         prompt: str,
         response_schema: type[StructuredDataT],
-        feature: str,
+        feature: AIFeature | str,
         prompt_version: str,
         fallback: Callable[[], StructuredDataT] | None = None,
     ) -> StructuredGenerationResult[StructuredDataT]:
+        try:
+            registered_feature = AIFeature(feature)
+        except ValueError as exc:
+            raise AIContractError(f"Unregistered AI feature: {feature}") from exc
+
+        policy = get_ai_feature_policy(registered_feature)
+        if prompt_version != policy.prompt_version:
+            raise AIContractError(
+                f"Prompt version {prompt_version!r} does not match registered "
+                f"version {policy.prompt_version!r} for {registered_feature.value}"
+            )
+
         started = time.perf_counter()
         try:
             self.limiter.check(user_key)
             result = self.provider.generate_structured(
                 prompt=prompt,
                 response_schema=response_schema,
-                feature=feature,
+                feature=registered_feature.value,
                 prompt_version=prompt_version,
             )
         except AIError as exc:
@@ -47,7 +60,7 @@ class AIService:
             result = StructuredGenerationResult[StructuredDataT](
                 data=fallback(),
                 metadata=AIGenerationMetadata(
-                    feature=feature,
+                    feature=registered_feature.value,
                     prompt_version=prompt_version,
                     source="deterministic_fallback",
                     model="none",

@@ -12,6 +12,10 @@ class AIConfigurationError(AIError):
     code = "ai_configuration_error"
 
 
+class AIContractError(AIError):
+    code = "ai_contract_error"
+
+
 class AIAuthenticationError(AIError):
     code = "ai_authentication_error"
 
