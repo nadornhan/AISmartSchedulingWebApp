@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,7 +20,9 @@ from app.ai.fake import FakeAIProvider
 from app.ai.limiter import AIRequestLimiter
 from app.ai.service import AIService
 from app.main import app
+from app.scheduling.gemini_prompt import build_ai_preview_prompt
 from app.scheduling.models import AiRecommendation, AiScheduleSuggestion
+from app.settings.models import UserSettings
 from app.tasks.models import Task
 
 
@@ -124,6 +126,21 @@ def recommendation_count(db_session: Session) -> int:
 
 def suggestion_count(db_session: Session) -> int:
     return db_session.scalar(select(func.count()).select_from(AiScheduleSuggestion)) or 0
+
+
+def test_ai_preview_prompt_uses_user_timezone_and_full_duration() -> None:
+    settings = UserSettings(
+        work_start=time(9),
+        work_end=time(17),
+        timezone="Australia/Sydney",
+        pomodoro_minutes=25,
+    )
+
+    prompt = build_ai_preview_prompt(tasks=[], settings=settings)
+
+    assert '"timezone":"Australia/Sydney"' in prompt
+    assert '"full_duration_required":true' in prompt
+    assert "maximum_slot_minutes" not in prompt
 
 
 def test_ai_preview_returns_structured_preview_without_database_write(
@@ -440,7 +457,7 @@ def test_ai_preview_rejects_deadline_violation(client: TestClient, fake_ai_servi
     assert response.status_code == 502
 
 
-def test_ai_preview_uses_current_slot_duration_clamp(
+def test_ai_preview_requires_the_same_full_duration_as_scheduling_v7(
     client: TestClient,
     fake_ai_service,
 ) -> None:
@@ -453,12 +470,12 @@ def test_ai_preview_uses_current_slot_duration_clamp(
                 slot(
                     short_task["id"],
                     start="2099-01-01T09:00:00+00:00",
-                    end="2099-01-01T09:15:00+00:00",
+                    end="2099-01-01T09:05:00+00:00",
                 ),
                 slot(
                     long_task["id"],
                     start="2099-01-01T09:20:00+00:00",
-                    end="2099-01-01T11:20:00+00:00",
+                    end="2099-01-01T12:20:00+00:00",
                 ),
             ]
         }

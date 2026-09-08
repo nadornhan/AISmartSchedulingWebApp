@@ -240,6 +240,20 @@ def _active_suggestion_candidates(
     ]
 
 
+def _accepted_suggestions(
+    db: Session,
+    user_id: uuid.UUID,
+) -> list[AiScheduleSuggestion]:
+    return list(
+        db.scalars(
+            select(AiScheduleSuggestion).where(
+                AiScheduleSuggestion.user_id == user_id,
+                AiScheduleSuggestion.status == ScheduleSuggestionStatus.ACCEPTED.value,
+            )
+        ).all()
+    )
+
+
 def _validate_suggestion_candidate(
     *,
     task: Task,
@@ -442,7 +456,16 @@ def generate_plan(
         ):
             return existing
 
+    # Pending and adjusted rows belong to the plan being replaced. Remove them
+    # before calculating capacity so regeneration cannot conflict with its own
+    # obsolete suggestions.
+    invalidate_pending_plan(db, user_id, commit=False)
+    db.flush()
+
     open_tasks = _open_tasks(db, user_id)
+    retained_suggestions = _accepted_suggestions(db, user_id)
+    retained_task_ids = {suggestion.task_id for suggestion in retained_suggestions}
+    schedulable_tasks = [task for task in open_tasks if task.id not in retained_task_ids]
     preferred_focus_hours = _preferred_focus_hours(
         db,
         user_id,
@@ -456,15 +479,13 @@ def generate_plan(
         existing_candidates=active_suggestion_candidates,
     )
     ranked = rank_open_tasks(
-        open_tasks,
+        schedulable_tasks,
         settings,
         now=now,
         preferred_focus_hours=preferred_focus_hours,
         dismissed_task_ids=_recently_dismissed_task_ids(db, user_id),
         capacity_windows=capacity_windows,
     )
-
-    invalidate_pending_plan(db, user_id, commit=False)
 
     top: RankedTask | None = ranked[0] if ranked else None
     recommendation: AiRecommendation | None = None
@@ -533,8 +554,15 @@ def generate_plan(
         ),
         schedule=_chronological_schedule(
             [
-                _to_schedule_response(suggestion, task)
-                for suggestion, task in created_suggestions
+                *[
+                    _to_schedule_response(suggestion, task_by_id[suggestion.task_id])
+                    for suggestion in retained_suggestions
+                    if suggestion.task_id in task_by_id
+                ],
+                *[
+                    _to_schedule_response(suggestion, task)
+                    for suggestion, task in created_suggestions
+                ],
             ]
         ),
         issues=[_to_issue_response(issue) for issue in schedule_result.issues],

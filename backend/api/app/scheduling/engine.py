@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from app.scheduling.windows import (
     CandidateWindow,
     allocate_from_window,
-    build_task_window_candidate,
+    build_task_window_candidates,
     candidate_windows_before_deadline,
     derive_free_windows_for_periods,
     occupied_intervals_from_candidates,
@@ -340,35 +340,33 @@ def build_schedule_result(
                 windows=free_windows,
             )
             for window in task_windows:
-                candidate = build_task_window_candidate(
+                candidates = build_task_window_candidates(
                     task=item.task,
                     window=window,
                     settings=settings,
                 )
-                if candidate is None:
-                    continue
-
-                validation = validate_schedule_candidate(
-                    task=item.task,
-                    start=candidate.proposed_start,
-                    end=candidate.proposed_end,
-                    settings=settings,
-                    existing_tasks=blockers,
-                    existing_candidates=accepted_candidates,
-                    require_unscheduled_task=True,
-                )
-                if not validation.valid:
-                    continue
-
-                scored_candidates.append(
-                    score_window_candidate(
-                        candidate,
-                        placement_profile,
-                        task_importance_score=importance.score,
-                        preferred_focus_hours=focus_hours,
-                        timezone_name=settings.timezone,
+                for candidate in candidates:
+                    validation = validate_schedule_candidate(
+                        task=item.task,
+                        start=candidate.proposed_start,
+                        end=candidate.proposed_end,
+                        settings=settings,
+                        existing_tasks=blockers,
+                        existing_candidates=accepted_candidates,
+                        require_unscheduled_task=True,
                     )
-                )
+                    if not validation.valid:
+                        continue
+
+                    scored_candidates.append(
+                        score_window_candidate(
+                            candidate,
+                            placement_profile,
+                            task_importance_score=importance.score,
+                            preferred_focus_hours=focus_hours,
+                            timezone_name=settings.timezone,
+                        )
+                    )
 
         if not scored_candidates:
             break

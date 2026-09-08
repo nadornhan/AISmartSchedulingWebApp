@@ -10,7 +10,9 @@ from app.scheduling.windows import (
     OccupiedInterval,
     PlanningHorizon,
     WorkingPeriod,
+    allocate_from_window,
     build_task_window_candidate,
+    build_task_window_candidates,
     candidate_windows_before_deadline,
     derive_free_windows,
     derive_free_windows_for_periods,
@@ -1259,6 +1261,49 @@ def test_task_window_candidate_represents_entire_required_duration() -> None:
     assert candidate.required_minutes == 90
     assert candidate.proposed_start == datetime(2099, 1, 1, 9, tzinfo=UTC)
     assert candidate.proposed_end == datetime(2099, 1, 1, 10, 30, tzinfo=UTC)
+
+
+def test_task_window_candidates_cover_later_starts_and_preserve_both_sides() -> None:
+    task = _task(estimated_duration_minutes=60)
+    window = _window(9, 12)
+
+    candidates = build_task_window_candidates(
+        task=task,
+        window=window,
+        settings=_settings(),
+    )
+    selected = next(
+        candidate
+        for candidate in candidates
+        if candidate.proposed_start == datetime(2099, 1, 1, 10, tzinfo=UTC)
+    )
+    remaining = allocate_from_window(
+        windows=[window],
+        used_window=window,
+        candidate=selected,
+    )
+
+    assert candidates[0].proposed_start == datetime(2099, 1, 1, 9, tzinfo=UTC)
+    assert candidates[-1].proposed_start == datetime(2099, 1, 1, 11, tzinfo=UTC)
+    assert remaining == [_window(9, 10), _window(11, 12)]
+
+
+def test_focus_fit_can_place_task_later_inside_a_large_free_window() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    task = _task(estimated_duration_minutes=60)
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(),
+        now=now,
+        existing_tasks=[task],
+        preferred_focus_hours=Counter({14: 5}),
+    )
+
+    assert slots[0][1:3] == (
+        datetime(2099, 1, 1, 14, tzinfo=UTC),
+        datetime(2099, 1, 1, 15, tzinfo=UTC),
+    )
 
 
 def test_deadline_clipped_capacity_uses_latest_start_inside_clipped_window() -> None:

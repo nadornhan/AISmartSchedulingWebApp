@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 from itertools import pairwise
 
+from app.scheduling.windows import scheduling_required_minutes
 from app.scoring.constraints import (
     has_no_existing_schedule_conflict,
     normalize_schedule_datetime,
@@ -15,8 +16,6 @@ from app.tasks.models import Task, TaskStatus
 from .schemas import GeminiSchedulePreview, GeminiScheduleSlot
 
 MAX_PREVIEW_SLOTS = 5
-MIN_SLOT_MINUTES = 15
-MAX_SLOT_MINUTES = 120
 
 
 class DeterministicScheduleValidationError(Exception):
@@ -136,5 +135,4 @@ def _validate_no_existing_overlaps(
 
 
 def _expected_duration_minutes(task: Task, settings: UserSettings) -> int:
-    duration = task.estimated_duration_minutes or settings.pomodoro_minutes
-    return max(MIN_SLOT_MINUTES, min(duration, MAX_SLOT_MINUTES))
+    return scheduling_required_minutes(task, settings)

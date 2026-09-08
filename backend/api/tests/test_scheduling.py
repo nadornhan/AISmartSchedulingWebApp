@@ -961,6 +961,71 @@ def test_regenerate_plan_recomputes_issue_capacity(
     assert refreshed.json()["schedule"]
 
 
+def test_repeated_regeneration_does_not_move_its_own_pending_schedule(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    db_session.autoflush = False
+    headers = auth_headers(client)
+    create = client.post(
+        "/tasks",
+        headers=headers,
+        json={
+            "title": "Stable regeneration",
+            "estimated_duration_minutes": 60,
+            "due_date": (datetime.now(UTC) + timedelta(days=2)).isoformat(),
+        },
+    )
+    assert create.status_code == 201
+    task_id = create.json()["id"]
+
+    first = client.post("/scheduling/plan/regenerate", headers=headers)
+    second = client.post("/scheduling/plan/regenerate", headers=headers)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_slot = next(slot for slot in first.json()["schedule"] if slot["task_id"] == task_id)
+    second_slot = next(slot for slot in second.json()["schedule"] if slot["task_id"] == task_id)
+    assert second_slot["suggested_start"] == first_slot["suggested_start"]
+    assert second_slot["suggested_end"] == first_slot["suggested_end"]
+
+
+def test_regeneration_keeps_one_accepted_suggestion_per_task(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    db_session.autoflush = False
+    headers = auth_headers(client)
+    create = client.post(
+        "/tasks",
+        headers=headers,
+        json={
+            "title": "Keep accepted slot",
+            "estimated_duration_minutes": 60,
+            "due_date": (datetime.now(UTC) + timedelta(days=2)).isoformat(),
+        },
+    )
+    assert create.status_code == 201
+    task_id = create.json()["id"]
+
+    first = client.post("/scheduling/plan/regenerate", headers=headers)
+    suggestion = next(slot for slot in first.json()["schedule"] if slot["task_id"] == task_id)
+    accepted = client.post(
+        f"/scheduling/suggestions/{suggestion['id']}/accept",
+        headers=headers,
+    )
+    regenerated = client.post("/scheduling/plan/regenerate", headers=headers)
+
+    assert accepted.status_code == 200
+    assert regenerated.status_code == 200
+    task_suggestions = [
+        slot for slot in regenerated.json()["schedule"] if slot["task_id"] == task_id
+    ]
+    assert len(task_suggestions) == 1
+    assert task_suggestions[0]["id"] == suggestion["id"]
+    assert task_suggestions[0]["status"] == "accepted"
+
+
 def test_focus_session_and_regenerate(client: TestClient) -> None:
     headers = auth_headers(client)
     create = client.post(

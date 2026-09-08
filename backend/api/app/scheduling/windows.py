@@ -10,6 +10,7 @@ from app.tasks.models import Task, TaskStatus
 from app.timezones import user_timezone
 
 DEFAULT_PLANNING_HORIZON_DAYS = 7
+CANDIDATE_START_STEP_MINUTES = 15
 
 
 @dataclass(frozen=True)
@@ -95,6 +96,40 @@ def build_task_window_candidate(
         proposed_end=proposed_end,
         required_minutes=required_minutes,
     )
+
+
+def build_task_window_candidates(
+    *,
+    task: Task,
+    window: CandidateWindow,
+    settings: UserSettings,
+    step_minutes: int = CANDIDATE_START_STEP_MINUTES,
+) -> list[TaskWindowCandidate]:
+    """Build deterministic start-time alternatives across a free window."""
+
+    if step_minutes < 1:
+        raise ValueError("candidate step must be at least one minute")
+
+    required_minutes = scheduling_required_minutes(task, settings)
+    latest_start = window.end - timedelta(minutes=required_minutes)
+    if latest_start < window.start:
+        return []
+
+    candidates: list[TaskWindowCandidate] = []
+    proposed_start = window.start
+    while proposed_start <= latest_start:
+        candidates.append(
+            TaskWindowCandidate(
+                task=task,
+                window=window,
+                proposed_start=proposed_start,
+                proposed_end=proposed_start + timedelta(minutes=required_minutes),
+                required_minutes=required_minutes,
+            )
+        )
+        proposed_start += timedelta(minutes=step_minutes)
+
+    return candidates
 
 
 def work_window_for_day(
@@ -326,6 +361,13 @@ def allocate_from_window(
             remaining.append(window)
             continue
 
+        if candidate.proposed_start > window.start:
+            remaining.append(
+                CandidateWindow(
+                    start=window.start,
+                    end=candidate.proposed_start,
+                )
+            )
         if candidate.proposed_end < window.end:
             remaining.append(
                 CandidateWindow(
