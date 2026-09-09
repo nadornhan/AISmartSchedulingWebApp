@@ -8,6 +8,7 @@ from pydantic import BaseModel, SecretStr
 
 from app.ai.exceptions import (
     AIConfigurationError,
+    AIContractError,
     AIInvalidResponseError,
     AIRequestLimitError,
     AITimeoutError,
@@ -16,6 +17,7 @@ from app.ai.exceptions import (
 from app.ai.fake import FakeAIProvider
 from app.ai.gemini import GeminiProvider
 from app.ai.limiter import AIRequestLimiter
+from app.ai.policies import AIFeature
 from app.ai.service import AIService
 from app.config import Settings
 
@@ -64,15 +66,15 @@ def test_service_uses_deterministic_fallback_and_records_reason(caplog) -> None:
             user_key="user-1",
             prompt="Plan my report",
             response_schema=ExampleOutput,
-            feature="task_draft",
-            prompt_version="task-draft-v1",
+            feature=AIFeature.TASK_UNDERSTANDING,
+            prompt_version="task-understanding-v1",
             fallback=lambda: ExampleOutput(title="Plan my report", confidence=0.4),
         )
 
     assert result.metadata.source == "deterministic_fallback"
     assert result.metadata.fallback_reason == "ai_upstream_error"
     assert "Plan my report" not in caplog.text
-    assert '"feature":"task_draft"' in caplog.text
+    assert '"feature":"task_understanding"' in caplog.text
 
 
 def test_service_reraises_without_fallback() -> None:
@@ -83,8 +85,34 @@ def test_service_reraises_without_fallback() -> None:
             user_key="user-1",
             prompt="Plan my report",
             response_schema=ExampleOutput,
-            feature="task_draft",
-            prompt_version="task-draft-v1",
+            feature=AIFeature.TASK_UNDERSTANDING,
+            prompt_version="task-understanding-v1",
+        )
+
+
+def test_service_rejects_unregistered_feature() -> None:
+    service = AIService(FakeAIProvider(), AIRequestLimiter(10))
+
+    with pytest.raises(AIContractError, match="Unregistered AI feature"):
+        service.generate_structured(
+            user_key="user-1",
+            prompt="Plan my report",
+            response_schema=ExampleOutput,
+            feature="member_specific_feature",
+            prompt_version="member-v1",
+        )
+
+
+def test_service_rejects_mismatched_prompt_version() -> None:
+    service = AIService(FakeAIProvider(), AIRequestLimiter(10))
+
+    with pytest.raises(AIContractError, match="does not match registered version"):
+        service.generate_structured(
+            user_key="user-1",
+            prompt="Plan my report",
+            response_schema=ExampleOutput,
+            feature=AIFeature.TASK_UNDERSTANDING,
+            prompt_version="task-understanding-v2",
         )
 
 
