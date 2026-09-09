@@ -2,9 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+import app.ai.models
 import app.focus.models
 import app.gamification.models
 import app.scheduling.models
+from app.ai.exceptions import AIError
+from app.ai.http import ai_error_handler
 from app.analytics.router import router as analytics_router
 from app.auth.router import router as auth_router
 from app.config import get_settings
@@ -22,6 +25,7 @@ settings = get_settings()
 settings.upload_dir.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="AI Smart Scheduling API")
+app.add_exception_handler(AIError, ai_error_handler)
 
 app.add_middleware(
     CORSMiddleware,

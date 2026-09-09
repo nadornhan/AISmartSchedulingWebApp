@@ -19,7 +19,13 @@ from app.ai.routing import (
     TaskParserAssessment,
     decide_task_understanding_route,
 )
+from app.ai.schemas import AIUsageEvent, AIUsageFeatureSummary
 from app.ai.service import AIService
+from app.ai.telemetry import (
+    AITelemetryRecorder,
+    DatabaseAITelemetryRecorder,
+    summarize_ai_usage,
+)
 
 __all__ = [
     "AI_CONTEXT_SCHEMA_VERSION",
@@ -34,10 +40,15 @@ __all__ = [
     "AIScoreFactorEvidence",
     "AIService",
     "AITaskScoreEvidence",
+    "AITelemetryRecorder",
+    "AIUsageEvent",
+    "AIUsageFeatureSummary",
+    "DatabaseAITelemetryRecorder",
     "TaskParserAssessment",
     "candidate_score_evidence",
     "decide_task_understanding_route",
     "get_ai_feature_policy",
     "get_ai_service",
+    "summarize_ai_usage",
     "task_score_evidence",
 ]

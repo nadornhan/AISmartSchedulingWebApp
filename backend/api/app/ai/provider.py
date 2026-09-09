@@ -10,6 +10,12 @@ StructuredDataT = TypeVar("StructuredDataT", bound=BaseModel)
 
 
 class AIProvider(Protocol):
+    @property
+    def source_name(self) -> str: ...
+
+    @property
+    def model_name(self) -> str: ...
+
     def generate_structured(
         self,
         *,

@@ -30,6 +30,7 @@ class AIFeaturePolicy(BaseModel):
     ]
     requires_confirmation: bool
     deterministic_authority: bool
+    requests_per_user_per_minute: int = Field(ge=1, le=120)
     parser_confidence_threshold: float | None = Field(default=None, ge=0, le=1)
     owner_area: str
 
@@ -41,6 +42,7 @@ _POLICIES = {
         invocation="engine_explanation",
         requires_confirmation=True,
         deterministic_authority=True,
+        requests_per_user_per_minute=3,
         owner_area="scheduling",
     ),
     AIFeature.TASK_UNDERSTANDING: AIFeaturePolicy(
@@ -49,6 +51,7 @@ _POLICIES = {
         invocation="hybrid_parser",
         requires_confirmation=True,
         deterministic_authority=False,
+        requests_per_user_per_minute=6,
         parser_confidence_threshold=0.75,
         owner_area="tasks",
     ),
@@ -58,6 +61,7 @@ _POLICIES = {
         invocation="explicit_preview",
         requires_confirmation=True,
         deterministic_authority=False,
+        requests_per_user_per_minute=3,
         owner_area="tasks",
     ),
     AIFeature.DURATION_ESTIMATION: AIFeaturePolicy(
@@ -66,6 +70,7 @@ _POLICIES = {
         invocation="explicit_preview",
         requires_confirmation=True,
         deterministic_authority=True,
+        requests_per_user_per_minute=3,
         owner_area="tasks-focus",
     ),
     AIFeature.PRIORITY_SUGGESTION: AIFeaturePolicy(
@@ -74,6 +79,7 @@ _POLICIES = {
         invocation="explicit_preview",
         requires_confirmation=True,
         deterministic_authority=True,
+        requests_per_user_per_minute=4,
         owner_area="priority",
     ),
     AIFeature.INTELLIGENT_RESCHEDULING: AIFeaturePolicy(
@@ -82,6 +88,7 @@ _POLICIES = {
         invocation="engine_explanation",
         requires_confirmation=True,
         deterministic_authority=True,
+        requests_per_user_per_minute=2,
         owner_area="scheduling-calendar",
     ),
     AIFeature.WEEKLY_INSIGHTS: AIFeaturePolicy(
@@ -90,6 +97,7 @@ _POLICIES = {
         invocation="weekly_batch",
         requires_confirmation=False,
         deterministic_authority=True,
+        requests_per_user_per_minute=1,
         owner_area="analytics",
     ),
 }
