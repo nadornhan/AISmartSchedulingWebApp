@@ -70,7 +70,7 @@ class GeminiProvider:
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
-                        response_schema=response_schema,
+                        response_json_schema=response_schema.model_json_schema(),
                         max_output_tokens=self.settings.gemini_max_output_tokens,
                     ),
                 )
