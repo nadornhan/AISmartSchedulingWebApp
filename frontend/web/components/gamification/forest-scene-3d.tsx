@@ -1,8 +1,9 @@
 'use client';
 
 import { Canvas, ThreeEvent, useFrame } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { OrbitControls, useGLTF } from '@react-three/drei';
+import { Component, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import * as THREE from 'three';
 
 import type { UserPlant } from '../../lib/gamification';
@@ -22,6 +23,64 @@ type SpeciesPalette = {
   accent: string;
 };
 
+const PLANT_MODEL_PATHS = {
+  oak: {
+    seedling: '/models/plants/oak/seedling.glb',
+    growing: '/models/plants/oak/growing.glb',
+    mature: '/models/plants/oak/mature.glb',
+  },
+  maple: {
+    seedling: '/models/plants/chrono-maple/seedling.glb',
+    growing: '/models/plants/chrono-maple/growing.glb',
+    mature: '/models/plants/chrono-maple/mature.glb',
+  },
+  pine: {
+    seedling: '/models/plants/pine/seedling.glb',
+    growing: '/models/plants/pine/growing.glb',
+    mature: '/models/plants/pine/mature.glb',
+  },
+  cherry_blossom: {
+    seedling: '/models/plants/cherry_blossom/seedling.glb',
+    growing: '/models/plants/cherry_blossom/growing.glb',
+    mature: '/models/plants/cherry_blossom/mature.glb',
+  },
+  bonsai: {
+    seedling: '/models/plants/bonsai/seedling.glb',
+    growing: '/models/plants/bonsai/growing.glb',
+    mature: '/models/plants/bonsai/mature.glb',
+  },
+  willow: {
+    seedling: '/models/plants/willow/seedling.glb',
+    growing: '/models/plants/willow/growing.glb',
+    mature: '/models/plants/willow/mature.glb',
+  },
+  lavender: {
+    seedling: '/models/plants/lavender/seedling.glb',
+    growing: '/models/plants/lavender/growing.glb',
+    mature: '/models/plants/lavender/mature.glb',
+  },
+  sunflower: {
+    seedling: '/models/plants/sunflower/seedling.glb',
+    growing: '/models/plants/sunflower/growing.glb',
+    mature: '/models/plants/sunflower/mature.glb',
+  },
+  chrono: {
+    seedling: '/models/plants/chrono/seedling.glb',
+    growing: '/models/plants/chrono/growing.glb',
+    mature: '/models/plants/chrono/mature.glb',
+  },
+} as const;
+
+type ModelledSpecies = keyof typeof PLANT_MODEL_PATHS;
+type ModelledStage = 'seedling' | 'growing' | 'mature';
+
+function plantModelPath(speciesKey: string, stage: string): string | null {
+  if (!(speciesKey in PLANT_MODEL_PATHS)) return null;
+  const normalizedStage: ModelledStage =
+    stage === 'mature' || stage === 'growing' ? stage : 'seedling';
+  return PLANT_MODEL_PATHS[speciesKey as ModelledSpecies][normalizedStage];
+}
+
 function paletteFor(speciesKey: string, stage: string): SpeciesPalette {
   const map: Record<string, SpeciesPalette> = {
     oak: { trunk: '#6b4423', foliage: '#2f7d4a', accent: '#3f9a5c' },
@@ -32,6 +91,7 @@ function paletteFor(speciesKey: string, stage: string): SpeciesPalette {
     willow: { trunk: '#6b5535', foliage: '#6f9e4a', accent: '#8fbf5c' },
     lavender: { trunk: '#6a5a40', foliage: '#7a9a58', accent: '#8b6bb5' },
     sunflower: { trunk: '#6b5230', foliage: '#5f9a3f', accent: '#e8b923' },
+    chrono: { trunk: '#10142f', foliage: '#14d9d0', accent: '#d95bd2' },
   };
   const base = map[speciesKey] ?? map.oak;
   if (speciesKey === 'maple') {
@@ -234,6 +294,59 @@ function SpeciesMesh({
   );
 }
 
+function GlbPlantModel({ path }: { path: string }) {
+  const { scene } = useGLTF(path);
+  const instance = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
+    });
+    return clone;
+  }, [scene]);
+
+  return <primitive object={instance} />;
+}
+
+class PlantAssetBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+function PlantModel({
+  speciesKey,
+  stage,
+  colors,
+}: {
+  speciesKey: string;
+  stage: string;
+  colors: SpeciesPalette;
+}) {
+  const path = plantModelPath(speciesKey, stage);
+  if (!path) return <SpeciesMesh colors={colors} speciesKey={speciesKey} stage={stage} />;
+
+  const fallback = <SpeciesMesh colors={colors} speciesKey={speciesKey} stage={stage} />;
+  return (
+    <PlantAssetBoundary fallback={fallback} key={path}>
+      <Suspense fallback={fallback}>
+        <GlbPlantModel path={path} />
+      </Suspense>
+    </PlantAssetBoundary>
+  );
+}
+
 function SoftCloud({
   position,
   reducedMotion,
@@ -345,7 +458,7 @@ function LowPolyTree({
         onSelect();
       }}
     >
-      <SpeciesMesh colors={colors} speciesKey={speciesKey} stage={stage} />
+      <PlantModel colors={colors} speciesKey={speciesKey} stage={stage} />
       {selected ? (
         <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.55, 0.8, 24]} />
@@ -463,3 +576,7 @@ export function ForestScene3D(props: ForestScene3DProps) {
     </div>
   );
 }
+
+Object.values(PLANT_MODEL_PATHS).forEach((stages) => {
+  Object.values(stages).forEach((path) => useGLTF.preload(path));
+});

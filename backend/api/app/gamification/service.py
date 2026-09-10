@@ -225,6 +225,13 @@ def _unlock_hint(requirement: dict) -> str | None:
         return f"Unlock after productive activity across {value} weeks"
     if kind == "trees_grown":
         return f"Unlock after growing {value} mature trees"
+    if kind == "chrono_legend":
+        return (
+            f"Legendary: grow {requirement.get('trees_grown', 10)} trees, complete "
+            f"{requirement.get('tasks_completed', 250)} tasks and "
+            f"{requirement.get('focus_sessions', 100)} focus sessions across "
+            f"{requirement.get('active_weeks', 12)} active weeks"
+        )
     return "Keep nurturing your forest to unlock this plant"
 
 
@@ -249,6 +256,17 @@ def _is_species_unlocked(
     if kind == "trees_grown":
         profile = profile or get_or_create_profile(db, user_id)
         return profile.total_trees_grown >= value
+    if kind == "chrono_legend":
+        profile = profile or get_or_create_profile(db, user_id)
+        return (
+            profile.total_trees_grown >= int(requirement.get("trees_grown", 10))
+            and _count_completed_tasks(db, user_id)
+            >= int(requirement.get("tasks_completed", 250))
+            and _count_focus_sessions(db, user_id)
+            >= int(requirement.get("focus_sessions", 100))
+            and _count_active_weeks(db, user_id)
+            >= int(requirement.get("active_weeks", 12))
+        )
     return False
 
 
