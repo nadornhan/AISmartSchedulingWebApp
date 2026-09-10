@@ -4,17 +4,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.ai import AIService, get_ai_service
-from app.ai.exceptions import (
-    AIAuthenticationError,
-    AIConfigurationError,
-    AIDisabledError,
-    AIInvalidResponseError,
-    AIModelUnavailableError,
-    AIQuotaError,
-    AIRequestLimitError,
-    AITimeoutError,
-    AIUpstreamError,
-)
 from app.auth.dependencies import CurrentUser, DatabaseSession
 from app.scheduling import service
 from app.scheduling.models import RecommendationStatus, ScheduleSuggestionStatus
@@ -65,28 +54,7 @@ def generate_ai_preview(
         )
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except (AIConfigurationError, AIDisabledError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI scheduling preview is not configured",
-        ) from exc
-    except (AIQuotaError, AIRequestLimitError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="AI quota or rate limit was reached",
-        ) from exc
-    except AITimeoutError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="AI scheduling preview timed out",
-        ) from exc
-    except (
-        AIAuthenticationError,
-        AIModelUnavailableError,
-        AIInvalidResponseError,
-        AIUpstreamError,
-        DeterministicScheduleValidationError,
-    ) as exc:
+    except DeterministicScheduleValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="AI could not produce a valid schedule preview",

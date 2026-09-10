@@ -14,6 +14,10 @@ The shared integration contracts are intentionally separate from feature logic:
   scanning user text.
 - `contracts.py` converts deterministic scoring output into versioned AI context
   and provides the common preview/confirmation envelope.
+- `telemetry.py` records operational metadata in PostgreSQL and exposes grouped
+  usage summaries for analytics. It never stores prompts or generated content.
+- `http.py` maps every shared AI exception to a sanitized response containing
+  `detail`, stable `code`, and `retryable` fields.
 
 Do not invent a new feature string, prompt version, confidence threshold, or
 response lifecycle inside a feature branch. Add or change it in this shared layer
@@ -52,7 +56,9 @@ result = ai_service.generate_structured(
 
 Do not include passwords, JWTs, API keys, unrelated notification history, or
 another user's data in a prompt. Do not call AI on every keystroke or page load.
-One explicit user action should produce at most one model request.
+One explicit user action should produce at most one model request. The registry
+also defines a free-tier request budget for each feature. These limits protect
+the shared Gemini quota in addition to the global per-user limit.
 
 `AIService` rejects unregistered feature names and mismatched prompt versions.
 When a prompt contract changes, add a new registered version and update its tests
@@ -64,6 +70,13 @@ availability, overlaps, score totals, analytics totals, or final schedule validi
 All task, decomposition, duration, priority, and rescheduling outputs are previews;
 write to PostgreSQL only in a separate authenticated confirmation request.
 
+Each generation attempt persists only operational fields: user id, feature,
+prompt version, provider/model, outcome, latency, token counts, and sanitized
+error code. Telemetry uses an independent transaction so it cannot commit or roll
+back a task/schedule confirmation transaction. Run Alembic migrations before
+enabling AI in a deployed environment.
+
 The bundled limiter is deliberately process-local for development. Production
 with multiple API workers must replace it with a shared Redis or PostgreSQL
-implementation behind the same `check(user_key)` interface.
+implementation behind the same `check(...)` interface while retaining both the
+global and per-feature budgets.

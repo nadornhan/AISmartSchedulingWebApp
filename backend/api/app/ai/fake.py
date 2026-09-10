@@ -7,7 +7,11 @@ from typing import Any, TypeVar
 from pydantic import BaseModel, ValidationError
 
 from app.ai.exceptions import AIInvalidResponseError
-from app.ai.schemas import AIGenerationMetadata, StructuredGenerationResult
+from app.ai.schemas import (
+    AIGenerationMetadata,
+    AIUsageEvent,
+    StructuredGenerationResult,
+)
 
 StructuredDataT = TypeVar("StructuredDataT", bound=BaseModel)
 
@@ -18,6 +22,14 @@ class FakeAIProvider:
     def __init__(self, responses: list[Any] | None = None) -> None:
         self.responses: deque[Any] = deque(responses or [])
         self.calls: list[dict[str, Any]] = []
+
+    @property
+    def source_name(self) -> str:
+        return "fake"
+
+    @property
+    def model_name(self) -> str:
+        return "fake"
 
     def queue(self, response: Any) -> None:
         self.responses.append(response)
@@ -55,3 +67,13 @@ class FakeAIProvider:
                 latency_ms=round((time.perf_counter() - started) * 1000),
             ),
         )
+
+
+class InMemoryAITelemetryRecorder:
+    """Inspectable telemetry sink shared by AI feature tests."""
+
+    def __init__(self) -> None:
+        self.events: list[AIUsageEvent] = []
+
+    def record(self, event: AIUsageEvent) -> None:
+        self.events.append(event.model_copy(deep=True))

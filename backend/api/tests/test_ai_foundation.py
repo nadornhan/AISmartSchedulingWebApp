@@ -61,7 +61,7 @@ def test_service_uses_deterministic_fallback_and_records_reason(caplog) -> None:
             raise AIUpstreamError("provider unavailable")
 
     service = AIService(FailingProvider(), AIRequestLimiter(10))
-    with caplog.at_level(logging.INFO, logger="app.ai.service"):
+    with caplog.at_level(logging.INFO, logger="app.ai.telemetry"):
         result = service.generate_structured(
             user_key="user-1",
             prompt="Plan my report",
@@ -74,6 +74,7 @@ def test_service_uses_deterministic_fallback_and_records_reason(caplog) -> None:
     assert result.metadata.source == "deterministic_fallback"
     assert result.metadata.fallback_reason == "ai_upstream_error"
     assert "Plan my report" not in caplog.text
+    assert "user-1" not in caplog.text
     assert '"feature":"task_understanding"' in caplog.text
 
 
@@ -126,6 +127,31 @@ def test_request_limiter_is_scoped_per_user_and_uses_sliding_window() -> None:
         limiter.check("user-1", now=120)
 
     limiter.check("user-1", now=161)
+
+
+def test_request_limiter_enforces_feature_quota_without_blocking_other_features() -> None:
+    limiter = AIRequestLimiter(10)
+    limiter.check(
+        "user-1",
+        feature="weekly_insights",
+        feature_requests_per_minute=1,
+        now=100,
+    )
+
+    with pytest.raises(AIRequestLimitError):
+        limiter.check(
+            "user-1",
+            feature="weekly_insights",
+            feature_requests_per_minute=1,
+            now=101,
+        )
+
+    limiter.check(
+        "user-1",
+        feature="task_understanding",
+        feature_requests_per_minute=6,
+        now=101,
+    )
 
 
 def test_ai_configuration_validates_limits() -> None:

@@ -34,6 +34,14 @@ class GeminiProvider:
         self.settings = settings
         self.client_factory = client_factory
 
+    @property
+    def source_name(self) -> str:
+        return "gemini"
+
+    @property
+    def model_name(self) -> str:
+        return self.settings.gemini_model
+
     def generate_structured(
         self,
         *,
