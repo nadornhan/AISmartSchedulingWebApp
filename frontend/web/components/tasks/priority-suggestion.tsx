@@ -106,9 +106,26 @@ export function PrioritySuggestion({ title, taskDescription, dueDate, dueTime, d
       {error && <p role="alert" className="text-red-400">{error}</p>}
       {proposal && <div role="status" className="space-y-2">
         <p>Suggested priority: <strong className="text-dashboard-accent">{priorityLabels[proposal.suggested_priority]}</strong></p>
-        {proposal.importance_source === 'ai' && proposal.importance_reason ? (
-          <p className="line-clamp-2 text-xs font-normal text-dashboard-muted">{proposal.importance_reason}</p>
-        ) : <p className="text-xs font-normal text-dashboard-muted">Based on task data; AI importance unavailable.</p>}
+        <p className="text-xs font-normal text-dashboard-muted">
+          Confidence: <strong className="text-dashboard-text">{Math.round(proposal.confidence * 100)}%</strong>
+        </p>
+        <div className="text-xs font-normal">
+          <p className="font-medium text-dashboard-text">Deterministic reasons</p>
+          <ul className="mt-1 list-disc space-y-1 pl-4 text-dashboard-muted">
+            {proposal.reasons.filter(reason =>
+              !reason.startsWith('AI-inferred importance:') &&
+              reason !== 'Workload compares all open task estimates with the next 7 days of working hours'
+            ).map((reason, index) => (
+              <li key={index}>{reason}</li>
+            ))}
+          </ul>
+        </div>
+        {(proposal.ai_explanation || (proposal.importance_source === 'ai' && proposal.importance_reason)) ? (
+          <div className="text-xs font-normal">
+            <p className="font-medium text-dashboard-text">AI explanation</p>
+            <p className="mt-1 text-dashboard-muted">{proposal.ai_explanation || proposal.importance_reason}</p>
+          </div>
+        ) : <p className="text-xs font-normal text-dashboard-muted">AI explanation unavailable; using task data.</p>}
         <div className="flex flex-wrap gap-2">
           <button type="button" className={button} disabled={disabled} onClick={() => { onChoose(proposal.suggested_priority); setOpen(false); }}>Accept</button>
           <select aria-label="Change suggested priority" value={choice} onChange={e => setChoice(e.target.value as TaskPriorityValue)} className="rounded bg-[var(--bg-input)] p-1">
