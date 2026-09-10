@@ -1,0 +1,188 @@
+import enum
+import uuid
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database import Base
+
+if TYPE_CHECKING:
+    from app.projects.models import Project
+
+
+class TaskStatus(str, enum.Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+
+
+class TaskPriority(str, enum.Enum):
+    NO_PRIORITY = "no_priority"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    title: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    description: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    status: Mapped[TaskStatus] = mapped_column(
+        Enum(
+            TaskStatus,
+            name="task_status",
+            values_callable=lambda enum_class: [
+                item.value for item in enum_class
+            ],
+        ),
+        default=TaskStatus.PENDING,
+        server_default=TaskStatus.PENDING.value,
+        nullable=False,
+    )
+    priority: Mapped[TaskPriority] = mapped_column(
+        Enum(
+            TaskPriority,
+            name="task_priority",
+            values_callable=lambda enum_class: [
+                item.value for item in enum_class
+            ],
+        ),
+        default=TaskPriority.NO_PRIORITY,
+        server_default=TaskPriority.NO_PRIORITY.value,
+        nullable=False,
+    )
+    due_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    estimated_duration_minutes: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    scheduled_start: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    scheduled_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+    project: Mapped["Project | None"] = relationship(
+        back_populates="tasks",
+    )
+    subtasks: Mapped[list["Subtask"]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="Subtask.position",
+    )
+
+    @property
+    def display_status(self) -> str:
+        from app.tasks.overdue import is_task_overdue
+
+        if is_task_overdue(status=self.status, due_date=self.due_date):
+            return "overdue"
+
+        return self.status.value
+
+    @property
+    def subtask_progress(self) -> dict[str, int | None]:
+        total = len(self.subtasks)
+        completed = sum(1 for subtask in self.subtasks if subtask.is_completed)
+
+        return {
+            "completed": completed,
+            "total": total,
+            "percent": round((completed / total) * 100) if total > 0 else None,
+        }
+
+
+class Subtask(Base):
+    __tablename__ = "subtasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    title: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    is_completed: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="false",
+        nullable=False,
+    )
+    position: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+    task: Mapped[Task] = relationship(
+        back_populates="subtasks",
+    )

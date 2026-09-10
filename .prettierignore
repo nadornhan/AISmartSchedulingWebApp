@@ -1,0 +1,8 @@
+node_modules
+dist
+.expo
+coverage
+pnpm-lock.yaml
+**/.pytest_cache/
+backend/api/alembic/README
+frontend/web/next-env.d.ts
