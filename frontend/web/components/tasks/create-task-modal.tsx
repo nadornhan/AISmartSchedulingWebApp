@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from 'react';
 
 import { ApiError } from '../../lib/api';
+import { VoiceTaskButton } from './voice-task-button';
 import {
   DURATION_PRESETS_MINUTES,
   formatDurationLabel,
@@ -396,18 +397,29 @@ function TaskFormModal({
         onSubmit={submit}
       >
         <div className="flex items-start justify-between gap-6">
-          <div>
+          <div className="min-w-0 flex-1">
+            <div className="grid grid-cols-[minmax(0,max-content)_44px_minmax(0,1fr)] items-center gap-x-3 gap-y-3">
             <h2
               className="text-2xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text"
               id="task-form-title"
             >
               {title}
             </h2>
+            {enableNaturalLanguage ? (
+              <VoiceTaskButton
+                disabled={isSubmitting || isQuickCreating}
+                onTranscript={(text) => {
+                  setNaturalLanguageInput((current) => [current.trim(), text].filter(Boolean).join(' '));
+                  setParseFeedback(null);
+                }}
+              />
+            ) : null}
+            </div>
             <p className="mt-1 text-sm text-dashboard-muted">{description}</p>
           </div>
           <button
             aria-label="Close task dialog"
-            className="grid h-10 w-10 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-text"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-text"
             onClick={onClose}
             type="button"
           >
