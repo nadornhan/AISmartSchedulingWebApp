@@ -61,6 +61,21 @@ def test_stage_calculation_respects_species_maturity_threshold() -> None:
     assert stage_for_points(110, mature_at=110) == GrowthStage.MATURE.value
 
 
+def test_legendary_chrono_tree_is_the_final_catalog_unlock(client: TestClient) -> None:
+    headers, _user_id = auth_headers(client)
+
+    response = client.get("/gamification/plants", headers=headers)
+
+    assert response.status_code == 200
+    plants = response.json()["plants"]
+    chrono = next(plant for plant in plants if plant["id"] == "chrono")
+    assert plants[-1]["id"] == "chrono"
+    assert chrono["image_key"] == "chrono"
+    assert chrono["required_growth_points"] == 500
+    assert chrono["unlocked"] is False
+    assert "Legendary" in chrono["unlock_hint"]
+
+
 def test_select_plant_and_forest_state(client: TestClient) -> None:
     headers, _user_id = auth_headers(client)
 

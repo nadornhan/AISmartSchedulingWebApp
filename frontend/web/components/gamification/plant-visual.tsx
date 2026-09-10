@@ -22,7 +22,26 @@ const BASE_COLORS: Record<string, Palette> = {
   willow: { trunk: '#6b5535', foliage: '#6f9e4a', accent: '#8fbf5c' },
   lavender: { trunk: '#6a5a40', foliage: '#7a9a58', accent: '#8b6bb5', bloom: '#a889d0' },
   sunflower: { trunk: '#6b5230', foliage: '#5f9a3f', accent: '#e8b923', bloom: '#f0cb4a' },
+  chrono: { trunk: '#10142f', foliage: '#14d9d0', accent: '#d95bd2', bloom: '#9c7bea' },
 };
+
+const PLANT_IMAGE_KEYS = new Set([
+  'oak',
+  'maple',
+  'pine',
+  'cherry_blossom',
+  'bonsai',
+  'willow',
+  'lavender',
+  'sunflower',
+  'chrono',
+]);
+
+function plantImagePath(speciesKey: string | undefined, stage: string): string | null {
+  if (!speciesKey || !PLANT_IMAGE_KEYS.has(speciesKey)) return null;
+  const normalizedStage = stage === 'mature' || stage === 'growing' ? stage : 'seedling';
+  return `/images/plants/${speciesKey}/${normalizedStage}.png`;
+}
 
 function paletteFor(speciesKey: string | undefined, stage: string): Palette {
   const base = BASE_COLORS[speciesKey ?? ''] ?? {
@@ -202,6 +221,7 @@ export function PlantVisual({
 }: PlantVisualProps) {
   const normalized = String(stage || 'seedling').toLowerCase();
   const palette = paletteFor(speciesKey, normalized);
+  const imagePath = plantImagePath(speciesKey, normalized);
 
   return (
     <div
@@ -215,21 +235,41 @@ export function PlantVisual({
         .join(' ')}
       style={{ width: size, height: size }}
     >
-      <svg
-        aria-hidden="true"
-        height={size}
-        viewBox="0 0 120 120"
-        width={size}
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        {normalized === 'mature' ? (
-          <MatureSvg speciesKey={speciesKey} {...palette} />
-        ) : normalized === 'growing' ? (
-          <GrowingSvg {...palette} />
-        ) : (
-          <SeedlingSvg {...palette} />
-        )}
-        {locked ? (
+      {imagePath ? (
+        <img
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full object-contain"
+          height={size}
+          src={imagePath}
+          width={size}
+        />
+      ) : (
+        <svg
+          aria-hidden="true"
+          height={size}
+          viewBox="0 0 120 120"
+          width={size}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {normalized === 'mature' ? (
+            <MatureSvg speciesKey={speciesKey} {...palette} />
+          ) : normalized === 'growing' ? (
+            <GrowingSvg {...palette} />
+          ) : (
+            <SeedlingSvg {...palette} />
+          )}
+        </svg>
+      )}
+      {locked ? (
+        <svg
+          aria-hidden="true"
+          className="absolute inset-0"
+          height={size}
+          viewBox="0 0 120 120"
+          width={size}
+          xmlns="http://www.w3.org/2000/svg"
+        >
           <>
             <rect fill="rgba(8, 20, 28, 0.35)" height="120" width="120" x="0" y="0" />
             <path
@@ -241,8 +281,8 @@ export function PlantVisual({
               strokeWidth="3"
             />
           </>
-        ) : null}
-      </svg>
+        </svg>
+      ) : null}
     </div>
   );
 }
