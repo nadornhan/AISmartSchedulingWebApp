@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from 'react';
 
 import { ApiError } from '../../lib/api';
+import { PrioritySuggestion } from './priority-suggestion';
 import {
   DURATION_PRESETS_MINUTES,
   formatDurationLabel,
@@ -216,6 +217,7 @@ function TaskFormModal({
 }>) {
   const initialDuration = initialValues.estimatedDurationMinutes;
   const [titleValue, setTitleValue] = useState(initialValues.title);
+  const [descriptionValue, setDescriptionValue] = useState(initialValues.description);
   const [dueDateValue, setDueDateValue] = useState(initialValues.dueDate);
   const [dueTimeValue, setDueTimeValue] = useState(initialValues.dueTime);
   const [naturalLanguageInput, setNaturalLanguageInput] = useState('');
@@ -488,7 +490,17 @@ function TaskFormModal({
             </label>
           </Field>
 
-          <Field label="Priority">
+          <div role="group" aria-labelledby="task-priority-label">
+            <div className="mb-2 flex flex-wrap items-center gap-3">
+              <span id="task-priority-label" className="text-sm font-medium text-dashboard-text">Priority</span>
+              <PrioritySuggestion
+                title={titleValue} taskDescription={descriptionValue} dueDate={dueDateValue} dueTime={dueTimeValue}
+                duration={durationOption === 'custom' ? (Number(customDuration) > 0 ? Number(customDuration) : null) : (Number(durationOption) || null)}
+                priority={priorityToApi[priority]}
+                onChoose={(value) => setPriority(priorityFromApi[value])}
+                disabled={isSubmitting || isQuickCreating}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {(['No priority', 'Low', 'Medium', 'High'] as TaskPriorityLabel[]).map((option) => (
                 <button
@@ -515,7 +527,7 @@ function TaskFormModal({
                 </button>
               ))}
             </div>
-          </Field>
+          </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Due Date" optional>
@@ -606,7 +618,8 @@ function TaskFormModal({
           <Field label="Notes / Description" optional>
             <textarea
               className="min-h-24 w-full resize-y rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 py-3 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
-              defaultValue={initialValues.description}
+              value={descriptionValue}
+              onChange={(event) => setDescriptionValue(event.target.value)}
               name="description"
               placeholder="Add any notes or details..."
             />

@@ -20,6 +20,7 @@ from app.projects.router import router as projects_router
 from app.scheduling.router import router as scheduling_router
 from app.settings.router import router as settings_router
 from app.tasks.router import router as tasks_router
+from app.tasks.priority_router import router as priority_router
 
 settings = get_settings()
 settings.upload_dir.mkdir(parents=True, exist_ok=True)
@@ -44,6 +45,7 @@ app.include_router(auth_router)
 app.include_router(projects_router)
 app.include_router(folders_router)
 app.include_router(tasks_router)
+app.include_router(priority_router)
 app.include_router(notifications_router)
 app.include_router(settings_router)
 app.include_router(analytics_router)
