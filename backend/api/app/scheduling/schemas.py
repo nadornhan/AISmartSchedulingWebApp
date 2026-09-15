@@ -154,11 +154,25 @@ class RescheduleSettingsSnapshot(BaseModel):
     estimated_duration_weight: int = Field(ge=0, le=100)
 
 
+class RescheduleFocusSnapshot(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: uuid.UUID
+    task_id: uuid.UUID | None = None
+    status: Literal["active", "paused"]
+    started_at: AwareDatetime
+    planned_duration_minutes: int = Field(gt=0)
+    actual_duration_seconds: int = Field(ge=0)
+    updated_at: AwareDatetime
+
+
 class RescheduleStateSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    revision: int = Field(ge=0)
     settings: RescheduleSettingsSnapshot
     tasks: list[RescheduleTaskSnapshot]
+    focus_sessions: list[RescheduleFocusSnapshot] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def reject_duplicate_tasks(self) -> "RescheduleStateSnapshot":
@@ -166,6 +180,13 @@ class RescheduleStateSnapshot(BaseModel):
         if len(task_ids) != len(set(task_ids)):
             raise ValueError("State snapshot contains duplicate task IDs")
         return self
+
+
+class PersistedRescheduleContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    context: "RescheduleProposalContext"
+    issues: list[SchedulingIssueResponse] = Field(default_factory=list)
 
 
 ReschedulingChangeCode = Literal[

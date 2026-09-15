@@ -4,7 +4,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from app.scheduling.models import RescheduleProposal, RescheduleProposalStatus
+from app.scheduling.models import (
+    RescheduleProposal,
+    RescheduleProposalStatus,
+    UserScheduleState,
+)
 from app.scheduling.schemas import (
     RescheduleMove,
     RescheduleOption,
@@ -44,6 +48,7 @@ def test_rescheduling_tables_expose_required_foundation_columns() -> None:
         "updated_at",
     }.issubset(columns.keys())
     assert RescheduleProposalStatus.PREVIEW.value == "preview"
+    assert UserScheduleState.__table__.c.revision.nullable is False
 
 
 def test_locked_task_create_contract_requires_schedule() -> None:
@@ -66,6 +71,7 @@ def test_state_snapshot_rejects_duplicate_tasks() -> None:
 
     with pytest.raises(ValidationError, match="duplicate task IDs"):
         RescheduleStateSnapshot(
+            revision=0,
             settings={
                 "updated_at": now,
                 "work_start": "09:00",

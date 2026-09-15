@@ -5,6 +5,7 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.notifications import service as notification_service
+from app.scheduling.revision import bump_schedule_revision
 from app.tasks.models import Subtask, Task, TaskPriority, TaskStatus
 from app.tasks.overdue import task_overdue_condition, utc_now
 from app.tasks.schemas import (
@@ -170,6 +171,7 @@ def create_task(
         user_id=user_id,
         task=task,
     )
+    bump_schedule_revision(db, user_id)
     db.commit()
     db.refresh(task)
     _invalidate_ai_plan(db, user_id)
@@ -195,6 +197,31 @@ def get_task_by_id(
     )
 
     return db.scalar(statement)
+
+
+def mutate_task_schedule_without_commit(
+    task: Task,
+    *,
+    scheduled_start: datetime | None,
+    scheduled_end: datetime | None,
+) -> None:
+    """Apply a schedule mutation while leaving flush/commit to the caller."""
+
+    if task.status == TaskStatus.DONE:
+        raise ValueError("Completed tasks cannot be rescheduled")
+    if task.schedule_locked:
+        raise ValueError("Locked tasks cannot be rescheduled")
+    if (scheduled_start is None) != (scheduled_end is None):
+        raise ValueError("Schedule requires both start and end")
+    if (
+        scheduled_start is not None
+        and scheduled_end is not None
+        and scheduled_end <= scheduled_start
+    ):
+        raise ValueError("scheduled_end must be later than scheduled_start")
+
+    task.scheduled_start = scheduled_start
+    task.scheduled_end = scheduled_end
 
 
 def update_task(
@@ -298,6 +325,7 @@ def update_task(
         )
 
     user_id = task.user_id
+    bump_schedule_revision(db, user_id)
     db.commit()
     db.refresh(task)
     _invalidate_ai_plan(db, user_id)
@@ -323,6 +351,7 @@ def delete_task(db: Session, task: Task) -> None:
         task_id=task.id,
     )
     db.delete(task)
+    bump_schedule_revision(db, user_id)
     db.commit()
     _invalidate_ai_plan(db, user_id)
 
@@ -396,6 +425,7 @@ def bulk_delete_tasks(
             task_id=task.id,
         )
         db.delete(task)
+    bump_schedule_revision(db, user_id)
     db.commit()
     _invalidate_ai_plan(db, user_id)
     return len(tasks)
