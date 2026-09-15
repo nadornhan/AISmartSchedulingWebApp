@@ -281,6 +281,34 @@ class RescheduleProposalResponse(BaseModel):
     selected_option_id: uuid.UUID | None = None
     generated_at: AwareDatetime
     expires_at: AwareDatetime
+    applied_at: AwareDatetime | None = None
+    undone_at: AwareDatetime | None = None
+    idempotent: bool = False
+
+
+RescheduleConflictCode = Literal[
+    "OPTION_NOT_FOUND",
+    "ALREADY_APPLIED",
+    "INVALID_PROPOSAL_STATE",
+    "EXPIRED_PROPOSAL",
+    "STALE_PROPOSAL",
+    "LOCKED_TASK",
+    "INVALID_OPTION",
+    "STALE_UNDO",
+]
+
+
+class RescheduleErrorDetail(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: RescheduleConflictCode
+    message: str = Field(min_length=1, max_length=500)
+
+
+class RescheduleConflictResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    detail: RescheduleErrorDetail
 
 
 class AiPreviewRequest(BaseModel):

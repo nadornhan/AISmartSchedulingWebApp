@@ -21,10 +21,12 @@ from .rescheduling import RescheduleGenerationResult, generate_rescheduling_opti
 from .revision import bump_schedule_revision, lock_schedule_revision
 from .schemas import (
     PersistedRescheduleContext,
+    RescheduleConflictCode,
     RescheduleDetectedChange,
     RescheduleFocusSnapshot,
     RescheduleOption,
     RescheduleProposalContext,
+    RescheduleProposalResponse,
     RescheduleSettingsSnapshot,
     RescheduleStateSnapshot,
     RescheduleTaskSnapshot,
@@ -36,7 +38,7 @@ DEFAULT_PROPOSAL_TTL = timedelta(minutes=30)
 
 
 class RescheduleLifecycleConflict(Exception):
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(self, code: RescheduleConflictCode, message: str) -> None:
         super().__init__(message)
         self.code = code
 
@@ -208,6 +210,30 @@ def _proposal_context(
 
 def _stored_options(proposal: RescheduleProposal) -> list[RescheduleOption]:
     return [RescheduleOption.model_validate(item) for item in proposal.alternatives]
+
+
+def serialize_reschedule_proposal(
+    proposal: RescheduleProposal,
+    *,
+    idempotent: bool = False,
+) -> RescheduleProposalResponse:
+    """Build the public contract exclusively from persisted server state."""
+    persisted = PersistedRescheduleContext.model_validate(proposal.detected_context)
+    if proposal.created_at is None:
+        raise RuntimeError("Persisted reschedule proposal is missing created_at")
+    return RescheduleProposalResponse(
+        id=proposal.id,
+        status=proposal.status,
+        context=persisted.context,
+        options=_stored_options(proposal),
+        issues=persisted.issues,
+        selected_option_id=proposal.selected_option_id,
+        generated_at=_aware(proposal.created_at),
+        expires_at=_aware(proposal.expires_at),
+        applied_at=_aware(proposal.applied_at) if proposal.applied_at is not None else None,
+        undone_at=_aware(proposal.undone_at) if proposal.undone_at is not None else None,
+        idempotent=idempotent,
+    )
 
 
 def create_reschedule_preview(

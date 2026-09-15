@@ -5,13 +5,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.ai import AIService, get_ai_service
 from app.auth.dependencies import CurrentUser, DatabaseSession
-from app.scheduling import service
+from app.scheduling import lifecycle, service
+from app.scheduling.lifecycle import RescheduleLifecycleConflict
 from app.scheduling.models import RecommendationStatus, ScheduleSuggestionStatus
 from app.scheduling.schemas import (
     AiPreviewRequest,
     AiPreviewResponse,
     AiRecommendationResponse,
     ApplyScheduleRequest,
+    RescheduleApplyRequest,
+    RescheduleConflictResponse,
+    RescheduleErrorDetail,
+    ReschedulePreviewRequest,
+    RescheduleProposalResponse,
     ScheduleAdjustRequest,
     ScheduleSuggestionResponse,
     SchedulingPlanResponse,
@@ -20,6 +26,97 @@ from app.scheduling.validation import DeterministicScheduleValidationError
 
 router = APIRouter(prefix="/scheduling", tags=["scheduling"])
 AIServiceDependency = Annotated[AIService, Depends(get_ai_service)]
+
+
+def _reschedule_conflict(exc: RescheduleLifecycleConflict) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=RescheduleErrorDetail(
+            code=exc.code,
+            message=str(exc),
+        ).model_dump(mode="json"),
+    )
+
+
+@router.post(
+    "/reschedule/preview",
+    response_model=RescheduleProposalResponse,
+    responses={status.HTTP_409_CONFLICT: {"model": RescheduleConflictResponse}},
+)
+def preview_reschedule(
+    payload: ReschedulePreviewRequest,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> RescheduleProposalResponse:
+    # AI explanations are enriched separately; deterministic options are always authoritative.
+    del payload
+    try:
+        result = lifecycle.create_reschedule_preview(db, current_user.id)
+        return lifecycle.serialize_reschedule_proposal(result.proposal)
+    except RescheduleLifecycleConflict as exc:
+        raise _reschedule_conflict(exc) from exc
+
+
+@router.post(
+    "/reschedule/{proposal_id}/apply",
+    response_model=RescheduleProposalResponse,
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Proposal not found"},
+        status.HTTP_409_CONFLICT: {"model": RescheduleConflictResponse},
+    },
+)
+def apply_reschedule(
+    proposal_id: uuid.UUID,
+    payload: RescheduleApplyRequest,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> RescheduleProposalResponse:
+    try:
+        result = lifecycle.apply_reschedule_proposal(
+            db,
+            current_user.id,
+            proposal_id,
+            payload.option_id,
+        )
+        return lifecycle.serialize_reschedule_proposal(
+            result.proposal,
+            idempotent=result.idempotent,
+        )
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reschedule proposal not found",
+        ) from exc
+    except RescheduleLifecycleConflict as exc:
+        raise _reschedule_conflict(exc) from exc
+
+
+@router.post(
+    "/reschedule/{proposal_id}/undo",
+    response_model=RescheduleProposalResponse,
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Proposal not found"},
+        status.HTTP_409_CONFLICT: {"model": RescheduleConflictResponse},
+    },
+)
+def undo_reschedule(
+    proposal_id: uuid.UUID,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> RescheduleProposalResponse:
+    try:
+        result = lifecycle.undo_reschedule_proposal(db, current_user.id, proposal_id)
+        return lifecycle.serialize_reschedule_proposal(
+            result.proposal,
+            idempotent=result.idempotent,
+        )
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reschedule proposal not found",
+        ) from exc
+    except RescheduleLifecycleConflict as exc:
+        raise _reschedule_conflict(exc) from exc
 
 
 @router.get("/plan", response_model=SchedulingPlanResponse)
