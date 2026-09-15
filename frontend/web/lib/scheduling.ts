@@ -11,6 +11,7 @@ export type AiWeightsSnapshot = {
   work_end: string;
   timezone: string;
   pomodoro_minutes: number;
+  daily_work_limit_minutes: number;
 };
 
 export type AiRecommendation = {
@@ -44,7 +45,8 @@ export type SchedulingIssueCode =
   | 'NO_CAPACITY_IN_HORIZON'
   | 'NO_CONTIGUOUS_WINDOW_IN_HORIZON'
   | 'LOCKED_TASK_REQUIRES_MANUAL_ACTION'
-  | 'NO_VALID_RESCHEDULE_OPTION';
+  | 'NO_VALID_RESCHEDULE_OPTION'
+  | 'DAILY_WORK_LIMIT_REACHED';
 
 export type SchedulingIssue = {
   task_id: string;
@@ -60,6 +62,9 @@ export type SchedulingIssue = {
     feasible_window_count?: number | null;
     due_date: string | null;
     planning_horizon_end: string | null;
+    daily_work_limit_minutes?: number | null;
+    scheduled_work_minutes?: number | null;
+    local_date?: string | null;
   };
 };
 
@@ -71,7 +76,8 @@ export type ReschedulingChangeCode =
   | 'DURATION_NO_LONGER_FITS'
   | 'OUTSIDE_WORKING_HOURS'
   | 'ENDS_AFTER_DEADLINE'
-  | 'CAPACITY_PRESSURE';
+  | 'CAPACITY_PRESSURE'
+  | 'DAILY_WORK_LIMIT_EXCEEDED';
 
 export type RescheduleDetectedChange = {
   code: ReschedulingChangeCode;
@@ -165,31 +171,27 @@ export function regenerateSchedulingPlan(signal?: AbortSignal) {
 }
 
 export function acceptRecommendation(recommendationId: string) {
-  return apiRequest<AiRecommendation>(
-    `/scheduling/recommendations/${recommendationId}/accept`,
-    { method: 'POST' },
-  );
+  return apiRequest<AiRecommendation>(`/scheduling/recommendations/${recommendationId}/accept`, {
+    method: 'POST',
+  });
 }
 
 export function dismissRecommendation(recommendationId: string) {
-  return apiRequest<AiRecommendation>(
-    `/scheduling/recommendations/${recommendationId}/dismiss`,
-    { method: 'POST' },
-  );
+  return apiRequest<AiRecommendation>(`/scheduling/recommendations/${recommendationId}/dismiss`, {
+    method: 'POST',
+  });
 }
 
 export function acceptSuggestion(suggestionId: string) {
-  return apiRequest<ScheduleSuggestion>(
-    `/scheduling/suggestions/${suggestionId}/accept`,
-    { method: 'POST' },
-  );
+  return apiRequest<ScheduleSuggestion>(`/scheduling/suggestions/${suggestionId}/accept`, {
+    method: 'POST',
+  });
 }
 
 export function dismissSuggestion(suggestionId: string) {
-  return apiRequest<ScheduleSuggestion>(
-    `/scheduling/suggestions/${suggestionId}/dismiss`,
-    { method: 'POST' },
-  );
+  return apiRequest<ScheduleSuggestion>(`/scheduling/suggestions/${suggestionId}/dismiss`, {
+    method: 'POST',
+  });
 }
 
 export function adjustSuggestion(

@@ -13,8 +13,9 @@ def _settings(
     work_start: time = time(9),
     work_end: time = time(17),
     timezone: str = "UTC",
+    daily_work_limit_minutes: int | None = None,
 ) -> UserSettings:
-    return UserSettings(
+    settings = UserSettings(
         work_start=work_start,
         work_end=work_end,
         timezone=timezone,
@@ -23,6 +24,9 @@ def _settings(
         ai_priority_weight=70,
         ai_estimated_duration_weight=50,
     )
+    if daily_work_limit_minutes is not None:
+        settings.daily_work_limit_minutes = daily_work_limit_minutes
+    return settings
 
 
 def _task(
@@ -231,3 +235,43 @@ def test_working_hours_detection_uses_user_timezone_across_dst() -> None:
     )
 
     assert "OUTSIDE_WORKING_HOURS" not in _codes(result)
+
+
+def test_detects_only_tasks_beyond_daily_work_limit() -> None:
+    now = datetime(2030, 1, 1, 8, tzinfo=UTC)
+    first = _task(start=now.replace(hour=9), end=now.replace(hour=10), duration=60)
+    second = _task(start=now.replace(hour=10), end=now.replace(hour=11), duration=60)
+    overflow = _task(start=now.replace(hour=11), end=now.replace(hour=12), duration=60)
+
+    result = detect_rescheduling_needs(
+        tasks=[overflow, second, first],
+        settings=_settings(work_end=time(22), daily_work_limit_minutes=120),
+        now=now,
+    )
+
+    changes = [
+        change for change in result.changes if change.code == "DAILY_WORK_LIMIT_EXCEEDED"
+    ]
+    assert [change.task_id for change in changes] == [overflow.id]
+
+
+def test_locked_workload_over_daily_limit_requires_manual_action() -> None:
+    now = datetime(2030, 1, 1, 8, tzinfo=UTC)
+    locked = _task(
+        start=now.replace(hour=9),
+        end=now.replace(hour=11),
+        duration=120,
+        locked=True,
+    )
+
+    result = detect_rescheduling_needs(
+        tasks=[locked],
+        settings=_settings(work_end=time(22), daily_work_limit_minutes=60),
+        now=now,
+    )
+
+    change = next(
+        change for change in result.changes if change.code == "DAILY_WORK_LIMIT_EXCEEDED"
+    )
+    assert change.task_id == locked.id
+    assert result.fixed_task_ids == (locked.id,)

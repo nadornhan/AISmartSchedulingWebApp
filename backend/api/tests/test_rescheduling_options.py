@@ -11,16 +11,24 @@ from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
 
 
-def _settings(*, timezone: str = "UTC") -> UserSettings:
-    return UserSettings(
+def _settings(
+    *,
+    timezone: str = "UTC",
+    work_end: time = time(17),
+    daily_work_limit_minutes: int | None = None,
+) -> UserSettings:
+    settings = UserSettings(
         work_start=time(9),
-        work_end=time(17),
+        work_end=work_end,
         timezone=timezone,
         pomodoro_minutes=25,
         ai_deadline_urgency_weight=80,
         ai_priority_weight=70,
         ai_estimated_duration_weight=50,
     )
+    if daily_work_limit_minutes is not None:
+        settings.daily_work_limit_minutes = daily_work_limit_minutes
+    return settings
 
 
 def _task(
@@ -144,6 +152,98 @@ def test_returns_capacity_issue_when_no_option_is_feasible() -> None:
     assert len(result.issues) == 1
     assert result.issues[0].task_id == unscheduled.id
     assert result.issues[0].code == "NO_WINDOW_BEFORE_DEADLINE"
+
+
+def test_unschedulable_task_does_not_block_feasible_reschedule() -> None:
+    now = datetime(2030, 1, 1, 8, tzinfo=UTC)
+    impossible = _task(duration=10, due_date=now.replace(hour=8, minute=30))
+    feasible = _task(
+        start=now.replace(hour=12),
+        end=now.replace(hour=12, minute=30),
+        duration=60,
+        due_date=now.replace(hour=17),
+    )
+
+    result = _generate([impossible, feasible], now=now)
+
+    assert result.options
+    assert {issue.task_id for issue in result.issues} == {impossible.id}
+    assert result.issues[0].code == "NO_WINDOW_BEFORE_DEADLINE"
+    assert "No working time is available before its deadline" in result.issues[0].reason
+    for option in result.options:
+        assert {move.task_id for move in option.moves} == {feasible.id}
+        assert impossible.id in option.preserved_task_ids
+        assert option.moves[0].proposed_end <= feasible.due_date
+
+
+def test_movable_conflict_preserves_one_valid_participant() -> None:
+    now = datetime(2030, 1, 1, 8, tzinfo=UTC)
+    earlier = _task(
+        start=now.replace(hour=12),
+        end=now.replace(hour=13),
+        due_date=now.replace(hour=17),
+    )
+    later = _task(
+        start=now.replace(hour=12, minute=30),
+        end=now.replace(hour=13, minute=30),
+        due_date=now.replace(hour=17),
+    )
+
+    first = _generate([earlier, later], now=now)
+    second = _generate([later, earlier], now=now)
+
+    assert first == second
+    assert first.options
+    for option in first.options:
+        assert {move.task_id for move in option.moves} == {later.id}
+        assert earlier.id in option.preserved_task_ids
+        assert "SCHEDULE_CONFLICT" in option.resolved_change_codes
+
+
+def test_locked_issue_does_not_block_other_feasible_task() -> None:
+    now = datetime(2030, 1, 1, 8, tzinfo=UTC)
+    locked_invalid = _task(
+        start=now.replace(hour=8),
+        end=now.replace(hour=9),
+        locked=True,
+    )
+    feasible = _task(
+        start=now.replace(hour=12),
+        end=now.replace(hour=12, minute=30),
+        duration=60,
+        due_date=now.replace(hour=17),
+    )
+
+    result = _generate([locked_invalid, feasible], now=now)
+
+    assert result.options
+    assert [issue.task_id for issue in result.issues] == [locked_invalid.id]
+    assert result.issues[0].code == "LOCKED_TASK_REQUIRES_MANUAL_ACTION"
+    assert all(locked_invalid.id in option.preserved_task_ids for option in result.options)
+
+
+def test_rescheduling_moves_daily_overflow_to_another_day() -> None:
+    now = datetime(2030, 1, 1, 8, tzinfo=UTC)
+    first = _task(start=now.replace(hour=9), end=now.replace(hour=10), duration=60)
+    second = _task(start=now.replace(hour=10), end=now.replace(hour=11), duration=60)
+    overflow = _task(
+        start=now.replace(hour=11),
+        end=now.replace(hour=12),
+        duration=60,
+        due_date=now.replace(day=3, hour=20),
+    )
+
+    result = _generate(
+        [overflow, first, second],
+        now=now,
+        settings=_settings(work_end=time(22), daily_work_limit_minutes=120),
+    )
+
+    assert result.options
+    for option in result.options:
+        assert {move.task_id for move in option.moves} == {overflow.id}
+        assert option.moves[0].proposed_start.date() == now.replace(day=2).date()
+        assert "DAILY_WORK_LIMIT_EXCEEDED" in option.resolved_change_codes
 
 
 def test_locked_invalid_state_requires_manual_action() -> None:

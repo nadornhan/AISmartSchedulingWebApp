@@ -13,7 +13,11 @@ from app.scoring import (
     score_window_candidate,
     window_candidate_sort_key_v6,
 )
-from app.scoring.constraints import normalize_schedule_datetime, validate_schedule_candidate
+from app.scoring.constraints import (
+    is_within_daily_work_limit,
+    normalize_schedule_datetime,
+    validate_schedule_candidate,
+)
 from app.scoring.schemas import ScoredWindowCandidate
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskStatus
@@ -172,6 +176,97 @@ def _option_signature(moves: list[RescheduleMove]) -> str:
     )
 
 
+def _conflict_move_key(task: Task) -> tuple[datetime, str]:
+    interval = _normalized_task_interval(task)
+    if interval is None:
+        raise ValueError("Schedule conflict participant is missing its interval")
+    return interval[0], _task_id_key(task.id)
+
+
+def _target_task_ids(
+    *,
+    detection: ReschedulingDetectionResult,
+    task_by_id: dict[uuid.UUID, Task],
+) -> set[uuid.UUID]:
+    """Choose the smallest deterministic movable set that can resolve each change."""
+    movable_ids = set(detection.movable_task_ids)
+    active_overrun_ids = {
+        change.task_id
+        for change in detection.changes
+        if change.code == "TASK_OVERRUN" and change.task_id is not None
+    }
+    target_ids: set[uuid.UUID] = set()
+    for change in detection.changes:
+        participants = {
+            *((change.task_id,) if change.task_id is not None else ()),
+            *change.related_task_ids,
+        }
+        movable_participants = participants & movable_ids
+        if change.code == "SCHEDULE_CONFLICT":
+            if participants & set(detection.fixed_task_ids):
+                target_ids.update(movable_participants)
+            elif movable_participants:
+                target_ids.add(
+                    max(
+                        movable_participants,
+                        key=lambda task_id: _conflict_move_key(task_by_id[task_id]),
+                    )
+                )
+        elif change.code == "TASK_OVERRUN":
+            target_ids.update(set(change.related_task_ids) & movable_ids)
+        elif change.task_id in movable_ids:
+            target_ids.add(change.task_id)
+    return target_ids - active_overrun_ids
+
+
+def _resolved_change_codes(
+    *,
+    detection: ReschedulingDetectionResult,
+    moved_ids: set[uuid.UUID],
+) -> list[ReschedulingChangeCode]:
+    return sorted(
+        {
+            change.code
+            for change in detection.changes
+            if moved_ids
+            & {
+                *((change.task_id,) if change.task_id is not None else ()),
+                *change.related_task_ids,
+            }
+        }
+    )
+
+
+def _option_is_safe(
+    *,
+    moves: list[RescheduleMove],
+    all_open_tasks: list[Task],
+    settings: UserSettings,
+    additional_fixed_candidates: list[tuple[uuid.UUID, datetime, datetime]],
+) -> bool:
+    moved_ids = {move.task_id for move in moves}
+    task_by_id = {task.id: task for task in all_open_tasks}
+    preserved_tasks = [task for task in all_open_tasks if task.id not in moved_ids]
+    for move in moves:
+        task = task_by_id[move.task_id]
+        other_moves = [
+            (other.task_id, other.proposed_start, other.proposed_end)
+            for other in moves
+            if other.task_id != move.task_id
+        ]
+        validation = validate_schedule_candidate(
+            task=task,
+            start=move.proposed_start,
+            end=move.proposed_end,
+            settings=settings,
+            existing_tasks=preserved_tasks,
+            existing_candidates=[*additional_fixed_candidates, *other_moves],
+        )
+        if not validation.valid:
+            return False
+    return True
+
+
 def _build_option(
     *,
     style: ReschedulingOptionStyle,
@@ -179,10 +274,10 @@ def _build_option(
     targets: list[Task],
     blockers: list[Task],
     all_open_tasks: list[Task],
+    detection: ReschedulingDetectionResult,
     settings: UserSettings,
     now: datetime,
     preferred_focus_hours: Counter[int],
-    resolved_change_codes: list[ReschedulingChangeCode],
     additional_fixed_candidates: list[tuple[uuid.UUID, datetime, datetime]],
 ) -> RescheduleOption | None:
     windows = free_windows_for_current_state(
@@ -206,7 +301,7 @@ def _build_option(
             preferred_focus_hours=preferred_focus_hours,
         )
         if not choices:
-            return None
+            break
 
         choice = min(
             choices,
@@ -243,6 +338,14 @@ def _build_option(
         )
         remaining = [task for task in remaining if task.id != candidate.task.id]
 
+    if not moves or not _option_is_safe(
+        moves=moves,
+        all_open_tasks=all_open_tasks,
+        settings=settings,
+        additional_fixed_candidates=additional_fixed_candidates,
+    ):
+        return None
+
     signature = _option_signature(moves)
     moved_ids = {move.task_id for move in moves}
     displacement = sum(
@@ -268,7 +371,10 @@ def _build_option(
         total_displacement_minutes=displacement,
         completion_at=max(move.proposed_end for move in moves),
         deterministic_reasons=reasons[style],
-        resolved_change_codes=resolved_change_codes,
+        resolved_change_codes=_resolved_change_codes(
+            detection=detection,
+            moved_ids=moved_ids,
+        ),
     )
 
 
@@ -312,7 +418,7 @@ def _locked_state_issues(
     return issues
 
 
-def _no_option_issues(
+def _unresolved_task_issues(
     *,
     targets: list[Task],
     blockers: list[Task],
@@ -330,6 +436,26 @@ def _no_option_issues(
     issues: list[SchedulingIssue] = []
     for task in targets:
         capacity = summarize_task_capacity(task=task, windows=windows, settings=settings)
+        deadline_label = task.due_date.isoformat() if task.due_date else None
+        daily_checks = [
+            is_within_daily_work_limit(
+                task=task,
+                start=candidate.proposed_start,
+                end=candidate.proposed_end,
+                settings=settings,
+                existing_tasks=blockers,
+                existing_candidates=additional_fixed_candidates,
+            )
+            for window in candidate_windows_before_deadline(task=task, windows=windows)
+            for candidate in build_task_window_candidates(
+                task=task,
+                window=window,
+                settings=settings,
+            )
+        ]
+        blocked_by_daily_limit = bool(daily_checks) and not any(
+            check.passed for check in daily_checks
+        )
         if task.due_date is not None:
             code = (
                 "NO_WINDOW_BEFORE_DEADLINE"
@@ -347,16 +473,36 @@ def _no_option_issues(
         if capacity.has_contiguous_capacity:
             code = "NO_VALID_RESCHEDULE_OPTION"
             severity = "critical"
+        if blocked_by_daily_limit:
+            code = "DAILY_WORK_LIMIT_REACHED"
+            reason = (
+                "No day has enough remaining workload capacity for this task "
+                "within the current planning window."
+            )
+        elif capacity.total_available_minutes <= 0:
+            boundary = (
+                f" before its deadline ({deadline_label})"
+                if deadline_label is not None
+                else " in the planning horizon"
+            )
+            reason = f"No working time is available{boundary}."
+        elif not capacity.has_contiguous_capacity:
+            reason = (
+                f"The largest available block is {capacity.largest_window_minutes} minutes, "
+                f"but this task requires {capacity.required_minutes} contiguous minutes."
+            )
+        else:
+            reason = (
+                "A valid window exists individually, but it cannot be combined safely "
+                "with the other affected tasks."
+            )
         issues.append(
             SchedulingIssue(
                 task_id=task.id,
                 task_title=task.title,
                 code=code,
                 severity=severity,
-                reason=(
-                    f"No valid contiguous {capacity.required_minutes}-minute window "
-                    "is available for this reschedule."
-                ),
+                reason=reason,
                 metadata={
                     "required_minutes": capacity.required_minutes,
                     "total_available_minutes": capacity.total_available_minutes,
@@ -364,6 +510,21 @@ def _no_option_issues(
                     "feasible_window_count": capacity.feasible_window_count,
                     "due_date": task.due_date.isoformat() if task.due_date else None,
                     "planning_horizon_end": horizon.end.isoformat(),
+                    "daily_work_limit_minutes": (
+                        (daily_checks[0].metadata or {}).get("daily_work_limit_minutes")
+                        if daily_checks
+                        else None
+                    ),
+                    "scheduled_work_minutes": (
+                        (daily_checks[0].metadata or {}).get("scheduled_work_minutes")
+                        if daily_checks
+                        else None
+                    ),
+                    "local_date": (
+                        (daily_checks[0].metadata or {}).get("local_date")
+                        if daily_checks
+                        else None
+                    ),
                 },
             )
         )
@@ -390,14 +551,8 @@ def generate_rescheduling_options(
         key=lambda task: _task_id_key(task.id),
     )
     task_by_id = {task.id: task for task in open_tasks}
-    target_ids = set(detection.affected_task_ids) & set(detection.movable_task_ids)
-    active_overrun_task_ids = {
-        change.task_id
-        for change in detection.changes
-        if change.code == "TASK_OVERRUN" and change.task_id is not None
-    }
-    target_ids -= active_overrun_task_ids
-    targets = [task for task in open_tasks if task.id in target_ids]
+    target_ids = _target_task_ids(detection=detection, task_by_id=task_by_id)
+    all_targets = [task for task in open_tasks if task.id in target_ids]
     blockers = [task for task in open_tasks if task.id not in target_ids]
     additional_fixed_candidates = [
         (interval.source_id, interval.start, interval.end)
@@ -405,10 +560,24 @@ def generate_rescheduling_options(
     ]
 
     locked_issues = _locked_state_issues(detection=detection, task_by_id=task_by_id)
-    if locked_issues:
+    if not all_targets:
         return RescheduleGenerationResult(options=(), issues=tuple(locked_issues))
-    if not targets:
-        return RescheduleGenerationResult(options=(), issues=())
+
+    initial_windows = free_windows_for_current_state(
+        settings=settings,
+        now=normalized_now,
+        existing_tasks=blockers,
+        existing_candidates=additional_fixed_candidates,
+    )
+    targets = [
+        task
+        for task in all_targets
+        if summarize_task_capacity(
+            task=task,
+            windows=initial_windows,
+            settings=settings,
+        ).has_contiguous_capacity
+    ]
 
     options: list[RescheduleOption] = []
     seen_signatures: set[str] = set()
@@ -417,7 +586,6 @@ def generate_rescheduling_options(
         "earlier_completion",
         "best_v7_fit",
     )
-    resolved_change_codes = sorted({change.code for change in detection.changes})
     for style in styles:
         option = _build_option(
             style=style,
@@ -425,10 +593,10 @@ def generate_rescheduling_options(
             targets=targets,
             blockers=blockers,
             all_open_tasks=open_tasks,
+            detection=detection,
             settings=settings,
             now=normalized_now,
             preferred_focus_hours=preferred_focus_hours or Counter(),
-            resolved_change_codes=resolved_change_codes,
             additional_fixed_candidates=additional_fixed_candidates,
         )
         if option is None:
@@ -441,15 +609,42 @@ def generate_rescheduling_options(
         if len(options) >= max_options:
             break
 
-    issues = (
-        []
-        if options
-        else _no_option_issues(
-            targets=targets,
+    if options:
+        moved_sets = [frozenset(move.task_id for move in option.moves) for option in options]
+        best_moved_set = min(
+            moved_sets,
+            key=lambda task_ids: (
+                -len(task_ids),
+                tuple(sorted(_task_id_key(task_id) for task_id in task_ids)),
+            ),
+        )
+        options = [
+            option.model_copy(update={"deterministic_rank": rank})
+            for rank, option in enumerate(
+                (
+                    option
+                    for option in options
+                    if frozenset(move.task_id for move in option.moves)
+                    == best_moved_set
+                ),
+                start=1,
+            )
+        ]
+
+    resolved_task_ids = {
+        move.task_id for option in options for move in option.moves
+    }
+    unresolved_targets = [
+        task for task in all_targets if task.id not in resolved_task_ids
+    ]
+    issues = [
+        *locked_issues,
+        *_unresolved_task_issues(
+            targets=unresolved_targets,
             blockers=blockers,
             settings=settings,
             now=normalized_now,
             additional_fixed_candidates=additional_fixed_candidates,
-        )
-    )
+        ),
+    ]
     return RescheduleGenerationResult(options=tuple(options), issues=tuple(issues))

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { onSettingsDataChanged, onTaskDataChanged } from '../../lib/data-events';
 import {
   applyReschedule,
   getRescheduleConflict,
@@ -27,6 +28,7 @@ const changeLabels: Record<string, string> = {
   OUTSIDE_WORKING_HOURS: 'Outside working hours',
   ENDS_AFTER_DEADLINE: 'Ends after deadline',
   CAPACITY_PRESSURE: 'Schedule capacity pressure',
+  DAILY_WORK_LIMIT_EXCEEDED: 'Daily workload limit exceeded',
 };
 
 function formatDateTime(value: string | null, timezone: string) {
@@ -69,26 +71,49 @@ export function ReschedulingPanel() {
   const [confirmOptionId, setConfirmOptionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [conflictCode, setConflictCode] = useState<RescheduleConflictCode | null>(null);
+  const checkSequence = useRef(0);
+  const suppressNextTaskRefresh = useRef(false);
+
+  const checkSchedule = useCallback(async (signal?: AbortSignal) => {
+    const sequence = ++checkSequence.current;
+    setBusyAction('check');
+    try {
+      const result = await previewReschedule(false, signal);
+      if (sequence !== checkSequence.current || signal?.aborted) return;
+      setProposal(hasReschedulingNeed(result) ? result : null);
+      setError(null);
+      setConflictCode(null);
+    } catch (requestFailure) {
+      if (sequence !== checkSequence.current || signal?.aborted) return;
+      setError(requestError(requestFailure).message);
+    } finally {
+      if (sequence === checkSequence.current && !signal?.aborted) setBusyAction(null);
+    }
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
+    void checkSchedule(controller.signal);
+    const refreshAfterTaskChange = onTaskDataChanged(() => {
+      if (suppressNextTaskRefresh.current) {
+        suppressNextTaskRefresh.current = false;
+        return;
+      }
+      void checkSchedule();
+    });
+    const refreshAfterSettingsChange = onSettingsDataChanged(() => {
+      void checkSchedule();
+    });
 
-    previewReschedule(false, controller.signal)
-      .then((result) => {
-        if (hasReschedulingNeed(result)) setProposal(result);
-      })
-      .catch((requestFailure) => {
-        if (controller.signal.aborted) return;
-        setError(requestError(requestFailure).message);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setBusyAction(null);
-      });
-
-    return () => controller.abort();
-  }, []);
+    return () => {
+      controller.abort();
+      refreshAfterTaskChange();
+      refreshAfterSettingsChange();
+    };
+  }, [checkSchedule]);
 
   async function loadReview() {
+    checkSequence.current += 1;
     setIsReviewOpen(true);
     setBusyAction('review');
     setError(null);
@@ -107,9 +132,11 @@ export function ReschedulingPanel() {
 
   async function applyOption(optionId: string) {
     if (!proposal) return;
+    checkSequence.current += 1;
     setBusyAction('apply');
     setError(null);
     setConflictCode(null);
+    suppressNextTaskRefresh.current = true;
     try {
       setProposal(await applyReschedule(proposal.id, optionId));
       setConfirmOptionId(null);
@@ -119,15 +146,18 @@ export function ReschedulingPanel() {
       setError(detail.message);
       setConflictCode(detail.code);
     } finally {
+      suppressNextTaskRefresh.current = false;
       setBusyAction(null);
     }
   }
 
   async function undoAppliedProposal() {
     if (!proposal) return;
+    checkSequence.current += 1;
     setBusyAction('undo');
     setError(null);
     setConflictCode(null);
+    suppressNextTaskRefresh.current = true;
     try {
       setProposal(await undoReschedule(proposal.id));
     } catch (requestFailure) {
@@ -135,6 +165,7 @@ export function ReschedulingPanel() {
       setError(detail.message);
       setConflictCode(detail.code);
     } finally {
+      suppressNextTaskRefresh.current = false;
       setBusyAction(null);
     }
   }
@@ -192,7 +223,7 @@ export function ReschedulingPanel() {
           </p>
           <p className="mt-1 text-sm text-dashboard-muted">
             {proposal.status === 'applied'
-              ? `${proposal.options.find((option) => option.id === proposal.selected_option_id)?.moved_task_count ?? 0} task schedules were safely updated.`
+              ? `${proposal.options.find((option) => option.id === proposal.selected_option_id)?.moved_task_count ?? 0} task schedules were safely updated.${proposal.issues.length ? ` ${proposal.issues.length} still need manual attention.` : ''}`
               : proposal.status === 'undone'
                 ? 'The original task times were restored.'
                 : `${proposal.context.changes.length} scheduling ${proposal.context.changes.length === 1 ? 'change was' : 'changes were'} detected.`}
@@ -285,15 +316,20 @@ export function ReschedulingPanel() {
               <div className="mt-6 space-y-5">
                 {proposal.context.changes.length ? (
                   <div className="flex flex-wrap gap-2">
-                    {proposal.context.changes.map((change, index) => (
-                      <span
-                        className="rounded-[var(--radius-pill)] border border-[var(--orange-border)] bg-[var(--orange-soft)] px-3 py-1 text-xs font-medium text-[var(--orange-light)]"
-                        key={`${change.code}-${change.task_id ?? index}`}
-                        title={change.reason}
-                      >
-                        {changeLabels[change.code] ?? change.code}
-                      </span>
-                    ))}
+                    {Array.from(new Set(proposal.context.changes.map((change) => change.code))).map(
+                      (code) => (
+                        <span
+                          className="rounded-[var(--radius-pill)] border border-[var(--orange-border)] bg-[var(--orange-soft)] px-3 py-1 text-xs font-medium text-[var(--orange-light)]"
+                          key={code}
+                          title={proposal.context.changes
+                            .filter((change) => change.code === code)
+                            .map((change) => change.reason)
+                            .join('\n')}
+                        >
+                          {changeLabels[code] ?? code}
+                        </span>
+                      ),
+                    )}
                   </div>
                 ) : null}
 
@@ -320,6 +356,10 @@ export function ReschedulingPanel() {
                       </button>
                     ) : null}
                   </div>
+                ) : null}
+
+                {proposal.options.length && proposal.issues.length ? (
+                  <UnresolvedIssues issues={proposal.issues} />
                 ) : null}
 
                 {proposal.options.length ? (
@@ -464,15 +504,7 @@ function NoSolution({
       <p className="mt-1 text-sm text-dashboard-muted">
         Review locked tasks, deadlines, or working hours before trying again.
       </p>
-      {proposal.issues.length ? (
-        <ul className="mt-4 space-y-2">
-          {proposal.issues.map((issue) => (
-            <li className="text-sm text-[var(--red-light)]" key={`${issue.task_id}-${issue.code}`}>
-              <span className="font-semibold">{issue.task_title}:</span> {issue.reason}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {proposal.issues.length ? <IssueList issues={proposal.issues} /> : null}
       <button
         className="mt-4 h-10 rounded-[var(--radius-sm)] border border-dashboard-border-strong px-4 text-sm font-semibold text-dashboard-text transition hover:border-dashboard-accent/60"
         onClick={onRetry}
@@ -481,5 +513,29 @@ function NoSolution({
         Check again
       </button>
     </div>
+  );
+}
+
+function UnresolvedIssues({ issues }: Readonly<{ issues: RescheduleProposal['issues'] }>) {
+  return (
+    <div className="rounded-[var(--radius-md)] border border-[var(--orange-border)] bg-[var(--orange-soft)] p-4">
+      <h3 className="font-semibold text-dashboard-text">Some tasks need manual attention</h3>
+      <p className="mt-1 text-sm text-dashboard-muted">
+        The options below safely update the feasible tasks without hiding these issues.
+      </p>
+      <IssueList issues={issues} />
+    </div>
+  );
+}
+
+function IssueList({ issues }: Readonly<{ issues: RescheduleProposal['issues'] }>) {
+  return (
+    <ul className="mt-4 space-y-2">
+      {issues.map((issue) => (
+        <li className="text-sm text-[var(--red-light)]" key={`${issue.task_id}-${issue.code}`}>
+          <span className="font-semibold">{issue.task_title}:</span> {issue.reason}
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -68,6 +68,7 @@ def test_get_settings_creates_default_settings(
         "work_end": "17:00",
         "timezone": "UTC",
         "pomodoro_minutes": 25,
+        "daily_work_limit_minutes": 480,
     }
     assert data["ai_scheduling"] == {
         "ai_assistant_enabled": True,
@@ -107,6 +108,7 @@ def test_patch_settings_partially_updates_without_overwriting_other_fields(
                 "work_start": "08:30",
                 "timezone": "Australia/Sydney",
                 "pomodoro_minutes": 45,
+                "daily_work_limit_minutes": 360,
             },
             "ai_scheduling": {
                 "ai_assistant_enabled": False,
@@ -130,6 +132,7 @@ def test_patch_settings_partially_updates_without_overwriting_other_fields(
         "work_end": "17:00",
         "timezone": "Australia/Sydney",
         "pomodoro_minutes": 45,
+        "daily_work_limit_minutes": 360,
     }
     assert data["ai_scheduling"] == {
         "ai_assistant_enabled": False,
@@ -253,11 +256,17 @@ def test_patch_settings_validates_input(client: TestClient) -> None:
             },
         },
     )
+    invalid_daily_limit_response = client.patch(
+        "/settings",
+        headers=auth_headers,
+        json={"work_pattern": {"daily_work_limit_minutes": 29}},
+    )
 
     assert invalid_weight_response.status_code == 422
     assert invalid_pomodoro_response.status_code == 422
     assert invalid_time_response.status_code == 422
     assert invalid_timezone_response.status_code == 422
+    assert invalid_daily_limit_response.status_code == 422
 
 
 def test_patch_settings_validates_merged_work_window(client: TestClient) -> None:

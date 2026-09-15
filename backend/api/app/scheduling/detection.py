@@ -11,9 +11,11 @@ from app.scoring.constraints import (
     is_deadline_feasible,
     is_within_working_hours,
     normalize_schedule_datetime,
+    scheduled_work_minutes_for_date,
 )
-from app.settings.models import UserSettings
+from app.settings.models import UserSettings, effective_daily_work_limit_minutes
 from app.tasks.models import Task, TaskStatus
+from app.timezones import user_timezone
 
 from .engine import free_windows_for_current_state, planning_horizon_for_scheduling
 from .windows import (
@@ -31,6 +33,7 @@ ReschedulingChangeCode = Literal[
     "OUTSIDE_WORKING_HOURS",
     "ENDS_AFTER_DEADLINE",
     "CAPACITY_PRESSURE",
+    "DAILY_WORK_LIMIT_EXCEEDED",
 ]
 
 
@@ -243,6 +246,81 @@ def _detect_capacity_pressure(
     return changes
 
 
+def _detect_daily_work_limit(
+    *,
+    tasks: list[Task],
+    settings: UserSettings,
+) -> list[DetectedScheduleChange]:
+    timezone = user_timezone(getattr(settings, "timezone", None))
+    limit_minutes = effective_daily_work_limit_minutes(settings)
+    tasks_by_date: dict = {}
+    for task in tasks:
+        interval = _scheduled_interval(task)
+        if interval is None or interval[1] <= interval[0]:
+            continue
+        local_date = interval[0].astimezone(timezone).date()
+        tasks_by_date.setdefault(local_date, []).append(task)
+
+    changes: list[DetectedScheduleChange] = []
+    for local_date, scheduled_tasks in sorted(tasks_by_date.items()):
+        total_minutes = scheduled_work_minutes_for_date(
+            local_date=local_date,
+            settings=settings,
+            existing_tasks=scheduled_tasks,
+        )
+        if total_minutes <= limit_minutes:
+            continue
+
+        locked_tasks = sorted(
+            (task for task in scheduled_tasks if task.schedule_locked),
+            key=lambda task: (_scheduled_interval(task)[0], _task_id_key(task.id)),  # type: ignore[index]
+        )
+        locked_minutes = scheduled_work_minutes_for_date(
+            local_date=local_date,
+            settings=settings,
+            existing_tasks=locked_tasks,
+        )
+        if locked_minutes > limit_minutes:
+            primary = locked_tasks[0]
+            changes.append(
+                DetectedScheduleChange(
+                    code="DAILY_WORK_LIMIT_EXCEEDED",
+                    task_id=primary.id,
+                    reason=(
+                        f"Locked tasks reserve {locked_minutes} minutes on "
+                        f"{local_date.isoformat()}, above the {limit_minutes}-minute daily limit."
+                    ),
+                )
+            )
+            continue
+
+        remaining_minutes = limit_minutes - locked_minutes
+        movable_tasks = sorted(
+            (task for task in scheduled_tasks if not task.schedule_locked),
+            key=lambda task: (_scheduled_interval(task)[0], _task_id_key(task.id)),  # type: ignore[index]
+        )
+        used_minutes = 0
+        for task in movable_tasks:
+            interval = _scheduled_interval(task)
+            assert interval is not None
+            task_minutes = int((interval[1] - interval[0]).total_seconds() // 60)
+            if used_minutes + task_minutes <= remaining_minutes:
+                used_minutes += task_minutes
+                continue
+            changes.append(
+                DetectedScheduleChange(
+                    code="DAILY_WORK_LIMIT_EXCEEDED",
+                    task_id=task.id,
+                    reason=(
+                        f"Scheduled work exceeds the {limit_minutes}-minute daily limit "
+                        f"on {local_date.isoformat()}."
+                    ),
+                )
+            )
+
+    return changes
+
+
 def _detect_focus_overruns(
     *,
     tasks: list[Task],
@@ -344,6 +422,7 @@ def detect_rescheduling_needs(
             )
         )
     changes.extend(_detect_schedule_conflicts(open_tasks))
+    changes.extend(_detect_daily_work_limit(tasks=open_tasks, settings=settings))
     overrun_changes, overrun_intervals = _detect_focus_overruns(
         tasks=open_tasks,
         focus_sessions=focus_sessions or [],

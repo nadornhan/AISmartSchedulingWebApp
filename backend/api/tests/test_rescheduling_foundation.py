@@ -17,6 +17,7 @@ from app.scheduling.schemas import (
     RescheduleStateSnapshot,
     RescheduleTaskSnapshot,
 )
+from app.settings.models import UserSettings
 from app.tasks.models import Task
 from app.tasks.schemas import TaskCreate
 
@@ -49,6 +50,7 @@ def test_rescheduling_tables_expose_required_foundation_columns() -> None:
     }.issubset(columns.keys())
     assert RescheduleProposalStatus.PREVIEW.value == "preview"
     assert UserScheduleState.__table__.c.revision.nullable is False
+    assert UserSettings.__table__.c.daily_work_limit_minutes.nullable is False
 
 
 def test_locked_task_create_contract_requires_schedule() -> None:

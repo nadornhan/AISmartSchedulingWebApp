@@ -137,7 +137,7 @@ def _patch_lifecycle_state(
     )
 
 
-def test_snapshot_fingerprint_covers_revision_tasks_and_settings() -> None:
+def test_snapshot_fingerprint_covers_revision_task_membership_and_settings() -> None:
     now = datetime(2030, 1, 1, 8, tzinfo=UTC)
     settings = _settings(now)
     task = _task(now)
@@ -166,6 +166,42 @@ def test_snapshot_fingerprint_covers_revision_tasks_and_settings() -> None:
         focus_sessions=[],
     )
     assert state_snapshot_fingerprint(first) != state_snapshot_fingerprint(task_changed)
+
+    settings.work_end = time(18)
+    settings_changed = build_reschedule_state_snapshot(
+        revision=1,
+        settings=settings,
+        tasks=[task],
+        focus_sessions=[],
+    )
+    assert state_snapshot_fingerprint(task_changed) != state_snapshot_fingerprint(settings_changed)
+
+    settings.daily_work_limit_minutes = 360
+    daily_limit_changed = build_reschedule_state_snapshot(
+        revision=1,
+        settings=settings,
+        tasks=[task],
+        focus_sessions=[],
+    )
+    assert state_snapshot_fingerprint(settings_changed) != state_snapshot_fingerprint(
+        daily_limit_changed
+    )
+
+    added_task = _task(now)
+    task_created = build_reschedule_state_snapshot(
+        revision=1,
+        settings=settings,
+        tasks=[task, added_task],
+        focus_sessions=[],
+    )
+    task_deleted = build_reschedule_state_snapshot(
+        revision=1,
+        settings=settings,
+        tasks=[added_task],
+        focus_sessions=[],
+    )
+    assert state_snapshot_fingerprint(settings_changed) != state_snapshot_fingerprint(task_created)
+    assert state_snapshot_fingerprint(task_created) != state_snapshot_fingerprint(task_deleted)
 
 
 def test_preview_persists_snapshot_fingerprint_and_options_atomically(

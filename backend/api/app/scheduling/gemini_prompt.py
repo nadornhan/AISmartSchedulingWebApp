@@ -4,7 +4,7 @@ import json
 from datetime import UTC
 from typing import Any
 
-from app.settings.models import UserSettings
+from app.settings.models import UserSettings, effective_daily_work_limit_minutes
 from app.tasks.models import Task
 
 
@@ -20,6 +20,7 @@ def build_ai_preview_prompt(
             "work_end": settings.work_end.strftime("%H:%M"),
             "timezone": settings.timezone,
             "default_duration_minutes": settings.pomodoro_minutes,
+            "daily_work_limit_minutes": effective_daily_work_limit_minutes(settings),
             "full_duration_required": True,
             "maximum_slots": 5,
             "availability_limitation": (

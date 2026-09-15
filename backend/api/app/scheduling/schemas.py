@@ -19,6 +19,7 @@ class AiWeightsSnapshot(BaseModel):
     work_end: str
     timezone: str = "UTC"
     pomodoro_minutes: int
+    daily_work_limit_minutes: int = Field(default=480, ge=30, le=1440)
 
 
 class AiRecommendationResponse(BaseModel):
@@ -53,6 +54,13 @@ class SchedulingIssueMetadata(BaseModel):
     feasible_window_count: int
     due_date: str | None = None
     planning_horizon_end: str
+    daily_work_limit_minutes: int | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    scheduled_work_minutes: int | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    local_date: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ReschedulingIssueMetadata(BaseModel):
@@ -65,6 +73,13 @@ class ReschedulingIssueMetadata(BaseModel):
     feasible_window_count: int | None = None
     due_date: str | None = None
     planning_horizon_end: str | None = None
+    daily_work_limit_minutes: int | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    scheduled_work_minutes: int | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    local_date: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class SchedulingIssueResponse(BaseModel):
@@ -77,6 +92,7 @@ class SchedulingIssueResponse(BaseModel):
         "NO_CONTIGUOUS_WINDOW_IN_HORIZON",
         "LOCKED_TASK_REQUIRES_MANUAL_ACTION",
         "NO_VALID_RESCHEDULE_OPTION",
+        "DAILY_WORK_LIMIT_REACHED",
     ]
     severity: Literal["warning", "critical"]
     reason: str
@@ -150,6 +166,7 @@ class RescheduleSettingsSnapshot(BaseModel):
     work_end: str
     timezone: str
     pomodoro_minutes: int = Field(gt=0)
+    daily_work_limit_minutes: int = Field(default=480, ge=30, le=1440)
     deadline_urgency_weight: int = Field(ge=0, le=100)
     priority_weight: int = Field(ge=0, le=100)
     estimated_duration_weight: int = Field(ge=0, le=100)
@@ -199,6 +216,7 @@ ReschedulingChangeCode = Literal[
     "OUTSIDE_WORKING_HOURS",
     "ENDS_AFTER_DEADLINE",
     "CAPACITY_PRESSURE",
+    "DAILY_WORK_LIMIT_EXCEEDED",
 ]
 
 

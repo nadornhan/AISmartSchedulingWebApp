@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.focus.models import FocusSession, FocusSessionStatus
 from app.scoring.constraints import normalize_schedule_datetime, validate_schedule_candidate
-from app.settings.models import UserSettings
+from app.settings.models import UserSettings, effective_daily_work_limit_minutes
 from app.tasks import service as task_service
 from app.tasks.models import Task, TaskStatus
 
@@ -104,6 +104,7 @@ def build_reschedule_state_snapshot(
             work_end=settings.work_end.strftime("%H:%M"),
             timezone=settings.timezone,
             pomodoro_minutes=settings.pomodoro_minutes,
+            daily_work_limit_minutes=effective_daily_work_limit_minutes(settings),
             deadline_urgency_weight=settings.ai_deadline_urgency_weight,
             priority_weight=settings.ai_priority_weight,
             estimated_duration_weight=settings.ai_estimated_duration_weight,
