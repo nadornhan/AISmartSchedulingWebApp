@@ -19,6 +19,29 @@ function toDateInputValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function normalizeTaskTitle(value: string) {
+  let title = value
+    .replace(/\s*,\s*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Remove common natural-language introductions without altering task content.
+  title = title.replace(
+    /^(?:i\s+need\s+to|i\s+have\s+to|i\s+should|remind\s+me\s+to|please)\s+/i,
+    '',
+  );
+
+  // Chrono removes the date/time phrase, but its connector can remain.
+  title = title.replace(/\s+(?:by|before|on|at|around)\s*$/i, '');
+
+  title = title
+    .replace(/^[\s,.;:-]+|[\s,.;:-]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return title ? `${title[0].toLocaleUpperCase()}${title.slice(1)}` : '';
+}
+
 export function parseNaturalLanguageTask(
   input: string,
   referenceDate = new Date(),
@@ -81,11 +104,7 @@ export function parseNaturalLanguageTask(
     )}`;
   }
 
-  const title = remaining
-    .replace(/\s*,\s*/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/^[\s,.;:-]+|[\s,.;:-]+$/g, '')
-    .trim();
+  const title = normalizeTaskTitle(remaining);
 
   if (title) detectedFields.unshift('title');
 
