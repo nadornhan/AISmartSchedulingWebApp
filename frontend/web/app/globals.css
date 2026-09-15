@@ -233,12 +233,12 @@ button {
 .focus-timer-stage {
   position: relative;
   display: grid;
-  width: min(390px, 44vh);
+  width: min(460px, 62dvh);
   min-width: 290px;
   aspect-ratio: 1 / 1;
   margin: 32px auto 0;
   place-items: center;
-  border: 1px solid rgba(34, 240, 177, 0.2);
+  border: 1px solid rgba(34, 240, 177, 0.07);
   border-radius: 9999px;
 }
 
@@ -269,6 +269,10 @@ button {
   filter: drop-shadow(0 0 14px rgba(34, 240, 177, 0.48));
 }
 
+.focus-timer-ring circle:last-child {
+  transition: stroke-dashoffset 250ms linear;
+}
+
 .focus-timer-time {
   font-size: clamp(56px, 7vw, 88px);
 }
@@ -282,6 +286,30 @@ button {
   align-items: center;
   gap: 12px;
   margin-top: 32px;
+}
+
+.focus-reset-action {
+  display: grid;
+  min-width: 76px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid rgba(34, 240, 177, 0.3);
+  border-radius: 9999px;
+  background: rgba(34, 240, 177, 0.1);
+  color: var(--dashboard-accent);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.focus-reset-action:hover:not(:disabled) {
+  border-color: rgba(34, 240, 177, 0.68);
+  background: rgba(34, 240, 177, 0.18);
+}
+
+.focus-reset-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .focus-skip-action {
@@ -309,7 +337,7 @@ button {
   }
 
   .focus-timer-stage {
-    width: min(76vw, 33dvh, 270px);
+    width: min(84vw, 40dvh, 340px);
     min-width: 0;
     margin-top: 20px;
   }
@@ -327,12 +355,17 @@ button {
   }
 
   .focus-timer-action {
-    min-width: 112px;
+    min-width: 100px;
   }
 
   .focus-timer-controls {
-    gap: 10px;
+    gap: 8px;
     margin-top: 18px;
+  }
+
+  .focus-reset-action {
+    min-width: 64px;
+    height: 42px;
   }
 
   .focus-skip-action {

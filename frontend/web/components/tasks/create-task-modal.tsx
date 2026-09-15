@@ -410,7 +410,7 @@ function TaskFormModal({
       <form
         className={cn(
           'my-6 w-full rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] shadow-[0_32px_100px_rgba(0,0,0,.6)]',
-          isAiOnlyView ? 'max-w-[620px] p-5' : 'max-w-[620px] p-6 sm:p-8',
+          isAiOnlyView ? 'max-w-[680px] p-6' : 'max-w-[680px] p-7 sm:p-9',
         )}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
@@ -422,7 +422,7 @@ function TaskFormModal({
         {isAiOnlyView ? (
           <div className="relative flex h-10 items-center justify-center">
             <h2
-              className="flex items-center gap-2 font-poppins text-2xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text"
+              className="flex items-center gap-2 font-poppins text-3xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text"
               id="task-form-title"
             >
               Describe your task
@@ -440,12 +440,12 @@ function TaskFormModal({
           <div className="flex items-start justify-between gap-6">
             <div>
               <h2
-                className="font-poppins text-2xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text"
+                className="font-poppins text-3xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text"
                 id="task-form-title"
               >
                 {title}
               </h2>
-              <p className="mt-1 text-sm text-dashboard-muted">{description}</p>
+              <p className="mt-1 text-base text-dashboard-muted">{description}</p>
             </div>
             <button
               aria-label="Close task dialog"
@@ -469,7 +469,7 @@ function TaskFormModal({
               >
               {!isAiOnlyView ? (
                 <div className="mb-2 flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-dashboard-text">Describe your task</h3>
+                  <h3 className="text-base font-semibold text-dashboard-text">Describe your task</h3>
                   <Sparkles
                     aria-hidden="true"
                     className={cn(
@@ -483,7 +483,7 @@ function TaskFormModal({
                 <div className="contents">
                   <textarea
                     aria-label="Describe your task naturally"
-                    className="h-36 w-full resize-none rounded-[var(--radius-sm)] border border-dashboard-border-strong bg-[var(--bg-input)] p-4 pb-16 text-sm text-dashboard-text shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] outline-none placeholder:text-[var(--text-placeholder)] transition focus:border-dashboard-accent focus:shadow-[0_0_0_1px_rgba(53,227,181,0.16),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                    className="h-40 w-full resize-none rounded-[var(--radius-sm)] border border-dashboard-border-strong bg-[var(--bg-input)] p-5 pb-[4.5rem] text-base text-dashboard-text shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] outline-none placeholder:text-[var(--text-placeholder)] transition focus:border-dashboard-accent focus:shadow-[0_0_0_1px_rgba(53,227,181,0.16),inset_0_1px_0_rgba(255,255,255,0.04)]"
                     onChange={(event) => {
                       setNaturalLanguageInput(event.target.value);
                       setParseFeedback(null);
@@ -501,7 +501,7 @@ function TaskFormModal({
                 <Sparkles
                   aria-hidden="true"
                   className={cn(
-                    'absolute bottom-7 left-4 h-4 w-4 text-dashboard-accent',
+                    'absolute bottom-8 left-5 h-5 w-5 text-dashboard-accent',
                     hasNaturalLanguageInput && 'animate-pulse',
                   )}
                 />
@@ -509,7 +509,7 @@ function TaskFormModal({
                   <button
                     aria-label="Automatically fill task"
                     className={cn(
-                      'flex h-10 items-center gap-2 rounded-full border px-4 font-[family-name:var(--font-figtree)] text-sm font-medium transition',
+                      'flex h-11 items-center gap-2 rounded-full border px-5 font-[family-name:var(--font-figtree)] text-base font-medium transition',
                       hasNaturalLanguageInput
                         ? 'border-dashboard-accent bg-gradient-to-br from-dashboard-accent via-dashboard-accent/85 to-dashboard-accent-strong text-[#04110d] shadow-[0_8px_24px_rgba(53,227,181,0.22),inset_0_1px_0_rgba(255,255,255,0.28)] hover:brightness-110'
                         : 'border-dashboard-border bg-gradient-to-br from-white/[0.08] via-white/[0.035] to-transparent text-dashboard-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md',
@@ -519,7 +519,7 @@ function TaskFormModal({
                     type="button"
                   >
                     Generate task
-                    <ArrowDown aria-hidden="true" className="h-4 w-4" strokeWidth={2.25} />
+                    <ArrowDown aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
                   </button>
                   {hasNaturalLanguageInput ? (
                     <span className="pointer-events-none absolute right-0 top-[-2.4rem] whitespace-nowrap rounded-[var(--radius-sm)] bg-dashboard-text px-2 py-1 text-xs font-medium text-dashboard-bg opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
@@ -529,7 +529,7 @@ function TaskFormModal({
                 </div>
               </div>
               {parseFeedback ? (
-                <p className="mt-3 text-xs leading-5 text-dashboard-accent" role="status">
+                <p className="mt-3 text-sm leading-5 text-dashboard-accent" role="status">
                   {parseFeedback}
                 </p>
               ) : null}
@@ -537,11 +537,11 @@ function TaskFormModal({
                 <>
                   <div className="my-4 flex items-center gap-3" aria-hidden="true">
                     <span className="h-px flex-1 bg-dashboard-border" />
-                    <span className="text-xs text-dashboard-muted">or</span>
+                    <span className="text-sm text-dashboard-muted">or</span>
                     <span className="h-px flex-1 bg-dashboard-border" />
                   </div>
                   <button
-                    className="font-poppins h-11 w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm font-medium text-dashboard-muted transition hover:border-dashboard-accent hover:text-dashboard-accent"
+                    className="font-poppins h-12 w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-base font-medium text-dashboard-muted transition hover:border-dashboard-accent hover:text-dashboard-accent"
                     onClick={() => {
                       setIsManualFormVisible(true);
                       setIsNaturalLanguageExpanded(false);
@@ -560,12 +560,12 @@ function TaskFormModal({
           <div className={cn('space-y-5', !isManualFormVisible && 'hidden')}>
           <div>
             <div className="mb-2 flex items-center justify-between gap-3">
-              <label className="text-sm font-medium text-dashboard-text" htmlFor="task-title">
+              <label className="text-base font-medium text-dashboard-text" htmlFor="task-title">
                 Task Title
               </label>
               {enableNaturalLanguage ? (
                 <button
-                  className="flex items-center gap-1.5 text-xs font-medium text-dashboard-muted transition hover:text-dashboard-accent"
+                  className="flex items-center gap-1.5 text-sm font-medium text-dashboard-muted transition hover:text-dashboard-accent"
                   onClick={() => {
                     setIsManualFormVisible(false);
                     setIsNaturalLanguageExpanded(true);
@@ -579,7 +579,7 @@ function TaskFormModal({
             </div>
             <input
               className={cn(
-                'h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-accent bg-[var(--bg-input)] px-4 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]',
+                'h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-accent bg-[var(--bg-input)] px-4 text-base text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]',
                 recentlyGeneratedDetails && 'bg-dashboard-accent-soft/40 shadow-glow',
               )}
               id="task-title"
@@ -592,12 +592,12 @@ function TaskFormModal({
           </div>
 
           <div>
-            <span className="mb-2 block text-sm font-medium text-dashboard-text">
+            <span className="mb-2 block text-base font-medium text-dashboard-text">
               Folder / Project
             </span>
             <input name="project" type="hidden" value={projectId} />
             <details className="group relative" ref={projectMenuRef}>
-              <summary className="flex h-[var(--input-height-desktop)] cursor-pointer list-none items-center gap-3 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-text outline-none transition hover:border-dashboard-border-strong focus-visible:border-dashboard-accent focus-visible:ring-2 focus-visible:ring-dashboard-accent/15 [&::-webkit-details-marker]:hidden">
+              <summary className="flex h-[var(--input-height-desktop)] cursor-pointer list-none items-center gap-3 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-base text-dashboard-text outline-none transition hover:border-dashboard-border-strong focus-visible:border-dashboard-accent focus-visible:ring-2 focus-visible:ring-dashboard-accent/15 [&::-webkit-details-marker]:hidden">
                 <span
                   className="h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{
@@ -618,7 +618,7 @@ function TaskFormModal({
                   <button
                     aria-pressed={!projectId}
                     className={cn(
-                      'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition',
+                      'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-base transition',
                       !projectId
                         ? 'bg-dashboard-accent-soft text-dashboard-accent'
                         : 'text-dashboard-text hover:bg-dashboard-surface-hover',
@@ -637,7 +637,7 @@ function TaskFormModal({
                       <button
                         aria-pressed={isSelected}
                         className={cn(
-                          'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition',
+                          'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-base transition',
                           isSelected
                             ? 'bg-dashboard-accent-soft text-dashboard-accent'
                             : 'text-dashboard-text hover:bg-dashboard-surface-hover',
@@ -659,7 +659,7 @@ function TaskFormModal({
 
                 <div className="mt-2 border-t border-dashboard-border pt-2">
                   <button
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-dashboard-accent transition hover:bg-dashboard-accent-soft"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-base font-semibold text-dashboard-accent transition hover:bg-dashboard-accent-soft"
                     onClick={() => {
                       projectMenuRef.current?.removeAttribute('open');
                       setIsCreateFolderOpen(true);
@@ -681,7 +681,7 @@ function TaskFormModal({
               {(['No priority', 'Low', 'Medium', 'High'] as TaskPriorityLabel[]).map((option) => (
                 <button
                   className={cn(
-                    'flex h-11 items-center justify-center gap-2 rounded-[var(--radius-sm)] border text-sm transition',
+                    'flex h-12 items-center justify-center gap-2 rounded-[var(--radius-sm)] border text-base transition',
                     priority === option
                       ? 'border-dashboard-accent bg-dashboard-accent-soft text-dashboard-text'
                       : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted hover:border-dashboard-border-strong',
@@ -710,7 +710,7 @@ function TaskFormModal({
               <label className="relative block">
                 <CalendarIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-dashboard-muted" />
                 <input
-                  className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] pl-12 pr-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
+                  className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] pl-12 pr-4 text-base text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
                   name="dueDate"
                   onChange={(event) => setDueDateValue(event.target.value)}
                   type="date"
@@ -721,7 +721,7 @@ function TaskFormModal({
 
             <Field label="Time" optional>
               <input
-                className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
+                className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-base text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
                 name="dueTime"
                 onChange={(event) => setDueTimeValue(event.target.value)}
                 type="time"
@@ -738,7 +738,7 @@ function TaskFormModal({
                   <button
                     aria-pressed={durationOption === value}
                     className={cn(
-                      'h-10 rounded-[var(--radius-sm)] border px-3 text-sm font-medium transition',
+                      'h-11 rounded-[var(--radius-sm)] border px-3.5 text-base font-medium transition',
                       durationOption === value
                         ? 'border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent'
                         : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted hover:border-dashboard-border-strong hover:text-dashboard-text',
@@ -754,7 +754,7 @@ function TaskFormModal({
               <button
                 aria-pressed={durationOption === 'custom'}
                 className={cn(
-                  'h-10 rounded-[var(--radius-sm)] border px-3 text-sm font-medium transition',
+                  'h-11 rounded-[var(--radius-sm)] border px-3.5 text-base font-medium transition',
                   durationOption === 'custom'
                     ? 'border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent'
                     : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted hover:border-dashboard-border-strong hover:text-dashboard-text',
@@ -766,7 +766,7 @@ function TaskFormModal({
               </button>
               {durationOption ? (
                 <button
-                  className="h-10 rounded-[var(--radius-sm)] border border-dashboard-border px-3 text-sm font-medium text-dashboard-muted transition hover:border-dashboard-border-strong hover:text-dashboard-text"
+                  className="h-11 rounded-[var(--radius-sm)] border border-dashboard-border px-3.5 text-base font-medium text-dashboard-muted transition hover:border-dashboard-border-strong hover:text-dashboard-text"
                   onClick={() => {
                     setDurationOption('');
                     setCustomDuration('');
@@ -779,7 +779,7 @@ function TaskFormModal({
             </div>
             {durationOption === 'custom' ? (
               <input
-                className="mt-3 h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
+                className="mt-3 h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-base text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
                 inputMode="numeric"
                 min={1}
                 onChange={(event) => setCustomDuration(event.target.value)}
@@ -793,7 +793,7 @@ function TaskFormModal({
 
           <Field label="Notes / Description" optional>
             <textarea
-              className="min-h-24 w-full resize-y rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 py-3 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
+              className="min-h-28 w-full resize-y rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 py-4 text-base text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
               defaultValue={initialValues.description}
               name="description"
               placeholder="Add any notes or details..."
@@ -802,11 +802,11 @@ function TaskFormModal({
 
           <div>
             <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-sm font-medium text-dashboard-text">
+              <span className="text-base font-medium text-dashboard-text">
                 Subtasks{' '}
                 <span className="font-normal text-dashboard-muted">(optional)</span>
               </span>
-              <span className="text-xs text-dashboard-muted">
+              <span className="text-sm text-dashboard-muted">
                 {subtasks.filter((subtask) => subtask.isCompleted).length}/{subtasks.length} done
               </span>
             </div>
@@ -818,7 +818,7 @@ function TaskFormModal({
                     aria-label={subtask.isCompleted ? 'Mark subtask incomplete' : 'Mark subtask done'}
                     aria-pressed={subtask.isCompleted}
                     className={cn(
-                      'grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border transition',
+                      'grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] border transition',
                       subtask.isCompleted
                         ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
                         : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted hover:border-dashboard-accent/70',
@@ -834,7 +834,7 @@ function TaskFormModal({
                     {subtask.isCompleted ? <CheckIcon className="h-4 w-4" /> : null}
                   </button>
                   <input
-                    className="h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
+                    className="h-11 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-3.5 text-base text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
                     onChange={(event) =>
                       updateSubtask(index, {
                         ...subtask,
@@ -845,7 +845,7 @@ function TaskFormModal({
                   />
                   <button
                     aria-label="Remove subtask"
-                    className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted transition hover:border-[var(--red-border)] hover:text-[var(--red-light)]"
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted transition hover:border-[var(--red-border)] hover:text-[var(--red-light)]"
                     onClick={() => removeSubtask(index)}
                     type="button"
                   >
@@ -857,7 +857,7 @@ function TaskFormModal({
 
             <div className="mt-2 flex gap-2">
               <input
-                className="h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
+                className="h-11 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-3.5 text-base text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
                 onChange={(event) => setSubtaskDraft(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
@@ -870,7 +870,7 @@ function TaskFormModal({
               />
               <button
                 aria-label="Add subtask"
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent transition hover:bg-dashboard-accent/20"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent transition hover:bg-dashboard-accent/20"
                 onClick={addSubtask}
                 type="button"
               >
@@ -891,7 +891,7 @@ function TaskFormModal({
         <div className="mt-7 flex items-center justify-between gap-4">
           <button
             className={cn(
-              'h-11 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-5 text-sm font-medium transition disabled:opacity-50',
+              'h-12 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-5 text-base font-medium transition disabled:opacity-50',
               onDelete
                 ? 'text-[var(--red-light)] hover:border-[var(--red-border)] hover:bg-[var(--red-soft)]'
                 : 'text-dashboard-text hover:border-dashboard-border-strong',
@@ -914,12 +914,12 @@ function TaskFormModal({
             {onDelete ? 'Delete' : 'Cancel'}
           </button>
           <button
-            className="flex h-11 items-center gap-3 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-6 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
+            className="flex h-12 items-center gap-3 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-6 text-base font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
             disabled={isSubmitting}
             type="submit"
           >
             {isSubmitting ? submittingLabel : submitLabel}
-            <span className="rounded bg-[#04110d]/15 px-1.5 py-0.5 text-xs">⌘↵</span>
+            <span className="rounded bg-[#04110d]/15 px-1.5 py-0.5 text-sm">⌘↵</span>
           </button>
         </div>
         ) : null}
@@ -947,7 +947,7 @@ function Field({
 }: Readonly<{ children: React.ReactNode; label: string; optional?: boolean }>) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-dashboard-text">
+      <span className="mb-2 block text-base font-medium text-dashboard-text">
         {label}{' '}
         {optional ? <span className="font-normal text-dashboard-muted">(optional)</span> : null}
       </span>
