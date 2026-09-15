@@ -8,6 +8,7 @@ from app.auth.dependencies import CurrentUser, DatabaseSession
 from app.scheduling import lifecycle, service
 from app.scheduling.lifecycle import RescheduleLifecycleConflict
 from app.scheduling.models import RecommendationStatus, ScheduleSuggestionStatus
+from app.scheduling.rescheduling_ai import generate_reschedule_explanations
 from app.scheduling.schemas import (
     AiPreviewRequest,
     AiPreviewResponse,
@@ -47,12 +48,29 @@ def preview_reschedule(
     payload: ReschedulePreviewRequest,
     db: DatabaseSession,
     current_user: CurrentUser,
+    ai_service: AIServiceDependency,
 ) -> RescheduleProposalResponse:
-    # AI explanations are enriched separately; deterministic options are always authoritative.
-    del payload
     try:
         result = lifecycle.create_reschedule_preview(db, current_user.id)
-        return lifecycle.serialize_reschedule_proposal(result.proposal)
+        proposal = result.proposal
+        if (
+            payload.include_ai_explanations
+            and result.ai_assistant_enabled
+            and result.generation.options
+        ):
+            ai_result = generate_reschedule_explanations(
+                ai_service=ai_service,
+                user_id=current_user.id,
+                context=lifecycle.stored_reschedule_context(result.proposal),
+                options=result.generation.options,
+            )
+            proposal = lifecycle.persist_reschedule_ai_result(
+                db,
+                current_user.id,
+                result.proposal.id,
+                ai_result,
+            )
+        return lifecycle.serialize_reschedule_proposal(proposal)
     except RescheduleLifecycleConflict as exc:
         raise _reschedule_conflict(exc) from exc
 

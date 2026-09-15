@@ -20,6 +20,7 @@ from .models import RescheduleProposal, RescheduleProposalStatus
 from .rescheduling import RescheduleGenerationResult, generate_rescheduling_options
 from .revision import bump_schedule_revision, lock_schedule_revision
 from .schemas import (
+    PersistedRescheduleAIResult,
     PersistedRescheduleContext,
     RescheduleConflictCode,
     RescheduleDetectedChange,
@@ -48,6 +49,7 @@ class ReschedulePreviewResult:
     proposal: RescheduleProposal
     detection: ReschedulingDetectionResult
     generation: RescheduleGenerationResult
+    ai_assistant_enabled: bool = True
 
 
 @dataclass(frozen=True)
@@ -212,6 +214,10 @@ def _stored_options(proposal: RescheduleProposal) -> list[RescheduleOption]:
     return [RescheduleOption.model_validate(item) for item in proposal.alternatives]
 
 
+def stored_reschedule_context(proposal: RescheduleProposal) -> RescheduleProposalContext:
+    return PersistedRescheduleContext.model_validate(proposal.detected_context).context
+
+
 def serialize_reschedule_proposal(
     proposal: RescheduleProposal,
     *,
@@ -221,11 +227,23 @@ def serialize_reschedule_proposal(
     persisted = PersistedRescheduleContext.model_validate(proposal.detected_context)
     if proposal.created_at is None:
         raise RuntimeError("Persisted reschedule proposal is missing created_at")
+    options = _stored_options(proposal)
+    ai_metadata = None
+    if proposal.ai_explanations is not None:
+        ai_result = PersistedRescheduleAIResult.model_validate(proposal.ai_explanations)
+        explanations = {
+            item.option_id: item.explanation for item in ai_result.payload.explanations
+        }
+        options = [
+            option.model_copy(update={"explanation": explanations.get(option.id)})
+            for option in options
+        ]
+        ai_metadata = ai_result.metadata
     return RescheduleProposalResponse(
         id=proposal.id,
         status=proposal.status,
         context=persisted.context,
-        options=_stored_options(proposal),
+        options=options,
         issues=persisted.issues,
         selected_option_id=proposal.selected_option_id,
         generated_at=_aware(proposal.created_at),
@@ -233,6 +251,7 @@ def serialize_reschedule_proposal(
         applied_at=_aware(proposal.applied_at) if proposal.applied_at is not None else None,
         undone_at=_aware(proposal.undone_at) if proposal.undone_at is not None else None,
         idempotent=idempotent,
+        ai_metadata=ai_metadata,
     )
 
 
@@ -298,7 +317,26 @@ def create_reschedule_preview(
             proposal=proposal,
             detection=detection,
             generation=generation,
+            ai_assistant_enabled=settings.ai_assistant_enabled,
         )
+    except Exception:
+        db.rollback()
+        raise
+
+
+def persist_reschedule_ai_result(
+    db: Session,
+    user_id: uuid.UUID,
+    proposal_id: uuid.UUID,
+    ai_result: PersistedRescheduleAIResult,
+) -> RescheduleProposal:
+    """Attach non-authoritative AI copy without changing schedule lifecycle state."""
+    try:
+        proposal = _load_proposal_for_update(db, user_id, proposal_id)
+        proposal.ai_explanations = ai_result.model_dump(mode="json")
+        db.commit()
+        db.refresh(proposal)
+        return proposal
     except Exception:
         db.rollback()
         raise

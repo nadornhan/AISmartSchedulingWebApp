@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
+from app.ai.schemas import AIGenerationMetadata
 from app.scheduling import lifecycle, router
 from app.scheduling.lifecycle import (
     RescheduleApplyResult,
@@ -15,7 +16,9 @@ from app.scheduling.lifecycle import (
 )
 from app.scheduling.models import RescheduleProposal
 from app.scheduling.schemas import (
+    PersistedRescheduleAIResult,
     PersistedRescheduleContext,
+    RescheduleAIExplanationPayload,
     RescheduleApplyRequest,
     RescheduleMove,
     RescheduleOption,
@@ -115,12 +118,104 @@ def test_preview_uses_authenticated_user_and_serializes_persisted_state(
         ReschedulePreviewRequest(include_ai_explanations=False),
         "db",
         current_user,
+        None,
     )
 
     assert seen == {"db": "db", "user_id": proposal.user_id}
     assert response.id == proposal.id
     assert response.options[0].id == uuid.UUID(proposal.alternatives[0]["id"])
     assert response.idempotent is False
+
+
+def test_preview_enriches_valid_options_when_ai_is_requested(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    proposal, option = _proposal()
+    current_user = SimpleNamespace(id=proposal.user_id)
+    generation = SimpleNamespace(options=(option,))
+    preview = ReschedulePreviewResult(
+        proposal=proposal,
+        detection=SimpleNamespace(),
+        generation=generation,
+        ai_assistant_enabled=True,
+    )
+    ai_result = PersistedRescheduleAIResult(
+        payload=RescheduleAIExplanationPayload(
+            explanations=[
+                {
+                    "option_id": option.id,
+                    "explanation": "Moves one task while preserving the remaining schedule.",
+                }
+            ]
+        ),
+        metadata=AIGenerationMetadata(
+            feature="intelligent_rescheduling",
+            prompt_version="rescheduling-explanation-v1",
+            source="fake",
+            model="fake",
+            latency_ms=1,
+        ),
+    )
+    seen: dict[str, object] = {}
+
+    monkeypatch.setattr(lifecycle, "create_reschedule_preview", lambda *_args: preview)
+
+    def generate(**kwargs):
+        seen["ai"] = kwargs
+        return ai_result
+
+    def persist(db, user_id, proposal_id, persisted):
+        seen["persist"] = (db, user_id, proposal_id, persisted)
+        proposal.ai_explanations = persisted.model_dump(mode="json")
+        return proposal
+
+    monkeypatch.setattr(router, "generate_reschedule_explanations", generate)
+    monkeypatch.setattr(lifecycle, "persist_reschedule_ai_result", persist)
+
+    response = router.preview_reschedule(
+        ReschedulePreviewRequest(),
+        "db",
+        current_user,
+        "ai-service",
+    )
+
+    assert seen["ai"]["ai_service"] == "ai-service"
+    assert seen["ai"]["options"] == (option,)
+    assert seen["persist"][1:3] == (proposal.user_id, proposal.id)
+    assert response.options[0].explanation == (
+        "Moves one task while preserving the remaining schedule."
+    )
+    assert response.ai_metadata is not None
+    assert response.ai_metadata.source == "fake"
+
+
+def test_preview_skips_ai_when_user_setting_disables_assistant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    proposal, option = _proposal()
+    preview = ReschedulePreviewResult(
+        proposal=proposal,
+        detection=SimpleNamespace(),
+        generation=SimpleNamespace(options=(option,)),
+        ai_assistant_enabled=False,
+    )
+    monkeypatch.setattr(lifecycle, "create_reschedule_preview", lambda *_args: preview)
+
+    def unexpected_ai_call(**_kwargs):
+        pytest.fail("AI must not run when the user's assistant setting is disabled")
+
+    monkeypatch.setattr(router, "generate_reschedule_explanations", unexpected_ai_call)
+
+    response = router.preview_reschedule(
+        ReschedulePreviewRequest(include_ai_explanations=True),
+        "db",
+        SimpleNamespace(id=proposal.user_id),
+        "ai-service",
+    )
+
+    assert response.options[0].id == option.id
+    assert response.options[0].explanation is None
+    assert response.ai_metadata is None
 
 
 def test_apply_accepts_only_option_id_and_reports_idempotency(
@@ -225,7 +320,7 @@ def test_lifecycle_conflicts_are_returned_as_typed_409_errors(
     if operation == "preview":
         monkeypatch.setattr(lifecycle, "create_reschedule_preview", conflict)
         call = lambda: router.preview_reschedule(
-            ReschedulePreviewRequest(), "db", current_user
+            ReschedulePreviewRequest(), "db", current_user, None
         )
     elif operation == "apply":
         monkeypatch.setattr(lifecycle, "apply_reschedule_proposal", conflict)

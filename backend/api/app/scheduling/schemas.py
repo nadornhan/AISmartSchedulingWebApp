@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from app.ai.contracts import AICandidateScoreEvidence
+from app.ai.schemas import AIGenerationMetadata
 from app.dashboard.schemas import DashboardTaskSummary
 from app.tasks.models import TaskPriority, TaskStatus
 
@@ -284,6 +285,37 @@ class RescheduleProposalResponse(BaseModel):
     applied_at: AwareDatetime | None = None
     undone_at: AwareDatetime | None = None
     idempotent: bool = False
+    ai_metadata: AIGenerationMetadata | None = None
+
+
+class RescheduleOptionAIExplanation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    option_id: uuid.UUID
+    explanation: str = Field(min_length=1, max_length=1000)
+
+
+class RescheduleAIExplanationPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    explanations: list[RescheduleOptionAIExplanation] = Field(
+        default_factory=list,
+        max_length=3,
+    )
+
+    @model_validator(mode="after")
+    def reject_duplicate_option_ids(self) -> "RescheduleAIExplanationPayload":
+        option_ids = [item.option_id for item in self.explanations]
+        if len(option_ids) != len(set(option_ids)):
+            raise ValueError("AI explanations contain duplicate option IDs")
+        return self
+
+
+class PersistedRescheduleAIResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    payload: RescheduleAIExplanationPayload
+    metadata: AIGenerationMetadata
 
 
 RescheduleConflictCode = Literal[
