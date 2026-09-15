@@ -54,6 +54,18 @@ class SchedulingIssueMetadata(BaseModel):
     planning_horizon_end: str
 
 
+class ReschedulingIssueMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    fixed_task_id: uuid.UUID | None = None
+    required_minutes: int | None = None
+    total_available_minutes: int | None = None
+    largest_available_block_minutes: int | None = None
+    feasible_window_count: int | None = None
+    due_date: str | None = None
+    planning_horizon_end: str | None = None
+
+
 class SchedulingIssueResponse(BaseModel):
     task_id: uuid.UUID
     task_title: str
@@ -62,10 +74,12 @@ class SchedulingIssueResponse(BaseModel):
         "NO_CONTIGUOUS_WINDOW_BEFORE_DEADLINE",
         "NO_CAPACITY_IN_HORIZON",
         "NO_CONTIGUOUS_WINDOW_IN_HORIZON",
+        "LOCKED_TASK_REQUIRES_MANUAL_ACTION",
+        "NO_VALID_RESCHEDULE_OPTION",
     ]
     severity: Literal["warning", "critical"]
     reason: str
-    metadata: SchedulingIssueMetadata
+    metadata: SchedulingIssueMetadata | ReschedulingIssueMetadata
 
 
 class SchedulingPlanResponse(BaseModel):
@@ -154,19 +168,22 @@ class RescheduleStateSnapshot(BaseModel):
         return self
 
 
+ReschedulingChangeCode = Literal[
+    "INVALID_SCHEDULE_INTERVAL",
+    "SCHEDULE_CONFLICT",
+    "SCHEDULE_DELAYED",
+    "TASK_OVERRUN",
+    "DURATION_NO_LONGER_FITS",
+    "OUTSIDE_WORKING_HOURS",
+    "ENDS_AFTER_DEADLINE",
+    "CAPACITY_PRESSURE",
+]
+
+
 class RescheduleDetectedChange(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    code: Literal[
-        "INVALID_SCHEDULE_INTERVAL",
-        "SCHEDULE_CONFLICT",
-        "SCHEDULE_DELAYED",
-        "TASK_OVERRUN",
-        "DURATION_NO_LONGER_FITS",
-        "OUTSIDE_WORKING_HOURS",
-        "ENDS_AFTER_DEADLINE",
-        "CAPACITY_PRESSURE",
-    ]
+    code: ReschedulingChangeCode
     reason: str = Field(min_length=1, max_length=500)
     task_id: uuid.UUID | None = None
     related_task_ids: list[uuid.UUID] = Field(default_factory=list)
@@ -217,6 +234,7 @@ class RescheduleOption(BaseModel):
     total_displacement_minutes: int = Field(ge=0)
     completion_at: AwareDatetime
     deterministic_reasons: list[str] = Field(default_factory=list)
+    resolved_change_codes: list[ReschedulingChangeCode] = Field(default_factory=list)
     explanation: str | None = Field(default=None, max_length=2000)
 
     @model_validator(mode="after")

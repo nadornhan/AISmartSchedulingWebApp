@@ -176,6 +176,9 @@ def test_active_focus_progress_can_signal_real_overrun() -> None:
     overrun = next(change for change in result.changes if change.code == "TASK_OVERRUN")
     assert overrun.task_id == running.id
     assert overrun.related_task_ids == (next_task.id,)
+    assert len(result.additional_fixed_intervals) == 1
+    assert result.additional_fixed_intervals[0].start == running.scheduled_end
+    assert result.additional_fixed_intervals[0].end == now.replace(hour=9, minute=45)
 
 
 def test_detection_is_deterministic_and_does_not_mutate_tasks() -> None:

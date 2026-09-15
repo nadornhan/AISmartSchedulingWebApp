@@ -16,7 +16,11 @@ from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskStatus
 
 from .engine import free_windows_for_current_state, planning_horizon_for_scheduling
-from .windows import scheduling_required_minutes, summarize_task_capacity
+from .windows import (
+    OccupiedInterval,
+    scheduling_required_minutes,
+    summarize_task_capacity,
+)
 
 ReschedulingChangeCode = Literal[
     "INVALID_SCHEDULE_INTERVAL",
@@ -46,6 +50,7 @@ class ReschedulingDetectionResult:
     affected_task_ids: tuple[uuid.UUID, ...]
     movable_task_ids: tuple[uuid.UUID, ...]
     fixed_task_ids: tuple[uuid.UUID, ...]
+    additional_fixed_intervals: tuple[OccupiedInterval, ...] = ()
 
     @property
     def needs_rescheduling(self) -> bool:
@@ -189,6 +194,7 @@ def _detect_capacity_pressure(
     tasks: list[Task],
     settings: UserSettings,
     now: datetime,
+    additional_fixed_intervals: list[OccupiedInterval],
 ) -> list[DetectedScheduleChange]:
     unscheduled = [
         task
@@ -202,6 +208,10 @@ def _detect_capacity_pressure(
         settings=settings,
         now=now,
         existing_tasks=tasks,
+        existing_candidates=[
+            (interval.source_id, interval.start, interval.end)
+            for interval in additional_fixed_intervals
+        ],
     )
     horizon = planning_horizon_for_scheduling(now)
     changes: list[DetectedScheduleChange] = []
@@ -237,9 +247,10 @@ def _detect_focus_overruns(
     *,
     tasks: list[Task],
     focus_sessions: list[FocusSession],
-) -> list[DetectedScheduleChange]:
+) -> tuple[list[DetectedScheduleChange], list[OccupiedInterval]]:
     task_by_id = {task.id: task for task in tasks}
     changes: list[DetectedScheduleChange] = []
+    occupied_intervals: list[OccupiedInterval] = []
     active_statuses = {
         FocusSessionStatus.ACTIVE.value,
         FocusSessionStatus.PAUSED.value,
@@ -264,6 +275,15 @@ def _detect_focus_overruns(
         )
         if observed_end <= scheduled_end:
             continue
+
+        occupied_intervals.append(
+            OccupiedInterval(
+                start=scheduled_end,
+                end=observed_end,
+                source_id=session.id,
+                source_type="focus_overrun",
+            )
+        )
 
         related_ids = tuple(
             sorted(
@@ -294,7 +314,7 @@ def _detect_focus_overruns(
             )
         )
 
-    return changes
+    return changes, occupied_intervals
 
 
 def detect_rescheduling_needs(
@@ -324,13 +344,25 @@ def detect_rescheduling_needs(
             )
         )
     changes.extend(_detect_schedule_conflicts(open_tasks))
-    changes.extend(
-        _detect_capacity_pressure(tasks=open_tasks, settings=settings, now=normalized_now)
+    overrun_changes, overrun_intervals = _detect_focus_overruns(
+        tasks=open_tasks,
+        focus_sessions=focus_sessions or [],
     )
+    overrun_task_ids = {
+        change.task_id for change in overrun_changes if change.task_id is not None
+    }
+    changes = [
+        change
+        for change in changes
+        if not (change.code == "SCHEDULE_DELAYED" and change.task_id in overrun_task_ids)
+    ]
+    changes.extend(overrun_changes)
     changes.extend(
-        _detect_focus_overruns(
+        _detect_capacity_pressure(
             tasks=open_tasks,
-            focus_sessions=focus_sessions or [],
+            settings=settings,
+            now=normalized_now,
+            additional_fixed_intervals=overrun_intervals,
         )
     )
 
@@ -349,4 +381,14 @@ def detect_rescheduling_needs(
         affected_task_ids=tuple(sorted(affected_ids, key=_task_id_key)),
         movable_task_ids=tuple(sorted(movable_ids, key=_task_id_key)),
         fixed_task_ids=tuple(sorted(fixed_ids, key=_task_id_key)),
+        additional_fixed_intervals=tuple(
+            sorted(
+                overrun_intervals,
+                key=lambda interval: (
+                    interval.start,
+                    interval.end,
+                    _task_id_key(interval.source_id),
+                ),
+            )
+        ),
     )
