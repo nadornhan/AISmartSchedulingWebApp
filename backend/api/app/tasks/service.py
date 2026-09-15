@@ -222,6 +222,10 @@ def update_task(
         "scheduled_end",
         task.scheduled_end,
     )
+    schedule_locked = update_data.get(
+        "schedule_locked",
+        task.schedule_locked,
+    )
 
     if (
         scheduled_start is not None
@@ -230,6 +234,27 @@ def update_task(
     ):
         raise ValueError(
             "scheduled_end must be later than scheduled_start"
+        )
+
+    schedule_changed = (
+        (
+            "scheduled_start" in update_data
+            and scheduled_start != task.scheduled_start
+        )
+        or (
+            "scheduled_end" in update_data
+            and scheduled_end != task.scheduled_end
+        )
+    )
+    explicitly_unlocking = update_data.get("schedule_locked") is False
+    if task.schedule_locked and schedule_changed and not explicitly_unlocking:
+        raise ValueError("Unlock task before changing its schedule")
+
+    if schedule_locked and (
+        scheduled_start is None or scheduled_end is None
+    ):
+        raise ValueError(
+            "Locked tasks must have a complete schedule interval"
         )
 
     for field, value in update_data.items():

@@ -10,7 +10,11 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.ai import AIFeature, AIService, get_ai_service
 from app.dashboard.schemas import DashboardTaskSummary
-from app.focus.models import FocusSession
+from app.focus.models import FocusSession, FocusSessionStatus
+from app.scheduling.detection import (
+    ReschedulingDetectionResult,
+    detect_rescheduling_needs,
+)
 from app.scheduling.engine import (
     RankedTask,
     build_schedule_result,
@@ -173,6 +177,35 @@ def _open_tasks(db: Session, user_id: uuid.UUID) -> list[Task]:
                 Task.status != TaskStatus.DONE,
             )
         ).all()
+    )
+
+
+def detect_current_rescheduling_needs(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    now: datetime | None = None,
+) -> ReschedulingDetectionResult:
+    """Load user-scoped current state and run the pure rescheduling audit."""
+
+    active_focus_sessions = list(
+        db.scalars(
+            select(FocusSession).where(
+                FocusSession.user_id == user_id,
+                FocusSession.status.in_(
+                    [
+                        FocusSessionStatus.ACTIVE.value,
+                        FocusSessionStatus.PAUSED.value,
+                    ]
+                ),
+            )
+        ).all()
+    )
+    return detect_rescheduling_needs(
+        tasks=_open_tasks(db, user_id),
+        settings=_preview_settings(db, user_id),
+        now=now or utc_now(),
+        focus_sessions=active_focus_sessions,
     )
 
 

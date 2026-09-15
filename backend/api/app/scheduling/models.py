@@ -3,9 +3,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -32,6 +34,14 @@ class ScheduleSuggestionStatus(str, enum.Enum):
     DISMISSED = "dismissed"
     APPLIED = "applied"
     ADJUSTED = "adjusted"
+
+
+class RescheduleProposalStatus(str, enum.Enum):
+    PREVIEW = "preview"
+    APPLIED = "applied"
+    UNDONE = "undone"
+    SUPERSEDED = "superseded"
+    EXPIRED = "expired"
 
 
 class AiRecommendation(Base):
@@ -118,6 +128,64 @@ class AiScheduleSuggestion(Base):
         server_default="0",
     )
     generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class RescheduleProposal(Base):
+    """Immutable rescheduling options plus the state needed for safe apply/undo."""
+
+    __tablename__ = "reschedule_proposals"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('preview', 'applied', 'undone', 'superseded', 'expired')",
+            name="ck_reschedule_proposals_status_allowed",
+        ),
+        Index(
+            "ix_reschedule_proposals_user_status_created_at",
+            "user_id",
+            "status",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(
+        String(32),
+        default=RescheduleProposalStatus.PREVIEW.value,
+        server_default=RescheduleProposalStatus.PREVIEW.value,
+        nullable=False,
+    )
+    state_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    detected_context: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    state_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    alternatives: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    selected_option_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    before_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    after_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    ai_explanations: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    applied_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    undone_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
