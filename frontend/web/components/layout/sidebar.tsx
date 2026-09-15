@@ -119,7 +119,7 @@ function SectionTitle({
   onNavigate?: () => void;
 }>) {
   const titleClassName =
-    'text-[13px] font-normal uppercase tracking-[0.02em] text-dashboard-muted transition hover:text-dashboard-accent';
+    'text-sm font-medium uppercase tracking-[0.02em] text-dashboard-muted transition hover:text-dashboard-accent';
 
   return (
     <div className="mb-2 flex items-center justify-between px-3">
@@ -134,7 +134,7 @@ function SectionTitle({
       {actionLabel && onAction ? (
         <button
           aria-label={actionLabel}
-          className="grid h-9 w-9 place-items-center rounded-full border border-dashboard-border bg-dashboard-surface text-dashboard-text transition hover:border-dashboard-accent/60 hover:text-dashboard-accent"
+          className="grid h-10 w-10 place-items-center rounded-full border border-dashboard-border bg-dashboard-surface text-dashboard-text transition hover:border-dashboard-accent/60 hover:text-dashboard-accent"
           onClick={onAction}
           type="button"
         >
@@ -160,7 +160,7 @@ function NavLink({
     <Link
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group flex h-12 items-center gap-4 rounded-lg px-3 text-[15px] font-normal transition-shadow',
+        'group flex h-[52px] items-center gap-4 rounded-lg px-4 text-base font-medium transition-shadow',
         active
           ? 'border-l-4 border-l-dashboard-accent bg-dashboard-accent/20 text-dashboard-accent'
           : 'border border-transparent text-dashboard-muted hover:border-dashboard-border hover:bg-dashboard-surface hover:text-dashboard-accent',
@@ -170,7 +170,7 @@ function NavLink({
     >
       <Icon
         className={cn(
-          'h-5 w-5 shrink-0 transition',
+          'h-[22px] w-[22px] shrink-0 transition',
           active
             ? 'text-dashboard-accent'
             : 'text-dashboard-muted group-hover:text-dashboard-accent',
@@ -180,7 +180,7 @@ function NavLink({
       {item.badge ? (
         <span
           className={cn(
-            'rounded-full px-3 py-1 text-sm font-medium leading-none',
+            'rounded-full px-3 py-1 text-sm font-semibold leading-none',
             active
               ? 'bg-dashboard-bg/25 text-dashboard-text'
               : 'bg-dashboard-accent-soft text-dashboard-accent',
@@ -294,11 +294,11 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       <div className="group relative mb-10">
         <div className="flex h-14 overflow-hidden rounded-xl border border-dashboard-accent/60 bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong text-white transition hover:brightness-110">
           <button
-            className="flex flex-1 items-center justify-center gap-3 px-6 text-base font-normal"
+            className="flex flex-1 items-center justify-center gap-3 px-6 text-[17px] font-medium"
             onClick={() => openCreateTaskModal(activeProjectId)}
             type="button"
           >
-            <PlusIcon className="h-6 w-6 mb-1" />
+            <PlusIcon className="h-6 w-6" />
             <span>Add Task</span>
           </button>
 
@@ -321,7 +321,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           "
         >
           <button
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-base font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
             onClick={() => openCreateTaskModal(null)}
             type="button"
           >
@@ -330,7 +330,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </button>
 
           <button
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-base font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
             onClick={() => {
               if (activeProjectId) {
                 openCreateTaskModal(activeProjectId);
@@ -382,7 +382,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 <Link
                   aria-current={activeProjectId === folder.id ? 'page' : undefined}
                   className={cn(
-                    'group flex h-11 items-center gap-4 rounded-lg px-3 text-[15px] font-normal transition',
+                    'group flex h-12 items-center gap-4 rounded-lg px-4 text-base font-medium transition',
                     activeProjectId === folder.id
                       ? 'border-l-4 border-l-dashboard-accent bg-dashboard-accent/20 text-dashboard-accent'
                       : 'text-dashboard-muted hover:bg-dashboard-surface hover:text-dashboard-text',
@@ -398,7 +398,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   <span className="min-w-0 flex-1 truncate">{folder.name}</span>
                   <span
                     className={cn(
-                      'rounded-full px-3 py-1 text-sm font-medium leading-none',
+                      'rounded-full px-3 py-1 text-sm font-semibold leading-none',
                       activeProjectId === folder.id
                         ? 'bg-dashboard-bg/25 text-dashboard-text'
                         : 'bg-dashboard-accent-soft text-dashboard-accent',
@@ -432,7 +432,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         <Link
           aria-current={settingsActive ? 'page' : undefined}
           className={cn(
-            'flex h-12 items-center gap-4 rounded-lg border-t border-dashboard-border px-2 pt-4 text-[15px] font-medium transition',
+            'flex h-[52px] items-center gap-4 rounded-lg border-t border-dashboard-border px-3 pt-4 text-base font-medium transition',
             settingsActive
               ? 'text-dashboard-accent'
               : 'text-dashboard-muted hover:text-dashboard-text',
@@ -440,9 +440,9 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           href="/settings"
           onClick={onNavigate}
         >
-          <SettingsIcon className="h-5 w-5 shrink-0" />
+          <SettingsIcon className="h-[22px] w-[22px] shrink-0" />
           <span className="flex-1">Settings</span>
-          <ChevronRightIcon className="h-5 w-5" />
+          <ChevronRightIcon className="h-[22px] w-[22px]" />
         </Link>
       </div>
     </aside>
