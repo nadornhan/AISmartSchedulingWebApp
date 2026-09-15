@@ -1,10 +1,10 @@
-import type { Metadata } from 'next';
-import { Geist, Poppins } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
+import { Figtree, Poppins } from 'next/font/google';
 import './globals.css';
 
-const geist = Geist({
+const figtree = Figtree({
   subsets: ['latin'],
-  variable: '--font-geist',
+  variable: '--font-figtree',
 });
 
 const poppins = Poppins({
@@ -21,6 +21,12 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,7 +34,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geist.variable} ${poppins.variable}`}>
+      <body className={`${figtree.variable} ${poppins.variable}`}>
         {children}
       </body>
     </html>

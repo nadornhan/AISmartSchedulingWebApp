@@ -4,7 +4,7 @@
 
 :root {
   /* Canonical tokens from frontend/Theme.md. */
-  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: var(--font-figtree), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   --bg-page: #040c14;
   --bg-sidebar: #050e16;
@@ -135,14 +135,11 @@ body {
   background:
     radial-gradient(circle at 65% 15%, rgba(53, 227, 181, 0.045), transparent 34%), var(--bg-page);
   color: var(--dashboard-text);
-  font-family: var(--font-sans);
+  font-family: var(--font-figtree), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-family: var(--font-geist), sans-serif;
 }
-
-
 
 a {
   color: inherit;
@@ -154,6 +151,7 @@ input,
 select,
 textarea {
   font: inherit;
+  font-family: var(--font-figtree), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 button {
@@ -307,28 +305,40 @@ button {
 
 @media (max-width: 640px) {
   .focus-mode-panel {
-    padding: 72px 16px 24px;
+    padding: 60px 12px 20px;
   }
 
   .focus-timer-stage {
-    width: min(78vw, 340px);
+    width: min(76vw, 33dvh, 270px);
     min-width: 0;
+    margin-top: 20px;
   }
 
   .focus-timer-stage::before {
-    inset: -30px;
+    inset: -22px;
   }
 
   .focus-timer-stage::after {
-    inset: -60px;
+    inset: -44px;
   }
 
   .focus-timer-time {
-    font-size: clamp(46px, 17vw, 68px);
+    font-size: clamp(42px, 14vw, 56px);
   }
 
   .focus-timer-action {
-    min-width: 148px;
+    min-width: 112px;
+  }
+
+  .focus-timer-controls {
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .focus-skip-action {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
   }
 }
 
