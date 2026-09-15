@@ -47,7 +47,7 @@ export default function LoginPage() {
     <AuthShell>
       <div className="flex flex-col gap-10">
         <div className="flex flex-col gap-[11px]">
-          <h2 className="text-[32px] font-bold leading-[42px] text-[#f4f7f6]">
+          <h2 className="font-poppins text-[32px] font-bold leading-[42px] text-[#f4f7f6]">
             Sign in to continue to <span className="text-[var(--accent)]">Chrono.</span>
           </h2>
           <p className="text-sm leading-[21px] text-[#8181a5]">

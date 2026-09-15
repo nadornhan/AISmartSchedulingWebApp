@@ -138,7 +138,7 @@ export function ForestPage() {
     <div className="mx-auto max-w-[1480px] space-y-8">
       <section className="space-y-2">
         <p className="text-sm font-medium text-dashboard-muted">Personal Forest</p>
-        <h1 className="text-3xl font-semibold tracking-normal text-dashboard-text sm:text-4xl">
+        <h1 className="font-poppins text-3xl font-semibold tracking-normal text-dashboard-text sm:text-4xl">
           Watch your forest grow with every effort
         </h1>
         <p className="max-w-2xl text-sm text-dashboard-muted">{forest.supportive_message}</p>

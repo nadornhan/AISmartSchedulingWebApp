@@ -25,12 +25,12 @@ export function DashboardStatCard({
       : Math.max(0, Math.min(100, progress));
 
   return (
-    <article className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-5 shadow-panel">
-      <div className="flex items-start gap-4">
+    <article className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-4 shadow-panel sm:p-5">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
         {icon ? (
           <div
             className={cn(
-              'grid h-11 w-11 shrink-0 place-items-center rounded-full',
+              'grid h-9 w-9 shrink-0 place-items-center rounded-full sm:h-11 sm:w-11',
               accent === 'danger' && 'bg-[var(--red-soft)] text-[var(--red-light)]',
               accent === 'info' && 'bg-[var(--blue-soft)] text-[var(--blue-light)]',
               accent === 'warning' && 'bg-[var(--orange-soft)] text-[var(--yellow)]',
@@ -45,7 +45,7 @@ export function DashboardStatCard({
           <p className="text-sm font-medium text-dashboard-muted">{label}</p>
           <p
             className={cn(
-              'mt-2 text-3xl font-semibold tracking-normal',
+              'mt-1 text-2xl font-semibold tracking-normal sm:mt-2 sm:text-3xl',
               accent === 'danger' && 'text-[var(--red-light)]',
               accent === 'info' && 'text-[var(--blue-light)]',
               accent === 'warning' && 'text-[var(--yellow)]',
