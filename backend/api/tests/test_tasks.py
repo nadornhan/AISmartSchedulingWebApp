@@ -308,6 +308,7 @@ def test_create_task_with_new_fields_and_project_summary(
     assert task["due_date"] == "2030-08-10T12:00:00Z"
     assert task["scheduled_start"] == "2030-08-10T09:00:00Z"
     assert task["scheduled_end"] == "2030-08-10T10:30:00Z"
+    assert task["schedule_locked"] is False
     assert task["project"]["id"] == project["id"]
     assert task["project"]["name"] == "University"
     assert task["project"]["color"] == project["color"]
@@ -595,6 +596,70 @@ def test_reject_invalid_schedule_on_create(
     )
 
     assert response.status_code == 422
+
+
+def test_create_locked_task_requires_complete_schedule(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Locked without schedule",
+            "schedule_locked": True,
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_lock_scheduled_task_and_require_explicit_unlock_before_move(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    create_response = client.post(
+        "/tasks",
+        headers=auth_headers,
+        json={
+            "title": "Fixed calendar block",
+            "scheduled_start": "2030-08-10T09:00:00Z",
+            "scheduled_end": "2030-08-10T10:00:00Z",
+            "schedule_locked": True,
+        },
+    )
+
+    assert create_response.status_code == 201
+    task = create_response.json()
+    assert task["schedule_locked"] is True
+
+    blocked_move = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={
+            "scheduled_start": "2030-08-10T10:00:00Z",
+            "scheduled_end": "2030-08-10T11:00:00Z",
+        },
+    )
+
+    assert blocked_move.status_code == 422
+    assert blocked_move.json()["detail"] == (
+        "Unlock task before changing its schedule"
+    )
+
+    unlocked_move = client.patch(
+        f"/tasks/{task['id']}",
+        headers=auth_headers,
+        json={
+            "scheduled_start": "2030-08-10T10:00:00Z",
+            "scheduled_end": "2030-08-10T11:00:00Z",
+            "schedule_locked": False,
+        },
+    )
+
+    assert unlocked_move.status_code == 200
+    assert unlocked_move.json()["schedule_locked"] is False
+    assert unlocked_move.json()["scheduled_start"] == "2030-08-10T10:00:00Z"
 
 
 def test_reject_invalid_schedule_when_patching_one_time(
@@ -1233,4 +1298,3 @@ def test_inbox_only_filter(
     assert len(items) == 1
     assert items[0]["id"] == inbox["id"]
     assert items[0]["project_id"] is None
-

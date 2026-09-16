@@ -5,6 +5,7 @@ export type WorkPreferencesValue = {
   workEnd: string;
   timezone: string;
   pomodoroMinutes: number;
+  dailyWorkLimitMinutes: number;
 };
 
 type WorkPreferencesProps = {
@@ -26,7 +27,7 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
       title="Work Preferences"
       description="Default planning windows used by the scheduling flow."
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <label className="grid gap-2 text-sm font-medium text-dashboard-text">
           Work start
           <input
@@ -46,6 +47,32 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
             type="time"
             value={value.workEnd}
           />
+        </label>
+        <label className="grid gap-2 text-sm font-medium text-dashboard-text">
+          Daily scheduling limit
+          <div className="relative">
+            <input
+              className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 pr-14 text-sm text-dashboard-muted outline-none focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
+              disabled={isDisabled}
+              max="24"
+              min="0.5"
+              onChange={(event) => {
+                const hours = event.target.valueAsNumber;
+                if (Number.isFinite(hours)) {
+                  updateField('dailyWorkLimitMinutes', Math.round(hours * 60));
+                }
+              }}
+              step="0.5"
+              type="number"
+              value={value.dailyWorkLimitMinutes / 60}
+            />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-dashboard-subtle">
+              hours
+            </span>
+          </div>
+          <span className="text-xs font-normal text-dashboard-subtle">
+            Maximum task time the scheduler may place in one day.
+          </span>
         </label>
         <label className="grid gap-2 text-sm font-medium text-dashboard-text">
           Pomodoro

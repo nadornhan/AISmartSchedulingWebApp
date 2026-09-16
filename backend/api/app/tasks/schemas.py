@@ -69,6 +69,7 @@ class TaskCreate(BaseModel):
     estimated_duration_minutes: int | None = Field(default=None, gt=0)
     scheduled_start: datetime | None = None
     scheduled_end: datetime | None = None
+    schedule_locked: bool = False
     subtasks: list[SubtaskInput] = Field(default_factory=list, max_length=100)
 
     @model_validator(mode="after")
@@ -80,6 +81,13 @@ class TaskCreate(BaseModel):
         ):
             raise ValueError(
                 "scheduled_end must be later than scheduled_start"
+            )
+
+        if self.schedule_locked and (
+            self.scheduled_start is None or self.scheduled_end is None
+        ):
+            raise ValueError(
+                "Locked tasks must have a complete schedule interval"
             )
 
         return self
@@ -99,6 +107,7 @@ class TaskUpdate(BaseModel):
     estimated_duration_minutes: int | None = Field(default=None, gt=0)
     scheduled_start: datetime | None = None
     scheduled_end: datetime | None = None
+    schedule_locked: bool = False
     subtasks: list[SubtaskInput] | None = Field(default=None, max_length=100)
 
     @model_validator(mode="after")
@@ -135,6 +144,7 @@ class TaskResponse(BaseModel):
     estimated_duration_minutes: int | None
     scheduled_start: datetime | None
     scheduled_end: datetime | None
+    schedule_locked: bool
     completed_at: datetime | None
     subtasks: list[SubtaskResponse]
     subtask_progress: SubtaskProgress

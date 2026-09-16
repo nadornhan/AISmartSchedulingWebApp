@@ -542,6 +542,29 @@ export function TaskPage() {
     }
   }
 
+  async function toggleScheduleLock(task: Task) {
+    if (
+      !task.source.schedule_locked &&
+      (!task.source.scheduled_start || !task.source.scheduled_end)
+    ) {
+      setError('Schedule this task before locking its time.');
+      setMenuTaskId(null);
+      return;
+    }
+
+    setIsMutating(true);
+    setError(null);
+    setMenuTaskId(null);
+    try {
+      await updateTask(task.id, { schedule_locked: !task.source.schedule_locked });
+      await refreshTasks();
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
   async function handleDeleteOne(taskId: string) {
     setIsMutating(true);
     setError(null);
@@ -880,6 +903,11 @@ export function TaskPage() {
                           {task.subtaskProgressLabel ?? task.durationLabel}
                         </p>
                       ) : null}
+                      {task.source.schedule_locked ? (
+                        <span className="mt-2 inline-flex rounded-[var(--radius-pill)] border border-[var(--purple-border)] bg-[var(--purple-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--purple-light)]">
+                          Schedule locked
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -1003,6 +1031,23 @@ export function TaskPage() {
                         type="button"
                       >
                         Reschedule
+                      </button>
+                      <button
+                        className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-dashboard-text transition enabled:hover:bg-dashboard-surface enabled:hover:text-dashboard-accent disabled:cursor-not-allowed disabled:text-dashboard-subtle"
+                        disabled={
+                          !task.source.schedule_locked &&
+                          (!task.source.scheduled_start || !task.source.scheduled_end)
+                        }
+                        onClick={() => void toggleScheduleLock(task)}
+                        title={
+                          !task.source.schedule_locked &&
+                          (!task.source.scheduled_start || !task.source.scheduled_end)
+                            ? 'Schedule this task before locking it'
+                            : undefined
+                        }
+                        type="button"
+                      >
+                        {task.source.schedule_locked ? 'Unlock schedule' : 'Lock schedule'}
                       </button>
                       <button
                         className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--red-light)] transition hover:bg-dashboard-surface"

@@ -170,6 +170,7 @@ def confirm_priority(task_id: uuid.UUID, payload: PriorityConfirmRequest,
         raise HTTPException(403, "Preview does not belong to this task")
     if payload.action == "accept" and payload.selected_priority.value != claims["priority"]:
         raise HTTPException(422, "Accept must use the suggested priority")
+    service.bump_schedule_revision(db, current_user.id)
     task = db.scalar(select(Task).where(Task.id == task_id, Task.user_id == current_user.id)
                      .with_for_update())
     if task is None:

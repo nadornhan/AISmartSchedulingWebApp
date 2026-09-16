@@ -26,7 +26,7 @@ from app.scoring import (
     score_window_candidate,
     window_candidate_sort_key_v6,
 )
-from app.scoring.constraints import validate_schedule_candidate
+from app.scoring.constraints import is_within_daily_work_limit, validate_schedule_candidate
 from app.scoring.criteria import peak_focus_hour
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
@@ -96,6 +96,8 @@ def _issue_for_unschedulable_task(
     settings: UserSettings,
     windows: list[CandidateWindow],
     planning_horizon_end: datetime,
+    existing_tasks: list[Task],
+    existing_candidates: list[tuple[uuid.UUID, datetime, datetime]],
 ) -> SchedulingIssue | None:
     if task.scheduled_start is not None and task.scheduled_end is not None:
         return None
@@ -106,7 +108,55 @@ def _issue_for_unschedulable_task(
         settings=settings,
     )
     if capacity.has_contiguous_capacity:
-        return None
+        candidates = [
+            candidate
+            for window in candidate_windows_before_deadline(task=task, windows=windows)
+            for candidate in build_task_window_candidates(
+                task=task,
+                window=window,
+                settings=settings,
+            )
+        ]
+        daily_checks = [
+            is_within_daily_work_limit(
+                task=task,
+                start=candidate.proposed_start,
+                end=candidate.proposed_end,
+                settings=settings,
+                existing_tasks=existing_tasks,
+                existing_candidates=existing_candidates,
+            )
+            for candidate in candidates
+        ]
+        if any(check.passed for check in daily_checks):
+            return None
+        first_metadata = next(
+            (check.metadata for check in daily_checks if check.metadata is not None),
+            {},
+        )
+        return SchedulingIssue(
+            task_id=task.id,
+            task_title=task.title,
+            code="DAILY_WORK_LIMIT_REACHED",
+            severity="critical" if task.due_date is not None else "warning",
+            reason=(
+                "No day has enough remaining workload capacity for this task "
+                "within the current planning window."
+            ),
+            metadata={
+                "required_minutes": capacity.required_minutes,
+                "total_available_minutes": capacity.total_available_minutes,
+                "largest_available_block_minutes": capacity.largest_window_minutes,
+                "feasible_window_count": capacity.feasible_window_count,
+                "due_date": task.due_date.isoformat() if task.due_date else None,
+                "planning_horizon_end": planning_horizon_end.isoformat(),
+                "daily_work_limit_minutes": first_metadata.get(
+                    "daily_work_limit_minutes"
+                ),
+                "scheduled_work_minutes": first_metadata.get("scheduled_work_minutes"),
+                "local_date": first_metadata.get("local_date"),
+            },
+        )
 
     metadata: dict[str, int | str | None] = {
         "required_minutes": capacity.required_minutes,
@@ -175,6 +225,8 @@ def scheduling_issues_for_final_state(
     windows: list[CandidateWindow],
     planning_horizon_end: datetime,
     scheduled_task_ids: set[uuid.UUID],
+    existing_tasks: list[Task],
+    existing_candidates: list[tuple[uuid.UUID, datetime, datetime]],
 ) -> list[SchedulingIssue]:
     issues = []
     for item in ranked:
@@ -188,6 +240,8 @@ def scheduling_issues_for_final_state(
             settings=settings,
             windows=windows,
             planning_horizon_end=planning_horizon_end,
+            existing_tasks=existing_tasks,
+            existing_candidates=existing_candidates,
         )
         if issue is not None:
             issues.append(issue)
@@ -407,6 +461,8 @@ def build_schedule_result(
         windows=free_windows,
         planning_horizon_end=horizon.end,
         scheduled_task_ids={task.id for task, _start, _end, _explanation in slots},
+        existing_tasks=blockers,
+        existing_candidates=accepted_candidates,
     )
 
     return ScheduleBuildResult(slots=slots, issues=issues)

@@ -6,6 +6,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
+DEFAULT_DAILY_WORK_LIMIT_MINUTES = 8 * 60
+
+
+def effective_daily_work_limit_minutes(settings: "UserSettings") -> int:
+    return settings.daily_work_limit_minutes or DEFAULT_DAILY_WORK_LIMIT_MINUTES
+
 
 class UserSettings(Base):
     __tablename__ = "user_settings"
@@ -25,6 +31,10 @@ class UserSettings(Base):
         CheckConstraint(
             "ai_estimated_duration_weight BETWEEN 0 AND 100",
             name="ck_user_settings_duration_weight_range",
+        ),
+        CheckConstraint(
+            "daily_work_limit_minutes BETWEEN 30 AND 1440",
+            name="ck_user_settings_daily_work_limit_range",
         ),
     )
 
@@ -60,6 +70,12 @@ class UserSettings(Base):
         Integer,
         default=25,
         server_default="25",
+        nullable=False,
+    )
+    daily_work_limit_minutes: Mapped[int] = mapped_column(
+        Integer,
+        default=DEFAULT_DAILY_WORK_LIMIT_MINUTES,
+        server_default=str(DEFAULT_DAILY_WORK_LIMIT_MINUTES),
         nullable=False,
     )
     ai_assistant_enabled: Mapped[bool] = mapped_column(
