@@ -139,6 +139,7 @@ def test_ai_preview_prompt_uses_user_timezone_and_full_duration() -> None:
     prompt = build_ai_preview_prompt(tasks=[], settings=settings)
 
     assert '"timezone":"Australia/Sydney"' in prompt
+    assert '"daily_work_limit_minutes":480' in prompt
     assert '"full_duration_required":true' in prompt
     assert "maximum_slot_minutes" not in prompt
 
@@ -385,6 +386,62 @@ def test_ai_preview_rejects_overlapping_suggestions(
                     second["id"],
                     start="2099-01-01T09:15:00+00:00",
                     end="2099-01-01T09:45:00+00:00",
+                ),
+            ]
+        }
+    )
+
+    response = client.post(
+        "/scheduling/ai-preview",
+        headers=headers,
+        json={"task_ids": [first["id"], second["id"]]},
+    )
+
+    assert response.status_code == 502
+
+
+def test_ai_preview_rejects_suggestions_above_daily_work_limit(
+    client: TestClient,
+    fake_ai_service,
+) -> None:
+    headers = auth_headers(client)
+    settings = client.patch(
+        "/settings",
+        headers=headers,
+        json={
+            "work_pattern": {
+                "work_end": "22:00",
+                "daily_work_limit_minutes": 480,
+            }
+        },
+    )
+    assert settings.status_code == 200, settings.text
+    first = create_task(
+        client,
+        headers,
+        title="First long task",
+        duration=270,
+        due_date="2099-01-01T22:00:00+00:00",
+    )
+    second = create_task(
+        client,
+        headers,
+        title="Second long task",
+        duration=270,
+        due_date="2099-01-01T22:00:00+00:00",
+    )
+    fake_ai_service(
+        {
+            "schedule": [
+                slot(
+                    first["id"],
+                    start="2099-01-01T09:00:00+00:00",
+                    end="2099-01-01T13:30:00+00:00",
+                ),
+                slot(
+                    second["id"],
+                    start="2099-01-01T13:30:00+00:00",
+                    end="2099-01-01T18:00:00+00:00",
                 ),
             ]
         }

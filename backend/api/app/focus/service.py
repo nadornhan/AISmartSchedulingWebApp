@@ -15,6 +15,7 @@ from app.focus.schemas import (
     FocusSessionResponse,
     FocusSessionStart,
 )
+from app.scheduling.revision import bump_schedule_revision
 from app.tasks.models import Task
 
 
@@ -94,6 +95,7 @@ def start_focus_session(
         completed=False,
     )
     db.add(session)
+    bump_schedule_revision(db, user_id)
     db.commit()
     db.refresh(session)
     return _focus_detail(session)
@@ -116,6 +118,7 @@ def update_focus_session(
         payload.actual_duration_seconds,
     )
     session.status = payload.status.value
+    bump_schedule_revision(db, user_id)
     db.commit()
     db.refresh(session)
     return _focus_detail(session)
@@ -143,6 +146,7 @@ def finish_focus_session(
     )
     session.completed = completed
     session.duration_minutes = max(1, (session.actual_duration_seconds + 59) // 60)
+    bump_schedule_revision(db, user_id)
     db.commit()
     db.refresh(session)
     _invalidate_ai_plan(db, user_id)
@@ -214,6 +218,7 @@ def create_focus_session(
         completed=payload.completed,
     )
     db.add(session)
+    bump_schedule_revision(db, user_id)
     db.commit()
     db.refresh(session)
     _invalidate_ai_plan(db, user_id)

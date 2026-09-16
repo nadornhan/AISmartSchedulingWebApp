@@ -17,6 +17,7 @@ import { InProgressList } from './in-progress-list';
 import { AiRecommendationCard } from './ai-recommendation-card';
 import { QuickWinsCard } from './quick-wins-card';
 import { WeeklyActivityCard } from './weekly-activity-card';
+import { ReschedulingPanel } from '../scheduling/rescheduling-panel';
 
 function greetingForNow(name: string) {
   const hour = new Date().getHours();
@@ -136,6 +137,8 @@ export function DashboardPage() {
           </h1>
         </div>
       </section>
+
+      <ReschedulingPanel />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <DashboardStatCard

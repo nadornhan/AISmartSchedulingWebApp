@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time, timedelta
 
 from app.scoring.schemas import ConstraintResult, ConstraintValidationResult
-from app.settings.models import UserSettings
+from app.settings.models import UserSettings, effective_daily_work_limit_minutes
 from app.tasks.models import Task, TaskStatus
 from app.tasks.overdue import normalize_due_datetime
 from app.timezones import user_timezone
@@ -85,6 +85,111 @@ def is_deadline_feasible(
         )
 
     return ConstraintResult(name="deadline_feasible", passed=True)
+
+
+def _minutes_on_local_date(
+    *,
+    start: datetime,
+    end: datetime,
+    local_date: date,
+    timezone_name: str | None,
+) -> int:
+    timezone = user_timezone(timezone_name)
+    day_start = datetime.combine(local_date, time.min, tzinfo=timezone).astimezone(UTC)
+    day_end = datetime.combine(
+        local_date + timedelta(days=1),
+        time.min,
+        tzinfo=timezone,
+    ).astimezone(UTC)
+    overlap_start = max(normalize_schedule_datetime(start), day_start)
+    overlap_end = min(normalize_schedule_datetime(end), day_end)
+    if overlap_end <= overlap_start:
+        return 0
+    return int((overlap_end - overlap_start).total_seconds() // 60)
+
+
+def scheduled_work_minutes_for_date(
+    *,
+    local_date: date,
+    settings: UserSettings,
+    existing_tasks: list[Task],
+    existing_candidates: list[tuple[uuid.UUID, datetime, datetime]] | None = None,
+    exclude_task_id: uuid.UUID | None = None,
+) -> int:
+    minutes = sum(
+        _minutes_on_local_date(
+            start=task.scheduled_start,
+            end=task.scheduled_end,
+            local_date=local_date,
+            timezone_name=getattr(settings, "timezone", None),
+        )
+        for task in existing_tasks
+        if task.status != TaskStatus.DONE
+        and task.id != exclude_task_id
+        and task.scheduled_start is not None
+        and task.scheduled_end is not None
+    )
+    minutes += sum(
+        _minutes_on_local_date(
+            start=start,
+            end=end,
+            local_date=local_date,
+            timezone_name=getattr(settings, "timezone", None),
+        )
+        for candidate_id, start, end in existing_candidates or []
+        if candidate_id != exclude_task_id
+    )
+    return minutes
+
+
+def is_within_daily_work_limit(
+    *,
+    task: Task,
+    start: datetime,
+    end: datetime,
+    settings: UserSettings,
+    existing_tasks: list[Task],
+    existing_candidates: list[tuple[uuid.UUID, datetime, datetime]] | None = None,
+) -> ConstraintResult:
+    timezone = user_timezone(getattr(settings, "timezone", None))
+    local_date = normalize_schedule_datetime(start).astimezone(timezone).date()
+    used_minutes = scheduled_work_minutes_for_date(
+        local_date=local_date,
+        settings=settings,
+        existing_tasks=existing_tasks,
+        existing_candidates=existing_candidates,
+        exclude_task_id=task.id,
+    )
+    candidate_minutes = int(
+        (normalize_schedule_datetime(end) - normalize_schedule_datetime(start)).total_seconds()
+        // 60
+    )
+    limit_minutes = effective_daily_work_limit_minutes(settings)
+    if used_minutes + candidate_minutes > limit_minutes:
+        return ConstraintResult(
+            name="daily_work_limit",
+            passed=False,
+            reason=(
+                f"Daily work limit of {limit_minutes} minutes would be exceeded "
+                f"on {local_date.isoformat()}"
+            ),
+            metadata={
+                "local_date": local_date.isoformat(),
+                "daily_work_limit_minutes": limit_minutes,
+                "scheduled_work_minutes": used_minutes,
+                "candidate_minutes": candidate_minutes,
+            },
+        )
+    return ConstraintResult(
+        name="daily_work_limit",
+        passed=True,
+        metadata={
+            "local_date": local_date.isoformat(),
+            "daily_work_limit_minutes": limit_minutes,
+            "scheduled_work_minutes": used_minutes,
+            "candidate_minutes": candidate_minutes,
+        },
+    )
 
 
 def has_no_existing_schedule_conflict(
@@ -180,6 +285,14 @@ def validate_schedule_candidate(
             settings=settings,
         ),
         is_deadline_feasible(task=task, end=normalized_end),
+        is_within_daily_work_limit(
+            task=task,
+            start=normalized_start,
+            end=normalized_end,
+            settings=settings,
+            existing_tasks=existing_tasks,
+            existing_candidates=existing_candidates,
+        ),
         has_no_existing_schedule_conflict(
             task=task,
             start=normalized_start,
