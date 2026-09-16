@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -36,3 +36,45 @@ class InsightsSummaryResponse(BaseModel):
     motivational_quote: str
     footer_message: str
     footnote: str = "AI based on your patterns"
+
+
+class DailyProductivityPoint(BaseModel):
+    date: date
+    completed_count: int = Field(ge=0)
+    focus_minutes: int = Field(ge=0)
+
+
+class HourlyProductivityPoint(BaseModel):
+    hour: int = Field(ge=0, le=23)
+    completed_count: int = Field(ge=0)
+    focus_minutes: int = Field(ge=0)
+
+
+class WeeklyMetrics(BaseModel):
+    period_start: datetime
+    period_end: datetime
+    completion_rate: float = Field(ge=0, le=1)
+    completed_task_count: int = Field(ge=0)
+    focus_duration_minutes: int = Field(ge=0)
+    workload_minutes: int = Field(ge=0)
+    current_streak_days: int = Field(ge=0)
+    estimated_minutes: int = Field(ge=0)
+    actual_minutes: int = Field(ge=0)
+    estimate_accuracy_percent: float | None = Field(default=None, ge=0)
+    productivity_trend: list[DailyProductivityPoint]
+    productive_hours: list[HourlyProductivityPoint]
+
+
+class WeeklyInsightNarrative(BaseModel):
+    narrative: str = Field(min_length=1, max_length=1200)
+
+
+class WeeklyInsightResponse(BaseModel):
+    period_start: datetime
+    period_end: datetime
+    metrics: WeeklyMetrics
+    narrative: str
+    generated_at: datetime
+    model: str
+    prompt_version: str
+    cached: bool

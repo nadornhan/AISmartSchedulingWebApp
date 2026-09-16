@@ -8,6 +8,7 @@ import app.gamification.models
 import app.scheduling.models
 from app.ai.exceptions import AIError
 from app.ai.http import ai_error_handler
+from app.ai.router import router as ai_router
 from app.analytics.router import router as analytics_router
 from app.auth.router import router as auth_router
 from app.config import get_settings
@@ -47,6 +48,7 @@ app.include_router(tasks_router)
 app.include_router(notifications_router)
 app.include_router(settings_router)
 app.include_router(analytics_router)
+app.include_router(ai_router)
 app.include_router(scheduling_router)
 app.include_router(focus_router)
 app.include_router(dashboard_router)
