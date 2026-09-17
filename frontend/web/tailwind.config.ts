@@ -4,6 +4,18 @@ const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './lib/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          'var(--font-figtree)',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'sans-serif',
+        ],
+      },
+      fontSize: {
+        sm: ['15px', { lineHeight: '1.4rem' }],
+      },
       colors: {
         dashboard: {
           bg: 'rgb(var(--dashboard-bg-rgb) / <alpha-value>)',

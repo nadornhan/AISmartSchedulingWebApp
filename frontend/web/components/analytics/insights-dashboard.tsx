@@ -298,7 +298,7 @@ export function InsightsDashboard() {
     <div className="space-y-6">
       <section className="overflow-hidden rounded-[20px] border border-dashboard-border bg-dashboard-surface p-6 shadow-panel sm:p-8">
         <div className="mb-4 flex justify-end">
-          <span className="rounded-[var(--radius-pill)] border border-dashboard-accent/40 bg-dashboard-accent-soft px-3 py-1 text-[11px] font-medium text-dashboard-accent">
+          <span className="rounded-[var(--radius-pill)] border border-dashboard-accent/40 bg-dashboard-accent-soft px-3 py-1.5 text-sm font-medium text-dashboard-accent">
             {summary.footnote || 'AI based on your patterns'}
           </span>
         </div>
@@ -308,25 +308,25 @@ export function InsightsDashboard() {
               <div className="grid size-12 place-items-center rounded-full bg-[var(--accent-soft)] text-2xl">
                 🌱
               </div>
-              <h2 className="text-[28px] font-bold tracking-[var(--tracking-heading)] text-dashboard-text sm:text-[32px]">
+              <h2 className="font-poppins text-[28px] font-bold tracking-[var(--tracking-heading)] text-dashboard-text sm:text-[32px]">
                 {summary.greeting}
               </h2>
             </div>
-            <p className="max-w-xl text-base leading-7 text-dashboard-muted">
+            <p className="max-w-xl text-lg leading-8 text-dashboard-muted">
               {formatWeeklySummary(summary)}
             </p>
           </div>
 
           <div className="flex flex-col items-stretch gap-3 lg:items-end">
             <TrendChart points={summary.trend} />
-            <p className="max-w-xs text-right text-sm italic text-dashboard-subtle">
+            <p className="max-w-xs text-right text-base italic text-dashboard-subtle">
               {summary.motivational_quote}
             </p>
           </div>
         </div>
 
         <div className="mt-8">
-          <p className="mb-3 text-sm font-medium text-dashboard-muted">This week</p>
+          <p className="mb-3 text-base font-medium text-dashboard-muted">This week</p>
           <div className="grid gap-4 sm:grid-cols-3">
             <StatCard
               icon="✓"
@@ -356,14 +356,14 @@ export function InsightsDashboard() {
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h3 className="text-xl font-semibold text-dashboard-text">Suggested schedule</h3>
-            <p className="mt-1 text-sm text-dashboard-muted">
+            <h3 className="text-2xl font-semibold text-dashboard-text">Suggested schedule</h3>
+            <p className="mt-1 text-base text-dashboard-muted">
               Review, adjust, accept, or dismiss slots before applying them to your calendar.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
-              className="h-10 rounded-[var(--radius-sm)] border border-dashboard-border px-4 text-sm text-dashboard-muted transition hover:text-dashboard-text"
+              className="h-11 rounded-[var(--radius-sm)] border border-dashboard-border px-5 text-base text-dashboard-muted transition hover:text-dashboard-text"
               disabled={isMutating}
               onClick={() => void handleRegenerate()}
               type="button"
@@ -371,7 +371,7 @@ export function InsightsDashboard() {
               Regenerate
             </button>
             <button
-              className="h-10 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-4 text-sm font-semibold text-[#04110d]"
+              className="h-11 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-base font-semibold text-[#04110d]"
               disabled={isMutating || !plan?.schedule.length}
               onClick={() => void handleApply()}
               type="button"
@@ -383,8 +383,8 @@ export function InsightsDashboard() {
 
         {plan?.recommendation ? (
           <div className="mt-5 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-bg/25 p-4">
-            <p className="text-sm font-semibold text-dashboard-text">{plan.recommendation.title}</p>
-            <p className="mt-1 text-sm text-dashboard-muted">{plan.recommendation.explanation}</p>
+            <p className="text-base font-semibold text-dashboard-text">{plan.recommendation.title}</p>
+            <p className="mt-1 text-base text-dashboard-muted">{plan.recommendation.explanation}</p>
           </div>
         ) : null}
 
@@ -397,10 +397,10 @@ export function InsightsDashboard() {
               >
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-dashboard-text">
+                    <p className="text-base font-semibold text-dashboard-text">
                       {suggestion.task_title}
                     </p>
-                    <p className="mt-1 text-xs text-dashboard-muted">
+                    <p className="mt-1 text-sm text-dashboard-muted">
                       {formatScheduleSuggestionRange(
                         suggestion.suggested_start,
                         suggestion.suggested_end,
@@ -408,11 +408,11 @@ export function InsightsDashboard() {
                       {suggestion.project_name ? ` · ${suggestion.project_name}` : ''}
                       {suggestion.status === 'adjusted' ? ' · Adjusted' : ''}
                     </p>
-                    <p className="mt-2 text-xs text-dashboard-muted">{suggestion.explanation}</p>
+                    <p className="mt-2 text-sm text-dashboard-muted">{suggestion.explanation}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
-                      className="h-9 rounded-lg border border-dashboard-border px-3 text-xs text-dashboard-muted"
+                      className="h-10 rounded-lg border border-dashboard-border px-3.5 text-sm text-dashboard-muted"
                       disabled={isMutating}
                       onClick={() => {
                         setAdjustingId(suggestion.id);
@@ -424,7 +424,7 @@ export function InsightsDashboard() {
                       Adjust
                     </button>
                     <button
-                      className="h-9 rounded-lg border border-dashboard-border px-3 text-xs text-dashboard-muted"
+                      className="h-10 rounded-lg border border-dashboard-border px-3.5 text-sm text-dashboard-muted"
                       disabled={isMutating}
                       onClick={() => void handleAccept(suggestion)}
                       type="button"
@@ -432,7 +432,7 @@ export function InsightsDashboard() {
                       Accept
                     </button>
                     <button
-                      className="h-9 rounded-lg border border-dashboard-border px-3 text-xs text-[var(--red-light)]"
+                      className="h-10 rounded-lg border border-dashboard-border px-3.5 text-sm text-[var(--red-light)]"
                       disabled={isMutating}
                       onClick={() => void handleDismiss(suggestion)}
                       type="button"
@@ -478,13 +478,13 @@ export function InsightsDashboard() {
           <div className="mt-5 rounded-[var(--radius-sm)] border border-[var(--orange-border)] bg-[var(--orange-soft)] p-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-sm font-semibold text-dashboard-text">Scheduling conflicts</p>
-                <p className="text-xs text-dashboard-muted">
+                <p className="text-base font-semibold text-dashboard-text">Scheduling conflicts</p>
+                <p className="text-sm text-dashboard-muted">
                   Some tasks need a larger continuous block before they can be suggested.
                 </p>
               </div>
               {hiddenSchedulingIssueCount > 0 ? (
-                <span className="text-xs font-medium text-[var(--yellow)]">
+                <span className="text-sm font-medium text-[var(--yellow)]">
                   +{hiddenSchedulingIssueCount} more
                 </span>
               ) : null}
@@ -496,14 +496,14 @@ export function InsightsDashboard() {
                   key={`${issue.task_id}-${issue.code}`}
                 >
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                    <p className="text-sm font-semibold text-dashboard-text">
+                    <p className="text-base font-semibold text-dashboard-text">
                       {issue.task_title}
                     </p>
-                    <span className="text-[11px] font-semibold uppercase text-[var(--yellow)]">
+                    <span className="text-xs font-semibold uppercase text-[var(--yellow)]">
                       {issue.severity}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs leading-5 text-dashboard-muted">{issue.reason}</p>
+                  <p className="mt-1 text-sm leading-5 text-dashboard-muted">{issue.reason}</p>
                 </article>
               ))}
             </div>
@@ -512,7 +512,7 @@ export function InsightsDashboard() {
       </section>
 
       <section>
-        <h3 className="mb-4 text-xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text">
+        <h3 className="mb-4 text-2xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text">
           How to boost your productivity
         </h3>
         <div className="grid gap-4 lg:grid-cols-3">
@@ -528,10 +528,10 @@ export function InsightsDashboard() {
                 >
                   {accent.icon}
                 </div>
-                <h4 className="text-base font-semibold text-dashboard-text">{item.title}</h4>
-                <p className="mt-2 text-sm leading-6 text-dashboard-muted">{item.description}</p>
+                <h4 className="text-lg font-semibold text-dashboard-text">{item.title}</h4>
+                <p className="mt-2 text-base leading-7 text-dashboard-muted">{item.description}</p>
                 <button
-                  className="mt-4 text-sm font-semibold text-[var(--accent)] transition hover:text-[var(--accent-hover)]"
+                  className="mt-4 text-base font-semibold text-[var(--accent)] transition hover:text-[var(--accent-hover)]"
                   onClick={() => {
                     if (item.category === 'schedule') {
                       document
@@ -554,7 +554,7 @@ export function InsightsDashboard() {
           <div className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
             ♥
           </div>
-          <p className="max-w-3xl text-sm leading-6 text-dashboard-muted">{summary.footer_message}</p>
+          <p className="max-w-3xl text-base leading-7 text-dashboard-muted">{summary.footer_message}</p>
         </div>
       </section>
     </div>
@@ -573,14 +573,14 @@ function StatCard({
   value: string;
 }) {
   return (
-    <div className="rounded-[16px] border border-dashboard-border bg-[var(--bg-surface-raised)] p-4">
+    <div className="flex min-h-[132px] items-center rounded-[16px] border border-dashboard-border bg-[var(--bg-surface-raised)] p-5">
       <div className="flex items-center gap-3">
-        <div className={`grid size-10 place-items-center rounded-full text-sm font-bold ${iconClass}`}>
+        <div className={`grid size-11 place-items-center rounded-full text-base font-bold ${iconClass}`}>
           {icon}
         </div>
         <div>
-          <p className="text-xs font-medium text-dashboard-muted">{label}</p>
-          <p className="text-2xl font-bold tracking-[var(--tracking-heading)] text-dashboard-text">
+          <p className="text-sm font-medium text-dashboard-muted">{label}</p>
+          <p className="text-3xl font-bold tracking-[var(--tracking-heading)] text-dashboard-text">
             {value}
           </p>
         </div>

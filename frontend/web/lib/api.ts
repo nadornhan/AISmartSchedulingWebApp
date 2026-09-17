@@ -56,7 +56,11 @@ export async function apiRequest<T>(path: string, init: ApiRequestOptions = {}):
       ...requestInit,
       headers,
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw error;
+    }
+
     throw new ApiError(
       `Cannot reach the API at ${API_URL}. Make sure the backend is running and up to date.`,
       0,
