@@ -57,6 +57,7 @@ export type TaskResponse = {
   estimated_duration_minutes: number | null;
   scheduled_start: string | null;
   scheduled_end: string | null;
+  schedule_locked: boolean;
   completed_at: string | null;
   subtasks: TaskSubtask[];
   subtask_progress: TaskSubtaskProgress;
@@ -104,6 +105,7 @@ export type TaskCreateInput = {
   estimated_duration_minutes?: number | null;
   scheduled_start?: string | null;
   scheduled_end?: string | null;
+  schedule_locked?: boolean;
   subtasks?: TaskSubtaskInput[];
 };
 

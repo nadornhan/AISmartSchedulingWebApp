@@ -20,6 +20,7 @@ import { AiRecommendationCard } from './ai-recommendation-card';
 import { NextBestTaskCard } from './next-best-task-card';
 import { QuickWinsCard } from './quick-wins-card';
 import { WeeklyActivityCard } from './weekly-activity-card';
+import { ReschedulingPanel } from '../scheduling/rescheduling-panel';
 
 function greetingForNow(name: string) {
   const hour = new Date().getHours();
@@ -180,6 +181,9 @@ export function DashboardPage() {
       </section>
 
       <section aria-label="Today at a glance" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <ReschedulingPanel />
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <DashboardStatCard
           icon={<CheckIcon className="h-5 w-5" />}
           label="Today Progress"

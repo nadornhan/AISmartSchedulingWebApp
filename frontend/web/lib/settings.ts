@@ -5,6 +5,7 @@ export type WorkPatternSettings = {
   work_end: string;
   timezone: string;
   pomodoro_minutes: number;
+  daily_work_limit_minutes: number;
 };
 
 export type AiSchedulingSettings = {
@@ -60,6 +61,7 @@ export type SettingsWorkPreferencesValue = {
   workEnd: string;
   timezone: string;
   pomodoroMinutes: number;
+  dailyWorkLimitMinutes: number;
 };
 
 export type SettingsNotificationValue = {
@@ -91,6 +93,7 @@ export type SettingsFormValue = {
 export type AiSchedulingConfig = {
   workStart: string;
   workEnd: string;
+  dailyWorkLimitMinutes: number;
   isEnabled: boolean;
   weights: {
     deadlineUrgency: number;
@@ -134,6 +137,7 @@ export function settingsResponseToFormValue(settings: UserSettingsResponse): Set
       workEnd: settings.work_pattern.work_end,
       timezone: settings.work_pattern.timezone,
       pomodoroMinutes: settings.work_pattern.pomodoro_minutes,
+      dailyWorkLimitMinutes: settings.work_pattern.daily_work_limit_minutes,
     },
     notifications: {
       taskReminders: settings.notifications.notify_task_reminders,
@@ -163,6 +167,7 @@ export function settingsFormValueToUpdateInput(value: SettingsFormValue): UserSe
       work_end: value.workPreferences.workEnd,
       timezone: value.workPreferences.timezone,
       pomodoro_minutes: value.workPreferences.pomodoroMinutes,
+      daily_work_limit_minutes: value.workPreferences.dailyWorkLimitMinutes,
     },
     ai_scheduling: {
       ai_assistant_enabled: value.schedulingWeights.aiAssistantEnabled,
@@ -202,6 +207,7 @@ export function getAiSchedulingConfig(settings: UserSettingsResponse): AiSchedul
   return {
     workStart: settings.work_pattern.work_start,
     workEnd: settings.work_pattern.work_end,
+    dailyWorkLimitMinutes: settings.work_pattern.daily_work_limit_minutes,
     isEnabled: settings.ai_scheduling.ai_assistant_enabled,
     weights: {
       deadlineUrgency: settings.ai_scheduling.ai_deadline_urgency_weight,

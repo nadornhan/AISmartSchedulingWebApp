@@ -36,8 +36,9 @@ def _settings(
     timezone: str = "UTC",
     deadline_weight: int = 80,
     priority_weight: int = 70,
+    daily_work_limit_minutes: int | None = None,
 ) -> UserSettings:
-    return UserSettings(
+    settings = UserSettings(
         work_start=work_start,
         work_end=work_end,
         timezone=timezone,
@@ -46,6 +47,9 @@ def _settings(
         ai_priority_weight=priority_weight,
         ai_estimated_duration_weight=50,
     )
+    if daily_work_limit_minutes is not None:
+        settings.daily_work_limit_minutes = daily_work_limit_minutes
+    return settings
 
 
 def _task(
@@ -683,6 +687,83 @@ def test_long_task_is_not_truncated_to_120_minutes() -> None:
     assert start == datetime(2099, 1, 1, 9, tzinfo=UTC)
     assert end == datetime(2099, 1, 1, 17, tzinfo=UTC)
     assert int((end - start).total_seconds() // 60) == 480
+
+
+def test_daily_work_limit_distributes_tasks_across_days() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    tasks = [_task(estimated_duration_minutes=240) for _ in range(3)]
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], []) for task in tasks],
+        _settings(
+            work_start=time(9),
+            work_end=time(22),
+            daily_work_limit_minutes=480,
+        ),
+        now=now,
+        existing_tasks=tasks,
+    )
+
+    minutes_by_day: dict = {}
+    for _task_result, start, end, _explanation in slots:
+        minutes_by_day[start.date()] = minutes_by_day.get(start.date(), 0) + int(
+            (end - start).total_seconds() // 60
+        )
+
+    assert len(slots) == 3
+    assert minutes_by_day == {
+        datetime(2099, 1, 1, tzinfo=UTC).date(): 480,
+        datetime(2099, 1, 2, tzinfo=UTC).date(): 240,
+    }
+
+
+def test_existing_scheduled_work_consumes_daily_limit() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    blocker = _blocking_task(1, 9, 15)
+    task = _task(estimated_duration_minutes=180)
+
+    slots = build_schedule_slots(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(
+            work_start=time(9),
+            work_end=time(22),
+            daily_work_limit_minutes=480,
+        ),
+        now=now,
+        existing_tasks=[blocker, task],
+    )
+
+    assert len(slots) == 1
+    assert slots[0][1].date() == datetime(2099, 1, 2, tzinfo=UTC).date()
+
+
+def test_schedule_result_reports_daily_work_limit_when_deadline_prevents_rollover() -> None:
+    now = datetime(2099, 1, 1, 8, tzinfo=UTC)
+    blocker = _blocking_task(1, 9, 17)
+    task = _task(
+        due_date=datetime(2099, 1, 1, 22, tzinfo=UTC),
+        estimated_duration_minutes=60,
+    )
+
+    result = build_schedule_result(
+        [RankedTask(task, 1.0, [], [])],
+        _settings(
+            work_start=time(9),
+            work_end=time(22),
+            daily_work_limit_minutes=480,
+        ),
+        now=now,
+        existing_tasks=[blocker, task],
+    )
+
+    assert result.slots == []
+    assert len(result.issues) == 1
+    issue = result.issues[0]
+    assert issue.code == "DAILY_WORK_LIMIT_REACHED"
+    assert issue.severity == "critical"
+    assert issue.metadata["daily_work_limit_minutes"] == 480
+    assert issue.metadata["scheduled_work_minutes"] == 480
+    assert issue.metadata["local_date"] == "2099-01-01"
 
 
 def test_long_task_is_skipped_when_no_full_window_fits() -> None:

@@ -47,7 +47,17 @@ def validate_ai_preview_schedule(
 
         start = normalize_schedule_datetime(slot.suggested_start)
         end = normalize_schedule_datetime(slot.suggested_end)
-        _validate_slot_time(start=start, end=end, task=task, settings=settings)
+        _validate_slot_time(
+            start=start,
+            end=end,
+            task=task,
+            settings=settings,
+            existing_tasks=existing_tasks or [],
+            existing_candidates=[
+                (accepted.task_id, accepted.suggested_start, accepted.suggested_end)
+                for accepted in accepted_slots
+            ],
+        )
 
         accepted_slots.append(
             slot.model_copy(
@@ -76,6 +86,8 @@ def _validate_slot_time(
     end: datetime,
     task: Task,
     settings: UserSettings,
+    existing_tasks: list[Task],
+    existing_candidates: list[tuple[uuid.UUID, datetime, datetime]],
 ) -> None:
     if end <= start:
         raise DeterministicScheduleValidationError(
@@ -92,7 +104,8 @@ def _validate_slot_time(
         start=start,
         end=end,
         settings=settings,
-        existing_tasks=[],
+        existing_tasks=existing_tasks,
+        existing_candidates=existing_candidates,
     )
     if not validation.valid:
         failed = next(check for check in validation.checks if not check.passed)
