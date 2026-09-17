@@ -49,3 +49,7 @@ class AIUsageFeatureSummary(BaseModel):
     failure_count: int = Field(ge=0)
     total_tokens: int = Field(ge=0)
     average_latency_ms: float = Field(ge=0)
+    fallback_rate: float = Field(ge=0)
+    failure_rate: float = Field(ge=0)
+    estimated_cost_usd: float = Field(ge=0)
+    acceptance_rate: float | None = Field(default=None, ge=0, le=1)
