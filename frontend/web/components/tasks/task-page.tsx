@@ -207,6 +207,101 @@ function statusClass(status: DisplayTaskStatus) {
   }[status];
 }
 
+function statusOptionClass(status: TaskStatus) {
+  return {
+    Pending:
+      'border-[var(--orange-border)] bg-[var(--orange-soft)] text-[var(--yellow)] hover:border-[var(--yellow)] hover:brightness-125',
+    'In Progress':
+      'border-[var(--blue-border)] bg-[var(--blue-soft)] text-[var(--blue-light)] hover:border-[var(--blue-light)] hover:brightness-125',
+    Done: 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)] hover:border-[var(--accent)] hover:brightness-125',
+  }[status];
+}
+
+function StatusDropdown({
+  compact = false,
+  disabled,
+  onChange,
+  taskTitle,
+  value,
+}: Readonly<{
+  compact?: boolean;
+  disabled: boolean;
+  onChange: (status: TaskStatus) => void;
+  taskTitle: string;
+  value: TaskStatus;
+}>) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div
+      className={cn('relative w-fit', isOpen && 'z-50')}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setIsOpen(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          setIsOpen(false);
+          event.currentTarget.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')?.focus();
+        }
+      }}
+    >
+      <button
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        aria-label={`Status for ${taskTitle}: ${value}`}
+        className={cn(
+          'inline-flex appearance-none items-center justify-between rounded-[var(--radius-pill)] border font-medium outline-none transition focus:ring-2 focus:ring-dashboard-accent/20 disabled:cursor-not-allowed disabled:opacity-60',
+          compact
+            ? 'h-7 min-w-[104px] gap-1.5 px-2.5 text-[10px]'
+            : 'h-10 min-w-[128px] gap-2 px-3.5 text-sm',
+          statusClass(value),
+        )}
+        disabled={disabled}
+        onClick={() => setIsOpen((current) => !current)}
+        type="button"
+      >
+        <span>{value}</span>
+        <ChevronDownIcon
+          className={cn(
+            'shrink-0 transition-transform',
+            compact ? 'h-3 w-3' : 'h-4 w-4',
+            isOpen && 'rotate-180',
+          )}
+        />
+      </button>
+
+      {isOpen ? (
+        <div
+          aria-label={`Choose status for ${taskTitle}`}
+          className="absolute left-0 top-full z-50 mt-2 grid min-w-40 gap-1.5 rounded-xl border border-dashboard-border bg-[#071923] p-2 shadow-panel"
+          role="menu"
+        >
+          {statuses.map((status) => (
+            <button
+              aria-checked={value === status}
+              className={cn(
+                'flex w-full items-center justify-between rounded-[var(--radius-pill)] border px-3 py-2 text-left text-sm font-semibold transition',
+                statusOptionClass(status),
+                value === status && 'ring-1 ring-current',
+              )}
+              key={status}
+              onClick={() => {
+                setIsOpen(false);
+                if (status !== value) onChange(status);
+              }}
+              role="menuitemradio"
+              type="button"
+            >
+              <span>{status}</span>
+              {value === status ? <CheckIcon className="h-3.5 w-3.5" /> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 type MobileTaskGroup = 'Overdue' | 'Today' | 'Upcoming' | 'Other';
 
 const mobileGroupMeta: Record<MobileTaskGroup, { color: string; label: string }> = {
@@ -357,7 +452,10 @@ export function TaskPage() {
   useEffect(() => {
     function handleOpenCreateTask(event: Event) {
       const detail = (
-        event as CustomEvent<{ projectId?: string | null; priority?: TaskPriorityValue | null }>
+        event as CustomEvent<{
+          projectId?: string | null;
+          priority?: TaskPriorityValue | null;
+        }>
       ).detail;
       setCreateProjectId(detail?.projectId || activeProjectId || '');
       if (detail?.priority) {
@@ -423,7 +521,12 @@ export function TaskPage() {
     try {
       const projectId = activeProjectId || undefined;
       const [all, pending, inProgress, done, overdue] = await Promise.all([
-        listTasks({ projectId, search: searchQuery || undefined, page: 1, pageSize: 1 }),
+        listTasks({
+          projectId,
+          search: searchQuery || undefined,
+          page: 1,
+          pageSize: 1,
+        }),
         listTasks({
           projectId,
           search: searchQuery || undefined,
@@ -531,12 +634,37 @@ export function TaskPage() {
   }
 
   async function changeStatus(id: string, status: TaskStatus) {
+    const previousTask = tasks.find((task) => task.id === id);
+    const apiStatus = statusToApi[status];
+
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === id
+          ? {
+              ...task,
+              status,
+              workflowStatus: status,
+              overdue: false,
+              source: {
+                ...task.source,
+                status: apiStatus,
+                workflow_status: apiStatus,
+              },
+            }
+          : task,
+      ),
+    );
     setIsMutating(true);
     setError(null);
     try {
-      await updateTask(id, { status: statusToApi[status] });
+      await updateTask(id, { status: apiStatus });
       await Promise.all([refreshTasks(), refreshCounts()]);
     } catch (requestError) {
+      if (previousTask) {
+        setTasks((current) =>
+          current.map((task) => (task.id === previousTask.id ? previousTask : task)),
+        );
+      }
       setError(getErrorMessage(requestError));
     } finally {
       setIsMutating(false);
@@ -727,7 +855,9 @@ export function TaskPage() {
         >
           <span
             className="h-3 w-3 rounded-full"
-            style={{ backgroundColor: activeProject?.color ?? 'var(--dashboard-muted)' }}
+            style={{
+              backgroundColor: activeProject?.color ?? 'var(--dashboard-muted)',
+            }}
           />
           <p className="text-sm text-dashboard-muted">
             Showing tasks in{' '}
@@ -786,7 +916,6 @@ export function TaskPage() {
             </button>
           ))}
         </div>
-
       </section>
 
       {showMobileFilters ? (
@@ -802,7 +931,10 @@ export function TaskPage() {
           <section className="mx-auto max-h-[calc(100dvh-8rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-dashboard-border-strong bg-[#07151f] p-5 shadow-[0_24px_70px_rgba(0,0,0,.65)]">
             <header className="flex items-center justify-between gap-4 border-b border-dashboard-border pb-4">
               <div>
-                <h2 className="font-poppins text-xl font-semibold text-dashboard-text" id="mobile-task-filter-title">
+                <h2
+                  className="font-poppins text-xl font-semibold text-dashboard-text"
+                  id="mobile-task-filter-title"
+                >
                   Filter &amp; sort
                 </h2>
                 <p className="mt-1 text-xs text-dashboard-muted">Refine the tasks shown below.</p>
@@ -881,10 +1013,12 @@ export function TaskPage() {
             <div className="mt-5">
               <p className="text-sm font-semibold text-dashboard-text">Order</p>
               <div className="mt-3 grid grid-cols-2 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] p-1">
-                {([
-                  { label: 'Ascending', value: true },
-                  { label: 'Descending', value: false },
-                ] as const).map((option) => (
+                {(
+                  [
+                    { label: 'Ascending', value: true },
+                    { label: 'Descending', value: false },
+                  ] as const
+                ).map((option) => (
                   <button
                     aria-pressed={sortAscending === option.value}
                     className={cn(
@@ -932,7 +1066,10 @@ export function TaskPage() {
         </div>
       ) : null}
 
-      <section aria-label="Task controls" className="mb-5 hidden flex-wrap items-center gap-4 lg:flex">
+      <section
+        aria-label="Task controls"
+        className="mb-5 hidden flex-wrap items-center gap-4 lg:flex"
+      >
         <div className="flex max-w-full gap-2 overflow-x-auto rounded-[var(--radius-xl)] border border-dashboard-border bg-dashboard-surface/70 p-2">
           {filterOrder.map((filter) => (
             <button
@@ -1062,7 +1199,7 @@ export function TaskPage() {
                   </span>
                 </div>
 
-                <div className="divide-y divide-dashboard-border overflow-hidden rounded-[var(--radius-lg)] border border-dashboard-border bg-[#071522] shadow-panel">
+                <div className="divide-y divide-dashboard-border rounded-[var(--radius-lg)] border border-dashboard-border bg-[#071522] shadow-panel">
                   {groupTasks.map((task) => {
                     const completed = task.workflowStatus === 'Done';
                     return (
@@ -1076,9 +1213,7 @@ export function TaskPage() {
                               : 'border-dashboard-border-strong bg-transparent hover:border-dashboard-accent',
                           )}
                           disabled={isMutating}
-                          onClick={() =>
-                            void changeStatus(task.id, completed ? 'Pending' : 'Done')
-                          }
+                          onClick={() => void changeStatus(task.id, completed ? 'Pending' : 'Done')}
                           type="button"
                         >
                           {completed ? <CheckIcon className="h-3.5 w-3.5" /> : null}
@@ -1121,27 +1256,13 @@ export function TaskPage() {
                           >
                             {task.priority}
                           </span>
-                          <label className="relative inline-flex items-center">
-                            <span className="sr-only">Status for {task.title}</span>
-                            <select
-                              className={cn(
-                                'h-7 max-w-[104px] appearance-none rounded-[var(--radius-pill)] border py-0 pl-2.5 pr-6 text-[10px] font-medium outline-none',
-                                statusClass(task.workflowStatus),
-                              )}
-                              disabled={isMutating}
-                              onChange={(event) =>
-                                void changeStatus(task.id, event.target.value as TaskStatus)
-                              }
-                              value={task.workflowStatus}
-                            >
-                              {statuses.map((status) => (
-                                <option className="bg-[var(--bg-surface-raised)]" key={status} value={status}>
-                                  {status}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDownIcon className="pointer-events-none absolute right-1.5 h-3 w-3" />
-                          </label>
+                          <StatusDropdown
+                            compact
+                            disabled={isMutating}
+                            onChange={(status) => void changeStatus(task.id, status)}
+                            taskTitle={task.title}
+                            value={task.workflowStatus}
+                          />
                         </div>
                       </article>
                     );
@@ -1276,31 +1397,14 @@ export function TaskPage() {
 
                 <div className="space-y-2">
                   {task.overdue ? (
-                    <p className="text-sm font-semibold text-[var(--red-light)]">
-                      Overdue
-                    </p>
+                    <p className="text-sm font-semibold text-[var(--red-light)]">Overdue</p>
                   ) : null}
-                  <label className="relative inline-flex w-fit items-center">
-                    <span className="sr-only">Status for {task.title}</span>
-                    <select
-                      className={cn(
-                        'h-10 appearance-none rounded-[var(--radius-pill)] border py-0 pl-3.5 pr-9 text-sm font-medium outline-none transition focus:ring-2 focus:ring-dashboard-accent/20',
-                        statusClass(task.workflowStatus),
-                      )}
-                      disabled={isMutating}
-                      onChange={(event) =>
-                        void changeStatus(task.id, event.target.value as TaskStatus)
-                      }
-                      value={task.workflowStatus}
-                    >
-                      {statuses.map((status) => (
-                        <option className="bg-[var(--bg-surface-raised)]" key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDownIcon className="pointer-events-none absolute right-3 h-4 w-4" />
-                  </label>
+                  <StatusDropdown
+                    disabled={isMutating}
+                    onChange={(status) => void changeStatus(task.id, status)}
+                    taskTitle={task.title}
+                    value={task.workflowStatus}
+                  />
                 </div>
 
                 <div className="relative flex justify-end gap-1 text-dashboard-muted">
