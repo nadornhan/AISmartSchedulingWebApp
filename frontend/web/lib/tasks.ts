@@ -137,6 +137,57 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
+export type DurationProposal = {
+  proposal_id: string;
+  proposal_token: string;
+  expires_at: string;
+  suggested_duration_minutes: number;
+  confidence: number;
+  historical_sample_count: number;
+  adjustment_factor: number;
+  explanation: string;
+  source: 'ai_prior' | 'history' | 'current_estimate' | 'default';
+};
+
+export type DurationPreview = {
+  feature: 'duration_estimation';
+  status: 'preview';
+  requires_confirmation: true;
+  proposal: DurationProposal;
+};
+
+export type DurationConfirmation = {
+  proposal_token: string;
+  action: 'accepted' | 'changed' | 'ignored';
+  duration_minutes?: number;
+};
+
+export type DurationConfirmationResult = {
+  proposal_id: string;
+  task_id: string;
+  action: DurationConfirmation['action'];
+  applied_duration_minutes: number | null;
+  task_estimated_duration_minutes: number | null;
+  resolved_at: string;
+};
+
+export function previewTaskDuration(taskId: string, options: RequestOptions = {}) {
+  return apiRequest<DurationPreview>(`/tasks/${taskId}/duration/preview`, {
+    method: 'POST',
+    signal: options.signal,
+  });
+}
+
+export function confirmTaskDuration(taskId: string, input: DurationConfirmation) {
+  return apiRequest<DurationConfirmationResult>(`/tasks/${taskId}/duration/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }).then((result) => {
+    if (result.action !== 'ignored') emitTaskDataChanged();
+    return result;
+  });
+}
+
 function taskQuery(params: TaskListParams): string {
   const query = new URLSearchParams();
 

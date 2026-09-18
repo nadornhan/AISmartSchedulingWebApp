@@ -82,6 +82,11 @@ def start_focus_session(
     if existing is not None:
         raise ValueError("An active focus session already exists")
 
+    if payload.task_id is not None:
+        from app.tasks.duration_estimation.repository import capture_baseline
+
+        capture_baseline(db, user_id=user_id, task_id=payload.task_id)
+
     session = FocusSession(
         user_id=user_id,
         task_id=payload.task_id,
@@ -197,6 +202,11 @@ def create_focus_session(
 ) -> FocusSessionResponse:
     if payload.ended_at <= payload.started_at:
         raise ValueError("ended_at must be later than started_at")
+
+    if payload.task_id is not None:
+        from app.tasks.duration_estimation.repository import capture_baseline
+
+        capture_baseline(db, user_id=user_id, task_id=payload.task_id)
 
     session = FocusSession(
         user_id=user_id,

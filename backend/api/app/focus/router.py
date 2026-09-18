@@ -34,11 +34,8 @@ def create_focus_session(
 ) -> FocusSessionResponse:
     try:
         return service.create_focus_session(db, current_user.id, payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
-        ) from exc
+    except (LookupError, ValueError) as exc:
+        raise _focus_error(exc) from exc
 
 
 @router.post("/sessions/start", response_model=FocusSessionDetail, status_code=201)
