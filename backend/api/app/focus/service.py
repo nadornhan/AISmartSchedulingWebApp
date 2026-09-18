@@ -26,6 +26,14 @@ def _invalidate_ai_plan(db: Session, user_id: uuid.UUID) -> None:
     scheduling_service.invalidate_pending_plan(db, user_id)
 
 
+def _focus_task_ids(session: FocusSession) -> list[uuid.UUID]:
+    task_ids = sorted((task.id for task in session.tasks), key=str)
+    if session.task_id in task_ids:
+        task_ids.remove(session.task_id)
+        task_ids.insert(0, session.task_id)
+    return task_ids
+
+
 def _focus_detail(
     session: FocusSession,
     *,
@@ -34,6 +42,7 @@ def _focus_detail(
     return FocusSessionDetail(
         id=session.id,
         task_id=session.task_id,
+        task_ids=_focus_task_ids(session),
         planned_duration_minutes=session.planned_duration_minutes,
         actual_duration_seconds=session.actual_duration_seconds,
         status=session.status,
@@ -43,6 +52,41 @@ def _focus_detail(
         updated_at=session.updated_at,
         growth_reward=growth_reward,
     )
+
+
+def _selected_task_ids(
+    task_id: uuid.UUID | None,
+    task_ids: list[uuid.UUID],
+) -> list[uuid.UUID]:
+    selected: list[uuid.UUID] = []
+    for candidate in ([task_id] if task_id is not None else []) + task_ids:
+        if candidate not in selected:
+            selected.append(candidate)
+    if len(selected) > 20:
+        raise ValueError("A focus session can include at most 20 tasks")
+    return selected
+
+
+def _owned_tasks(
+    db: Session,
+    user_id: uuid.UUID,
+    task_ids: list[uuid.UUID],
+) -> list[Task]:
+    if not task_ids:
+        return []
+
+    tasks = list(
+        db.scalars(
+            select(Task).where(
+                Task.id.in_(task_ids),
+                Task.user_id == user_id,
+            )
+        ).all()
+    )
+    tasks_by_id = {task.id: task for task in tasks}
+    if len(tasks_by_id) != len(task_ids):
+        raise LookupError("One or more tasks were not found")
+    return [tasks_by_id[task_id] for task_id in task_ids]
 
 
 def _owned_focus_session(
@@ -66,18 +110,18 @@ def start_focus_session(
     user_id: uuid.UUID,
     payload: FocusSessionStart,
 ) -> FocusSessionDetail:
-    if payload.task_id is not None:
-        task = db.scalar(select(Task).where(Task.id == payload.task_id, Task.user_id == user_id))
-        if task is None:
-            raise LookupError("Task not found")
+    selected_task_ids = _selected_task_ids(payload.task_id, payload.task_ids)
+    selected_tasks = _owned_tasks(db, user_id, selected_task_ids)
 
     existing = db.scalar(
         select(FocusSession).where(
             FocusSession.user_id == user_id,
-            FocusSession.status.in_([
-                FocusSessionStatus.ACTIVE.value,
-                FocusSessionStatus.PAUSED.value,
-            ]),
+            FocusSession.status.in_(
+                [
+                    FocusSessionStatus.ACTIVE.value,
+                    FocusSessionStatus.PAUSED.value,
+                ]
+            ),
         )
     )
     if existing is not None:
@@ -85,7 +129,8 @@ def start_focus_session(
 
     session = FocusSession(
         user_id=user_id,
-        task_id=payload.task_id,
+        task_id=selected_task_ids[0] if selected_task_ids else None,
+        tasks=selected_tasks,
         started_at=datetime.now(UTC),
         ended_at=None,
         duration_minutes=payload.planned_duration_minutes,
@@ -169,10 +214,12 @@ def get_active_focus_session(db: Session, user_id: uuid.UUID) -> FocusSessionDet
         select(FocusSession)
         .where(
             FocusSession.user_id == user_id,
-            FocusSession.status.in_([
-                FocusSessionStatus.ACTIVE.value,
-                FocusSessionStatus.PAUSED.value,
-            ]),
+            FocusSession.status.in_(
+                [
+                    FocusSessionStatus.ACTIVE.value,
+                    FocusSessionStatus.PAUSED.value,
+                ]
+            ),
         )
         .order_by(FocusSession.started_at.desc())
     )
@@ -202,9 +249,13 @@ def create_focus_session(
     if payload.ended_at <= payload.started_at:
         raise ValueError("ended_at must be later than started_at")
 
+    selected_task_ids = _selected_task_ids(payload.task_id, payload.task_ids)
+    selected_tasks = _owned_tasks(db, user_id, selected_task_ids)
+
     session = FocusSession(
         user_id=user_id,
-        task_id=payload.task_id,
+        task_id=selected_task_ids[0] if selected_task_ids else None,
+        tasks=selected_tasks,
         started_at=payload.started_at,
         ended_at=payload.ended_at,
         duration_minutes=payload.duration_minutes,
@@ -236,6 +287,7 @@ def create_focus_session(
     return FocusSessionResponse(
         id=session.id,
         task_id=session.task_id,
+        task_ids=_focus_task_ids(session),
         started_at=session.started_at,
         ended_at=session.ended_at,
         duration_minutes=session.duration_minutes,

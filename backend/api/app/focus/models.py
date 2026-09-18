@@ -1,11 +1,32 @@
 import enum
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.tasks.models import Task
+
+
+focus_session_tasks = Table(
+    "focus_session_tasks",
+    Base.metadata,
+    Column(
+        "focus_session_id",
+        ForeignKey("focus_sessions.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "task_id",
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    ),
+)
 
 
 class FocusSessionStatus(str, enum.Enum):
@@ -65,4 +86,8 @@ class FocusSession(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+    tasks: Mapped[list["Task"]] = relationship(
+        secondary=focus_session_tasks,
+        lazy="selectin",
     )
