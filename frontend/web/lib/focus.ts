@@ -4,6 +4,7 @@ import { emitGrowthReward, type RewardFeedback } from './gamification';
 export type FocusSessionResponse = {
   id: string;
   task_id: string | null;
+  task_ids: string[];
   started_at: string;
   ended_at: string;
   duration_minutes: number;
@@ -13,6 +14,7 @@ export type FocusSessionResponse = {
 
 export function createFocusSession(input: {
   task_id?: string | null;
+  task_ids?: string[];
   started_at: string;
   ended_at: string;
   duration_minutes: number;
@@ -34,6 +36,7 @@ export type FocusSessionStatus = 'active' | 'paused' | 'completed' | 'cancelled'
 export type FocusSessionDetail = {
   id: string;
   task_id: string | null;
+  task_ids: string[];
   planned_duration_minutes: number;
   actual_duration_seconds: number;
   status: FocusSessionStatus;
@@ -46,6 +49,7 @@ export type FocusSessionDetail = {
 
 export function startFocusSession(input: {
   task_id?: string | null;
+  task_ids?: string[];
   planned_duration_minutes: number;
 }) {
   return apiRequest<FocusSessionDetail>('/focus/sessions/start', {
