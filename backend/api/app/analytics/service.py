@@ -1,20 +1,31 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import Select, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.ai import AIFeature, AIService, get_ai_service
+from app.analytics.models import WeeklyAIInsight
 from app.analytics.schemas import (
+    DailyProductivityPoint,
+    HourlyProductivityPoint,
     InsightRecommendation,
     InsightsSummaryResponse,
     InsightTrendPoint,
+    WeeklyInsightNarrative,
+    WeeklyInsightResponse,
+    WeeklyMetrics,
 )
 from app.auth.models import User
+from app.focus.models import FocusSession, FocusSessionStatus
 from app.scheduling import service as scheduling_service
 from app.tasks.models import Task, TaskPriority, TaskStatus
 
 TREND_DAYS = 7
+WEEKLY_INSIGHTS_PROMPT_VERSION = "weekly-insights-v1"
 
 
 def _utc_now() -> datetime:
@@ -413,3 +424,357 @@ def get_insights_summary(db: Session, user: User) -> InsightsSummaryResponse:
         ),
         footnote="AI based on your patterns",
     )
+
+def _focus_session_minutes(session: FocusSession) -> int:
+    # Prefer the actual timer result; Go back to the planned duration for older rows
+    if session.actual_duration_seconds:
+        return max(0, session.actual_duration_seconds // 60)
+
+    return max(0, session.duration_minutes)
+
+def _productivity_trend_points(
+        completed_tasks: list[Task],
+        focus_sessions: list[FocusSession],
+        *,
+        period_start: datetime,
+        period_end: datetime,
+) -> list[DailyProductivityPoint]:
+    # Build a day-by-day series so charts still show days with no activity
+    day_count = (period_end.date() - period_start.date()).days
+
+    points_by_day: dict[date, dict[str, int]] = {
+        period_start.date() + timedelta(days=offset): {
+            "completed_count": 0,
+            "focus_minutes": 0
+        }
+        for offset in range(day_count)
+    }
+
+    for task in completed_tasks:
+        if task.completed_at is None:
+            continue
+
+        completed_day = _as_utc(task.completed_at).date()
+
+        if completed_day in points_by_day:
+            points_by_day[completed_day]["completed_count"] += 1
+
+    for session in focus_sessions:
+        session_day = _as_utc(session.started_at).date()
+
+        if session_day in points_by_day:
+            points_by_day[session_day]["focus_minutes"] += _focus_session_minutes(session)
+
+    return [
+        DailyProductivityPoint(
+            date=day,
+            completed_count=values["completed_count"],
+            focus_minutes=values["focus_minutes"]
+        )
+        for day, values in sorted(points_by_day.items())
+    ]
+
+def _productive_hour_points(
+    completed_tasks: list[Task],
+    focus_sessions: list[FocusSession],
+) -> list[HourlyProductivityPoint]:
+    # Group completed tasks and focus time by UTC hour to identify productive hours
+    points_by_hour: dict[int, dict[str, int]] = {
+        hour: {
+            "completed_count": 0,
+            "focus_minutes": 0,
+        }
+        for hour in range(24)
+    }
+
+    for task in completed_tasks:
+        if task.completed_at is None:
+            continue
+
+        completed_hour = _as_utc(task.completed_at).hour
+        points_by_hour[completed_hour]["completed_count"] += 1
+
+    for session in focus_sessions:
+        started_hour = _as_utc(session.started_at).hour
+        points_by_hour[started_hour]["focus_minutes"] += _focus_session_minutes(session)
+
+    return [
+        HourlyProductivityPoint(
+            hour=hour,
+            completed_count=values["completed_count"],
+            focus_minutes=values["focus_minutes"],
+        )
+        for hour, values in sorted(points_by_hour.items())
+
+        # If you want frontend chart to always show all 24 hours, remove the following line:
+        if values["completed_count"] > 0 or values["focus_minutes"] > 0
+    ]
+
+def get_weekly_productivity_metrics(
+    db: Session,
+    user_id,
+    *,
+    period_start: datetime,
+    period_end: datetime,
+) -> WeeklyMetrics:
+    # Completed tasks are the base for completion count, estimates, and trends
+    completed_tasks = list(
+        db.scalars(
+            _completed_tasks_query(user_id, start=period_start, end=period_end)
+        ).all()
+    )
+    completed_tasks_count = len(completed_tasks)
+
+    # Count tasks active in the period so completion rate is bounded to this week
+    total_tasks_count = db.scalar(
+        select(func.count())
+        .select_from(Task)
+        .where(
+            Task.user_id == user_id,
+            Task.created_at < period_end,
+            (Task.completed_at.is_(None)) | (Task.completed_at >= period_start),
+        )
+    ) or 0
+
+    if total_tasks_count:
+        completion_rate = completed_tasks_count / total_tasks_count
+    else:
+        completion_rate = 0
+
+    # Only completed focus sessions count toward productive focus time
+    focus_sessions = list(
+        db.scalars(
+            select(FocusSession).where(
+                FocusSession.user_id == user_id,
+                FocusSession.started_at >= period_start,
+                FocusSession.started_at < period_end,
+                FocusSession.status == FocusSessionStatus.COMPLETED.value,
+            )
+        ).all()
+    )
+
+    focus_duration_minutes = sum(
+        _focus_session_minutes(session)
+        for session in focus_sessions
+    )
+
+    # Weekly workload is open estimated work that is due, scheduled, or created this week.
+    workload_minutes = db.scalar(
+        select(func.coalesce(func.sum(Task.estimated_duration_minutes), 0))
+        .where(
+            Task.user_id == user_id,
+            Task.status != TaskStatus.DONE,
+            (
+                (
+                    Task.due_date.is_not(None)
+                    & (Task.due_date >= period_start)
+                    & (Task.due_date < period_end)
+                )
+                | (
+                    Task.scheduled_start.is_not(None)
+                    & (Task.scheduled_start >= period_start)
+                    & (Task.scheduled_start < period_end)
+                )
+                | (
+                    (Task.created_at >= period_start)
+                    & (Task.created_at < period_end)
+                )
+            ),
+        )
+    ) or 0
+
+    current_streak_days = _current_streak_days(db, user_id, reference=_utc_now())
+    estimated_minutes = _estimated_work_minutes(db, user_id, start=period_start, end=period_end)
+
+    completed_task_ids = {task.id for task in completed_tasks}
+
+    # Compare estimates only against focus sessions linked to tasks completed this week
+    actual_minutes = sum(
+        _focus_session_minutes(session)
+        for session in focus_sessions
+        if session.task_id in completed_task_ids
+    )
+
+    estimate_accuracy_percent = None
+    if estimated_minutes > 0 and actual_minutes > 0:
+        difference = abs(estimated_minutes - actual_minutes)
+        estimate_accuracy_percent = max(0, round((1 - difference / estimated_minutes)*100, 2))
+
+    productivity_trend = _productivity_trend_points(
+        completed_tasks,
+        focus_sessions,
+        period_start=period_start,
+        period_end=period_end
+    )
+
+    productive_hours = _productive_hour_points(
+        completed_tasks,
+        focus_sessions,
+    )
+
+    return WeeklyMetrics(
+        period_start=period_start,
+        period_end=period_end,
+        completion_rate=completion_rate,
+        completed_task_count=completed_tasks_count,
+        focus_duration_minutes=focus_duration_minutes,
+        workload_minutes=workload_minutes,
+        current_streak_days=current_streak_days,
+        estimated_minutes=estimated_minutes,
+        actual_minutes=actual_minutes,
+        estimate_accuracy_percent=estimate_accuracy_percent,
+        productivity_trend=productivity_trend,
+        productive_hours=productive_hours,
+    )
+
+
+def _weekly_insight_response(
+    insight: WeeklyAIInsight,
+    *,
+    cached: bool,
+) -> WeeklyInsightResponse:
+    # Return the stored metrics response so the UI shows exactly what Gemini saw.
+    return WeeklyInsightResponse(
+        period_start=insight.period_start,
+        period_end=insight.period_end,
+        metrics=WeeklyMetrics.model_validate(insight.metrics),
+        narrative=insight.narrative,
+        generated_at=insight.created_at,
+        model=insight.model,
+        prompt_version=insight.prompt_version,
+        cached=cached,
+    )
+
+
+def _build_weekly_insight_prompt(metrics: WeeklyMetrics) -> str:
+    # Gemini receives aggregated metrics, never raw task titles/descriptions
+    metrics_json = json.dumps(
+        metrics.model_dump(mode="json"),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return (
+        "Write one concise weekly productivity insight for a student. "
+        "Use only the aggregated metrics JSON below. Do not infer task titles, "
+        "project names, descriptions, or private personal details. Mention one "
+        "positive pattern and one practical next step. Return JSON matching the "
+        "response schema.\n\n"
+        f"Aggregated metrics JSON: {metrics_json}"
+    )
+
+
+def _fallback_weekly_narrative(metrics: WeeklyMetrics) -> WeeklyInsightNarrative:
+    # Keep the endpoint when Gemini is disabled, unavailable, or rate-limited.
+    if metrics.completed_task_count == 0 and metrics.focus_duration_minutes == 0:
+        narrative = (
+            "No completed tasks or focus time were recorded for this period yet. "
+            "Start with one short focus block and finish one small task to build momentum!"
+        )
+    elif metrics.estimate_accuracy_percent is not None:
+        narrative = (
+            f"You completed {metrics.completed_task_count} tasks and logged "
+            f"{metrics.focus_duration_minutes} minutes of focus time. Your estimate "
+            f"accuracy was about {metrics.estimate_accuracy_percent:.0f}%, so use that "
+            "as a guide when planning next week."
+        )
+    else:
+        narrative = (
+            f"You completed {metrics.completed_task_count} tasks and logged "
+            f"{metrics.focus_duration_minutes} minutes of focus time. Keep your momentum "
+            "by placing the highest workload into your strongest productive hours."
+        )
+    return WeeklyInsightNarrative(narrative=narrative)
+
+
+def get_or_create_weekly_insight(
+    db: Session,
+    user: User,
+    *,
+    ai_service: AIService | None = None,
+    reference: datetime | None = None,
+) -> WeeklyInsightResponse:
+    # Serialize generation across API workers. NO KEY UPDATE permits telemetry's
+    # foreign-key checks against this user while the AI call is in progress.
+    try:
+        db.execute(
+            select(User.id).where(User.id == user.id).with_for_update(key_share=True)
+        ).scalar_one()
+        response = _get_or_create_locked_weekly_insight(
+            db, user, ai_service=ai_service, reference=reference
+        )
+        # Cached reads also need to release the transaction's row lock.
+        db.commit()
+        return response
+    except Exception:
+        db.rollback()
+        raise
+
+
+def _get_or_create_locked_weekly_insight(
+    db: Session,
+    user: User,
+    *,
+    ai_service: AIService | None = None,
+    reference: datetime | None = None,
+) -> WeeklyInsightResponse:
+    now = reference or _utc_now()
+    period_start, period_end, _last_start, _last_end = _week_bounds(now)
+
+    # Cache first: page refreshes and repeated logins must reuse this week's row
+    existing = db.scalar(
+        select(WeeklyAIInsight).where(
+            WeeklyAIInsight.user_id == user.id,
+            WeeklyAIInsight.period_start == period_start,
+            WeeklyAIInsight.period_end == period_end,
+        )
+    )
+    if existing is not None:
+        return _weekly_insight_response(existing, cached=True)
+
+    # No cache exists yet, so calculate metrics and generate one narrative
+    metrics = get_weekly_productivity_metrics(
+        db,
+        user.id,
+        period_start=period_start,
+        period_end=period_end,
+    )
+
+    result = (ai_service or get_ai_service()).generate_structured(
+        user_key=str(user.id),
+        prompt=_build_weekly_insight_prompt(metrics),
+        response_schema=WeeklyInsightNarrative,
+        feature=AIFeature.WEEKLY_INSIGHTS,
+        prompt_version=WEEKLY_INSIGHTS_PROMPT_VERSION,
+        fallback=lambda: _fallback_weekly_narrative(metrics),
+    )
+
+    insight = WeeklyAIInsight(
+        user_id=user.id,
+        period_start=period_start,
+        period_end=period_end,
+        metrics=metrics.model_dump(mode="json"),
+        narrative=result.data.narrative,
+        model=result.metadata.model,
+        prompt_version=result.metadata.prompt_version,
+    )
+
+    db.add(insight)
+
+    try:
+        db.commit()
+    except IntegrityError:
+        # If two requests generate at once, the unique constraint lets one win
+        db.rollback()
+        existing = db.scalar(
+            select(WeeklyAIInsight).where(
+                WeeklyAIInsight.user_id == user.id,
+                WeeklyAIInsight.period_start == period_start,
+                WeeklyAIInsight.period_end == period_end,
+            )
+        )
+        if existing is None:
+            raise
+        return _weekly_insight_response(existing, cached=True)
+
+    db.refresh(insight)
+    return _weekly_insight_response(insight, cached=False)

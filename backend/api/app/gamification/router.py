@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.auth.dependencies import CurrentUser, DatabaseSession
 from app.gamification import service
 from app.gamification.schemas import (
+    AchievementClaimResponse,
     AchievementsResponse,
     ForestResponse,
     ForestSceneResponse,
@@ -125,3 +126,22 @@ def get_achievements(
     current_user: CurrentUser,
 ) -> AchievementsResponse:
     return service.get_achievements(db, current_user.id)
+
+
+@router.post(
+    "/achievements/{achievement_id}/claim",
+    response_model=AchievementClaimResponse,
+)
+def claim_achievement(
+    achievement_id: str,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> AchievementClaimResponse:
+    try:
+        return service.claim_achievement(db, current_user.id, achievement_id)
+    except LookupError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except PermissionError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error

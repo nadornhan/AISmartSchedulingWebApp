@@ -21,8 +21,8 @@ export function AuthShell({
         <div className="absolute inset-0 flex flex-col items-center px-10 pt-[22%] text-center">
           <img
             alt="Chrono logo"
-            className="mb-3 size-[101px] object-cover"
-            src="/auth/auth-logo.png"
+            className="mb-3 size-[101px] object-contain"
+            src="/chrono-logo.png"
           />
           <h1 className="font-[family-name:var(--font-poppins)] text-[58px] font-semibold leading-none text-white">
             Chrono
@@ -38,8 +38,8 @@ export function AuthShell({
           <div className="mb-10 flex flex-col items-center text-center lg:hidden">
             <img
               alt="Chrono logo"
-              className="mb-3 size-16 object-cover"
-              src="/auth/auth-logo.png"
+              className="mb-3 size-16 object-contain"
+              src="/chrono-logo.png"
             />
             <p className="font-[family-name:var(--font-poppins)] text-4xl font-semibold text-white">
               Chrono

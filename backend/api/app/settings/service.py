@@ -4,7 +4,8 @@ from datetime import time
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.settings.models import UserSettings
+from app.scheduling.revision import bump_schedule_revision
+from app.settings.models import UserSettings, effective_daily_work_limit_minutes
 from app.settings.schemas import UserSettingsResponse, UserSettingsUpdate
 from app.timezones import DEFAULT_USER_TIMEZONE
 
@@ -47,6 +48,7 @@ def serialize_user_settings(settings: UserSettings) -> UserSettingsResponse:
             "work_end": settings.work_end,
             "timezone": settings.timezone,
             "pomodoro_minutes": settings.pomodoro_minutes,
+            "daily_work_limit_minutes": effective_daily_work_limit_minutes(settings),
         },
         ai_scheduling={
             "ai_assistant_enabled": settings.ai_assistant_enabled,
@@ -110,6 +112,8 @@ def update_user_settings(
         update.work_pattern is not None or update.ai_scheduling is not None
     )
 
+    if scheduling_inputs_changed:
+        bump_schedule_revision(db, user_id)
     db.commit()
     db.refresh(settings)
 

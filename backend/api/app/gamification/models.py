@@ -140,9 +140,7 @@ class UserPlant(Base):
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     species: Mapped[PlantSpecies] = relationship(back_populates="user_plants")
 
@@ -162,6 +160,9 @@ class Achievement(Base):
     )
     requirement_type: Mapped[str] = mapped_column(String(64), nullable=False)
     requirement_value: Mapped[int] = mapped_column(Integer, nullable=False)
+    reward_growth_points: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=5, server_default="5"
+    )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
@@ -187,6 +188,7 @@ class UserAchievement(Base):
     unlocked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     achievement: Mapped[Achievement] = relationship()
 

@@ -2,9 +2,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+import app.ai.models
 import app.focus.models
 import app.gamification.models
 import app.scheduling.models
+from app.ai.exceptions import AIError
+from app.ai.http import ai_error_handler
+from app.ai.router import router as ai_router
 from app.analytics.router import router as analytics_router
 from app.auth.router import router as auth_router
 from app.config import get_settings
@@ -17,11 +21,13 @@ from app.projects.router import router as projects_router
 from app.scheduling.router import router as scheduling_router
 from app.settings.router import router as settings_router
 from app.tasks.router import router as tasks_router
+from app.tasks.priority_router import router as priority_router
 
 settings = get_settings()
 settings.upload_dir.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="AI Smart Scheduling API")
+app.add_exception_handler(AIError, ai_error_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,9 +46,11 @@ app.include_router(auth_router)
 app.include_router(projects_router)
 app.include_router(folders_router)
 app.include_router(tasks_router)
+app.include_router(priority_router)
 app.include_router(notifications_router)
 app.include_router(settings_router)
 app.include_router(analytics_router)
+app.include_router(ai_router)
 app.include_router(scheduling_router)
 app.include_router(focus_router)
 app.include_router(dashboard_router)

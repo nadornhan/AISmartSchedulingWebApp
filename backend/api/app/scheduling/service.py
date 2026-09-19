@@ -10,7 +10,11 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.ai import AIFeature, AIService, get_ai_service
 from app.dashboard.schemas import DashboardTaskSummary
-from app.focus.models import FocusSession
+from app.focus.models import FocusSession, FocusSessionStatus
+from app.scheduling.detection import (
+    ReschedulingDetectionResult,
+    detect_rescheduling_needs,
+)
 from app.scheduling.engine import (
     RankedTask,
     build_schedule_result,
@@ -43,7 +47,11 @@ from app.scheduling.validation import validate_ai_preview_schedule
 from app.scheduling.windows import scheduling_required_minutes
 from app.scoring.constraints import normalize_schedule_datetime, validate_schedule_candidate
 from app.settings import service as settings_service
-from app.settings.models import UserSettings
+from app.settings.models import (
+    DEFAULT_DAILY_WORK_LIMIT_MINUTES,
+    UserSettings,
+    effective_daily_work_limit_minutes,
+)
 from app.tasks import service as task_service
 from app.tasks.models import Task, TaskStatus
 from app.tasks.overdue import is_task_overdue, utc_now
@@ -61,6 +69,7 @@ def _preview_settings(db: Session, user_id: uuid.UUID):
         work_end=settings_service.DEFAULT_WORK_END,
         timezone=settings_service.DEFAULT_TIMEZONE,
         pomodoro_minutes=25,
+        daily_work_limit_minutes=DEFAULT_DAILY_WORK_LIMIT_MINUTES,
         ai_assistant_enabled=True,
         ai_deadline_urgency_weight=80,
         ai_priority_weight=70,
@@ -157,6 +166,7 @@ def _weights_snapshot(settings) -> AiWeightsSnapshot:
         work_end=settings.work_end.strftime("%H:%M"),
         timezone=settings.timezone,
         pomodoro_minutes=settings.pomodoro_minutes,
+        daily_work_limit_minutes=effective_daily_work_limit_minutes(settings),
     )
 
 
@@ -173,6 +183,35 @@ def _open_tasks(db: Session, user_id: uuid.UUID) -> list[Task]:
                 Task.status != TaskStatus.DONE,
             )
         ).all()
+    )
+
+
+def detect_current_rescheduling_needs(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    now: datetime | None = None,
+) -> ReschedulingDetectionResult:
+    """Load user-scoped current state and run the pure rescheduling audit."""
+
+    active_focus_sessions = list(
+        db.scalars(
+            select(FocusSession).where(
+                FocusSession.user_id == user_id,
+                FocusSession.status.in_(
+                    [
+                        FocusSessionStatus.ACTIVE.value,
+                        FocusSessionStatus.PAUSED.value,
+                    ]
+                ),
+            )
+        ).all()
+    )
+    return detect_rescheduling_needs(
+        tasks=_open_tasks(db, user_id),
+        settings=_preview_settings(db, user_id),
+        now=now or utc_now(),
+        focus_sessions=active_focus_sessions,
     )
 
 
@@ -648,6 +687,8 @@ def get_current_plan(db: Session, user_id: uuid.UUID) -> SchedulingPlanResponse:
         windows=capacity_windows,
         planning_horizon_end=horizon.end,
         scheduled_task_ids=suggested_task_ids,
+        existing_tasks=open_tasks,
+        existing_candidates=active_suggestion_candidates,
     )
 
     return SchedulingPlanResponse(

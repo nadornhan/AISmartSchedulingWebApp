@@ -107,7 +107,7 @@ export function EditableForestName({
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-3xl font-semibold text-dashboard-text">{displayName}</h1>
+        <h1 className="font-poppins text-3xl font-semibold text-dashboard-text">{displayName}</h1>
         <button
           className="rounded-lg border border-dashboard-border bg-dashboard-bg/50 px-2.5 py-1 text-xs font-medium text-dashboard-text transition hover:border-dashboard-accent/50"
           onClick={() => setEditing(true)}

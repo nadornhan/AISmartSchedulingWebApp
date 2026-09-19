@@ -19,6 +19,36 @@ function toDateInputValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function normalizeTemporalNotation(value: string) {
+  // Chrono understands 11:15, but not 11h15 or common misspellings of tomorrow.
+  return value
+    .replace(/\b([01]?\d|2[0-3])h([0-5]\d)\b/gi, '$1:$2')
+    .replace(/\btomor+ow\b/gi, 'tomorrow');
+}
+
+function normalizeTaskTitle(value: string) {
+  let title = value
+    .replace(/\s*,\s*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Remove common natural-language introductions without altering task content.
+  title = title.replace(
+    /^(?:i\s+need\s+to|i\s+have\s+to|i\s+should|remind\s+me\s+to|please)\s+/i,
+    '',
+  );
+
+  // Chrono removes the date/time phrase, but its connector can remain.
+  title = title.replace(/\s+(?:by|before|on|at|around)\s*$/i, '');
+
+  title = title
+    .replace(/^[\s,.;:-]+|[\s,.;:-]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return title ? `${title[0].toLocaleUpperCase()}${title.slice(1)}` : '';
+}
+
 export function parseNaturalLanguageTask(
   input: string,
   referenceDate = new Date(),
@@ -63,29 +93,42 @@ export function parseNaturalLanguageTask(
     remaining = remaining.replace(projectMatch[0], ' ');
   }
 
-  const parsedDate = chrono.parse(remaining, referenceDate, { forwardDate: true })[0];
-  if (parsedDate) {
-    const date = parsedDate.start.date();
+  remaining = normalizeTemporalNotation(remaining);
+  const parsedDates = chrono.parse(remaining, referenceDate, { forwardDate: true });
+  const dateResult =
+    parsedDates.find((result) =>
+      result.start.isCertain('day') ||
+      result.start.isCertain('month') ||
+      result.start.isCertain('year') ||
+      result.start.isCertain('weekday'),
+    ) ?? parsedDates[0];
+  const timeResult = parsedDates.find((result) => result.start.isCertain('hour'));
+
+  if (dateResult) {
+    const date = dateResult.start.date();
     dueDate = toDateInputValue(date);
     detectedFields.push('due date');
 
-    if (parsedDate.start.isCertain('hour')) {
-      dueTime = `${String(date.getHours()).padStart(2, '0')}:${String(
-        date.getMinutes(),
+    if (timeResult) {
+      const time = timeResult.start.date();
+      dueTime = `${String(time.getHours()).padStart(2, '0')}:${String(
+        time.getMinutes(),
       ).padStart(2, '0')}`;
       detectedFields.push('time');
     }
 
-    remaining = `${remaining.slice(0, parsedDate.index)} ${remaining.slice(
-      parsedDate.index + parsedDate.text.length,
-    )}`;
+    const usedResults =
+      timeResult && timeResult !== dateResult ? [dateResult, timeResult] : [dateResult];
+    for (const result of usedResults.sort(
+      (left, right) => right.index - left.index,
+    )) {
+      remaining = `${remaining.slice(0, result.index)} ${remaining.slice(
+        result.index + result.text.length,
+      )}`;
+    }
   }
 
-  const title = remaining
-    .replace(/\s*,\s*/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/^[\s,.;:-]+|[\s,.;:-]+$/g, '')
-    .trim();
+  const title = normalizeTaskTitle(remaining);
 
   if (title) detectedFields.unshift('title');
 

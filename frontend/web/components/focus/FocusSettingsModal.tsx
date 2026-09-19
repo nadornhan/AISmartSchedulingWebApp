@@ -54,7 +54,7 @@ export function FocusSettingsModal({
       className="fixed inset-0 z-[300] grid place-items-center bg-black/65 p-4 backdrop-blur-sm"
       role="dialog"
     >
-      <div className="w-full max-w-md rounded-2xl border border-dashboard-border bg-[#07131d] p-6 shadow-panel">
+      <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-dashboard-border bg-[#07131d] p-5 shadow-panel sm:p-6">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-dashboard-text">
             Focus settings

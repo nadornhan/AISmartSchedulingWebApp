@@ -1,0 +1,22 @@
+.git
+.github
+.pnpm-store
+.next
+**/.next
+node_modules
+**/node_modules
+tmp
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
+.venv
+coverage
+*.log
+.dev-web-error.log
+.dev-web.log
+.env
+.env.*
+!**/.env.example
+
+# Blender source files remain versioned but only runtime GLBs belong in images.
+frontend/web/public/**/*.blend

@@ -109,7 +109,7 @@ export function CreateFolderModal({
             <FolderIcon className="h-8 w-8" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-2xl font-semibold" id="create-folder-title">
+            <h2 className="font-poppins text-2xl font-semibold" id="create-folder-title">
               Create New Folder
             </h2>
             <p className="mt-1 text-sm text-dashboard-muted">

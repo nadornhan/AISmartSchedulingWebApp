@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import json
 import logging
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import TypeVar
 
 from pydantic import BaseModel
@@ -12,16 +12,23 @@ from app.ai.exceptions import AIContractError, AIError
 from app.ai.limiter import AIRequestLimiter
 from app.ai.policies import AIFeature, get_ai_feature_policy
 from app.ai.provider import AIProvider
-from app.ai.schemas import AIGenerationMetadata, StructuredGenerationResult
+from app.ai.schemas import AIGenerationMetadata, AIUsageEvent, StructuredGenerationResult
+from app.ai.telemetry import AITelemetryRecorder, LoggingAITelemetryRecorder
 
 logger = logging.getLogger(__name__)
 StructuredDataT = TypeVar("StructuredDataT", bound=BaseModel)
 
 
 class AIService:
-    def __init__(self, provider: AIProvider, limiter: AIRequestLimiter) -> None:
+    def __init__(
+        self,
+        provider: AIProvider,
+        limiter: AIRequestLimiter,
+        telemetry_recorder: AITelemetryRecorder | None = None,
+    ) -> None:
         self.provider = provider
         self.limiter = limiter
+        self.telemetry_recorder = telemetry_recorder or LoggingAITelemetryRecorder()
 
     def generate_structured(
         self,
@@ -47,7 +54,11 @@ class AIService:
 
         started = time.perf_counter()
         try:
-            self.limiter.check(user_key)
+            self.limiter.check(
+                user_key,
+                feature=registered_feature.value,
+                feature_requests_per_minute=policy.requests_per_user_per_minute,
+            )
             result = self.provider.generate_structured(
                 prompt=prompt,
                 response_schema=response_schema,
@@ -56,6 +67,19 @@ class AIService:
             )
         except AIError as exc:
             if fallback is None:
+                self._record_safely(
+                    AIUsageEvent(
+                        user_key=user_key,
+                        feature=registered_feature.value,
+                        prompt_version=prompt_version,
+                        outcome="failure",
+                        source=getattr(self.provider, "source_name", "unknown"),
+                        model=getattr(self.provider, "model_name", "unknown"),
+                        latency_ms=round((time.perf_counter() - started) * 1000),
+                        error_code=exc.code,
+                        created_at=datetime.now(UTC),
+                    )
+                )
                 raise
             result = StructuredGenerationResult[StructuredDataT](
                 data=fallback(),
@@ -68,14 +92,32 @@ class AIService:
                     fallback_reason=exc.code,
                 ),
             )
-        self._log_metadata(user_key, result.metadata)
+        self._record_safely(
+            AIUsageEvent(
+                user_key=user_key,
+                feature=result.metadata.feature,
+                prompt_version=result.metadata.prompt_version,
+                outcome=(
+                    "fallback"
+                    if result.metadata.source == "deterministic_fallback"
+                    else "success"
+                ),
+                source=result.metadata.source,
+                model=result.metadata.model,
+                latency_ms=result.metadata.latency_ms,
+                usage=result.metadata.usage,
+                error_code=result.metadata.fallback_reason,
+                created_at=datetime.now(UTC),
+            )
+        )
         return result
 
-    @staticmethod
-    def _log_metadata(user_key: str, metadata: AIGenerationMetadata) -> None:
-        event = {
-            "event": "ai_generation",
-            "user_key": user_key,
-            **metadata.model_dump(mode="json"),
-        }
-        logger.info("%s", json.dumps(event, separators=(",", ":"), sort_keys=True))
+    def _record_safely(self, event: AIUsageEvent) -> None:
+        try:
+            self.telemetry_recorder.record(event)
+        except Exception:
+            logger.warning(
+                "AI telemetry recording failed for feature %s",
+                event.feature,
+                exc_info=True,
+            )

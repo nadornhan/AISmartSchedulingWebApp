@@ -2,11 +2,13 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from app.gamification.models import (
     GrowthStage,
     PlantStatus,
+    UserAchievement,
     UserGamificationProfile,
     UserPlant,
 )
@@ -59,6 +61,21 @@ def select_oak(client: TestClient, headers: dict[str, str]) -> dict:
 def test_stage_calculation_respects_species_maturity_threshold() -> None:
     assert stage_for_points(100, mature_at=110) == GrowthStage.GROWING.value
     assert stage_for_points(110, mature_at=110) == GrowthStage.MATURE.value
+
+
+def test_legendary_chrono_tree_is_the_final_catalog_unlock(client: TestClient) -> None:
+    headers, _user_id = auth_headers(client)
+
+    response = client.get("/gamification/plants", headers=headers)
+
+    assert response.status_code == 200
+    plants = response.json()["plants"]
+    chrono = next(plant for plant in plants if plant["id"] == "chrono")
+    assert plants[-1]["id"] == "chrono"
+    assert chrono["image_key"] == "chrono"
+    assert chrono["required_growth_points"] == 500
+    assert chrono["unlocked"] is False
+    assert "Legendary" in chrono["unlock_hint"]
 
 
 def test_select_plant_and_forest_state(client: TestClient) -> None:
@@ -403,11 +420,96 @@ def test_achievements_endpoint(client: TestClient) -> None:
     payload = response.json()
     assert len(payload["achievements"]) > 0
     assert len(payload["categories"]) > 0
-    starter = next(
-        item for item in payload["achievements"] if item["id"] == "getting_started"
-    )
+    starter = next(item for item in payload["achievements"] if item["id"] == "getting_started")
     assert starter["unlocked"] is True
+    assert starter["completed"] is True
+    assert starter["claimable"] is True
+    assert starter["claimed"] is False
+    assert starter["reward_growth_points"] == 5
     assert "category" in starter
+    assert payload["current_title"]["id"] == "time_seed"
+    assert payload["claimed_count"] == 0
+    assert all(item["id"] != "deep_focus" for item in payload["achievements"])
+
+
+def test_claim_achievement_rewards_active_plant_once(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    headers, user_id = auth_headers(client)
+    select_oak(client, headers)
+    create = client.post(
+        "/tasks",
+        headers=headers,
+        json={"title": "Earn an achievement reward", "priority": "low"},
+    )
+    assert create.status_code == 201
+    completed = client.patch(
+        f"/tasks/{create.json()['id']}",
+        headers=headers,
+        json={"status": "done"},
+    )
+    assert completed.status_code == 200
+
+    # Simulate historical data where metrics exist but no unlock row was persisted.
+    db_session.execute(
+        delete(UserAchievement).where(
+            UserAchievement.user_id == uuid.UUID(user_id),
+            UserAchievement.achievement_id == "getting_started",
+        )
+    )
+    db_session.flush()
+
+    claimed = client.post(
+        "/gamification/achievements/getting_started/claim",
+        headers=headers,
+    )
+    assert claimed.status_code == 200, claimed.text
+    body = claimed.json()
+    assert body["reward"]["awarded"] is True
+    assert body["reward"]["growth_points"] == 5
+    assert body["reward"]["profile"]["current_plant"]["current_growth_points"] == 15
+    assert body["achievement"]["claimed"] is True
+    assert body["next_achievement"]["id"] == "deep_focus"
+    assert body["achievements"]["claimed_count"] == 1
+    assert body["achievements"]["current_title"]["id"] == "sprout_seeker"
+
+    repeated = client.post(
+        "/gamification/achievements/getting_started/claim",
+        headers=headers,
+    )
+    assert repeated.status_code == 200, repeated.text
+    repeated_body = repeated.json()
+    assert repeated_body["reward"]["awarded"] is False
+    assert repeated_body["reward"]["growth_points"] == 0
+    assert repeated_body["reward"]["profile"]["current_plant"]["current_growth_points"] == 15
+
+
+def test_claim_achievement_saves_reward_without_active_plant(client: TestClient) -> None:
+    headers, _user_id = auth_headers(client)
+    create = client.post(
+        "/tasks",
+        headers=headers,
+        json={"title": "Save achievement GP", "priority": "low"},
+    )
+    assert create.status_code == 201
+    completed = client.patch(
+        f"/tasks/{create.json()['id']}",
+        headers=headers,
+        json={"status": "done"},
+    )
+    assert completed.status_code == 200
+    assert completed.json()["growth_reward"]["profile"]["unassigned_growth_points"] == 10
+
+    claimed = client.post(
+        "/gamification/achievements/getting_started/claim",
+        headers=headers,
+    )
+    assert claimed.status_code == 200, claimed.text
+    reward = claimed.json()["reward"]
+    assert reward["awarded"] is True
+    assert reward["profile"]["current_plant"] is None
+    assert reward["profile"]["unassigned_growth_points"] == 15
 
 
 def test_dashboard_includes_forest_widget(client: TestClient) -> None:

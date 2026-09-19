@@ -9,12 +9,26 @@ from app.ai.limiter import AIRequestLimiter
 from app.ai.provider import AIProvider
 from app.ai.schemas import StructuredGenerationResult
 from app.ai.service import AIService
+from app.ai.telemetry import (
+    CompositeAITelemetryRecorder,
+    DatabaseAITelemetryRecorder,
+    LoggingAITelemetryRecorder,
+)
 from app.config import get_settings
+from app.database import SessionLocal
 
 StructuredDataT = TypeVar("StructuredDataT", bound=BaseModel)
 
 
 class DisabledAIProvider:
+    @property
+    def source_name(self) -> str:
+        return "disabled"
+
+    @property
+    def model_name(self) -> str:
+        return "none"
+
     def generate_structured(
         self,
         *,
@@ -38,4 +52,10 @@ def get_ai_service() -> AIService:
     return AIService(
         provider,
         AIRequestLimiter(settings.ai_requests_per_user_per_minute),
+        CompositeAITelemetryRecorder(
+            [
+                LoggingAITelemetryRecorder(),
+                DatabaseAITelemetryRecorder(SessionLocal),
+            ]
+        ),
     )

@@ -34,6 +34,14 @@ class GeminiProvider:
         self.settings = settings
         self.client_factory = client_factory
 
+    @property
+    def source_name(self) -> str:
+        return "gemini"
+
+    @property
+    def model_name(self) -> str:
+        return self.settings.gemini_model
+
     def generate_structured(
         self,
         *,
@@ -62,7 +70,7 @@ class GeminiProvider:
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
-                        response_schema=response_schema,
+                        response_json_schema=response_schema.model_json_schema(),
                         max_output_tokens=self.settings.gemini_max_output_tokens,
                     ),
                 )

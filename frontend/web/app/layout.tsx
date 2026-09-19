@@ -1,10 +1,10 @@
-import type { Metadata } from 'next';
-import { Geist, Poppins } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
+import { Figtree, Poppins } from 'next/font/google';
 import './globals.css';
 
-const geist = Geist({
+const figtree = Figtree({
   subsets: ['latin'],
-  variable: '--font-geist',
+  variable: '--font-figtree',
 });
 
 const poppins = Poppins({
@@ -17,8 +17,18 @@ export const metadata: Metadata = {
   title: 'Chrono - Start Focus Session',
   description: 'AI Smart Scheduling web scaffold',
   icons: {
-    icon: '/chrono-logo.svg',
+    icon: [
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/chrono-logo.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -28,7 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geist.variable} ${poppins.variable}`}>
+      <body className={`${figtree.variable} ${poppins.variable}`}>
         {children}
       </body>
     </html>
