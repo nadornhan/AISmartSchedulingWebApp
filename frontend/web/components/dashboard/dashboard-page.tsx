@@ -180,10 +180,12 @@ export function DashboardPage() {
         </div>
       </section>
 
-      <section aria-label="Today at a glance" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
       <ReschedulingPanel />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section
+        aria-label="Today at a glance"
+        className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4"
+      >
         <DashboardStatCard
           icon={<CheckIcon className="h-5 w-5" />}
           label="Today Progress"

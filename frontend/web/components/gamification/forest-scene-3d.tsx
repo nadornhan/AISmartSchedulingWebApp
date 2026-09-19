@@ -2,7 +2,15 @@
 
 import { Canvas, ThreeEvent, useFrame } from '@react-three/fiber';
 import { OrbitControls, useGLTF } from '@react-three/drei';
-import { Component, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Component,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ReactNode } from 'react';
 import * as THREE from 'three';
 
@@ -22,6 +30,16 @@ type SpeciesPalette = {
   foliage: string;
   accent: string;
 };
+
+type SceneInstance = {
+  position: [number, number, number];
+  rotation?: [number, number, number];
+  scale: [number, number, number];
+  color?: string;
+};
+
+const GARDEN_HALF_WIDTH = 17;
+const GARDEN_HALF_DEPTH = 14;
 
 const PLANT_MODEL_PATHS = {
   oak: {
@@ -379,30 +397,256 @@ function SoftCloud({
   );
 }
 
-function MeadowFlowers() {
-  const flowers = useMemo(() => {
-    const items: Array<{ x: number; z: number; color: string }> = [];
-    const colors = ['#f4a6c8', '#f0d35c', '#9ecbff', '#ff9f7a', '#c9a0ff'];
-    for (let i = 0; i < 28; i += 1) {
-      const angle = (i / 28) * Math.PI * 2;
-      const radius = 6 + (i % 5) * 2.4;
-      items.push({
-        x: Math.cos(angle) * radius + ((i * 13) % 7) * 0.2,
-        z: Math.sin(angle) * radius + ((i * 7) % 5) * 0.15,
-        color: colors[i % colors.length],
-      });
+function InstancedScenery({
+  instances,
+  shape,
+  baseColor,
+  castShadow = false,
+}: {
+  instances: SceneInstance[];
+  shape: 'box' | 'foliage' | 'grass' | 'round-flower' | 'star-flower' | 'stem';
+  baseColor: string;
+  castShadow?: boolean;
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const instanceColors = useMemo(() => {
+    const values = new Float32Array(instances.length * 3);
+    const color = new THREE.Color();
+    instances.forEach((instance, index) => {
+      color.set(instance.color ?? baseColor).toArray(values, index * 3);
+    });
+    return values;
+  }, [baseColor, instances]);
+
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+
+    const dummy = new THREE.Object3D();
+    instances.forEach((instance, index) => {
+      dummy.position.set(...instance.position);
+      dummy.rotation.set(...(instance.rotation ?? [0, 0, 0]));
+      dummy.scale.set(...instance.scale);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(index, dummy.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  }, [instances]);
+
+  return (
+    <instancedMesh
+      args={[undefined, undefined, instances.length]}
+      castShadow={castShadow}
+      raycast={() => undefined}
+      receiveShadow={shape === 'box'}
+      ref={meshRef}
+    >
+      <instancedBufferAttribute attach="instanceColor" args={[instanceColors, 3]} />
+      {shape === 'box' ? <boxGeometry args={[1, 1, 1]} /> : null}
+      {shape === 'foliage' ? <icosahedronGeometry args={[0.5, 1]} /> : null}
+      {shape === 'grass' ? <coneGeometry args={[0.075, 0.7, 3, 1]} /> : null}
+      {shape === 'round-flower' ? <sphereGeometry args={[0.11, 7, 6]} /> : null}
+      {shape === 'star-flower' ? <octahedronGeometry args={[0.13, 0]} /> : null}
+      {shape === 'stem' ? <cylinderGeometry args={[0.025, 0.035, 0.55, 5]} /> : null}
+      <meshStandardMaterial color="#ffffff" />
+    </instancedMesh>
+  );
+}
+
+function MeadowScenery() {
+  const scenery = useMemo(() => {
+    const grass: SceneInstance[] = [];
+    const foliage: SceneInstance[] = [];
+    const stems: SceneInstance[] = [];
+    const roundFlowers: SceneInstance[] = [];
+    const starFlowers: SceneInstance[] = [];
+    const flowerColors = ['#f6a8ce', '#f6dc66', '#a9d6ff', '#ff9d78', '#c8a5ff', '#fff3d0'];
+    const grassColors = ['#397f48', '#4f9852', '#68aa59', '#2f7444'];
+
+    for (let patch = 0; patch < 46; patch += 1) {
+      const angle = patch * 2.399963;
+      const radius = 4.6 + ((patch * 37) % 100) * 0.115;
+      const centerX = Math.cos(angle) * radius;
+      const centerZ = Math.sin(angle) * radius * 0.78;
+      const blades = 3 + (patch % 4);
+
+      for (let blade = 0; blade < blades; blade += 1) {
+        const bladeAngle = (blade / blades) * Math.PI * 2 + angle;
+        const height = 0.55 + ((patch + blade * 5) % 8) * 0.075;
+        grass.push({
+          position: [
+            centerX + Math.cos(bladeAngle) * (0.11 + (blade % 2) * 0.08),
+            (0.7 * height) / 2,
+            centerZ + Math.sin(bladeAngle) * (0.11 + (blade % 2) * 0.08),
+          ],
+          rotation: [0, bladeAngle, (blade - blades / 2) * 0.055],
+          scale: [0.72 + (blade % 3) * 0.16, height, 0.72 + (patch % 3) * 0.12],
+          color: grassColors[(patch + blade) % grassColors.length],
+        });
+      }
     }
-    return items;
+
+    for (let bush = 0; bush < 18; bush += 1) {
+      const angle = bush * 2.17 + 0.45;
+      const radius = 6.4 + ((bush * 29) % 9);
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius * 0.72;
+      const variant = bush % 3;
+      const crownHeight = variant === 1 ? 0.66 : 0.38;
+
+      if (variant !== 1) {
+        const lobes = variant === 0 ? 3 : 5;
+        for (let lobe = 0; lobe < lobes; lobe += 1) {
+          const lobeAngle = (lobe / lobes) * Math.PI * 2;
+          foliage.push({
+            position: [
+              x + Math.cos(lobeAngle) * 0.24,
+              0.24 + (lobe % 2) * 0.08,
+              z + Math.sin(lobeAngle) * 0.2,
+            ],
+            rotation: [0, lobeAngle, 0],
+            scale: [0.78 + variant * 0.12, 0.58 + (lobe % 2) * 0.2, 0.72],
+            color: lobe % 2 === 0 ? '#347c4c' : '#4b9558',
+          });
+        }
+      }
+
+      const bloomCount = variant === 2 ? 7 : variant === 1 ? 5 : 4;
+      for (let bloom = 0; bloom < bloomCount; bloom += 1) {
+        const bloomAngle = (bloom / bloomCount) * Math.PI * 2 + angle;
+        const spread = variant === 1 ? 0.38 : 0.32;
+        const bloomX = x + Math.cos(bloomAngle) * spread;
+        const bloomZ = z + Math.sin(bloomAngle) * spread;
+        const bloomY = crownHeight + (variant === 1 ? (bloom % 3) * 0.2 : (bloom % 2) * 0.08);
+        const target = variant === 2 ? starFlowers : roundFlowers;
+
+        if (variant === 1) {
+          stems.push({
+            position: [bloomX, bloomY / 2, bloomZ],
+            rotation: [0, 0, Math.sin(bloomAngle) * 0.08],
+            scale: [0.85, Math.max(0.7, bloomY / 0.55), 0.85],
+            color: '#3e824c',
+          });
+        }
+
+        target.push({
+          position: [bloomX, bloomY, bloomZ],
+          rotation: [0, bloomAngle, variant === 2 ? bloomAngle * 0.2 : 0],
+          scale: [0.82 + (bloom % 3) * 0.12, 0.82 + (bush % 2) * 0.16, 0.82],
+          color: flowerColors[(bush * 2 + bloom) % flowerColors.length],
+        });
+      }
+    }
+
+    return { foliage, grass, roundFlowers, starFlowers, stems };
   }, []);
 
   return (
     <group>
-      {flowers.map((flower, index) => (
-        <mesh key={index} position={[flower.x, 0.08, flower.z]}>
-          <sphereGeometry args={[0.08, 6, 6]} />
-          <meshStandardMaterial color={flower.color} />
+      <InstancedScenery baseColor="#4f9852" instances={scenery.grass} shape="grass" />
+      <InstancedScenery baseColor="#397f48" instances={scenery.foliage} shape="foliage" />
+      <InstancedScenery baseColor="#3e824c" instances={scenery.stems} shape="stem" />
+      <InstancedScenery
+        baseColor="#f6a8ce"
+        instances={scenery.roundFlowers}
+        shape="round-flower"
+      />
+      <InstancedScenery
+        baseColor="#f6dc66"
+        instances={scenery.starFlowers}
+        shape="star-flower"
+      />
+    </group>
+  );
+}
+
+function GardenFence() {
+  const fence = useMemo(() => {
+    const posts: SceneInstance[] = [];
+    const rails: SceneInstance[] = [];
+    const postSpacing = 2.6;
+
+    const addPost = (x: number, z: number, tall = false) => {
+      posts.push({
+        position: [x, tall ? 0.82 : 0.68, z],
+        scale: [tall ? 0.26 : 0.2, tall ? 1.64 : 1.36, tall ? 0.26 : 0.2],
+        color: tall ? '#8a5a32' : '#9a6a3d',
+      });
+    };
+    const addRail = (x: number, z: number, width: number, depth: number) => {
+      for (const y of [0.42, 0.94]) {
+        rails.push({
+          position: [x, y, z],
+          scale: [width, 0.13, depth],
+          color: y > 0.5 ? '#b47c47' : '#a86f3d',
+        });
+      }
+    };
+
+    const horizontalSections = Math.ceil((GARDEN_HALF_WIDTH * 2) / postSpacing);
+    const horizontalStep = (GARDEN_HALF_WIDTH * 2) / horizontalSections;
+    for (let side = -1; side <= 1; side += 2) {
+      const z = side * GARDEN_HALF_DEPTH;
+      for (let index = 0; index <= horizontalSections; index += 1) {
+        const x = -GARDEN_HALF_WIDTH + index * horizontalStep;
+        const isGatePost = side === 1 && Math.abs(x) < horizontalStep * 0.75;
+        addPost(x, z, isGatePost);
+        if (index === horizontalSections) continue;
+        const railX = x + horizontalStep / 2;
+        const isGateOpening = side === 1 && Math.abs(railX) < horizontalStep * 0.75;
+        if (!isGateOpening) addRail(railX, z, horizontalStep, 0.12);
+      }
+    }
+
+    const verticalSections = Math.ceil((GARDEN_HALF_DEPTH * 2) / postSpacing);
+    const verticalStep = (GARDEN_HALF_DEPTH * 2) / verticalSections;
+    for (let side = -1; side <= 1; side += 2) {
+      const x = side * GARDEN_HALF_WIDTH;
+      for (let index = 1; index < verticalSections; index += 1) {
+        addPost(x, -GARDEN_HALF_DEPTH + index * verticalStep);
+      }
+      for (let index = 0; index < verticalSections; index += 1) {
+        addRail(x, -GARDEN_HALF_DEPTH + (index + 0.5) * verticalStep, 0.12, verticalStep);
+      }
+    }
+
+    return { posts, rails };
+  }, []);
+
+  return (
+    <group>
+      <InstancedScenery baseColor="#9a6a3d" castShadow instances={fence.posts} shape="box" />
+      <InstancedScenery baseColor="#b47c47" castShadow instances={fence.rails} shape="box" />
+    </group>
+  );
+}
+
+function Rainbow() {
+  const colors = ['#ff6f7d', '#ffb45b', '#f6dc66', '#63c879', '#69bfff', '#9d82e8'];
+
+  return (
+    <group position={[-3, 2.2, -31]} rotation={[0, 0.08, 0]}>
+      {colors.map((color, index) => (
+        <mesh key={color} position={[0, 0, index * -0.015]} renderOrder={-10 + index}>
+          <torusGeometry args={[10.2 - index * 0.48, 0.3, 8, 64, Math.PI]} />
+          <meshBasicMaterial
+            color={color}
+            depthWrite={false}
+            opacity={0.68}
+            toneMapped={false}
+            transparent
+          />
         </mesh>
       ))}
+      {[-10.2, 10.2].flatMap((x) =>
+        [-0.45, 0.25, 0.85].map((offset, index) => (
+          <mesh key={`${x}-${offset}`} position={[x + offset, 0.05 + (index % 2) * 0.22, 0.2]}>
+            <sphereGeometry args={[0.95 - index * 0.08, 9, 8]} />
+            <meshBasicMaterial color="#f8fcff" opacity={0.82} transparent />
+          </mesh>
+        )),
+      )}
     </group>
   );
 }
@@ -483,6 +727,12 @@ function Ground({
       onClick={(event: ThreeEvent<MouseEvent>) => {
         if (!placing) return;
         event.stopPropagation();
+        if (
+          Math.abs(event.point.x) > GARDEN_HALF_WIDTH - 0.8 ||
+          Math.abs(event.point.z) > GARDEN_HALF_DEPTH - 0.8
+        ) {
+          return;
+        }
         onPlaceAt({ x: event.point.x, z: event.point.z });
       }}
     >
@@ -539,8 +789,10 @@ function SceneContent({
       <SoftCloud position={[-10, 11, -8]} reducedMotion={reducedMotion} speed={1.1} />
       <SoftCloud position={[8, 12.5, -14]} reducedMotion={reducedMotion} speed={0.8} />
       <SoftCloud position={[2, 10.5, 6]} reducedMotion={reducedMotion} speed={1.3} />
+      <Rainbow />
       <Ground placing={Boolean(placingPlantId)} onPlaceAt={onPlaceAt} />
-      <MeadowFlowers />
+      <MeadowScenery />
+      <GardenFence />
       {placedTrees.map((tree) => (
         <LowPolyTree
           key={tree.id}
@@ -553,8 +805,8 @@ function SceneContent({
       <OrbitControls
         enableDamping={!reducedMotion}
         maxPolarAngle={Math.PI / 2.15}
-        minDistance={6}
-        maxDistance={42}
+        minDistance={8}
+        maxDistance={55}
         ref={controlsRef}
         target={[0, 0.8, 0]}
       />
@@ -565,7 +817,7 @@ function SceneContent({
 export function ForestScene3D(props: ForestScene3DProps) {
   return (
     <div className="relative h-[min(70vh,640px)] w-full overflow-hidden rounded-xl border border-dashboard-border bg-[#87c7f5]">
-      <Canvas camera={{ position: [10, 9, 12], fov: 45 }} shadows dpr={[1, 1.75]}>
+      <Canvas camera={{ position: [22, 16, 24], fov: 55 }} shadows dpr={[1, 1.75]}>
         <SceneContent {...props} />
       </Canvas>
       {props.placingPlantId ? (

@@ -25,6 +25,7 @@ from app.gamification.rules import (
     FOCUS_SESSION_STREAK_BONUS_GP,
     HIGH_PRIORITY_BONUS_GP,
     MIN_VALID_FOCUS_MINUTES,
+    SOURCE_ACHIEVEMENT_CLAIM,
     SOURCE_DAILY_CLEAR,
     SOURCE_FOCUS_SESSION,
     SOURCE_STREAK_BONUS,
@@ -39,8 +40,10 @@ from app.gamification.rules import (
 )
 from app.gamification.schemas import (
     AchievementCategoryGroup,
+    AchievementClaimResponse,
     AchievementProgress,
     AchievementsResponse,
+    AchievementTitleTier,
     DashboardForestWidget,
     ForestPosition,
     ForestResponse,
@@ -72,6 +75,16 @@ ACHIEVEMENT_CATEGORY_LABELS = {
     "consistency": "Consistency",
     "forest": "Forest",
 }
+
+ACHIEVEMENT_TITLE_TIERS = (
+    ("time_seed", "Time Seed", "Your first steps toward mastering your time.", 0),
+    ("sprout_seeker", "Sprout Seeker", "You have begun turning plans into progress.", 1),
+    ("routine_keeper", "Routine Keeper", "Small routines are taking root.", 3),
+    ("focus_gardener", "Focus Gardener", "You are tending focus with consistency.", 6),
+    ("forest_builder", "Forest Builder", "Your steady work is growing a thriving forest.", 10),
+    ("chrono_master", "Chrono Master", "You shape your schedule with clarity and purpose.", 15),
+    ("legend_of_time", "Legend of Time", "You have mastered every season of productivity.", 22),
+)
 
 
 def _thresholds() -> GrowthStageThresholds:
@@ -139,11 +152,7 @@ def _forest_scene_plants(db: Session, user_id: uuid.UUID) -> list[UserPlant]:
 
 
 def _placed_plants(db: Session, user_id: uuid.UUID) -> list[UserPlant]:
-    return [
-        item
-        for item in _forest_scene_plants(db, user_id)
-        if item.is_placed_in_forest
-    ]
+    return [item for item in _forest_scene_plants(db, user_id) if item.is_placed_in_forest]
 
 
 def _count_completed_tasks(db: Session, user_id: uuid.UUID) -> int:
@@ -188,7 +197,10 @@ def _count_active_days(db: Session, user_id: uuid.UUID) -> int:
     profile = get_or_create_profile(db, user_id)
     # Approximate unique productive days from reward events + streak history.
     days = db.scalars(
-        select(func.date(RewardEvent.created_at)).where(RewardEvent.user_id == user_id)
+        select(func.date(RewardEvent.created_at)).where(
+            RewardEvent.user_id == user_id,
+            RewardEvent.source_type != SOURCE_ACHIEVEMENT_CLAIM,
+        )
     ).all()
     unique = {str(day) for day in days if day is not None}
     if profile.last_activity_date is not None:
@@ -198,7 +210,10 @@ def _count_active_days(db: Session, user_id: uuid.UUID) -> int:
 
 def _count_active_weeks(db: Session, user_id: uuid.UUID) -> int:
     rows = db.scalars(
-        select(func.date(RewardEvent.created_at)).where(RewardEvent.user_id == user_id)
+        select(func.date(RewardEvent.created_at)).where(
+            RewardEvent.user_id == user_id,
+            RewardEvent.source_type != SOURCE_ACHIEVEMENT_CLAIM,
+        )
     ).all()
     weeks: set[str] = set()
     for row in rows:
@@ -260,12 +275,9 @@ def _is_species_unlocked(
         profile = profile or get_or_create_profile(db, user_id)
         return (
             profile.total_trees_grown >= int(requirement.get("trees_grown", 10))
-            and _count_completed_tasks(db, user_id)
-            >= int(requirement.get("tasks_completed", 250))
-            and _count_focus_sessions(db, user_id)
-            >= int(requirement.get("focus_sessions", 100))
-            and _count_active_weeks(db, user_id)
-            >= int(requirement.get("active_weeks", 12))
+            and _count_completed_tasks(db, user_id) >= int(requirement.get("tasks_completed", 250))
+            and _count_focus_sessions(db, user_id) >= int(requirement.get("focus_sessions", 100))
+            and _count_active_weeks(db, user_id) >= int(requirement.get("active_weeks", 12))
         )
     return False
 
@@ -387,8 +399,7 @@ def get_profile(db: Session, user_id: uuid.UUID) -> GamificationProfileResponse:
 def get_forest(db: Session, user_id: uuid.UUID) -> ForestResponse:
     plant = _growing_plant(db, user_id)
     completed = [
-        _plant_response(item, user_id=user_id, db=db)
-        for item in _completed_plants(db, user_id)
+        _plant_response(item, user_id=user_id, db=db) for item in _completed_plants(db, user_id)
     ]
     profile = get_or_create_profile(db, user_id)
     if plant is None and not completed:
@@ -413,8 +424,7 @@ def get_forest(db: Session, user_id: uuid.UUID) -> ForestResponse:
 
 def get_forest_scene(db: Session, user_id: uuid.UUID) -> ForestSceneResponse:
     trees = [
-        _plant_response(item, user_id=user_id, db=db)
-        for item in _forest_scene_plants(db, user_id)
+        _plant_response(item, user_id=user_id, db=db) for item in _forest_scene_plants(db, user_id)
     ]
     profile = get_or_create_profile(db, user_id)
     if not trees:
@@ -436,13 +446,9 @@ def get_forest_scene(db: Session, user_id: uuid.UUID) -> ForestSceneResponse:
 
 def get_plant_catalog(db: Session, user_id: uuid.UUID) -> PlantCatalogResponse:
     profile = get_or_create_profile(db, user_id)
-    species = list(
-        db.scalars(select(PlantSpecies).order_by(PlantSpecies.sort_order.asc())).all()
-    )
+    species = list(db.scalars(select(PlantSpecies).order_by(PlantSpecies.sort_order.asc())).all())
     return PlantCatalogResponse(
-        plants=[
-            _species_summary(db, user_id, item, profile=profile) for item in species
-        ]
+        plants=[_species_summary(db, user_id, item, profile=profile) for item in species]
     )
 
 
@@ -470,9 +476,7 @@ def select_plant(
         species_id=species.id,
         current_growth_points=transferred_points,
         growth_stage=growth_stage,
-        status=(
-            PlantStatus.COMPLETED.value if plant_completed else PlantStatus.GROWING.value
-        ),
+        status=(PlantStatus.COMPLETED.value if plant_completed else PlantStatus.GROWING.value),
         custom_name=None,
         completed_at=utc_now() if plant_completed else None,
     )
@@ -546,9 +550,7 @@ def place_plant(
         .where(
             UserPlant.id == plant_id,
             UserPlant.user_id == user_id,
-            UserPlant.status.in_(
-                [PlantStatus.GROWING.value, PlantStatus.COMPLETED.value]
-            ),
+            UserPlant.status.in_([PlantStatus.GROWING.value, PlantStatus.COMPLETED.value]),
         )
     )
     if plant is None:
@@ -569,16 +571,52 @@ def place_plant(
     return _plant_response(plant, user_id=user_id, db=db)
 
 
+def _achievement_title_summary(
+    claimed_count: int,
+) -> tuple[list[AchievementTitleTier], AchievementTitleTier, AchievementTitleTier | None]:
+    current_index = 0
+    for index, (_, _, _, requirement) in enumerate(ACHIEVEMENT_TITLE_TIERS):
+        if claimed_count >= requirement:
+            current_index = index
+
+    tiers = [
+        AchievementTitleTier(
+            id=tier_id,
+            name=name,
+            description=description,
+            required_claimed_achievements=requirement,
+            unlocked=claimed_count >= requirement,
+            current=index == current_index,
+        )
+        for index, (tier_id, name, description, requirement) in enumerate(ACHIEVEMENT_TITLE_TIERS)
+    ]
+    return (
+        tiers,
+        tiers[current_index],
+        tiers[current_index + 1] if current_index + 1 < len(tiers) else None,
+    )
+
+
 def get_achievements(db: Session, user_id: uuid.UUID) -> AchievementsResponse:
     items = _achievement_progress(db, user_id)
     grouped: dict[str, list[AchievementProgress]] = {}
     for item in items:
         grouped.setdefault(item.category, []).append(item)
+
+    category_totals = dict(
+        db.execute(
+            select(Achievement.category, func.count(Achievement.id)).group_by(Achievement.category)
+        ).all()
+    )
     categories = [
         AchievementCategoryGroup(
             id=category_id,
             label=ACHIEVEMENT_CATEGORY_LABELS.get(category_id, category_id.title()),
-            achievements=grouped[category_id],
+            achievements=grouped.get(category_id, []),
+            hidden_achievement_count=max(
+                int(category_totals.get(category_id, 0)) - len(grouped.get(category_id, [])),
+                0,
+            ),
         )
         for category_id in (
             "getting_started",
@@ -587,9 +625,29 @@ def get_achievements(db: Session, user_id: uuid.UUID) -> AchievementsResponse:
             "consistency",
             "forest",
         )
-        if category_id in grouped
+        if category_id in category_totals
     ]
-    return AchievementsResponse(achievements=items, categories=categories)
+    claimed_count = int(
+        db.scalar(
+            select(func.count())
+            .select_from(UserAchievement)
+            .where(
+                UserAchievement.user_id == user_id,
+                UserAchievement.claimed_at.is_not(None),
+            )
+        )
+        or 0
+    )
+    title_tiers, current_title, next_title = _achievement_title_summary(claimed_count)
+    return AchievementsResponse(
+        achievements=items,
+        categories=categories,
+        claimed_count=claimed_count,
+        total_achievement_count=sum(int(value) for value in category_totals.values()),
+        current_title=current_title,
+        next_title=next_title,
+        title_tiers=title_tiers,
+    )
 
 
 def get_dashboard_widget(db: Session, user_id: uuid.UUID) -> DashboardForestWidget:
@@ -736,7 +794,9 @@ def _metric_value(db: Session, user_id: uuid.UUID, requirement_type: str) -> int
         return profile.total_trees_grown
     if requirement_type == "species_unlocked":
         species = list(db.scalars(select(PlantSpecies)).all())
-        return sum(1 for item in species if _is_species_unlocked(db, user_id, item, profile=profile))
+        return sum(
+            1 for item in species if _is_species_unlocked(db, user_id, item, profile=profile)
+        )
     if requirement_type == "first_task":
         return 1 if _count_completed_tasks(db, user_id) >= 1 else 0
     if requirement_type == "first_focus":
@@ -754,23 +814,40 @@ def _achievement_progress(db: Session, user_id: uuid.UUID) -> list[AchievementPr
             select(UserAchievement).where(UserAchievement.user_id == user_id)
         ).all()
     }
+    first_unclaimed_by_category: dict[str, str] = {}
+    for item in achievements:
+        category = getattr(item, "category", None) or "getting_started"
+        row = unlocked_rows.get(item.id)
+        if (row is None or row.claimed_at is None) and category not in first_unclaimed_by_category:
+            first_unclaimed_by_category[category] = item.id
+
     result: list[AchievementProgress] = []
     for item in achievements:
         unlocked = unlocked_rows.get(item.id)
+        category = getattr(item, "category", None) or "getting_started"
+        claimed = unlocked is not None and unlocked.claimed_at is not None
+        if not claimed and first_unclaimed_by_category.get(category) != item.id:
+            continue
         progress_value = _metric_value(db, user_id, item.requirement_type)
         if item.requirement_type in {"first_task", "first_focus"}:
             requirement_value = 1
         else:
             requirement_value = item.requirement_value
+        completed = unlocked is not None or progress_value >= requirement_value
         result.append(
             AchievementProgress(
                 id=item.id,
                 name=item.name,
                 description=item.description,
                 icon=item.icon,
-                category=getattr(item, "category", None) or "getting_started",
+                category=category,
                 unlocked=unlocked is not None,
                 unlocked_at=unlocked.unlocked_at if unlocked else None,
+                completed=completed,
+                claimed=claimed,
+                claimable=completed and not claimed,
+                claimed_at=unlocked.claimed_at if unlocked else None,
+                reward_growth_points=item.reward_growth_points,
                 progress_value=min(progress_value, requirement_value)
                 if unlocked is None
                 else requirement_value,
@@ -807,12 +884,132 @@ def _evaluate_achievements(
                 category=item.category,
                 unlocked=True,
                 unlocked_at=utc_now(),
+                completed=True,
+                claimed=False,
+                claimable=True,
+                reward_growth_points=item.reward_growth_points,
                 progress_value=item.requirement_value,
                 requirement_value=item.requirement_value,
                 requirement_type=item.requirement_type,
             )
         )
     return newly
+
+
+def claim_achievement(
+    db: Session,
+    user_id: uuid.UUID,
+    achievement_id: str,
+) -> AchievementClaimResponse:
+    achievement = db.get(Achievement, achievement_id)
+    if achievement is None:
+        raise LookupError("Achievement not found")
+
+    profile = _profile_for_update(db, user_id)
+    # Backfill a completed row from historical metrics before attempting the claim.
+    _evaluate_achievements(db, user_id)
+    user_achievement = db.scalar(
+        select(UserAchievement)
+        .where(
+            UserAchievement.user_id == user_id,
+            UserAchievement.achievement_id == achievement_id,
+        )
+        .with_for_update()
+    )
+    if user_achievement is None:
+        raise ValueError("Complete this achievement before claiming its reward")
+
+    earlier_ids = list(
+        db.scalars(
+            select(Achievement.id).where(
+                Achievement.category == achievement.category,
+                Achievement.sort_order < achievement.sort_order,
+            )
+        ).all()
+    )
+    if earlier_ids:
+        claimed_earlier = int(
+            db.scalar(
+                select(func.count())
+                .select_from(UserAchievement)
+                .where(
+                    UserAchievement.user_id == user_id,
+                    UserAchievement.achievement_id.in_(earlier_ids),
+                    UserAchievement.claimed_at.is_not(None),
+                )
+            )
+            or 0
+        )
+        if claimed_earlier != len(earlier_ids):
+            raise PermissionError("Claim the previous achievement in this category first")
+
+    awarded = False
+    points = 0
+    stage_changed = False
+    previous_stage = None
+    new_stage = None
+    plant_completed = False
+    plant: UserPlant | None = None
+    if user_achievement.claimed_at is None:
+        points = max(achievement.reward_growth_points, 0)
+        event = _record_reward(
+            db,
+            user_id,
+            source_type=SOURCE_ACHIEVEMENT_CLAIM,
+            source_id=achievement.id,
+            growth_points=points,
+            metadata={"achievement_name": achievement.name},
+        )
+        if event is not None:
+            awarded = True
+            plant, stage_changed, previous_stage, new_stage, plant_completed = (
+                _apply_points_to_plant(db, user_id, profile, points)
+            )
+        user_achievement.claimed_at = utc_now()
+        db.flush()
+        _evaluate_achievements(db, user_id)
+        db.commit()
+
+    achievement_data = get_achievements(db, user_id)
+    claimed_item = next(item for item in achievement_data.achievements if item.id == achievement_id)
+    next_item = next(
+        (
+            item
+            for item in achievement_data.achievements
+            if item.category == achievement.category and not item.claimed
+        ),
+        None,
+    )
+
+    plant_name = _display_name(plant) if plant is not None else None
+    if not awarded:
+        plant_message = None
+    elif plant is None:
+        plant_message = f"{points} Growth Points saved until you choose a plant"
+    elif plant_completed:
+        plant_message = SUPPORTIVE_MESSAGES["stage_mature"].format(name=plant_name)
+    elif stage_changed:
+        plant_message = SUPPORTIVE_MESSAGES["stage_up"].format(name=plant_name)
+    else:
+        plant_message = f"Your {plant_name} grew from this achievement"
+
+    reward = RewardFeedback(
+        awarded=awarded,
+        growth_points=points if awarded else 0,
+        message=f"Achievement claimed · +{points} Growth Points" if awarded else None,
+        plant_message=plant_message,
+        stage_changed=stage_changed,
+        previous_stage=previous_stage,
+        new_stage=new_stage,
+        plant_completed=plant_completed,
+        profile=_profile_response(db, user_id),
+    )
+    return AchievementClaimResponse(
+        achievement=claimed_item,
+        next_achievement=next_item,
+        reward=reward,
+        achievements=achievement_data,
+    )
 
 
 def _maybe_daily_clear_bonus(db: Session, user_id: uuid.UUID) -> int:
