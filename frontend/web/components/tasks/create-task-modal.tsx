@@ -989,12 +989,11 @@ function TaskFormModal({
                 {onDelete ? 'Delete' : 'Cancel'}
               </button>
               <button
-                className="flex h-12 items-center gap-3 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-6 text-base font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
+                className="flex h-12 items-center rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-6 text-base font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
                 disabled={isSubmitting}
                 type="submit"
               >
                 {isSubmitting ? submittingLabel : submitLabel}
-                <span className="rounded bg-[#04110d]/15 px-1.5 py-0.5 text-sm">⌘↵</span>
               </button>
             </div>
           ) : null}

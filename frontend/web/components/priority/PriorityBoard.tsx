@@ -16,7 +16,6 @@ import { CreateTaskModal, type TaskPriorityLabel } from '../tasks/create-task-mo
 import { PriorityColumn } from './PriorityColumn';
 import { PrioritySummaryGrid } from './PrioritySummaryGrid';
 import { PriorityTaskPreview } from './PriorityTaskPreview';
-import { PriorityTipBar } from './PriorityTipBar';
 import type { PriorityColumnData, PriorityLevel, PriorityTask } from './priority.types';
 
 const columnMeta: Array<Omit<PriorityColumnData, 'tasks'>> = [
@@ -325,8 +324,6 @@ export function PriorityBoard() {
           ))}
         </section>
       )}
-
-      <PriorityTipBar />
 
       {isModalOpen ? (
         <CreateTaskModal
