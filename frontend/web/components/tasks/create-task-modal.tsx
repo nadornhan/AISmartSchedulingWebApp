@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useRef, useState } from 'react';
 import { ArrowDown, Sparkles } from 'lucide-react';
 
 import { ApiError } from '../../lib/api';
+import { VoiceTaskButton } from './voice-task-button';
 import { PrioritySuggestion } from './priority-suggestion';
 import {
   DURATION_PRESETS_MINUTES,
@@ -449,6 +450,45 @@ function TaskFormModal({
         }}
         onSubmit={submit}
       >
+        <div className="flex items-start justify-between gap-6">
+          <div className="min-w-0 flex-1">
+            <div className="grid grid-cols-[minmax(0,max-content)_44px_minmax(0,1fr)] items-center gap-x-3 gap-y-3">
+            <h2
+              className="text-2xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text"
+              id="task-form-title"
+            >
+              {title}
+            </h2>
+            {enableNaturalLanguage ? (
+              <VoiceTaskButton
+                disabled={isSubmitting || isQuickCreating}
+                onTranscript={(text) => {
+                  setNaturalLanguageInput((current) => [current.trim(), text].filter(Boolean).join(' '));
+                  setParseFeedback(null);
+                }}
+              />
+            ) : null}
+            </div>
+            <p className="mt-1 text-sm text-dashboard-muted">{description}</p>
+          </div>
+          <button
+            aria-label="Close task dialog"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-text"
+            onClick={onClose}
+            type="button"
+          >
+            <CloseIcon className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="mt-7 space-y-5">
+          {enableNaturalLanguage ? (
+            <section className="rounded-[var(--radius-md)] border border-dashboard-accent/30 bg-dashboard-accent-soft/40 p-4">
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold text-dashboard-text">Smart task entry</h3>
+                <p className="mt-1 text-xs leading-5 text-dashboard-muted">
+                  Write naturally and CHRONO will create the task immediately.
+                </p>
         <fieldset disabled={durationBusy} className="contents">
           {isAiOnlyView ? (
             <div className="relative flex h-10 items-center justify-center">
