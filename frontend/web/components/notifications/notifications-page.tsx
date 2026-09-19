@@ -224,7 +224,7 @@ export function NotificationsPage() {
             return (
               <button
                 className={`grid min-h-[96px] w-full grid-cols-[6px_50px_minmax(0,1fr)_28px] items-start gap-2 px-3.5 py-4 text-left transition hover:bg-dashboard-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-dashboard-accent ${
-                  notification.is_read ? 'bg-transparent' : 'bg-[#091a27]'
+                  notification.is_read ? 'bg-transparent' : 'bg-dashboard-accent-soft'
                 }`}
                 key={notification.id}
                 onClick={() => void openNotification(notification)}

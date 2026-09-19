@@ -15,6 +15,7 @@ import {
 import { NotificationSettings, type NotificationSettingsValue } from './notification-settings';
 import { SchedulingWeights, type SchedulingWeightsValue } from './scheduling-weights';
 import { WorkPreferences, type WorkPreferencesValue } from './work-preferences';
+import { AppearanceSettings } from './appearance-settings';
 
 export function SettingsPage() {
   const { error, user } = useCurrentUser();
@@ -157,6 +158,7 @@ export function SettingsPage() {
       ) : null}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
         <div className="grid min-w-0 gap-6">
+          <AppearanceSettings />
           {isLoadingSettings || (!settingsLoaded && !settingsError) ? (
             <div
               className="rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 p-5 text-sm text-dashboard-muted shadow-panel"

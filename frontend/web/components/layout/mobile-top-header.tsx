@@ -22,13 +22,9 @@ export function MobileTopHeader({
   const hideSearch = isCalendarPage || isNotificationsPage || isFocusPage || isProfilePage;
 
   return (
-    <header className="relative z-[180] border-b border-dashboard-border bg-[#04111a]/95 px-6 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))] backdrop-blur-xl lg:hidden">
+    <header className="relative z-[180] border-b border-dashboard-border bg-[var(--bg-sidebar)]/95 px-6 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))] backdrop-blur-xl lg:hidden">
       <div className="mx-auto max-w-lg">
-        <div
-          className={`flex items-center justify-between gap-5 ${
-            hideSearch ? '' : 'mb-6'
-          }`}
-        >
+        <div className={`flex items-center justify-between gap-5 ${hideSearch ? '' : 'mb-6'}`}>
           {showPageTitle ? (
             <h1 className="font-poppins text-2xl font-semibold text-dashboard-text">
               {isTaskPage
@@ -57,9 +53,7 @@ export function MobileTopHeader({
           <HeaderActions compact user={user} />
         </div>
 
-        {!hideSearch ? (
-          <SearchBox compact showFilterButton={isTaskPage} />
-        ) : null}
+        {!hideSearch ? <SearchBox compact showFilterButton={isTaskPage} /> : null}
       </div>
     </header>
   );

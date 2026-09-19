@@ -78,7 +78,7 @@ export function PriorityColumn({
           ))}
         </div>
         <button
-          className="mx-auto mt-4 flex items-center gap-2 rounded-lg px-4 py-2.5 text-base font-medium transition hover:bg-white/5"
+          className="mx-auto mt-4 flex items-center gap-2 rounded-lg px-4 py-2.5 text-base font-medium transition hover:bg-dashboard-surface"
           onClick={() => onAddTask(column.id)}
           style={{ color: column.accent }}
           type="button"

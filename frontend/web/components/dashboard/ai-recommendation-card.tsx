@@ -47,7 +47,7 @@ export function AiRecommendationCard({
   }
 
   return (
-    <section className="relative overflow-hidden rounded-[var(--radius-md)] border border-dashboard-accent/25 bg-[linear-gradient(135deg,rgba(53,227,181,0.09),rgba(10,21,30,0.78)_45%)] p-5 shadow-panel sm:p-6">
+    <section className="relative overflow-hidden rounded-[var(--radius-md)] border border-dashboard-accent/25 bg-dashboard-surface p-5 shadow-panel sm:p-6">
       <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-dashboard-accent/10 blur-3xl" />
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>

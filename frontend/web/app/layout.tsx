@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Figtree, Poppins } from 'next/font/google';
+import { UiPreferencesProvider } from '../components/layout/ui-preferences-provider';
 import './globals.css';
 
 const figtree = Figtree({
@@ -39,7 +40,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${figtree.variable} ${poppins.variable}`}>
-        {children}
+        <UiPreferencesProvider>{children}</UiPreferencesProvider>
       </body>
     </html>
   );

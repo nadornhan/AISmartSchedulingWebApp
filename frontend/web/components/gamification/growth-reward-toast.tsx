@@ -64,7 +64,7 @@ export function GrowthRewardToast() {
       {toasts.map((toast) => (
         <button
           aria-label={`Dismiss ${toast.title} notification`}
-          className="pointer-events-auto w-full cursor-pointer rounded-xl border border-dashboard-accent/40 bg-[#071923]/95 p-4 text-left shadow-panel backdrop-blur-md transition hover:border-dashboard-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dashboard-accent"
+          className="pointer-events-auto w-full cursor-pointer rounded-xl border border-dashboard-accent/40 bg-dashboard-raised/95 p-4 text-left shadow-panel backdrop-blur-md transition hover:border-dashboard-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dashboard-accent"
           key={toast.id}
           onClick={() => dismissToast(toast.id)}
           type="button"

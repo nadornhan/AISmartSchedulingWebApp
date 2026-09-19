@@ -254,7 +254,6 @@ function TaskFormModal({
   const [subtasks, setSubtasks] = useState<TaskFormSubtask[]>(initialValues.subtasks);
   const [subtaskDraft, setSubtaskDraft] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [notesValue, setNotesValue] = useState(initialValues.description);
   const [savedDuration, setSavedDuration] = useState(initialDuration);
   const [durationBusy, setDurationBusy] = useState(false);
   const [durationPending, setDurationPending] = useState(false);
@@ -266,7 +265,7 @@ function TaskFormModal({
         : null;
   const hasUnsavedChanges =
     titleValue !== initialValues.title ||
-    notesValue !== initialValues.description ||
+    descriptionValue !== initialValues.description ||
     projectId !== initialValues.projectId ||
     priority !== initialValues.priority ||
     dueDateValue !== initialValues.dueDate ||
@@ -450,45 +449,6 @@ function TaskFormModal({
         }}
         onSubmit={submit}
       >
-        <div className="flex items-start justify-between gap-6">
-          <div className="min-w-0 flex-1">
-            <div className="grid grid-cols-[minmax(0,max-content)_44px_minmax(0,1fr)] items-center gap-x-3 gap-y-3">
-            <h2
-              className="text-2xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text"
-              id="task-form-title"
-            >
-              {title}
-            </h2>
-            {enableNaturalLanguage ? (
-              <VoiceTaskButton
-                disabled={isSubmitting || isQuickCreating}
-                onTranscript={(text) => {
-                  setNaturalLanguageInput((current) => [current.trim(), text].filter(Boolean).join(' '));
-                  setParseFeedback(null);
-                }}
-              />
-            ) : null}
-            </div>
-            <p className="mt-1 text-sm text-dashboard-muted">{description}</p>
-          </div>
-          <button
-            aria-label="Close task dialog"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-text"
-            onClick={onClose}
-            type="button"
-          >
-            <CloseIcon className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="mt-7 space-y-5">
-          {enableNaturalLanguage ? (
-            <section className="rounded-[var(--radius-md)] border border-dashboard-accent/30 bg-dashboard-accent-soft/40 p-4">
-              <div className="mb-3">
-                <h3 className="text-sm font-semibold text-dashboard-text">Smart task entry</h3>
-                <p className="mt-1 text-xs leading-5 text-dashboard-muted">
-                  Write naturally and CHRONO will create the task immediately.
-                </p>
         <fieldset disabled={durationBusy} className="contents">
           {isAiOnlyView ? (
             <div className="relative flex h-10 items-center justify-center">
@@ -749,7 +709,25 @@ function TaskFormModal({
                 </details>
               </div>
 
-              <Field label="Priority">
+              <div aria-labelledby="task-priority-label" role="group">
+                <div className="mb-2 flex flex-wrap items-center gap-3">
+                  <span
+                    className="text-base font-medium text-dashboard-text"
+                    id="task-priority-label"
+                  >
+                    Priority
+                  </span>
+                  <PrioritySuggestion
+                    disabled={isSubmitting}
+                    dueDate={dueDateValue}
+                    dueTime={dueTimeValue}
+                    duration={selectedMinutes}
+                    onChoose={(value) => setPriority(priorityFromApi[value])}
+                    priority={priorityToApi[priority]}
+                    taskDescription={descriptionValue}
+                    title={titleValue}
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {(['No priority', 'Low', 'Medium', 'High'] as TaskPriorityLabel[]).map(
                     (option) => (
@@ -776,28 +754,9 @@ function TaskFormModal({
                         {option}
                       </button>
                     ),
-          <div role="group" aria-labelledby="task-priority-label">
-            <div className="mb-2 flex flex-wrap items-center gap-3">
-              <span id="task-priority-label" className="text-sm font-medium text-dashboard-text">Priority</span>
-              <PrioritySuggestion
-                title={titleValue} taskDescription={descriptionValue} dueDate={dueDateValue} dueTime={dueTimeValue}
-                duration={durationOption === 'custom' ? (Number(customDuration) > 0 ? Number(customDuration) : null) : (Number(durationOption) || null)}
-                priority={priorityToApi[priority]}
-                onChoose={(value) => setPriority(priorityFromApi[value])}
-                disabled={isSubmitting}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {(['No priority', 'Low', 'Medium', 'High'] as TaskPriorityLabel[]).map((option) => (
-                <button
-                  className={cn(
-                    'flex h-12 items-center justify-center gap-2 rounded-[var(--radius-sm)] border text-base transition',
-                    priority === option
-                      ? 'border-dashboard-accent bg-dashboard-accent-soft text-dashboard-text'
-                      : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted hover:border-dashboard-border-strong',
                   )}
                 </div>
-              </Field>
+              </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field label="Due Date" optional>
@@ -823,36 +782,6 @@ function TaskFormModal({
                   />
                 </Field>
               </div>
-                  {option}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Due Date" optional>
-              <label className="relative block">
-                <CalendarIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-dashboard-muted" />
-                <input
-                  className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] pl-12 pr-4 text-base text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
-                  name="dueDate"
-                  onChange={(event) => setDueDateValue(event.target.value)}
-                  type="date"
-                  value={dueDateValue}
-                />
-              </label>
-            </Field>
-
-            <Field label="Time" optional>
-              <input
-                className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-base text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
-                name="dueTime"
-                onChange={(event) => setDueTimeValue(event.target.value)}
-                type="time"
-                value={dueTimeValue}
-              />
-            </Field>
-          </div>
 
               <Field label="Estimated Duration" optional>
                 <div className="flex flex-wrap gap-2">
@@ -931,10 +860,10 @@ function TaskFormModal({
               <Field label="Notes / Description" optional>
                 <textarea
                   className="min-h-28 w-full resize-y rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 py-4 text-base text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
-                  value={notesValue}
-                  onChange={(event) => setNotesValue(event.target.value)}
                   name="description"
+                  onChange={(event) => setDescriptionValue(event.target.value)}
                   placeholder="Add any notes or details..."
+                  value={descriptionValue}
                 />
               </Field>
 
@@ -948,41 +877,6 @@ function TaskFormModal({
                     done
                   </span>
                 </div>
-            </div>
-            {durationOption === 'custom' ? (
-              <input
-                className="mt-3 h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-base text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
-                inputMode="numeric"
-                min={1}
-                onChange={(event) => setCustomDuration(event.target.value)}
-                pattern="[1-9][0-9]*"
-                placeholder="Minutes"
-                type="number"
-                value={customDuration}
-              />
-            ) : null}
-          </Field>
-
-          <Field label="Notes / Description" optional>
-            <textarea
-              className="min-h-24 w-full resize-y rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 py-3 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
-              value={descriptionValue}
-              onChange={(event) => setDescriptionValue(event.target.value)}
-              name="description"
-              placeholder="Add any notes or details..."
-            />
-          </Field>
-
-          <div>
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-base font-medium text-dashboard-text">
-                Subtasks{' '}
-                <span className="font-normal text-dashboard-muted">(optional)</span>
-              </span>
-              <span className="text-sm text-dashboard-muted">
-                {subtasks.filter((subtask) => subtask.isCompleted).length}/{subtasks.length} done
-              </span>
-            </div>
 
                 <div className="space-y-2">
                   {subtasks.map((subtask, index) => (

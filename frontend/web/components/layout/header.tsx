@@ -284,7 +284,7 @@ export function HeaderActions({
           compact ? (
             <span
               aria-label={`${notifications.unread_count} unread notifications`}
-              className="absolute bottom-2 left-2 h-2.5 w-2.5 rounded-full border-2 border-[#04111a] bg-[var(--orange)]"
+              className="absolute bottom-2 left-2 h-2.5 w-2.5 rounded-full border-2 border-[var(--bg-sidebar)] bg-[var(--orange)]"
             />
           ) : (
             <span className="absolute right-1.5 top-1.5 min-w-5 rounded-full bg-dashboard-danger px-1.5 text-center text-xs font-semibold leading-5 text-white">

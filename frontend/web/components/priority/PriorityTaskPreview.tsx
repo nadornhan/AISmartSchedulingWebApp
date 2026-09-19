@@ -66,7 +66,7 @@ export function PriorityTaskPreview({ task, onClose }: Props) {
     >
       <section
         aria-labelledby="priority-task-preview-title"
-        className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-dashboard-border bg-[#07141e] p-6 shadow-panel"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-dashboard-border bg-dashboard-raised p-6 shadow-panel"
       >
         <header className="flex items-start gap-4">
           <div className="min-w-0 flex-1">
@@ -82,7 +82,7 @@ export function PriorityTaskPreview({ task, onClose }: Props) {
           </div>
           <button
             aria-label="Close task preview"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-2xl text-dashboard-muted transition hover:bg-white/5 hover:text-dashboard-text"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-2xl text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-text"
             onClick={onClose}
             type="button"
           >
