@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: dark;
+
   /* Canonical tokens from frontend/Theme.md. */
   --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
@@ -67,6 +69,14 @@
   --yellow: #ffc229;
   --yellow-soft: rgba(255, 194, 41, 0.13);
   --progress-track: #1b2932;
+  --achievement-gold: #d4a017;
+  --achievement-gold-text: #f0d37a;
+  --achievement-gold-soft: rgba(212, 160, 23, 0.12);
+  --achievement-gold-border: rgba(212, 160, 23, 0.35);
+  --achievement-blue: #3b82f6;
+  --achievement-blue-text: #93c5fd;
+  --achievement-blue-soft: rgba(59, 130, 246, 0.12);
+  --achievement-blue-border: rgba(59, 130, 246, 0.35);
 
   --tracking-heading: -0.025em;
   --tracking-body: -0.01em;
@@ -120,6 +130,53 @@
   --dashboard-info-rgb: 78 142 255;
 }
 
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-page: #f3f8f6;
+  --bg-sidebar: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-surface-raised: #edf4f1;
+  --bg-surface-hover: #e5efeb;
+  --bg-input: #f9fcfb;
+
+  --border-subtle: #dce8e3;
+  --border-default: #d2e0da;
+  --border-strong: #b8cbc3;
+  --border-active: rgba(15, 164, 125, 0.35);
+
+  --text-primary: #13231d;
+  --text-secondary: #3f574d;
+  --text-muted: #586f65;
+  --text-placeholder: #5f756b;
+  --text-disabled: #a2aea9;
+
+  --accent: #08795c;
+  --accent-hover: #066b51;
+  --accent-pressed: #055b45;
+  --accent-dark: #044b39;
+  --accent-soft: rgba(8, 121, 92, 0.12);
+  --accent-border: rgba(8, 121, 92, 0.34);
+  --progress-track: #dce8e3;
+  --achievement-gold: #9a6a00;
+  --achievement-gold-text: #6f4d00;
+  --achievement-gold-soft: rgba(154, 106, 0, 0.12);
+  --achievement-gold-border: rgba(154, 106, 0, 0.34);
+  --achievement-blue: #2467b2;
+  --achievement-blue-text: #174d8a;
+  --achievement-blue-soft: rgba(36, 103, 178, 0.12);
+  --achievement-blue-border: rgba(36, 103, 178, 0.34);
+
+  --dashboard-bg-rgb: 243 248 246;
+  --dashboard-surface-rgb: 255 255 255;
+  --dashboard-surface-raised-rgb: 237 244 241;
+  --dashboard-text-rgb: 19 35 29;
+  --dashboard-muted-rgb: 63 87 77;
+  --dashboard-subtle-rgb: 88 111 101;
+  --dashboard-accent-rgb: 8 121 92;
+  --dashboard-accent-strong-rgb: 5 91 69;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -140,6 +197,17 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-family: var(--font-geist), sans-serif;
+}
+
+:root[data-theme='light'] body {
+  background:
+    radial-gradient(circle at 65% 15%, rgba(15, 164, 125, 0.08), transparent 34%), var(--bg-page);
+}
+
+:root[data-theme='light'] input,
+:root[data-theme='light'] select,
+:root[data-theme='light'] textarea {
+  color-scheme: light !important;
 }
 
 a {
@@ -170,6 +238,10 @@ button {
   --chrono-autofill-color: var(--dashboard-text);
   --chrono-autofill-border: transparent;
   --chrono-autofill-focus-border: transparent;
+}
+
+:root[data-theme='light'] .chrono-autofill-search {
+  --chrono-autofill-bg: #f9fcfb;
 }
 
 .chrono-autofill:autofill,
@@ -230,6 +302,12 @@ button {
     radial-gradient(circle at center, rgba(18, 209, 162, 0.13), transparent 44%),
     rgba(7, 19, 29, 0.72);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+:root[data-theme='light'] .focus-mode-panel {
+  background:
+    radial-gradient(circle at center, rgba(15, 164, 125, 0.11), transparent 44%),
+    rgba(255, 255, 255, 0.78);
 }
 
 .focus-timer-stage {
@@ -301,7 +379,9 @@ button {
   color: var(--dashboard-accent);
   font-size: 14px;
   font-weight: 600;
-  transition: background-color 160ms ease, border-color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
 }
 
 .focus-reset-action:hover:not(:disabled) {

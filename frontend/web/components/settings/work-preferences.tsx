@@ -27,8 +27,8 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
       title="Work Preferences"
       description="Default planning windows used by the scheduling flow."
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <label className="grid gap-2 text-sm font-medium text-dashboard-text">
+      <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <label className="grid min-w-0 gap-2 text-sm font-medium text-dashboard-text">
           Work start
           <input
             className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
@@ -38,7 +38,7 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
             value={value.workStart}
           />
         </label>
-        <label className="grid gap-2 text-sm font-medium text-dashboard-text">
+        <label className="grid min-w-0 gap-2 text-sm font-medium text-dashboard-text">
           Work end
           <input
             className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
@@ -48,7 +48,7 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
             value={value.workEnd}
           />
         </label>
-        <label className="grid gap-2 text-sm font-medium text-dashboard-text">
+        <label className="grid min-w-0 gap-2 text-sm font-medium text-dashboard-text xl:col-span-2">
           Daily scheduling limit
           <div className="relative">
             <input
@@ -74,7 +74,7 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
             Maximum task time the scheduler may place in one day.
           </span>
         </label>
-        <label className="grid gap-2 text-sm font-medium text-dashboard-text">
+        <label className="grid min-w-0 gap-2 text-sm font-medium text-dashboard-text">
           Pomodoro
           <select
             className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-text outline-none focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
@@ -89,13 +89,14 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
             ))}
           </select>
         </label>
-        <label className="grid gap-2 text-sm font-medium text-dashboard-text">
+        <label className="grid min-w-0 gap-2 text-sm font-medium text-dashboard-text xl:col-span-2">
           Timezone
-          <input
-            className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
-            disabled
-            value={value.timezone}
-          />
+          <span
+            className="flex h-[var(--input-height-desktop)] min-w-0 items-center overflow-hidden rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-raised px-4 text-sm font-medium text-dashboard-text"
+            title={value.timezone}
+          >
+            <span className="truncate">{value.timezone}</span>
+          </span>
         </label>
       </div>
     </SettingsSection>

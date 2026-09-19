@@ -101,7 +101,7 @@ export function CreateFolderModal({
       role="dialog"
     >
       <form
-        className="w-full max-w-[570px] rounded-2xl border border-dashboard-accent/25 bg-[#07141e] p-7 text-dashboard-text shadow-[0_30px_100px_rgba(0,0,0,0.65),0_0_50px_rgba(34,240,177,0.08)] sm:p-8"
+        className="w-full max-w-[570px] rounded-2xl border border-dashboard-accent/25 bg-dashboard-raised p-7 text-dashboard-text shadow-panel sm:p-8"
         onSubmit={handleSubmit}
       >
         <header className="flex items-start gap-4">
@@ -153,7 +153,7 @@ export function CreateFolderModal({
                 <button
                   aria-label={`Select folder color ${option}`}
                   aria-pressed={selected}
-                  className={`grid h-10 w-10 place-items-center rounded-full text-white transition hover:scale-105 ${selected ? 'ring-2 ring-dashboard-accent ring-offset-4 ring-offset-[#07141e]' : ''}`}
+                  className={`grid h-10 w-10 place-items-center rounded-full text-white transition hover:scale-105 ${selected ? 'ring-2 ring-dashboard-accent ring-offset-4 ring-offset-[var(--bg-surface-raised)]' : ''}`}
                   disabled={isSubmitting}
                   key={option}
                   onClick={() => setColor(option)}

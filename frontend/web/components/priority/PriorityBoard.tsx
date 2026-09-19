@@ -50,7 +50,7 @@ const columnMeta: Array<Omit<PriorityColumnData, 'tasks'>> = [
     description: 'Unprioritized',
     accent: '#9ca3af',
     accentRgb: '156 163 175',
-    flagColor: 'text-gray-400',
+    flagColor: 'text-dashboard-muted',
   },
 ];
 
@@ -217,9 +217,7 @@ export function PriorityBoard() {
       setIsModalOpen(false);
       await refreshTasks();
     } catch (requestError) {
-      throw requestError instanceof Error
-        ? requestError
-        : new Error('Unable to create task.');
+      throw requestError instanceof Error ? requestError : new Error('Unable to create task.');
     } finally {
       setIsMutating(false);
     }
@@ -252,9 +250,7 @@ export function PriorityBoard() {
   }
 
   async function moveTask(taskId: string, targetPriority: PriorityLevel) {
-    const sourceColumn = columns.find((column) =>
-      column.tasks.some((task) => task.id === taskId),
-    );
+    const sourceColumn = columns.find((column) => column.tasks.some((task) => task.id === taskId));
     const task = sourceColumn?.tasks.find((item) => item.id === taskId);
 
     stopDragging();
@@ -282,9 +278,7 @@ export function PriorityBoard() {
       suppressNextTaskRefresh.current = false;
       setColumns(previousColumns);
       setError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Unable to update task priority.',
+        requestError instanceof Error ? requestError.message : 'Unable to update task priority.',
       );
     } finally {
       setMovingTaskId(null);

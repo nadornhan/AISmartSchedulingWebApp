@@ -273,7 +273,7 @@ function StatusDropdown({
       {isOpen ? (
         <div
           aria-label={`Choose status for ${taskTitle}`}
-          className="absolute left-0 top-full z-50 mt-2 grid min-w-40 gap-1.5 rounded-xl border border-dashboard-border bg-[#071923] p-2 shadow-panel"
+          className="absolute left-0 top-full z-50 mt-2 grid min-w-40 gap-1.5 rounded-xl border border-dashboard-border bg-dashboard-raised p-2 shadow-panel"
           role="menu"
         >
           {statuses.map((status) => (
@@ -926,7 +926,7 @@ export function TaskPage() {
                 'h-10 shrink-0 rounded-[var(--radius-sm)] border px-5 text-sm font-medium transition',
                 activeFilter === filter
                   ? 'border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent'
-                  : 'border-transparent bg-[#0b1828] text-dashboard-muted',
+                  : 'border-transparent bg-dashboard-raised text-dashboard-muted',
               )}
               key={filter}
               onClick={() => {
@@ -951,7 +951,7 @@ export function TaskPage() {
           }}
           role="dialog"
         >
-          <section className="mx-auto max-h-[calc(100dvh-8rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-dashboard-border-strong bg-[#07151f] p-5 shadow-[0_24px_70px_rgba(0,0,0,.65)]">
+          <section className="mx-auto max-h-[calc(100dvh-8rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-dashboard-border-strong bg-dashboard-raised p-5 shadow-panel">
             <header className="flex items-center justify-between gap-4 border-b border-dashboard-border pb-4">
               <div>
                 <h2
@@ -1222,7 +1222,7 @@ export function TaskPage() {
                   </span>
                 </div>
 
-                <div className="divide-y divide-dashboard-border rounded-[var(--radius-lg)] border border-dashboard-border bg-[#071522] shadow-panel">
+                <div className="divide-y divide-dashboard-border rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface shadow-panel">
                   {groupTasks.map((task) => {
                     const completed = task.workflowStatus === 'Done';
                     return (
@@ -1458,7 +1458,7 @@ export function TaskPage() {
                   {menuTaskId === task.id ? (
                     <div
                       className={cn(
-                        'absolute right-0 z-40 min-w-44 rounded-xl border border-dashboard-border bg-[#071923] p-2 shadow-panel',
+                        'absolute right-0 z-40 min-w-44 rounded-xl border border-dashboard-border bg-dashboard-raised p-2 shadow-panel',
                         taskIndex >= visibleTasks.length - 2 ? 'bottom-11' : 'top-11',
                       )}
                     >

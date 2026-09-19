@@ -40,16 +40,16 @@ function AchievementCard({ item, claiming, onClaim }: {
     : 0;
   const chrome = {
     claimed: {
-      card: 'border-[#d4a017]/35 bg-[linear-gradient(160deg,rgba(212,160,23,0.12),rgba(15,30,38,0.55))]',
-      badge: 'bg-[#d4a017]/20 text-[#f0d37a]', bar: 'bg-[#d4a017]', label: 'Claimed',
+      card: 'border-[var(--achievement-gold-border)] bg-[var(--achievement-gold-soft)]',
+      badge: 'bg-[var(--achievement-gold-soft)] text-[var(--achievement-gold-text)]', bar: 'bg-[var(--achievement-gold)]', label: 'Claimed',
     },
     claimable: {
-      card: 'border-dashboard-accent/60 bg-[linear-gradient(160deg,rgba(45,212,191,0.18),rgba(15,30,38,0.62))] ring-1 ring-dashboard-accent/20',
+      card: 'border-dashboard-accent/60 bg-dashboard-accent-soft ring-1 ring-dashboard-accent/20',
       badge: 'bg-dashboard-accent/20 text-dashboard-accent', bar: 'bg-dashboard-accent', label: 'Ready',
     },
     in_progress: {
-      card: 'border-[#3b82f6]/35 bg-[linear-gradient(160deg,rgba(59,130,246,0.12),rgba(15,30,38,0.55))]',
-      badge: 'bg-[#3b82f6]/20 text-[#93c5fd]', bar: 'bg-[#3b82f6]', label: 'In progress',
+      card: 'border-[var(--achievement-blue-border)] bg-[var(--achievement-blue-soft)]',
+      badge: 'bg-[var(--achievement-blue-soft)] text-[var(--achievement-blue-text)]', bar: 'bg-[var(--achievement-blue)]', label: 'In progress',
     },
     locked: {
       card: 'border-dashboard-border bg-dashboard-surface/50',

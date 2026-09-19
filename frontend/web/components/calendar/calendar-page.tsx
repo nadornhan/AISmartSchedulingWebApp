@@ -841,7 +841,7 @@ function MobileCalendarView({
             Loading tasks...
           </div>
         ) : selectedTasks.length ? (
-          <div className="divide-y divide-dashboard-border overflow-hidden rounded-[var(--radius-lg)] border border-dashboard-border bg-[#071522] shadow-panel">
+          <div className="divide-y divide-dashboard-border overflow-hidden rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface shadow-panel">
             {selectedTasks.map((task) => {
               const completed = task.status === 'done';
               return (

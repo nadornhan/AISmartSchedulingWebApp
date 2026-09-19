@@ -22,6 +22,7 @@ import {
 import { listProjects, type Project } from '../../lib/projects';
 import { onProjectDataChanged, onTaskDataChanged } from '../../lib/data-events';
 import { listTasks } from '../../lib/tasks';
+import { useUiPreferences } from './ui-preferences-provider';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -111,13 +112,17 @@ function SectionTitle({
   onAction,
   href,
   onNavigate,
+  collapsed = false,
 }: Readonly<{
   children: ReactNode;
   actionLabel?: string;
   onAction?: () => void;
   href?: string;
   onNavigate?: () => void;
+  collapsed?: boolean;
 }>) {
+  if (collapsed) return null;
+
   const titleClassName =
     'text-sm font-medium uppercase tracking-[0.02em] text-dashboard-muted transition hover:text-dashboard-accent';
 
@@ -149,10 +154,12 @@ function NavLink({
   item,
   active,
   onNavigate,
+  collapsed = false,
 }: Readonly<{
   item: NavItem;
   active: boolean;
   onNavigate?: () => void;
+  collapsed?: boolean;
 }>) {
   const Icon = item.icon;
 
@@ -161,12 +168,14 @@ function NavLink({
       aria-current={active ? 'page' : undefined}
       className={cn(
         'group flex h-[52px] items-center gap-4 rounded-lg px-4 text-base font-medium transition-shadow',
+        collapsed && 'justify-center gap-0 px-0',
         active
           ? 'border-l-4 border-l-dashboard-accent bg-dashboard-accent/20 text-dashboard-accent'
           : 'border border-transparent text-dashboard-muted hover:border-dashboard-border hover:bg-dashboard-surface hover:text-dashboard-accent',
       )}
       href={item.href}
       onClick={onNavigate}
+      title={collapsed ? item.label : undefined}
     >
       <Icon
         className={cn(
@@ -176,8 +185,8 @@ function NavLink({
             : 'text-dashboard-muted group-hover:text-dashboard-accent',
         )}
       />
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
-      {item.badge ? (
+      <span className={cn('min-w-0 flex-1 truncate', collapsed && 'sr-only')}>{item.label}</span>
+      {item.badge && !collapsed ? (
         <span
           className={cn(
             'rounded-full px-3 py-1 text-sm font-semibold leading-none',
@@ -194,6 +203,7 @@ function NavLink({
 }
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
+  const { sidebarCollapsed, toggleSidebar } = useUiPreferences();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -280,76 +290,107 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
     <aside
       ref={sidebarRef}
       className={cn(
-        'accent-scrollbar z-[170] flex h-dvh w-80 flex-col overflow-y-auto border-r border-dashboard-border bg-[#03101a]/95 px-6 py-5 text-dashboard-text shadow-panel backdrop-blur-xl lg:sticky lg:top-0',
+        'accent-scrollbar z-[170] flex h-dvh flex-col overflow-y-auto border-r border-dashboard-border bg-[var(--bg-sidebar)]/95 py-5 text-dashboard-text shadow-panel backdrop-blur-xl transition-[width,padding] duration-200 lg:sticky lg:top-0',
+        sidebarCollapsed ? 'w-28 px-3' : 'w-80 px-6',
         className,
       )}
     >
-      <div className="mb-8 flex items-center gap-3">
+      <div
+        className={cn(
+          'mb-8 flex items-center',
+          sidebarCollapsed ? 'justify-between gap-2' : 'gap-3',
+        )}
+      >
         <BrandMark />
-        <span className="font-poppins text-[28px] mt-2 font-medium leading-none tracking-normal">
+        <span
+          className={cn(
+            'font-poppins mt-2 flex-1 text-[28px] font-medium leading-none tracking-normal',
+            sidebarCollapsed && 'sr-only',
+          )}
+        >
           Chrono
         </span>
+        <button
+          aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-dashboard-border bg-dashboard-surface text-dashboard-muted transition hover:border-dashboard-accent/60 hover:text-dashboard-accent"
+          onClick={toggleSidebar}
+          title={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+          type="button"
+        >
+          <ChevronRightIcon
+            className={cn('h-5 w-5 transition-transform', !sidebarCollapsed && 'rotate-180')}
+          />
+        </button>
       </div>
 
-      <div className="group relative mb-10">
+      <div className={cn('group relative mb-10', sidebarCollapsed && 'mb-7')}>
         <div className="flex h-14 overflow-hidden rounded-xl border border-dashboard-accent/60 bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong text-white transition hover:brightness-110">
           <button
-            className="flex flex-1 items-center justify-center gap-3 px-6 text-[17px] font-medium"
+            aria-label="Add task"
+            className={cn(
+              'flex flex-1 items-center justify-center gap-3 text-[17px] font-medium',
+              sidebarCollapsed ? 'px-0' : 'px-6',
+            )}
             onClick={() => openCreateTaskModal(activeProjectId)}
+            title={sidebarCollapsed ? 'Add task' : undefined}
             type="button"
           >
             <PlusIcon className="h-6 w-6" />
-            <span>Add Task</span>
+            <span className={sidebarCollapsed ? 'sr-only' : undefined}>Add Task</span>
           </button>
 
-          <button
-            aria-label="Open add task menu"
-            className="grid w-[64px] place-items-center border-l border-white/30 transition hover:bg-white/10"
-            type="button"
-          >
-            <ChevronDownIcon className="h-6 w-6 transition-transform duration-200 group-hover:rotate-180" />
-          </button>
+          {!sidebarCollapsed ? (
+            <button
+              aria-label="Open add task menu"
+              className="grid w-[64px] place-items-center border-l border-white/30 transition hover:bg-white/10"
+              type="button"
+            >
+              <ChevronDownIcon className="h-6 w-6 transition-transform duration-200 group-hover:rotate-180" />
+            </button>
+          ) : null}
         </div>
 
-        <div
-          className="
+        {!sidebarCollapsed ? (
+          <div
+            className="
             invisible absolute left-0 right-0 top-full z-50 mt-2
             translate-y-1 rounded-xl border border-dashboard-border
-            bg-[#071923] p-2 opacity-0 shadow-panel
+            bg-dashboard-raised p-2 opacity-0 shadow-panel
             transition-all duration-200
             group-hover:visible group-hover:translate-y-0 group-hover:opacity-100
           "
-        >
-          <button
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-base font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
-            onClick={() => openCreateTaskModal(null)}
-            type="button"
           >
-            <TasksIcon className="h-5 w-5" />
-            Create task
-          </button>
+            <button
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-base font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+              onClick={() => openCreateTaskModal(null)}
+              type="button"
+            >
+              <TasksIcon className="h-5 w-5" />
+              Create task
+            </button>
 
-          <button
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-base font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
-            onClick={() => {
-              if (activeProjectId) {
-                openCreateTaskModal(activeProjectId);
-                return;
-              }
-              router.push('/folders');
-              onNavigate?.();
-            }}
-            type="button"
-          >
-            <FolderIcon className="h-5 w-5" />
-            Create task in folder
-          </button>
-        </div>
+            <button
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-base font-medium text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+              onClick={() => {
+                if (activeProjectId) {
+                  openCreateTaskModal(activeProjectId);
+                  return;
+                }
+                router.push('/folders');
+                onNavigate?.();
+              }}
+              type="button"
+            >
+              <FolderIcon className="h-5 w-5" />
+              Create task in folder
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <nav aria-label="Main navigation" className="space-y-8">
         <section>
-          <SectionTitle>General</SectionTitle>
+          <SectionTitle collapsed={sidebarCollapsed}>General</SectionTitle>
           <div className="space-y-1.5">
             {generalNavItems.map((item) => {
               const navItem =
@@ -362,18 +403,33 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   : isActive(pathname, item);
 
               return (
-                <NavLink active={active} item={navItem} key={item.href} onNavigate={onNavigate} />
+                <NavLink
+                  active={active}
+                  collapsed={sidebarCollapsed}
+                  item={navItem}
+                  key={item.href}
+                  onNavigate={onNavigate}
+                />
               );
             })}
           </div>
         </section>
 
-        <section className="border-t border-[#AAAAAA]/20 pt-6">
-          <SectionTitle actionLabel="Add folder" onAction={openCreateFolderModal}>
+        <section className="border-t border-dashboard-border pt-6">
+          <SectionTitle
+            actionLabel="Add folder"
+            collapsed={sidebarCollapsed}
+            onAction={openCreateFolderModal}
+          >
             Projects / Folders
           </SectionTitle>
           <div className="space-y-1.5">
-            <NavLink active={foldersActive} item={foldersNavItem} onNavigate={onNavigate} />
+            <NavLink
+              active={foldersActive}
+              collapsed={sidebarCollapsed}
+              item={foldersNavItem}
+              onNavigate={onNavigate}
+            />
             <div
               className="accent-scrollbar max-h-[232px] overflow-y-auto pt-1"
               ref={folderListRef}
@@ -383,6 +439,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   aria-current={activeProjectId === folder.id ? 'page' : undefined}
                   className={cn(
                     'group flex h-12 items-center gap-4 rounded-lg px-4 text-base font-medium transition',
+                    sidebarCollapsed && 'justify-center gap-0 px-0',
                     activeProjectId === folder.id
                       ? 'border-l-4 border-l-dashboard-accent bg-dashboard-accent/20 text-dashboard-accent'
                       : 'text-dashboard-muted hover:bg-dashboard-surface hover:text-dashboard-text',
@@ -390,22 +447,27 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   href={`/tasks?project_id=${encodeURIComponent(folder.id)}`}
                   key={folder.id}
                   onClick={onNavigate}
+                  title={sidebarCollapsed ? folder.name : undefined}
                 >
                   <span
                     className="h-3 w-3 shrink-0 rounded-full"
                     style={{ backgroundColor: folder.color }}
                   />
-                  <span className="min-w-0 flex-1 truncate">{folder.name}</span>
-                  <span
-                    className={cn(
-                      'rounded-full px-3 py-1 text-sm font-semibold leading-none',
-                      activeProjectId === folder.id
-                        ? 'bg-dashboard-bg/25 text-dashboard-text'
-                        : 'bg-dashboard-accent-soft text-dashboard-accent',
-                    )}
-                  >
-                    {folder.task_count}
+                  <span className={cn('min-w-0 flex-1 truncate', sidebarCollapsed && 'sr-only')}>
+                    {folder.name}
                   </span>
+                  {!sidebarCollapsed ? (
+                    <span
+                      className={cn(
+                        'rounded-full px-3 py-1 text-sm font-semibold leading-none',
+                        activeProjectId === folder.id
+                          ? 'bg-dashboard-bg/25 text-dashboard-text'
+                          : 'bg-dashboard-accent-soft text-dashboard-accent',
+                      )}
+                    >
+                      {folder.task_count}
+                    </span>
+                  ) : null}
                 </Link>
               ))}
             </div>
@@ -414,35 +476,39 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       </nav>
 
       <div className="mt-auto pt-8">
-        <div
-          className="mb-6 overflow-hidden rounded-2xl border border-dashboard-border p-6 aspect-[4.2/3]"
-          style={{
-            backgroundImage: "url('/sidebar.png')",
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        >
-          <p className="text-base font-semibold text-dashboard-text">Keep going!🚀</p>
+        {!sidebarCollapsed ? (
+          <div
+            className="mb-6 overflow-hidden rounded-2xl border border-dashboard-border p-6 aspect-[4.2/3]"
+            style={{
+              backgroundImage: "url('/sidebar.png')",
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          >
+            <p className="text-base font-semibold text-dashboard-text">Keep going!🚀</p>
 
-          <p className="mt-1 pr-10 text-sm leading-5 text-dashboard-muted">
-            Small progress every day leads to big results.
-          </p>
-        </div>
+            <p className="mt-1 pr-10 text-sm leading-5 text-dashboard-muted">
+              Small progress every day leads to big results.
+            </p>
+          </div>
+        ) : null}
 
         <Link
           aria-current={settingsActive ? 'page' : undefined}
           className={cn(
             'flex h-[52px] items-center gap-4 rounded-lg border-t border-dashboard-border px-3 pt-4 text-base font-medium transition',
+            sidebarCollapsed && 'justify-center gap-0 px-0',
             settingsActive
               ? 'text-dashboard-accent'
               : 'text-dashboard-muted hover:text-dashboard-text',
           )}
           href="/settings"
           onClick={onNavigate}
+          title={sidebarCollapsed ? 'Settings' : undefined}
         >
           <SettingsIcon className="h-[22px] w-[22px] shrink-0" />
-          <span className="flex-1">Settings</span>
-          <ChevronRightIcon className="h-[22px] w-[22px]" />
+          <span className={cn('flex-1', sidebarCollapsed && 'sr-only')}>Settings</span>
+          {!sidebarCollapsed ? <ChevronRightIcon className="h-[22px] w-[22px]" /> : null}
         </Link>
       </div>
     </aside>
