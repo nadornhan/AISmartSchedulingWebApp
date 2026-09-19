@@ -619,51 +619,6 @@ export function CalendarPage() {
                   key={value}
                   onClick={() => selectCalendarView(value)}
                   type="button"
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.95fr)]">
-        <div className="rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 shadow-panel">
-          <div className="flex flex-col gap-4 border-b border-dashboard-border p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-center gap-3">
-              <button
-                aria-label={`Previous ${calendarView}`}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-dashboard-border bg-dashboard-raised text-dashboard-muted transition hover:border-dashboard-accent/60 hover:text-dashboard-accent"
-                onClick={() => moveCalendar(-1)}
-                type="button"
-              >
-                <ChevronRightIcon className="h-4 w-4 rotate-180" />
-              </button>
-              <button
-                aria-label={`Next ${calendarView}`}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-dashboard-border bg-dashboard-raised text-dashboard-muted transition hover:border-dashboard-accent/60 hover:text-dashboard-accent"
-                onClick={() => moveCalendar(1)}
-                type="button"
-              >
-                <ChevronRightIcon className="h-4 w-4" />
-              </button>
-              <h2 className="truncate text-xl font-semibold text-dashboard-text">
-                {calendarTitle}
-              </h2>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex rounded-lg border border-dashboard-border bg-dashboard-bg/45 p-1">
-                {(
-                  [
-                    ['month', 'Month'],
-                    ['week', 'Week'],
-                    ['day', 'Day'],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    aria-pressed={calendarView === value}
-                    className={cn(
-                      'h-9 rounded-md px-4 text-sm font-medium transition',
-                      calendarView === value
-                        ? 'bg-dashboard-accent-soft text-dashboard-accent ring-1 ring-dashboard-accent/40'
-                        : 'text-dashboard-muted hover:text-dashboard-text',
-                    )}
-                    key={value}
-                    onClick={() => selectCalendarView(value)}
-                    type="button"
                   >
                     {label}
                   </button>
@@ -680,49 +635,6 @@ export function CalendarPage() {
               </button>
             </div>
           </div>
-
-          {loadError ? (
-            <p
-              className="m-4 rounded-lg border border-dashboard-danger/30 bg-dashboard-danger/10 p-3 text-sm text-dashboard-danger sm:m-5"
-              role="alert"
-            >
-              {loadError}
-            </p>
-          ) : null}
-
-          {calendarView !== 'day' ? (
-            <div className="grid grid-cols-7 border-b border-dashboard-border bg-dashboard-bg/20">
-              {weekdayLabels.map((label) => (
-                <div
-                  className="border-r border-dashboard-border px-3 py-3 text-xs font-semibold text-dashboard-muted last:border-r-0"
-                  key={label}
-                >
-                  {label}
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {isLoading ? (
-            <div className="grid min-h-[360px] place-items-center text-sm text-dashboard-muted">
-              Loading calendar tasks...
-            </div>
-          ) : (
-            <CalendarMainView
-              calendarView={calendarView}
-              days={days}
-              mutatingTaskId={mutatingTaskId}
-              onDropTask={moveTaskToDate}
-              onReschedule={openRescheduleDialog}
-              onSelectDate={selectDate}
-              onToggleTask={toggleTaskStatus}
-              selectedKey={selectedKey}
-              tasksByDay={tasksByDay}
-            />
-          )}
-        </div>
-
-    
 
         {loadError ? (
           <p
@@ -800,41 +712,6 @@ export function CalendarPage() {
         projects={projects}
       />
     ) : null}
-        <DayAgenda
-          actionError={actionError}
-          mutatingTaskId={mutatingTaskId}
-          onNextDay={() => moveSelectedDate(1)}
-          onPreviousDay={() => moveSelectedDate(-1)}
-          onReschedule={openRescheduleDialog}
-          onShowCompletedChange={() => setShowCompleted((current) => !current)}
-          onToday={goToToday}
-          onToggleTask={toggleTaskStatus}
-          selectedDate={selectedDate}
-          showCompleted={showCompleted}
-          tasks={selectedTasks}
-        />
-      </section>
-      {rescheduleTarget ? (
-        <RescheduleDialog
-          date={rescheduleDate}
-          error={actionError}
-          isSubmitting={mutatingTaskId === rescheduleTarget.id}
-          onClose={() => setRescheduleTarget(null)}
-          onDateChange={setRescheduleDate}
-          onSubmit={() => void submitReschedule()}
-          onTimeChange={setRescheduleTime}
-          task={rescheduleTarget}
-          time={rescheduleTime}
-        />
-      ) : null}
-      {isCreateTaskOpen ? (
-        <CreateTaskModal
-          isSubmitting={isCreatingTask}
-          onClose={() => setIsCreateTaskOpen(false)}
-          onCreate={createCalendarTask}
-          projects={projects}
-        />
-      ) : null}
     </>
   );
 }
@@ -993,7 +870,7 @@ function MobileCalendarView({
                       {task.title}
                     </span>
                     <span className="mt-2 flex items-center gap-2 text-[11px] text-dashboard-muted">
-                      <span>◷ {formatTime(task.dueDate)}</span>
+                      <span>◷ {formatTime(task.calendarDate)}</span>
                       <span aria-hidden="true">·</span>
                       <span className="flex min-w-0 items-center gap-1.5 truncate">
                         <span
@@ -1184,8 +1061,6 @@ function DayViewTaskCard({
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-4">
-          <time className="shrink-0 rounded-lg border border-current/20 bg-dashboard-bg/45 px-3 py-2 text-base font-semibold text-current">
-            {formatTime(task.dueDate)}
           <time className="shrink-0 rounded-lg border border-current/20 bg-dashboard-bg/45 px-3 py-2 text-sm font-semibold text-current">
             {formatTime(task.calendarDate)}
           </time>
@@ -1203,11 +1078,6 @@ function DayViewTaskCard({
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
           <button
-            aria-label={`Edit due date for ${task.title}`}
-            className="grid h-10 w-10 place-items-center rounded-lg border border-dashboard-border-strong bg-dashboard-bg/60 text-dashboard-muted transition hover:border-dashboard-accent/70 hover:text-dashboard-accent"
-            disabled={isMutating}
-            onClick={() => onReschedule(task)}
-            title="Edit due date"
             className="inline-flex h-9 items-center gap-2 rounded-lg border border-dashboard-border-strong bg-dashboard-bg/60 px-3 text-xs font-semibold text-dashboard-muted transition hover:border-dashboard-accent/70 hover:text-dashboard-accent"
             disabled={isMutating || task.scheduleLocked}
             onClick={() => onReschedule(task)}
@@ -1245,8 +1115,6 @@ function DayViewTaskCard({
             {formatDurationLabel(task.durationMinutes)} estimated
           </span>
         ) : null}
-        <span className="ml-auto text-sm font-medium text-dashboard-muted">
-          Due {formatTime(task.dueDate)}
         <span className="ml-auto text-xs font-medium text-dashboard-muted">
           {task.scheduledStart && task.scheduledEnd
             ? `Scheduled ${formatTime(task.scheduledStart)}–${formatTime(task.scheduledEnd)}`
@@ -1394,8 +1262,6 @@ function DayAgenda({
           </h2>
           <p className="mt-1 text-sm text-dashboard-muted">
             {tasks.length} {tasks.length === 1 ? 'scheduled task' : 'scheduled tasks'}
-          <p className="mt-1 text-xs text-dashboard-muted">
-            {tasks.length} {tasks.length === 1 ? 'calendar item' : 'calendar items'}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -1497,8 +1363,6 @@ function AgendaTask({
 
   return (
     <article
-      className="grid cursor-grab grid-cols-[66px_16px_minmax(0,1fr)] items-center gap-3 active:cursor-grabbing"
-      draggable={!isMutating}
       className={cn(
         'grid grid-cols-[58px_14px_minmax(0,1fr)] items-center gap-3',
         task.scheduleLocked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
@@ -1513,8 +1377,6 @@ function AgendaTask({
       }}
       title={task.scheduleLocked ? 'Unlock this task before rescheduling' : calendarTimeLabel(task)}
     >
-      <time className="text-right text-sm font-semibold tabular-nums tracking-[-0.01em] text-dashboard-muted">
-        {formatTime(task.dueDate)}
       <time className="text-right text-xs font-semibold tabular-nums tracking-[-0.01em] text-dashboard-muted">
         {formatTime(task.calendarDate)}
       </time>
@@ -1542,7 +1404,7 @@ function AgendaTask({
               title={task.scheduleLocked ? 'Unlock this task before rescheduling' : undefined}
               type="button"
             >
-              <CalendarIcon className="h-3.5 w-3.5" />
+              <EditIcon className="h-3.5 w-3.5" />
               Reschedule
             </button>
             <button
