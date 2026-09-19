@@ -9,6 +9,7 @@ from app.gamification.schemas import RewardFeedback
 
 class FocusSessionCreate(BaseModel):
     task_id: uuid.UUID | None = None
+    task_ids: list[uuid.UUID] = Field(default_factory=list, max_length=20)
     started_at: datetime
     ended_at: datetime
     duration_minutes: int = Field(gt=0, le=24 * 60)
@@ -18,6 +19,7 @@ class FocusSessionCreate(BaseModel):
 class FocusSessionResponse(BaseModel):
     id: uuid.UUID
     task_id: uuid.UUID | None
+    task_ids: list[uuid.UUID] = Field(default_factory=list)
     started_at: datetime
     ended_at: datetime
     duration_minutes: int
@@ -27,6 +29,7 @@ class FocusSessionResponse(BaseModel):
 
 class FocusSessionStart(BaseModel):
     task_id: uuid.UUID | None = None
+    task_ids: list[uuid.UUID] = Field(default_factory=list, max_length=20)
     planned_duration_minutes: int = Field(gt=0, le=24 * 60)
 
 
@@ -42,6 +45,7 @@ class FocusSessionFinish(BaseModel):
 class FocusSessionDetail(BaseModel):
     id: uuid.UUID
     task_id: uuid.UUID | None
+    task_ids: list[uuid.UUID] = Field(default_factory=list)
     planned_duration_minutes: int
     actual_duration_seconds: int
     status: FocusSessionStatus

@@ -4,7 +4,7 @@
 
 :root {
   /* Canonical tokens from frontend/Theme.md. */
-  --font-sans: var(--font-figtree), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   --bg-page: #040c14;
   --bg-sidebar: #050e16;
@@ -135,10 +135,11 @@ body {
   background:
     radial-gradient(circle at 65% 15%, rgba(53, 227, 181, 0.045), transparent 34%), var(--bg-page);
   color: var(--dashboard-text);
-  font-family: var(--font-figtree), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-geist), sans-serif;
 }
 
 a {
@@ -151,7 +152,6 @@ input,
 select,
 textarea {
   font: inherit;
-  font-family: var(--font-figtree), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 button {
@@ -201,7 +201,9 @@ button {
   box-shadow: 0 0 0 1000px var(--chrono-autofill-bg) inset !important;
   -webkit-text-fill-color: var(--chrono-autofill-color) !important;
   caret-color: var(--chrono-autofill-color) !important;
-  transition: background-color 600000s 0s, color 600000s 0s;
+  transition:
+    background-color 600000s 0s,
+    color 600000s 0s;
 }
 
 .chrono-autofill:-webkit-autofill:focus {
@@ -233,19 +235,19 @@ button {
 .focus-timer-stage {
   position: relative;
   display: grid;
-  width: min(460px, 62dvh);
-  min-width: 290px;
+  width: min(360px, 42vh);
+  min-width: 280px;
   aspect-ratio: 1 / 1;
   margin: 32px auto 0;
   place-items: center;
-  border: 1px solid rgba(34, 240, 177, 0.07);
+  border: 1px solid rgba(34, 240, 177, 0.2);
   border-radius: 9999px;
 }
 
 .focus-timer-stage::before,
 .focus-timer-stage::after {
   position: absolute;
-  content: "";
+  content: '';
   border: 1px solid rgba(34, 240, 177, 0.06);
   border-radius: 9999px;
   pointer-events: none;
@@ -270,22 +272,22 @@ button {
 }
 
 .focus-timer-ring circle:last-child {
-  transition: stroke-dashoffset 250ms linear;
+  transition: stroke-dasharray 250ms linear;
 }
 
 .focus-timer-time {
-  font-size: clamp(56px, 7vw, 88px);
+  font-size: clamp(48px, 6vw, 68px);
 }
 
 .focus-timer-action {
-  min-width: 176px;
+  min-width: 136px;
 }
 
 .focus-timer-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 32px;
+  gap: 10px;
+  margin-top: 22px;
 }
 
 .focus-reset-action {
@@ -322,7 +324,37 @@ button {
   border-radius: 9999px;
   background: rgba(34, 240, 177, 0.1);
   color: var(--dashboard-accent);
-  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.focus-stop-action {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  border: 1px solid rgba(248, 113, 113, 0.42);
+  border-radius: 9999px;
+  background: rgba(248, 113, 113, 0.1);
+  color: rgb(248, 113, 113);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.focus-stop-action:hover:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.82);
+  background: rgba(248, 113, 113, 0.18);
+  transform: scale(1.04);
+}
+
+.focus-stop-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .focus-skip-action:hover {
@@ -333,25 +365,25 @@ button {
 
 @media (max-width: 640px) {
   .focus-mode-panel {
-    padding: 60px 12px 20px;
+    padding: 72px 16px 24px;
   }
 
   .focus-timer-stage {
-    width: min(84vw, 40dvh, 340px);
+    width: min(76vw, 320px);
     min-width: 0;
     margin-top: 20px;
   }
 
   .focus-timer-stage::before {
-    inset: -22px;
+    inset: -30px;
   }
 
   .focus-timer-stage::after {
-    inset: -44px;
+    inset: -60px;
   }
 
   .focus-timer-time {
-    font-size: clamp(42px, 14vw, 56px);
+    font-size: clamp(40px, 14vw, 58px);
   }
 
   .focus-timer-action {

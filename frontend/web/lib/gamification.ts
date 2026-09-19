@@ -65,6 +65,11 @@ export type AchievementProgress = {
   category: string;
   unlocked: boolean;
   unlocked_at: string | null;
+  completed: boolean;
+  claimed: boolean;
+  claimable: boolean;
+  claimed_at: string | null;
+  reward_growth_points: number;
   progress_value: number;
   requirement_value: number;
   requirement_type: string;
@@ -74,6 +79,16 @@ export type AchievementCategoryGroup = {
   id: string;
   label: string;
   achievements: AchievementProgress[];
+  hidden_achievement_count: number;
+};
+
+export type AchievementTitleTier = {
+  id: string;
+  name: string;
+  description: string;
+  required_claimed_achievements: number;
+  unlocked: boolean;
+  current: boolean;
 };
 
 export type GamificationProfile = {
@@ -111,6 +126,11 @@ export type PlantCatalogResponse = {
 export type AchievementsResponse = {
   achievements: AchievementProgress[];
   categories: AchievementCategoryGroup[];
+  claimed_count: number;
+  total_achievement_count: number;
+  current_title: AchievementTitleTier;
+  next_title: AchievementTitleTier | null;
+  title_tiers: AchievementTitleTier[];
 };
 
 export type RewardFeedback = {
@@ -124,6 +144,13 @@ export type RewardFeedback = {
   plant_completed: boolean;
   unlocked_achievements: AchievementProgress[];
   profile: GamificationProfile | null;
+};
+
+export type AchievementClaimResponse = {
+  achievement: AchievementProgress;
+  next_achievement: AchievementProgress | null;
+  reward: RewardFeedback;
+  achievements: AchievementsResponse;
 };
 
 export type PlacePlantInput = {
@@ -235,4 +262,14 @@ export function getAchievements(options: RequestOptions = {}) {
   return apiRequest<AchievementsResponse>('/gamification/achievements', {
     signal: options.signal,
   });
+}
+
+export function claimAchievement(achievementId: string, options: RequestOptions = {}) {
+  return apiRequest<AchievementClaimResponse>(
+    `/gamification/achievements/${achievementId}/claim`,
+    {
+      method: 'POST',
+      signal: options.signal,
+    },
+  );
 }

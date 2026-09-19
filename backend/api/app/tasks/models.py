@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -36,6 +37,14 @@ class TaskPriority(str, enum.Enum):
 
 class Task(Base):
     __tablename__ = "tasks"
+    __table_args__ = (
+        CheckConstraint(
+            "NOT schedule_locked OR "
+            "(scheduled_start IS NOT NULL AND scheduled_end IS NOT NULL "
+            "AND scheduled_end > scheduled_start)",
+            name="ck_tasks_locked_schedule_complete",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
@@ -98,6 +107,12 @@ class Task(Base):
     scheduled_end: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+    schedule_locked: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="false",
+        nullable=False,
     )
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

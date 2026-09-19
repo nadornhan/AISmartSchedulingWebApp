@@ -75,7 +75,7 @@ _POLICIES = {
     ),
     AIFeature.PRIORITY_SUGGESTION: AIFeaturePolicy(
         feature=AIFeature.PRIORITY_SUGGESTION,
-        prompt_version="priority-suggestion-v1",
+        prompt_version="priority-suggestion-v3",
         invocation="explicit_preview",
         requires_confirmation=True,
         deterministic_authority=True,

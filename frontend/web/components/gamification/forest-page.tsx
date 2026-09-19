@@ -5,12 +5,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { onTaskDataChanged } from '../../lib/data-events';
 import {
+  claimAchievement,
+  emitGrowthReward,
   getAchievements,
   getForest,
   getPlantCatalog,
   onGrowthReward,
   selectPlant,
-  type AchievementCategoryGroup,
+  type AchievementsResponse,
   type ForestResponse,
   type PlantSpeciesSummary,
   type UserPlant,
@@ -29,10 +31,11 @@ function progressPercent(plant: UserPlant) {
 export function ForestPage() {
   const [forest, setForest] = useState<ForestResponse | null>(null);
   const [catalog, setCatalog] = useState<PlantSpeciesSummary[]>([]);
-  const [categories, setCategories] = useState<AchievementCategoryGroup[]>([]);
+  const [achievements, setAchievements] = useState<AchievementsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectingId, setSelectingId] = useState<string | null>(null);
+  const [claimingAchievementId, setClaimingAchievementId] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(false);
 
   const loadAll = useCallback(async (signal?: AbortSignal) => {
@@ -47,7 +50,7 @@ export function ForestPage() {
       if (signal?.aborted) return;
       setForest(forestData);
       setCatalog(catalogData.plants);
-      setCategories(achievementsData.categories);
+      setAchievements(achievementsData);
     } catch (requestError) {
       if (signal?.aborted) return;
       setError(
@@ -103,6 +106,27 @@ export function ForestPage() {
       );
     } finally {
       setSelectingId(null);
+    }
+  }
+
+  async function handleClaimAchievement(achievementId: string) {
+    setClaimingAchievementId(achievementId);
+    setError(null);
+    try {
+      const result = await claimAchievement(achievementId);
+      setAchievements(result.achievements);
+      emitGrowthReward(result.reward);
+      if (!result.reward.awarded) {
+        await loadAll();
+      }
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to claim that achievement.',
+      );
+    } finally {
+      setClaimingAchievementId(null);
     }
   }
 
@@ -314,7 +338,13 @@ export function ForestPage() {
         </div>
       </section>
 
-      <AchievementsSection categories={categories} />
+      {achievements ? (
+        <AchievementsSection
+          claimingId={claimingAchievementId}
+          data={achievements}
+          onClaim={(achievementId) => void handleClaimAchievement(achievementId)}
+        />
+      ) : null}
     </div>
   );
 }

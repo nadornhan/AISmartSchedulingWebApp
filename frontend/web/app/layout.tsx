@@ -17,7 +17,11 @@ export const metadata: Metadata = {
   title: 'Chrono - Start Focus Session',
   description: 'AI Smart Scheduling web scaffold',
   icons: {
-    icon: '/chrono-logo.svg',
+    icon: [
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/chrono-logo.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
 };
 

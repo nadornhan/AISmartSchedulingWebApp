@@ -99,8 +99,8 @@ function useScrollFeedback<T extends HTMLElement>() {
 
 function BrandMark() {
   return (
-    <div className="grid h-11 w-11 place-items-center overflow-hidden rounded-full shadow-glow">
-      <img alt="" className="h-full w-full object-contain" src="/chrono-logo.svg" />
+    <div className="grid h-11 w-11 shrink-0 place-items-center bg-transparent">
+      <img alt="Chrono" className="h-10 w-10 object-contain" src="/chrono-logo.png" />
     </div>
   );
 }
