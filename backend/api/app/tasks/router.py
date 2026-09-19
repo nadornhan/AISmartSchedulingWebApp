@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from app.auth.dependencies import CurrentUser, DatabaseSession
 from app.projects import service as project_service
 from app.tasks import service
+from app.tasks.duration_estimation.router import router as duration_estimation_router
 from app.tasks.models import Task, TaskPriority
 from app.tasks.schemas import (
     SortOrder,
@@ -24,6 +25,7 @@ from app.tasks.schemas import (
 )
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+router.include_router(duration_estimation_router)
 
 
 def _ensure_project(
