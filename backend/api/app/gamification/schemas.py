@@ -133,6 +133,11 @@ class AchievementProgress(BaseModel):
     category: str
     unlocked: bool
     unlocked_at: datetime | None = None
+    completed: bool = False
+    claimed: bool = False
+    claimable: bool = False
+    claimed_at: datetime | None = None
+    reward_growth_points: int = Field(default=0, ge=0)
     progress_value: int = 0
     requirement_value: int
     requirement_type: str
@@ -142,11 +147,26 @@ class AchievementCategoryGroup(BaseModel):
     id: str
     label: str
     achievements: list[AchievementProgress]
+    hidden_achievement_count: int = Field(default=0, ge=0)
+
+
+class AchievementTitleTier(BaseModel):
+    id: str
+    name: str
+    description: str
+    required_claimed_achievements: int = Field(ge=0)
+    unlocked: bool = False
+    current: bool = False
 
 
 class AchievementsResponse(BaseModel):
     achievements: list[AchievementProgress]
     categories: list[AchievementCategoryGroup] = Field(default_factory=list)
+    claimed_count: int = Field(default=0, ge=0)
+    total_achievement_count: int = Field(default=0, ge=0)
+    current_title: AchievementTitleTier
+    next_title: AchievementTitleTier | None = None
+    title_tiers: list[AchievementTitleTier] = Field(default_factory=list)
 
 
 class RewardFeedback(BaseModel):
@@ -160,6 +180,13 @@ class RewardFeedback(BaseModel):
     plant_completed: bool = False
     unlocked_achievements: list[AchievementProgress] = Field(default_factory=list)
     profile: GamificationProfileResponse | None = None
+
+
+class AchievementClaimResponse(BaseModel):
+    achievement: AchievementProgress
+    next_achievement: AchievementProgress | None = None
+    reward: RewardFeedback
+    achievements: AchievementsResponse
 
 
 class DashboardForestWidget(BaseModel):

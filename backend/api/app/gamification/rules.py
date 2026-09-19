@@ -34,6 +34,7 @@ SOURCE_TASK_COMPLETE = "task_complete"
 SOURCE_FOCUS_SESSION = "focus_session"
 SOURCE_DAILY_CLEAR = "daily_clear"
 SOURCE_STREAK_BONUS = "streak_bonus"
+SOURCE_ACHIEVEMENT_CLAIM = "achievement_claim"
 
 SUPPORTIVE_MESSAGES = {
     "seedling": "A quiet beginning. Every small step helps your forest.",
