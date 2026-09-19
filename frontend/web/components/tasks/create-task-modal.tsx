@@ -686,7 +686,7 @@ function TaskFormModal({
                 duration={durationOption === 'custom' ? (Number(customDuration) > 0 ? Number(customDuration) : null) : (Number(durationOption) || null)}
                 priority={priorityToApi[priority]}
                 onChoose={(value) => setPriority(priorityFromApi[value])}
-                disabled={isSubmitting || isQuickCreating}
+                disabled={isSubmitting}
               />
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -805,8 +805,6 @@ function TaskFormModal({
 
           <Field label="Notes / Description" optional>
             <textarea
-              className="min-h-28 w-full resize-y rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 py-4 text-base text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
-              defaultValue={initialValues.description}
               className="min-h-24 w-full resize-y rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 py-3 text-sm text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:border-dashboard-accent"
               value={descriptionValue}
               onChange={(event) => setDescriptionValue(event.target.value)}
