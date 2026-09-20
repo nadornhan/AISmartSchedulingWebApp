@@ -240,6 +240,15 @@ Copy-Item frontend/web/.env.example frontend/web/.env
 Copy-Item backend/api/.env.example backend/api/.env
 ```
 
+To enable Gemini features, paste the API key into `backend/api/.env`:
+
+```env
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+AI is enabled by default. The API reads this same environment file when it runs
+locally or through Docker Compose. Restart the API after changing the key.
+
 ## Database Setup
 
 The backend uses PostgreSQL 16, SQLAlchemy 2, psycopg, and Alembic.

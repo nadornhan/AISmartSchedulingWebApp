@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import ClassVar
 
 from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority
 from app.tasks.overdue import is_task_overdue
+from app.timezones import DEFAULT_USER_TIMEZONE, local_date, utc_bounds_for_local_date
 
 
 @dataclass(frozen=True)
@@ -156,12 +157,6 @@ PRIORITY_RANK = {
 }
 
 
-def _day_bounds(day) -> tuple[datetime, datetime]:
-    start = datetime.combine(day, datetime.min.time(), tzinfo=UTC)
-    end = start + timedelta(days=1)
-    return start, end
-
-
 def _is_between(value: datetime | None, start: datetime, end: datetime) -> bool:
     if value is None:
         return False
@@ -175,11 +170,15 @@ def _due_sort_value(task: Task) -> datetime:
 
 @dataclass(frozen=True)
 class NextTaskProfileV1:
+    timezone_name: str = DEFAULT_USER_TIMEZONE
     profile_name: ClassVar[str] = "next_task"
     scoring_version: ClassVar[str] = "v1"
 
     def sort_key(self, task: Task, *, now: datetime) -> tuple:
-        today_start, today_end = _day_bounds(now.date())
+        today_start, today_end = utc_bounds_for_local_date(
+            local_date(now, self.timezone_name),
+            self.timezone_name,
+        )
         due_today = _is_between(task.due_date, today_start, today_end)
 
         return (
@@ -192,7 +191,10 @@ class NextTaskProfileV1:
 
     def reasons(self, task: Task, *, now: datetime) -> list[str]:
         reasons: list[str] = []
-        today_start, today_end = _day_bounds(now.date())
+        today_start, today_end = utc_bounds_for_local_date(
+            local_date(now, self.timezone_name),
+            self.timezone_name,
+        )
 
         if _is_between(task.due_date, today_start, today_end):
             reasons.append("Due today")

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.scheduling.revision import bump_schedule_revision
 from app.settings.models import UserSettings, effective_daily_work_limit_minutes
 from app.settings.schemas import UserSettingsResponse, UserSettingsUpdate
-from app.timezones import DEFAULT_USER_TIMEZONE
+from app.timezones import DEFAULT_USER_TIMEZONE, validate_timezone_name
 
 DEFAULT_WORK_START = time(9, 0)
 DEFAULT_WORK_END = time(17, 0)
@@ -47,6 +47,7 @@ def serialize_user_settings(settings: UserSettings) -> UserSettingsResponse:
             "work_start": settings.work_start,
             "work_end": settings.work_end,
             "timezone": settings.timezone,
+            "timezone_source": settings.timezone_source,
             "pomodoro_minutes": settings.pomodoro_minutes,
             "daily_work_limit_minutes": effective_daily_work_limit_minutes(settings),
         },
@@ -97,7 +98,10 @@ def update_user_settings(
         db.add(settings)
 
     if update.work_pattern is not None:
-        apply_update_group(settings, update.work_pattern.model_dump(exclude_unset=True))
+        work_pattern_values = update.work_pattern.model_dump(exclude_unset=True)
+        apply_update_group(settings, work_pattern_values)
+        if "timezone" in work_pattern_values:
+            settings.timezone_source = "user"
 
     if update.ai_scheduling is not None:
         apply_update_group(settings, update.ai_scheduling.model_dump(exclude_unset=True))
@@ -120,6 +124,44 @@ def update_user_settings(
     if scheduling_inputs_changed:
         _invalidate_ai_plan(db, user_id)
 
+    return settings
+
+
+def timezone_name_for_user(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    detected_timezone: str | None = None,
+) -> str:
+    settings = db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+    if settings is None:
+        return detected_timezone or DEFAULT_TIMEZONE
+    if settings.timezone_source == "default" and detected_timezone:
+        return detected_timezone
+    return settings.timezone
+
+
+def detect_user_timezone(db: Session, user_id: uuid.UUID, timezone_name: str) -> UserSettings:
+    validate_timezone_name(timezone_name)
+    settings = db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+    timezone_changed = False
+    if settings is None:
+        settings = UserSettings(
+            user_id=user_id,
+            timezone=timezone_name,
+            timezone_source="detected",
+        )
+        db.add(settings)
+    elif settings.timezone_source in {"default", "detected"}:
+        if settings.timezone != timezone_name or settings.timezone_source != "detected":
+            settings.timezone = timezone_name
+            settings.timezone_source = "detected"
+            bump_schedule_revision(db, user_id)
+            timezone_changed = True
+    db.commit()
+    db.refresh(settings)
+    if timezone_changed:
+        _invalidate_ai_plan(db, user_id)
     return settings
 
 

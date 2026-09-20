@@ -109,6 +109,31 @@ export type TaskCreateInput = {
   subtasks?: TaskSubtaskInput[];
 };
 
+export type GeneratedTaskDraft = {
+  client_id: string;
+  title: string;
+  priority: TaskPriorityValue;
+  due_date: string;
+};
+
+export type TaskGenerationPreview = {
+  feature: 'task_understanding';
+  status: 'preview';
+  requires_confirmation: true;
+  proposal: {
+    proposal_id: string;
+    proposal_token: string;
+    expires_at: string;
+    route_reason: string;
+    tasks: GeneratedTaskDraft[];
+  };
+  metadata: {
+    source: 'gemini' | 'fake' | 'deterministic_fallback';
+    model: string;
+    fallback_reason: string | null;
+  };
+};
+
 export type TaskUpdateInput = Partial<TaskCreateInput> & {
   status?: TaskStatusValue;
 };
@@ -272,6 +297,26 @@ export function createTask(input: TaskCreateInput, options: RequestOptions = {})
   }).then((task) => {
     emitTaskDataChanged();
     return task;
+  });
+}
+
+export function previewGeneratedTasks(prompt: string) {
+  return apiRequest<TaskGenerationPreview>('/tasks/generate/preview', {
+    method: 'POST',
+    body: JSON.stringify({ prompt }),
+  });
+}
+
+export function confirmGeneratedTasks(preview: TaskGenerationPreview, tasks: GeneratedTaskDraft[]) {
+  return apiRequest<{ created: TaskResponse[] }>('/tasks/generate/confirm', {
+    method: 'POST',
+    body: JSON.stringify({
+      proposal_token: preview.proposal.proposal_token,
+      tasks,
+    }),
+  }).then((result) => {
+    emitTaskDataChanged();
+    return result;
   });
 }
 

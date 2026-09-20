@@ -17,9 +17,11 @@ from app.dashboard.schemas import (
 from app.gamification import service as gamification_service
 from app.scheduling import service as scheduling_service
 from app.scoring import NextTaskProfileV1, QuickWinProfileV1
+from app.settings import service as settings_service
 from app.tasks.models import Task, TaskPriority, TaskStatus
 from app.tasks.overdue import is_task_overdue, task_overdue_condition, utc_now
 from app.tasks.schemas import TaskDisplayStatus
+from app.timezones import normalize_instant, user_timezone
 
 QUICK_WINS_LIMIT = 5
 WEEKLY_ACTIVITY_DAYS = 7
@@ -37,9 +39,12 @@ def _start_of_week(day: date) -> date:
     return day - timedelta(days=day.weekday())
 
 
-def _day_bounds(day: date) -> tuple[datetime, datetime]:
-    start = datetime.combine(day, datetime.min.time(), tzinfo=UTC)
-    end = start + timedelta(days=1)
+def _day_bounds(day: date, timezone_name: str = "UTC") -> tuple[datetime, datetime]:
+    timezone = user_timezone(timezone_name)
+    start = datetime.combine(day, datetime.min.time(), tzinfo=timezone).astimezone(UTC)
+    end = datetime.combine(day + timedelta(days=1), datetime.min.time(), tzinfo=timezone).astimezone(
+        UTC
+    )
     return start, end
 
 
@@ -91,8 +96,10 @@ def _today_progress(
     user_id: uuid.UUID,
     *,
     now: datetime,
+    timezone_name: str = "UTC",
 ) -> ProgressSummary:
-    start, end = _day_bounds(now.date())
+    local_today = now.astimezone(user_timezone(timezone_name)).date()
+    start, end = _day_bounds(local_today, timezone_name)
 
     due_today_ids = set(
         db.scalars(
@@ -130,8 +137,10 @@ def _focus_goal(
     user_id: uuid.UUID,
     *,
     now: datetime,
+    timezone_name: str = "UTC",
 ) -> FocusGoalSummary:
-    start, end = _day_bounds(now.date())
+    local_today = now.astimezone(user_timezone(timezone_name)).date()
+    start, end = _day_bounds(local_today, timezone_name)
     completed_minutes = int(
         db.scalar(
             select(func.coalesce(func.sum(Task.estimated_duration_minutes), 0))
@@ -161,21 +170,25 @@ def _current_streak_days(
     user_id: uuid.UUID,
     *,
     now: datetime,
+    timezone_name: str = "UTC",
 ) -> int:
-    completed_dates = set(
-        db.scalars(
-            select(func.date(Task.completed_at))
-            .where(
-                Task.user_id == user_id,
-                Task.status == TaskStatus.DONE,
-                Task.completed_at.is_not(None),
-                Task.completed_at <= now,
-            )
-        ).all()
-    )
+    timezone = user_timezone(timezone_name)
+    completed_instants = db.scalars(
+        select(Task.completed_at).where(
+            Task.user_id == user_id,
+            Task.status == TaskStatus.DONE,
+            Task.completed_at.is_not(None),
+            Task.completed_at <= now,
+        )
+    ).all()
+    completed_dates = {
+        normalize_instant(value).astimezone(timezone).date()
+        for value in completed_instants
+        if value is not None
+    }
 
     streak = 0
-    day = now.date()
+    day = now.astimezone(timezone).date()
     while day in completed_dates:
         streak += 1
         day -= timedelta(days=1)
@@ -188,8 +201,10 @@ def _weekly_activity(
     user_id: uuid.UUID,
     *,
     now: datetime,
+    timezone_name: str = "UTC",
 ) -> list[WeeklyActivityPoint]:
-    week_start = _start_of_week(now.date())
+    timezone = user_timezone(timezone_name)
+    week_start = _start_of_week(now.astimezone(timezone).date())
     days = [
         week_start + timedelta(days=offset)
         for offset in range(WEEKLY_ACTIVITY_DAYS)
@@ -198,8 +213,8 @@ def _weekly_activity(
         day: {"done": 0, "overdue": 0}
         for day in days
     }
-    start, _first_end = _day_bounds(days[0])
-    _last_start, end = _day_bounds(days[-1])
+    start, _first_end = _day_bounds(days[0], timezone_name)
+    _last_start, end = _day_bounds(days[-1], timezone_name)
 
     completed_tasks = list(
         db.scalars(
@@ -231,7 +246,7 @@ def _weekly_activity(
         if task.completed_at is None:
             continue
 
-        completed_day = task.completed_at.astimezone(UTC).date()
+        completed_day = normalize_instant(task.completed_at).astimezone(timezone).date()
         if completed_day in counts:
             counts[completed_day]["done"] += 1
 
@@ -239,7 +254,7 @@ def _weekly_activity(
         if task.due_date is None:
             continue
 
-        due_day = task.due_date.astimezone(UTC).date()
+        due_day = normalize_instant(task.due_date).astimezone(timezone).date()
         if due_day in counts:
             counts[due_day]["overdue"] += 1
 
@@ -257,8 +272,15 @@ def _weekly_activity(
 def get_dashboard_summary(
     db: Session,
     user_id: uuid.UUID,
+    *,
+    client_timezone_name: str | None = None,
 ) -> DashboardSummaryResponse:
     now = utc_now()
+    timezone_name = settings_service.timezone_name_for_user(
+        db,
+        user_id,
+        detected_timezone=client_timezone_name,
+    )
 
     completed_count = int(
         db.scalar(
@@ -292,7 +314,7 @@ def get_dashboard_summary(
     )
 
     open_tasks = _open_tasks(db, user_id)
-    next_task_profile = NextTaskProfileV1()
+    next_task_profile = NextTaskProfileV1(timezone_name=timezone_name)
     quick_win_profile = QuickWinProfileV1()
     ai_recommendation_response = scheduling_service.get_dashboard_recommendation(
         db,
@@ -353,9 +375,14 @@ def get_dashboard_summary(
             total=total_count,
             percent=_progress_percent(completed_count, total_count),
         ),
-        today_progress=_today_progress(db, user_id, now=now),
-        focus_goal=_focus_goal(db, user_id, now=now),
-        current_streak_days=_current_streak_days(db, user_id, now=now),
+        today_progress=_today_progress(db, user_id, now=now, timezone_name=timezone_name),
+        focus_goal=_focus_goal(db, user_id, now=now, timezone_name=timezone_name),
+        current_streak_days=_current_streak_days(
+            db,
+            user_id,
+            now=now,
+            timezone_name=timezone_name,
+        ),
         overdue_count=overdue_count,
         ai_recommendation=ai_recommendation
         or (
@@ -390,7 +417,7 @@ def get_dashboard_summary(
             _task_summary(task, now=now)
             for task in in_progress
         ],
-        weekly_activity=_weekly_activity(db, user_id, now=now),
+        weekly_activity=_weekly_activity(db, user_id, now=now, timezone_name=timezone_name),
         forest=_forest_summary(db, user_id),
     )
 

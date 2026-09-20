@@ -1,4 +1,5 @@
 import { apiRequest, clearAccessToken, getAccessToken, setAccessToken } from './api';
+import { getBrowserTimezone } from './settings';
 
 export type UserRole = 'student' | 'teacher' | 'other' | 'admin';
 export type RegistrationRole = Exclude<UserRole, 'admin'>;
@@ -43,6 +44,7 @@ export async function registerUser(input: RegisterUserInput): Promise<UserRespon
       first_name: input.firstName.trim(),
       last_name: input.lastName.trim(),
       role: input.role,
+      timezone: getBrowserTimezone(),
     }),
   });
 }

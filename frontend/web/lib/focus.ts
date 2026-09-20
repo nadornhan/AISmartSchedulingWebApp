@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import { emitFocusDataChanged } from './data-events';
 import { emitGrowthReward, type RewardFeedback } from './gamification';
 
 export type FocusSessionResponse = {
@@ -24,6 +25,7 @@ export function createFocusSession(input: {
     method: 'POST',
     body: JSON.stringify(input),
   }).then((session) => {
+    emitFocusDataChanged();
     if (session.growth_reward?.awarded) {
       emitGrowthReward(session.growth_reward);
     }
@@ -65,6 +67,9 @@ export function updateFocusSession(
   return apiRequest<FocusSessionDetail>(`/focus/sessions/${sessionId}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
+  }).then((session) => {
+    emitFocusDataChanged();
+    return session;
   });
 }
 
@@ -80,6 +85,7 @@ export function finishFocusSession(
       body: JSON.stringify({ actual_duration_seconds: actualDurationSeconds }),
     },
   ).then((session) => {
+    emitFocusDataChanged();
     if (session.growth_reward?.awarded) emitGrowthReward(session.growth_reward);
     return session;
   });

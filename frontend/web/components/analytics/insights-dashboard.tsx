@@ -1,23 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   getInsightsSummary,
-  type InsightRecommendation,
+  getWeeklyInsight,
+  type WeeklyInsight,
   type InsightsSummary,
 } from '../../lib/analytics';
-import { onSettingsDataChanged, onTaskDataChanged } from '../../lib/data-events';
 import {
-  acceptSuggestion,
-  adjustSuggestion,
-  applySuggestions,
-  dismissSuggestion,
-  regenerateSchedulingPlan,
-  type ScheduleSuggestion,
-  type SchedulingPlan,
-} from '../../lib/scheduling';
-import { formatScheduleSuggestionRange } from '../../lib/scheduling-format';
+  onFocusDataChanged,
+  onSettingsDataChanged,
+  onTaskDataChanged,
+} from '../../lib/data-events';
 
 function formatWeeklySummary(summary: InsightsSummary) {
   const change = summary.week_over_week_change_percent;
@@ -28,8 +23,8 @@ function formatWeeklySummary(summary: InsightsSummary) {
   if (change === null) {
     return (
       <>
-        You&apos;ve completed <strong>{summary.tasks_completed_this_week} tasks</strong> this
-        week — great start compared with last week!
+        You&apos;ve completed <strong>{summary.tasks_completed_this_week} tasks</strong> this week —
+        great start compared with last week!
       </>
     );
   }
@@ -40,103 +35,143 @@ function formatWeeklySummary(summary: InsightsSummary) {
   return (
     <>
       You&apos;ve completed <strong>{summary.tasks_completed_this_week} tasks</strong> this week,
-      that&apos;s <span className="font-semibold text-[var(--accent)]">{absolute}%</span> {direction}{' '}
-      than last week!
+      that&apos;s <span className="font-semibold text-[var(--accent)]">{absolute}%</span>{' '}
+      {direction} than last week!
     </>
   );
 }
 
-function TrendChart({ points }: { points: InsightsSummary['trend'] }) {
+function TrendChart({
+  points,
+  gradientId = 'insightsTrendFill',
+}: {
+  points: Array<{ completed_count: number; date?: string }>;
+  gradientId?: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(700);
   const max = Math.max(1, ...points.map((point) => point.completed_count));
-  const width = 320;
-  const height = 120;
-  const padding = 8;
+  const height = 170;
+  const horizontalPadding = 28;
+  const chartTop = 12;
+  const chartBottom = 136;
+  const weekdayLabels = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateWidth = (nextWidth: number) => {
+      if (nextWidth > 0) setWidth(Math.round(nextWidth));
+    };
+    updateWidth(container.getBoundingClientRect().width);
+
+    const observer = new ResizeObserver((entries) => {
+      updateWidth(entries[0]?.contentRect.width ?? 0);
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   const coordinates = points.map((point, index) => {
-    const x = padding + (index / Math.max(points.length - 1, 1)) * (width - padding * 2);
-    const y = height - padding - (point.completed_count / max) * (height - padding * 2);
-    return { x, y, count: point.completed_count };
+    const x =
+      horizontalPadding +
+      (index / Math.max(points.length - 1, 1)) * (width - horizontalPadding * 2);
+    const y = chartBottom - (point.completed_count / max) * (chartBottom - chartTop);
+    const date = point.date ? new Date(`${point.date}T00:00:00Z`) : null;
+    return {
+      x,
+      y,
+      count: point.completed_count,
+      label:
+        date && !Number.isNaN(date.getTime()) ? weekdayLabels[date.getUTCDay()] : String(index + 1),
+    };
   });
 
   const path = coordinates
     .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
     .join(' ');
 
-  const area = `${path} L ${coordinates.at(-1)?.x ?? width} ${height - padding} L ${
-    coordinates[0]?.x ?? padding
-  } ${height - padding} Z`;
+  const area = `${path} L ${coordinates.at(-1)?.x ?? width} ${chartBottom} L ${
+    coordinates[0]?.x ?? horizontalPadding
+  } ${chartBottom} Z`;
 
   const last = coordinates.at(-1);
 
   return (
-    <svg aria-hidden className="h-[120px] w-full max-w-[340px]" viewBox={`0 0 ${width} ${height}`}>
-      <defs>
-        <linearGradient id="insightsTrendFill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="rgba(53, 227, 181, 0.35)" />
-          <stop offset="100%" stopColor="rgba(53, 227, 181, 0)" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#insightsTrendFill)" />
-      <path
-        d={path}
-        fill="none"
-        stroke="var(--accent)"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="3"
-      />
-      {last ? (
-        <>
-          <circle cx={last.x} cy={last.y} fill="var(--accent)" r="5" />
-          <text
+    <div className="w-full" ref={containerRef}>
+      <svg aria-hidden className="h-[170px] w-full" viewBox={`0 0 ${width} ${height}`}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="rgba(53, 227, 181, 0.35)" />
+            <stop offset="100%" stopColor="rgba(53, 227, 181, 0)" />
+          </linearGradient>
+        </defs>
+        {coordinates.map((point, index) => (
+          <g key={`${point.label}-${index}`}>
+            <line
+              stroke="var(--border)"
+              strokeDasharray="4 6"
+              strokeWidth="1"
+              x1={point.x}
+              x2={point.x}
+              y1={chartTop}
+              y2={chartBottom}
+            />
+            <text
+              fill="var(--text-muted)"
+              fontSize="13"
+              textAnchor="middle"
+              x={point.x}
+              y="162"
+            >
+              {point.label}
+            </text>
+          </g>
+        ))}
+        <path d={area} fill={`url(#${gradientId})`} />
+        <path
+          d={path}
+          fill="none"
+          stroke="var(--accent)"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="3"
+        />
+        {coordinates.map((point, index) => (
+          <circle
+            cx={point.x}
+            cy={point.y}
             fill="var(--accent)"
-            fontSize="16"
-            textAnchor="middle"
-            x={last.x}
-            y={Math.max(18, last.y - 12)}
-          >
-            ★
-          </text>
-        </>
-      ) : null}
-    </svg>
+            key={`point-${index}`}
+            r="3.5"
+          />
+        ))}
+        {last ? (
+          <>
+            <circle cx={last.x} cy={last.y} fill="var(--accent)" r="5" />
+            <text
+              fill="var(--accent)"
+              fontSize="16"
+              textAnchor="middle"
+              x={last.x}
+              y={Math.max(20, last.y - 12)}
+            >
+              ★
+            </text>
+          </>
+        ) : null}
+      </svg>
+    </div>
   );
-}
-
-function recommendationAccent(category: InsightRecommendation['category']) {
-  if (category === 'schedule') {
-    return {
-      ring: 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]',
-      icon: '✦',
-    };
-  }
-  if (category === 'deep_focus') {
-    return {
-      ring: 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]',
-      icon: '⏱',
-    };
-  }
-  if (category === 'consistency') {
-    return {
-      ring: 'border-[var(--yellow-soft)] bg-[var(--yellow-soft)] text-[var(--yellow)]',
-      icon: '📅',
-    };
-  }
-  return {
-    ring: 'border-[var(--purple-border)] bg-[var(--purple-soft)] text-[var(--purple)]',
-    icon: '☕',
-  };
 }
 
 export function InsightsDashboard() {
   const [summary, setSummary] = useState<InsightsSummary | null>(null);
-  const [plan, setPlan] = useState<SchedulingPlan | null>(null);
+  const [weekly, setWeekly] = useState<WeeklyInsight | null>(null);
+  const [weeklyError, setWeeklyError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isMutating, setIsMutating] = useState(false);
-  const [adjustingId, setAdjustingId] = useState<string | null>(null);
-  const [adjustStart, setAdjustStart] = useState('');
-  const [adjustEnd, setAdjustEnd] = useState('');
 
   async function load(signal?: AbortSignal) {
     setIsLoading(true);
@@ -145,12 +180,9 @@ export function InsightsDashboard() {
     try {
       const data = await getInsightsSummary(signal);
       setSummary(data);
-      setPlan(data.scheduling_plan);
     } catch (requestError) {
       if (signal?.aborted) return;
-      setError(
-        requestError instanceof Error ? requestError.message : 'Could not load insights.',
-      );
+      setError(requestError instanceof Error ? requestError.message : 'Could not load insights.');
     } finally {
       if (!signal?.aborted) {
         setIsLoading(false);
@@ -161,10 +193,23 @@ export function InsightsDashboard() {
   useEffect(() => {
     const controller = new AbortController();
     void load(controller.signal);
+    void getWeeklyInsight(controller.signal)
+      .then((insight) => {
+        if (!controller.signal.aborted) setWeekly(insight);
+      })
+      .catch((requestError) => {
+        if (!controller.signal.aborted)
+          setWeeklyError(
+            requestError instanceof Error ? requestError.message : 'Could not load weekly insight.',
+          );
+      });
     const unsubscribeTasks = onTaskDataChanged(() => {
       void load();
     });
     const unsubscribeSettings = onSettingsDataChanged(() => {
+      void load();
+    });
+    const unsubscribeFocus = onFocusDataChanged(() => {
       void load();
     });
 
@@ -172,389 +217,147 @@ export function InsightsDashboard() {
       controller.abort();
       unsubscribeTasks();
       unsubscribeSettings();
+      unsubscribeFocus();
     };
   }, []);
 
-  const recommendationCards = useMemo(() => summary?.recommendations ?? [], [summary]);
-  const visibleSchedulingIssues = useMemo(() => plan?.issues.slice(0, 3) ?? [], [plan]);
-  const hiddenSchedulingIssueCount = Math.max(
-    0,
-    (plan?.issues.length ?? 0) - visibleSchedulingIssues.length,
-  );
-
-  async function handleRegenerate() {
-    setIsMutating(true);
-    try {
-      const next = await regenerateSchedulingPlan();
-      setPlan(next);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to regenerate.');
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleAccept(suggestion: ScheduleSuggestion) {
-    setIsMutating(true);
-    try {
-      const updated = await acceptSuggestion(suggestion.id);
-      setPlan((current) =>
-        current
-          ? {
-              ...current,
-              schedule: current.schedule.map((item) =>
-                item.id === updated.id ? updated : item,
-              ),
-            }
-          : current,
-      );
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleDismiss(suggestion: ScheduleSuggestion) {
-    setIsMutating(true);
-    try {
-      await dismissSuggestion(suggestion.id);
-      setPlan((current) =>
-        current
-          ? {
-              ...current,
-              schedule: current.schedule.filter((item) => item.id !== suggestion.id),
-            }
-          : current,
-      );
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleApply() {
-    setIsMutating(true);
-    try {
-      const next = await applySuggestions();
-      setPlan(next);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Unable to apply schedule to calendar.',
-      );
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleAdjustSave(suggestionId: string) {
-    if (!adjustStart || !adjustEnd) return;
-    setIsMutating(true);
-    try {
-      const start = new Date(adjustStart);
-      const end = new Date(adjustEnd);
-      const updated = await adjustSuggestion(suggestionId, {
-        suggested_start: start.toISOString(),
-        suggested_end: end.toISOString(),
-      });
-      setPlan((current) =>
-        current
-          ? {
-              ...current,
-              schedule: current.schedule.map((item) =>
-                item.id === updated.id ? updated : item,
-              ),
-            }
-          : current,
-      );
-      setAdjustingId(null);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error ? requestError.message : 'Unable to adjust suggestion.',
-      );
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
   if (isLoading && !summary) {
     return (
-      <div className="rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/70 p-8 text-sm text-dashboard-muted">
-        Generating your AI insights…
+      <div className="space-y-6">
+        <WeeklyInsightCard insight={weekly} error={weeklyError} />
+        <p className="text-sm text-dashboard-muted">Loading current activity…</p>
       </div>
     );
   }
 
   if (error && !summary) {
     return (
-      <div className="rounded-[var(--radius-lg)] border border-[var(--red-border)] bg-[var(--red-soft)] p-6 text-sm text-[var(--red-light)]">
-        {error}
+      <div className="space-y-6">
+        <WeeklyInsightCard insight={weekly} error={weeklyError} />
+        <p className="text-sm text-[var(--red-light)]">{error}</p>
       </div>
     );
   }
 
   if (!summary) return null;
 
+  const currentWeekDateFormat = new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeZone: summary.timezone,
+  });
+  const currentWeekStart = currentWeekDateFormat.format(new Date(summary.period_start));
+  const currentWeekEnd = currentWeekDateFormat.format(
+    new Date(new Date(summary.period_end).getTime() - 1),
+  );
+
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-[20px] border border-dashboard-border bg-dashboard-surface p-6 shadow-panel sm:p-8">
-        <div className="mb-4 flex justify-end">
-          <span className="rounded-[var(--radius-pill)] border border-dashboard-accent/40 bg-dashboard-accent-soft px-3 py-1.5 text-sm font-medium text-dashboard-accent">
-            {summary.footnote || 'AI based on your patterns'}
-          </span>
-        </div>
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)] lg:items-start">
-          <div>
+      <section className="overflow-hidden rounded-[20px] border border-dashboard-border bg-dashboard-surface shadow-panel">
+        <header className="border-b border-dashboard-border px-6 py-5 sm:px-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-dashboard-accent">
+            Current week snapshot
+          </p>
+          <h2 className="mt-1 text-2xl font-semibold text-dashboard-text">This Week So Far</h2>
+          <p className="mt-2 flex items-center gap-2 text-sm font-medium text-dashboard-muted">
+            <span aria-hidden className="text-dashboard-accent">
+              ◷
+            </span>
+            {currentWeekStart} - {currentWeekEnd} · {summary.timezone} · Updates as your activity
+            changes
+          </p>
+        </header>
+
+        <div className="space-y-8 px-6 py-6 sm:px-8 sm:py-8">
+          <section aria-labelledby="current-week-progress">
             <div className="mb-4 flex items-center gap-3">
-              <div className="grid size-12 place-items-center rounded-full bg-[var(--accent-soft)] text-2xl">
+              <span className="grid size-9 place-items-center rounded-full bg-dashboard-accent-soft text-dashboard-accent">
                 🌱
-              </div>
-              <h2 className="font-poppins text-[28px] font-bold tracking-[var(--tracking-heading)] text-dashboard-text sm:text-[32px]">
-                {summary.greeting}
-              </h2>
-            </div>
-            <p className="max-w-xl text-lg leading-8 text-dashboard-muted">
-              {formatWeeklySummary(summary)}
-            </p>
-          </div>
-
-          <div className="flex flex-col items-stretch gap-3 lg:items-end">
-            <TrendChart points={summary.trend} />
-            <p className="max-w-xs text-right text-base italic text-dashboard-subtle">
-              {summary.motivational_quote}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <p className="mb-3 text-base font-medium text-dashboard-muted">This week</p>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <StatCard
-              icon="✓"
-              iconClass="bg-[var(--accent-soft)] text-[var(--accent)]"
-              label="Tasks Completed"
-              value={String(summary.tasks_completed_this_week)}
-            />
-            <StatCard
-              icon="⌛"
-              iconClass="bg-[var(--blue-soft)] text-[var(--blue-light)]"
-              label="Estimated Work"
-              value={summary.estimated_work_time_label}
-            />
-            <StatCard
-              icon="◎"
-              iconClass="bg-[var(--purple-soft)] text-[var(--purple-light)]"
-              label="Goal Progress"
-              value={`${summary.goal_progress_percent}%`}
-            />
-          </div>
-        </div>
-      </section>
-
-      <section
-        className="rounded-[20px] border border-dashboard-border bg-dashboard-surface p-6 shadow-panel"
-        data-schedule-section
-      >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h3 className="text-2xl font-semibold text-dashboard-text">Suggested schedule</h3>
-            <p className="mt-1 text-base text-dashboard-muted">
-              Review, adjust, accept, or dismiss slots before applying them to your calendar.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              className="h-11 rounded-[var(--radius-sm)] border border-dashboard-border px-5 text-base text-dashboard-muted transition hover:text-dashboard-text"
-              disabled={isMutating}
-              onClick={() => void handleRegenerate()}
-              type="button"
-            >
-              Regenerate
-            </button>
-            <button
-              className="h-11 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-base font-semibold text-[#04110d]"
-              disabled={isMutating || !plan?.schedule.length}
-              onClick={() => void handleApply()}
-              type="button"
-            >
-              Apply to calendar
-            </button>
-          </div>
-        </div>
-
-        {plan?.recommendation ? (
-          <div className="mt-5 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-bg/25 p-4">
-            <p className="text-base font-semibold text-dashboard-text">{plan.recommendation.title}</p>
-            <p className="mt-1 text-base text-dashboard-muted">{plan.recommendation.explanation}</p>
-          </div>
-        ) : null}
-
-        <div className="mt-5 space-y-3">
-          {plan?.schedule.length ? (
-            plan.schedule.map((suggestion) => (
-              <article
-                className="rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-surface-raised)] p-4"
-                key={suggestion.id}
-              >
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="text-base font-semibold text-dashboard-text">
-                      {suggestion.task_title}
-                    </p>
-                    <p className="mt-1 text-sm text-dashboard-muted">
-                      {formatScheduleSuggestionRange(
-                        suggestion.suggested_start,
-                        suggestion.suggested_end,
-                      )}
-                      {suggestion.project_name ? ` · ${suggestion.project_name}` : ''}
-                      {suggestion.status === 'adjusted' ? ' · Adjusted' : ''}
-                    </p>
-                    <p className="mt-2 text-sm text-dashboard-muted">{suggestion.explanation}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      className="h-10 rounded-lg border border-dashboard-border px-3.5 text-sm text-dashboard-muted"
-                      disabled={isMutating}
-                      onClick={() => {
-                        setAdjustingId(suggestion.id);
-                        setAdjustStart(suggestion.suggested_start.slice(0, 16));
-                        setAdjustEnd(suggestion.suggested_end.slice(0, 16));
-                      }}
-                      type="button"
-                    >
-                      Adjust
-                    </button>
-                    <button
-                      className="h-10 rounded-lg border border-dashboard-border px-3.5 text-sm text-dashboard-muted"
-                      disabled={isMutating}
-                      onClick={() => void handleAccept(suggestion)}
-                      type="button"
-                    >
-                      Accept
-                    </button>
-                    <button
-                      className="h-10 rounded-lg border border-dashboard-border px-3.5 text-sm text-[var(--red-light)]"
-                      disabled={isMutating}
-                      onClick={() => void handleDismiss(suggestion)}
-                      type="button"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-                {adjustingId === suggestion.id ? (
-                  <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-                    <input
-                      className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text [color-scheme:dark]"
-                      onChange={(event) => setAdjustStart(event.target.value)}
-                      type="datetime-local"
-                      value={adjustStart}
-                    />
-                    <input
-                      className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text [color-scheme:dark]"
-                      onChange={(event) => setAdjustEnd(event.target.value)}
-                      type="datetime-local"
-                      value={adjustEnd}
-                    />
-                    <button
-                      className="h-10 rounded-lg bg-dashboard-accent px-4 text-sm font-semibold text-[#04110d]"
-                      disabled={isMutating}
-                      onClick={() => void handleAdjustSave(suggestion.id)}
-                      type="button"
-                    >
-                      Save
-                    </button>
-                  </div>
-                ) : null}
-              </article>
-            ))
-          ) : (
-            <p className="rounded-[var(--radius-sm)] border border-dashed border-dashboard-border p-5 text-sm text-dashboard-muted">
-              No suggested schedule yet. Create open tasks with estimates, or regenerate.
-            </p>
-          )}
-        </div>
-
-        {visibleSchedulingIssues.length ? (
-          <div className="mt-5 rounded-[var(--radius-sm)] border border-[var(--orange-border)] bg-[var(--orange-soft)] p-4">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+              </span>
               <div>
-                <p className="text-base font-semibold text-dashboard-text">Scheduling conflicts</p>
-                <p className="text-sm text-dashboard-muted">
-                  Some tasks need a larger continuous block before they can be suggested.
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-accent">
+                  Current activity
+                </p>
+                <h3
+                  className="text-lg font-semibold text-dashboard-text"
+                  id="current-week-progress"
+                >
+                  Progress so far
+                </h3>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+              <div className="flex items-center rounded-[16px] border border-dashboard-accent/30 bg-dashboard-accent-soft/40 px-5 py-5">
+                <p className="text-base leading-7 text-dashboard-text sm:text-lg sm:leading-8">
+                  {formatWeeklySummary(summary)}
                 </p>
               </div>
-              {hiddenSchedulingIssueCount > 0 ? (
-                <span className="text-sm font-medium text-[var(--yellow)]">
-                  +{hiddenSchedulingIssueCount} more
-                </span>
-              ) : null}
+              <div className="rounded-[16px] border border-dashboard-border bg-[var(--bg-surface-raised)] px-4 pb-3 pt-4">
+                <TrendChart points={summary.trend} />
+                <p className="border-t border-dashboard-border px-3 pt-3 text-center text-sm italic text-dashboard-subtle">
+                  {summary.motivational_quote}
+                </p>
+              </div>
             </div>
-            <div className="mt-3 space-y-2">
-              {visibleSchedulingIssues.map((issue) => (
-                <article
-                  className="rounded-[var(--radius-sm)] border border-[var(--orange-border)] bg-dashboard-bg/30 p-3"
-                  key={`${issue.task_id}-${issue.code}`}
-                >
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                    <p className="text-base font-semibold text-dashboard-text">
-                      {issue.task_title}
-                    </p>
-                    <span className="text-xs font-semibold uppercase text-[var(--yellow)]">
-                      {issue.severity}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm leading-5 text-dashboard-muted">{issue.reason}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </section>
+          </section>
 
-      <section>
-        <h3 className="mb-4 text-2xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text">
-          How to boost your productivity
-        </h3>
-        <div className="grid gap-4 lg:grid-cols-3">
-          {recommendationCards.map((item) => {
-            const accent = recommendationAccent(item.category);
-            return (
-              <article
-                className="rounded-[18px] border border-dashboard-border bg-dashboard-surface p-5 shadow-panel"
-                key={item.id}
+          <section aria-labelledby="current-week-metrics">
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-muted">
+                Live measurements
+              </p>
+              <h3
+                className="mt-1 text-lg font-semibold text-dashboard-text"
+                id="current-week-metrics"
               >
-                <div
-                  className={`mb-4 grid size-11 place-items-center rounded-full border text-lg ${accent.ring}`}
-                >
-                  {accent.icon}
-                </div>
-                <h4 className="text-lg font-semibold text-dashboard-text">{item.title}</h4>
-                <p className="mt-2 text-base leading-7 text-dashboard-muted">{item.description}</p>
-                <button
-                  className="mt-4 text-base font-semibold text-[var(--accent)] transition hover:text-[var(--accent-hover)]"
-                  onClick={() => {
-                    if (item.category === 'schedule') {
-                      document
-                        .querySelector('[data-schedule-section]')
-                        ?.scrollIntoView({ behavior: 'smooth' });
-                    }
-                  }}
-                  type="button"
-                >
-                  {item.cta_label} →
-                </button>
-              </article>
-            );
-          })}
+                Key metrics
+              </h3>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <StatCard
+                icon="🏆"
+                iconClass="bg-[var(--accent-soft)] text-[var(--accent)]"
+                label="Completion Rate"
+                value={`${Math.round((summary.completion_rate_this_week ?? 0) * 100)}%`}
+              />
+              <StatCard
+                icon="✓"
+                iconClass="bg-[var(--accent-soft)] text-[var(--accent)]"
+                label="Completed Tasks"
+                value={String(summary.tasks_completed_this_week)}
+              />
+              <StatCard
+                icon="⏱️"
+                iconClass="bg-[var(--blue-soft)] text-[var(--blue-light)]"
+                label="Focus Duration"
+                value={`${summary.focus_duration_minutes_this_week ?? 0} min`}
+              />
+              <StatCard
+                icon="⌛"
+                iconClass="bg-[var(--purple-soft)] text-[var(--purple-light)]"
+                label="Unfinished Workload"
+                value={`${summary.unfinished_workload_minutes_this_week ?? 0} min`}
+              />
+              <StatCard
+                icon="🔥"
+                iconClass="bg-[var(--orange-soft)] text-[var(--orange)]"
+                label="Streak"
+                value={`${summary.current_streak_days} days`}
+              />
+            </div>
+          </section>
         </div>
       </section>
+
+      <WeeklyInsightCard insight={weekly} error={weeklyError} />
 
       <section className="flex flex-col gap-4 rounded-[18px] border border-dashboard-border bg-dashboard-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex items-start gap-3">
           <div className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
             ♥
           </div>
-          <p className="max-w-3xl text-base leading-7 text-dashboard-muted">{summary.footer_message}</p>
+          <p className="max-w-3xl text-base leading-7 text-dashboard-muted">
+            {summary.footer_message}
+          </p>
         </div>
       </section>
     </div>
@@ -573,18 +376,190 @@ function StatCard({
   value: string;
 }) {
   return (
-    <div className="flex min-h-[132px] items-center rounded-[16px] border border-dashboard-border bg-[var(--bg-surface-raised)] p-5">
+    <div className="flex min-h-[108px] items-center rounded-[14px] border border-dashboard-border bg-[var(--bg-surface-raised)] p-4">
       <div className="flex items-center gap-3">
-        <div className={`grid size-11 place-items-center rounded-full text-base font-bold ${iconClass}`}>
+        <div
+          className={`grid size-10 shrink-0 place-items-center rounded-full text-sm font-bold ${iconClass}`}
+        >
           {icon}
         </div>
         <div>
-          <p className="text-sm font-medium text-dashboard-muted">{label}</p>
-          <p className="text-3xl font-bold tracking-[var(--tracking-heading)] text-dashboard-text">
+          <p className="text-xs font-medium uppercase tracking-[0.08em] text-dashboard-muted">
+            {label}
+          </p>
+          <p className="mt-2 text-xl font-semibold text-dashboard-text">
             {value}
           </p>
         </div>
       </div>
     </div>
+  );
+}
+
+function WeeklyInsightCard({
+  insight,
+  error,
+}: {
+  insight: WeeklyInsight | null;
+  error: string | null;
+}) {
+  if (!insight)
+    return (
+      <section
+        aria-live="polite"
+        className="rounded-[20px] border border-dashboard-border bg-dashboard-surface p-6"
+      >
+        <h3 className="text-2xl font-semibold text-dashboard-text">Last week’s review</h3>
+        <p className="mt-2 text-dashboard-muted">{error || 'Loading last week’s review…'}</p>
+      </section>
+    );
+  const metrics = insight.metrics;
+  const dateFormat = new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeZone: metrics.timezone,
+  });
+  const start = dateFormat.format(new Date(insight.period_start));
+  const end = dateFormat.format(new Date(new Date(insight.period_end).getTime() - 1));
+  const stats = [
+    ['Completion rate', `${Math.round(metrics.completion_rate * 100)}%`],
+    ['Completed tasks', String(metrics.completed_task_count)],
+    ['Focus duration', `${metrics.focus_duration_minutes} min`],
+    ['Unfinished workload', `${metrics.workload_minutes} min`],
+    ['Streak', `${metrics.current_streak_days} days`],
+  ];
+  return (
+    <section className="overflow-hidden rounded-[20px] border border-dashboard-border bg-dashboard-surface shadow-panel">
+      <header className="border-b border-dashboard-border px-6 py-5 sm:px-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-dashboard-accent">
+          Previous week snapshot
+        </p>
+        <h3 className="mt-1 text-2xl font-semibold text-dashboard-text">Last Week's Review</h3>
+        <p className="mt-2 flex items-center gap-2 text-sm font-medium text-dashboard-muted">
+          <span aria-hidden className="text-dashboard-accent">
+            ◷
+          </span>
+          {start} - {end} · {metrics.timezone}
+        </p>
+      </header>
+
+      <div className="space-y-8 px-6 py-6 sm:px-8 sm:py-8">
+        <section aria-labelledby="weekly-ai-insight">
+          <div className="mb-3 flex items-center gap-3">
+            <span className="grid size-9 place-items-center rounded-full bg-dashboard-accent-soft text-dashboard-accent">
+              ✦
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-accent">
+                Personalized summary
+              </p>
+              <h4
+                className="text-lg font-semibold text-dashboard-text"
+                id="weekly-ai-insight"
+              >
+                AI insight
+              </h4>
+            </div>
+          </div>
+          <div className="rounded-[16px] border border-dashboard-accent/30 bg-dashboard-accent-soft/40 px-5 py-4">
+            <p className="text-base leading-7 text-dashboard-text sm:text-lg sm:leading-8">
+              {insight.narrative}
+            </p>
+          </div>
+        </section>
+
+        <section aria-labelledby="weekly-key-metrics">
+          <div className="mb-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-muted">
+              Numbers behind the insight
+            </p>
+            <h4 className="mt-1 text-lg font-semibold text-dashboard-text" id="weekly-key-metrics">
+              Key metrics
+            </h4>
+          </div>
+          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {stats.map(([label, value]) => (
+              <div
+                className="rounded-[14px] border border-dashboard-border bg-[var(--bg-surface-raised)] px-4 py-4"
+                key={label}
+              >
+                <dt className="text-xs font-medium uppercase tracking-[0.08em] text-dashboard-muted">
+                  {label}
+                </dt>
+                <dd className="mt-2 text-xl font-semibold text-dashboard-text">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section aria-labelledby="weekly-activity-patterns">
+          <div className="mb-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-muted">
+              When work happened
+            </p>
+            <h4
+              className="mt-1 text-lg font-semibold text-dashboard-text"
+              id="weekly-activity-patterns"
+            >
+              Activity patterns
+            </h4>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-[16px] border border-dashboard-border bg-[var(--bg-surface-raised)] p-5">
+              <h5 className="font-semibold text-dashboard-text">Daily productivity</h5>
+              <p className="mt-1 text-sm text-dashboard-muted">Completed tasks and focused time</p>
+              <div className="mt-4 rounded-[14px] border border-dashboard-border bg-dashboard-surface px-3 py-3">
+                <TrendChart
+                  gradientId="previousWeekTrendFill"
+                  points={metrics.productivity_trend}
+                />
+                <p className="mt-1 text-center text-xs text-dashboard-subtle">
+                  Completed-task trend across the week
+                </p>
+              </div>
+              <ul className="mt-4 divide-y divide-dashboard-border text-sm">
+                {metrics.productivity_trend.map((point) => (
+                  <li className="flex items-center justify-between gap-4 py-2.5" key={point.date}>
+                    <span className="text-dashboard-muted">{point.date}</span>
+                    <span className="text-right font-medium text-dashboard-text">
+                      {point.completed_count} tasks · {point.focus_minutes} min
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-[16px] border border-dashboard-border bg-[var(--bg-surface-raised)] p-5">
+              <h5 className="font-semibold text-dashboard-text">Productive hours</h5>
+              <p className="mt-1 text-sm text-dashboard-muted">Activity by hour · {metrics.timezone}</p>
+              <ul className="mt-4 divide-y divide-dashboard-border text-sm">
+                {metrics.productive_hours.map((point) => (
+                  <li className="flex items-center justify-between gap-4 py-2.5" key={point.hour}>
+                    <span className="text-dashboard-muted">
+                      {String(point.hour).padStart(2, '0')}:00
+                    </span>
+                    <span className="text-right font-medium text-dashboard-text">
+                      {point.completed_count} tasks · {point.focus_minutes} min
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {!metrics.productive_hours.length && (
+                <p className="mt-4 rounded-[12px] border border-dashed border-dashboard-border px-4 py-5 text-center text-sm text-dashboard-muted">
+                  No recorded activity.
+                </p>
+              )}
+            </div>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-dashboard-subtle">
+            {metrics.focus_time_attribution} Minutes are rounded down after aggregation within each
+            bucket.
+          </p>
+        </section>
+
+        <p className="border-t border-dashboard-border pt-4 text-xs text-dashboard-subtle">
+          Saved {dateFormat.format(new Date(insight.generated_at))}. This report reuses its saved
+          metrics throughout the week.
+        </p>
+      </div>
+    </section>
   );
 }

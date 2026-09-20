@@ -103,11 +103,7 @@ def list_tasks(
     if due_to is not None:
         conditions.append(Task.due_date <= due_to)
 
-    total_statement = (
-        select(func.count())
-        .select_from(Task)
-        .where(*conditions)
-    )
+    total_statement = select(func.count()).select_from(Task).where(*conditions)
     total = db.scalar(total_statement) or 0
 
     priority_order = case(
@@ -179,6 +175,33 @@ def create_task(
     return get_task_by_id(db, task.id, user_id) or task
 
 
+def create_tasks_atomic(
+    db: Session,
+    user_id: uuid.UUID,
+    task_inputs: list[TaskCreate],
+) -> list[Task]:
+    """Create a confirmed generated batch in one transaction."""
+
+    tasks: list[Task] = []
+    try:
+        for task_data in task_inputs:
+            create_data = task_data.model_dump(exclude={"subtasks"})
+            task = Task(user_id=user_id, status=TaskStatus.PENDING, **create_data)
+            db.add(task)
+            db.flush()
+            _replace_subtasks(task, task_data.subtasks)
+            notification_service.create_task_notification(db, user_id=user_id, task=task)
+            tasks.append(task)
+        bump_schedule_revision(db, user_id)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    _invalidate_ai_plan(db, user_id)
+    return [get_task_by_id(db, task.id, user_id) or task for task in tasks]
+
+
 def get_task_by_id(
     db: Session,
     task_id: uuid.UUID,
@@ -233,11 +256,7 @@ def update_task(
         exclude={"subtasks"},
         exclude_unset=True,
     )
-    subtasks = (
-        task_data.subtasks
-        if "subtasks" in task_data.model_fields_set
-        else None
-    )
+    subtasks = task_data.subtasks if "subtasks" in task_data.model_fields_set else None
     previous_status = task.status
     previous_due_date = task.due_date
 
@@ -259,30 +278,17 @@ def update_task(
         and scheduled_end is not None
         and scheduled_end <= scheduled_start
     ):
-        raise ValueError(
-            "scheduled_end must be later than scheduled_start"
-        )
+        raise ValueError("scheduled_end must be later than scheduled_start")
 
     schedule_changed = (
-        (
-            "scheduled_start" in update_data
-            and scheduled_start != task.scheduled_start
-        )
-        or (
-            "scheduled_end" in update_data
-            and scheduled_end != task.scheduled_end
-        )
-    )
+        "scheduled_start" in update_data and scheduled_start != task.scheduled_start
+    ) or ("scheduled_end" in update_data and scheduled_end != task.scheduled_end)
     explicitly_unlocking = update_data.get("schedule_locked") is False
     if task.schedule_locked and schedule_changed and not explicitly_unlocking:
         raise ValueError("Unlock task before changing its schedule")
 
-    if schedule_locked and (
-        scheduled_start is None or scheduled_end is None
-    ):
-        raise ValueError(
-            "Locked tasks must have a complete schedule interval"
-        )
+    if schedule_locked and (scheduled_start is None or scheduled_end is None):
+        raise ValueError("Locked tasks must have a complete schedule interval")
 
     for field, value in update_data.items():
         setattr(task, field, value)
@@ -291,12 +297,8 @@ def update_task(
         _replace_subtasks(task, subtasks)
 
     next_status = update_data.get("status", previous_status)
-    completed_now = (
-        next_status == TaskStatus.DONE and previous_status != TaskStatus.DONE
-    )
-    due_date_changed = (
-        "due_date" in update_data and update_data["due_date"] != previous_due_date
-    )
+    completed_now = next_status == TaskStatus.DONE and previous_status != TaskStatus.DONE
+    due_date_changed = "due_date" in update_data and update_data["due_date"] != previous_due_date
 
     if completed_now:
         task.completed_at = utc_now()

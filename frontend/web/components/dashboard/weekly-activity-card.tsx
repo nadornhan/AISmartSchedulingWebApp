@@ -7,10 +7,7 @@ export function WeeklyActivityCard({
 }: Readonly<{
   points: DashboardWeeklyActivityPoint[];
 }>) {
-  const max = Math.max(
-    8,
-    ...points.flatMap((point) => [point.done, point.overdue]),
-  );
+  const max = Math.max(8, ...points.flatMap((point) => [point.done, point.overdue]));
   const topDone = Math.max(0, ...points.map((point) => point.done));
   const topDays = points
     .filter((point) => point.done === topDone && topDone > 0)
@@ -58,39 +55,43 @@ export function WeeklyActivityCard({
             <span className="border-t opacity-30 border-dashboard-border/60" />
             <span className="border-t opacity-30 border-dashboard-border/60" />
           </div>
-        {points.map((point) => {
-          const doneHeight = point.done > 0 ? Math.max(12, (point.done / max) * 100) : 0;
-          const overdueHeight =
-            point.overdue > 0 ? Math.max(12, (point.overdue / max) * 100) : 0;
+          {points.map((point) => {
+            const doneHeight = point.done > 0 ? Math.max(12, (point.done / max) * 100) : 0;
+            const overdueHeight = point.overdue > 0 ? Math.max(12, (point.overdue / max) * 100) : 0;
 
-          return (
-            <div className="relative z-10 flex h-full min-w-0 flex-col items-center justify-end gap-3" key={point.date}>
-              <div className="flex h-44 w-full items-end justify-center gap-1.5">
-                <div className="flex h-full w-4 flex-col items-center justify-end gap-1">
-                  {point.done > 0 ? (
-                    <span className="text-xs font-semibold text-dashboard-text">{point.done}</span>
-                  ) : null}
-                  <span
-                    className="w-full rounded-t-[var(--radius-xs)] bg-dashboard-accent shadow-[0_0_14px_rgba(53,227,181,.18)]"
-                    style={{ height: `${doneHeight}%` }}
-                  />
+            return (
+              <div
+                className="relative z-10 flex h-full min-w-0 flex-col items-center justify-end gap-3"
+                key={point.date}
+              >
+                <div className="flex h-44 w-full items-end justify-center gap-1.5">
+                  <div className="flex h-full w-4 flex-col items-center justify-end gap-1">
+                    {point.done > 0 ? (
+                      <span className="text-xs font-semibold text-dashboard-text">
+                        {point.done}
+                      </span>
+                    ) : null}
+                    <span
+                      className="w-full rounded-t-[var(--radius-xs)] bg-dashboard-accent shadow-[0_0_14px_rgba(53,227,181,.18)]"
+                      style={{ height: `${doneHeight}%` }}
+                    />
+                  </div>
+                  <div className="flex h-full w-4 flex-col items-center justify-end gap-1">
+                    {point.overdue > 0 ? (
+                      <span className="text-xs font-semibold text-dashboard-text">
+                        {point.overdue}
+                      </span>
+                    ) : null}
+                    <span
+                      className="w-full rounded-t-[var(--radius-xs)] bg-[var(--red-light)] shadow-[0_0_14px_rgba(255,95,110,.18)]"
+                      style={{ height: `${overdueHeight}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="flex h-full w-4 flex-col items-center justify-end gap-1">
-                  {point.overdue > 0 ? (
-                    <span className="text-xs font-semibold text-dashboard-text">
-                      {point.overdue}
-                    </span>
-                  ) : null}
-                  <span
-                    className="w-full rounded-t-[var(--radius-xs)] bg-[var(--red-light)] shadow-[0_0_14px_rgba(255,95,110,.18)]"
-                    style={{ height: `${overdueHeight}%` }}
-                  />
-                </div>
+                <span className="text-sm font-medium text-dashboard-muted">{point.day}</span>
               </div>
-              <span className="text-sm font-medium text-dashboard-muted">{point.day}</span>
-            </div>
-          );
-        })}
+            );
+          })}
         </div>
       </div>
 
@@ -103,7 +104,7 @@ export function WeeklyActivityCard({
           className="text-sm font-semibold text-dashboard-text transition hover:text-dashboard-accent"
           href="/analytics"
         >
-          View full insights
+          View full analytics
         </Link>
       </div>
     </section>

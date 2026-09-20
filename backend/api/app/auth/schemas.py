@@ -2,7 +2,9 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.timezones import validate_timezone_name
 
 UserRole = Literal["student", "teacher", "other", "admin"]
 RegistrationRole = Literal["student", "teacher", "other"]
@@ -14,6 +16,12 @@ class UserRegister(BaseModel):
     first_name: str = Field(default="", max_length=100)
     last_name: str = Field(default="", max_length=100)
     role: RegistrationRole = "student"
+    timezone: str | None = None
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str | None) -> str | None:
+        return validate_timezone_name(value) if value is not None else None
 
 
 class UserLogin(BaseModel):

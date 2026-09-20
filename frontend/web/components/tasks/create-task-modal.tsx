@@ -11,12 +11,15 @@ import {
   formatDurationLabel,
   parseCustomDuration,
 } from '../../lib/duration';
-import { parseNaturalLanguageTask } from '../../lib/natural-language-task';
 import type { Project } from '../../lib/projects';
-import type {
+import {
+  confirmGeneratedTasks,
+  previewGeneratedTasks,
+  type GeneratedTaskDraft,
   TaskCreateInput,
   TaskPriorityValue,
   TaskResponse,
+  type TaskGenerationPreview,
   TaskUpdateInput,
 } from '../../lib/tasks';
 import { CreateFolderModal } from '../folders/create-folder-modal';
@@ -233,6 +236,9 @@ function TaskFormModal({
   const [projectId, setProjectId] = useState(initialValues.projectId);
   const [naturalLanguageInput, setNaturalLanguageInput] = useState('');
   const [parseFeedback, setParseFeedback] = useState<string | null>(null);
+  const [generationPreview, setGenerationPreview] = useState<TaskGenerationPreview | null>(null);
+  const [generatedTasks, setGeneratedTasks] = useState<GeneratedTaskDraft[]>([]);
+  const [generationBusy, setGenerationBusy] = useState(false);
   const [isNaturalLanguageExpanded, setIsNaturalLanguageExpanded] = useState(true);
   const [isManualFormVisible, setIsManualFormVisible] = useState(!enableNaturalLanguage);
   const [recentlyGeneratedDetails, setRecentlyGeneratedDetails] = useState(false);
@@ -286,47 +292,49 @@ function TaskFormModal({
   const shouldShowNaturalLanguageInput = !isManualFormVisible || isNaturalLanguageExpanded;
   const isAiOnlyView = enableNaturalLanguage && !isManualFormVisible;
 
-  function createFromNaturalLanguage() {
-    const parsed = parseNaturalLanguageTask(naturalLanguageInput);
-
-    if (!parsed.title) {
+  async function createFromNaturalLanguage() {
+    if (!naturalLanguageInput.trim()) {
       setParseFeedback('Add a task description before generating details.');
       return;
     }
-
-    const requestedProjectName = parsed.projectName?.toLocaleLowerCase();
-    const matchedProject = requestedProjectName
-      ? availableProjects.find(
-          (project) => project.name.trim().toLocaleLowerCase() === requestedProjectName,
-        )
-      : null;
-
-    if (parsed.projectName && !matchedProject) {
+    setGenerationBusy(true);
+    setParseFeedback(null);
+    setSubmitError(null);
+    try {
+      const preview = await previewGeneratedTasks(naturalLanguageInput.trim());
+      setGenerationPreview(preview);
+      setGeneratedTasks(preview.proposal.tasks);
       setParseFeedback(
-        `Folder “${parsed.projectName}” was not found. Check the folder name and try again.`,
+        `${preview.proposal.tasks.length} task${preview.proposal.tasks.length === 1 ? '' : 's'} found. Review before creating.`,
       );
+    } catch (requestError) {
+      setParseFeedback(getErrorMessage(requestError));
+    } finally {
+      setGenerationBusy(false);
+    }
+  }
+
+  function updateGeneratedTask(index: number, patch: Partial<GeneratedTaskDraft>) {
+    setGeneratedTasks((current) =>
+      current.map((task, taskIndex) => (taskIndex === index ? { ...task, ...patch } : task)),
+    );
+  }
+
+  async function createGeneratedTasks() {
+    if (!generationPreview) return;
+    if (generatedTasks.some((task) => !task.title.trim())) {
+      setParseFeedback('Every task needs a title.');
       return;
     }
-
-    setTitleValue(parsed.title);
-    if (parsed.dueDate) setDueDateValue(parsed.dueDate);
-    if (parsed.dueTime) setDueTimeValue(parsed.dueTime);
-    if (parsed.priority) setPriority(priorityFromApi[parsed.priority]);
-    if (parsed.estimatedDurationMinutes !== null) {
-      const parsedDurationOption = durationOptionFromMinutes(parsed.estimatedDurationMinutes);
-      setDurationOption(parsedDurationOption);
-      setCustomDuration(
-        parsedDurationOption === 'custom' ? String(parsed.estimatedDurationMinutes) : '',
-      );
+    setGenerationBusy(true);
+    try {
+      await confirmGeneratedTasks(generationPreview, generatedTasks);
+      onClose();
+    } catch (requestError) {
+      setParseFeedback(getErrorMessage(requestError));
+    } finally {
+      setGenerationBusy(false);
     }
-    if (matchedProject) setProjectId(matchedProject.id);
-
-    setSubmitError(null);
-    setRecentlyGeneratedDetails(true);
-    window.setTimeout(() => setRecentlyGeneratedDetails(false), 1400);
-    setIsManualFormVisible(true);
-    setIsNaturalLanguageExpanded(false);
-    setParseFeedback('Task details generated. Review them, then click Create Task.');
   }
 
   function addSubtask() {
@@ -520,11 +528,13 @@ function TaskFormModal({
                         onChange={(event) => {
                           setNaturalLanguageInput(event.target.value);
                           setParseFeedback(null);
+                          setGenerationPreview(null);
+                          setGeneratedTasks([]);
                         }}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
                             event.preventDefault();
-                            createFromNaturalLanguage();
+                            void createFromNaturalLanguage();
                           }
                         }}
                         placeholder="What would you like to get done?"
@@ -547,11 +557,11 @@ function TaskFormModal({
                             ? 'border-dashboard-accent bg-gradient-to-br from-dashboard-accent via-dashboard-accent/85 to-dashboard-accent-strong text-[#04110d] shadow-[0_8px_24px_rgba(53,227,181,0.22),inset_0_1px_0_rgba(255,255,255,0.28)] hover:brightness-110'
                             : 'border-dashboard-border bg-gradient-to-br from-white/[0.08] via-white/[0.035] to-transparent text-dashboard-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md',
                         )}
-                        disabled={isSubmitting || !hasNaturalLanguageInput}
-                        onClick={createFromNaturalLanguage}
+                        disabled={isSubmitting || generationBusy || !hasNaturalLanguageInput}
+                        onClick={() => void createFromNaturalLanguage()}
                         type="button"
                       >
-                        Generate task
+                        {generationBusy ? 'Generating…' : 'Generate task'}
                         <ArrowDown aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
                       </button>
                       {hasNaturalLanguageInput ? (
@@ -565,6 +575,83 @@ function TaskFormModal({
                     <p className="mt-3 text-sm leading-5 text-dashboard-accent" role="status">
                       {parseFeedback}
                     </p>
+                  ) : null}
+                  {generationPreview ? (
+                    <div className="mt-4 space-y-3">
+                      {generatedTasks.map((task, index) => (
+                        <article
+                          className="grid gap-3 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface p-4 sm:grid-cols-[1fr_150px_150px_auto]"
+                          key={task.client_id}
+                        >
+                          <input
+                            aria-label={`Task ${index + 1} title`}
+                            className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-dashboard-text"
+                            onChange={(event) =>
+                              updateGeneratedTask(index, { title: event.target.value })
+                            }
+                            value={task.title}
+                          />
+                          <select
+                            aria-label={`Task ${index + 1} priority`}
+                            className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-dashboard-text"
+                            onChange={(event) =>
+                              updateGeneratedTask(index, {
+                                priority: event.target.value as TaskPriorityValue,
+                              })
+                            }
+                            value={task.priority}
+                          >
+                            <option value="no_priority">No priority</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                          </select>
+                          <input
+                            aria-label={`Task ${index + 1} due date`}
+                            className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-dashboard-text [color-scheme:dark]"
+                            onChange={(event) =>
+                              updateGeneratedTask(index, { due_date: event.target.value })
+                            }
+                            type="date"
+                            value={task.due_date}
+                          />
+                          <button
+                            aria-label={`Remove task ${index + 1}`}
+                            className="h-10 rounded-lg border border-[var(--red-border)] px-3 text-[var(--red-light)]"
+                            onClick={() =>
+                              setGeneratedTasks((current) =>
+                                current.filter((_task, taskIndex) => taskIndex !== index),
+                              )
+                            }
+                            type="button"
+                          >
+                            X
+                          </button>
+                        </article>
+                      ))}
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-dashboard-muted">
+                          {generationPreview.metadata.source === 'gemini'
+                            ? 'Generated with Gemini'
+                            : generationPreview.metadata.fallback_reason ===
+                                'ai_configuration_error'
+                              ? 'Gemini API key is not configured · parser fallback used'
+                              : generationPreview.metadata.fallback_reason === 'ai_disabled'
+                                ? 'Gemini is disabled · parser fallback used'
+                                : 'Gemini was unavailable · parser fallback used'}
+                        </span>
+                        <button
+                          className="h-11 rounded-[var(--radius-sm)] bg-dashboard-accent px-5 font-semibold text-[#04110d] disabled:opacity-50"
+                          disabled={generationBusy || generatedTasks.length === 0}
+                          onClick={() => void createGeneratedTasks()}
+                          type="button"
+                        >
+                          {generationBusy
+                            ? 'Creating…'
+                            : `Create ${generatedTasks.length} task${generatedTasks.length === 1 ? '' : 's'}`}
+                        </button>
+                      </div>
+                    </div>
                   ) : null}
                   {!isManualFormVisible ? (
                     <>

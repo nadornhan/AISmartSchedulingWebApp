@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useCurrentUser } from '../auth/current-user-provider';
 import { emitSettingsDataChanged } from '../../lib/data-events';
 import {
-  getBrowserTimezone,
   getSettings,
   settingsFormValueToUpdateInput,
   settingsResponseToFormValue,
@@ -65,10 +64,6 @@ export function SettingsPage() {
       try {
         const settings = await getSettings({ signal: controller.signal });
         const formValue = settingsResponseToFormValue(settings);
-        const browserTimezone = getBrowserTimezone();
-        if (settings.work_pattern.timezone === 'UTC' && browserTimezone !== 'UTC') {
-          formValue.workPreferences.timezone = browserTimezone;
-        }
 
         setSavedSettings(settings);
         setWorkPreferences(formValue.workPreferences);
@@ -104,13 +99,15 @@ export function SettingsPage() {
     setSaveMessage(null);
 
     try {
-      const settings = await updateSettings(
-        settingsFormValueToUpdateInput({
-          workPreferences,
-          notifications,
-          schedulingWeights,
-        }),
-      );
+      const update = settingsFormValueToUpdateInput({
+        workPreferences,
+        notifications,
+        schedulingWeights,
+      });
+      if (workPreferences.timezone === savedSettings?.work_pattern.timezone) {
+        delete update.work_pattern?.timezone;
+      }
+      const settings = await updateSettings(update);
       const formValue = settingsResponseToFormValue(settings);
 
       setSavedSettings(settings);

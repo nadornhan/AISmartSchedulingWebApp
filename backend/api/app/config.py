@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
-    ai_enabled: bool = False
+    ai_enabled: bool = True
     ai_requests_per_user_per_minute: int = Field(default=10, ge=1, le=120)
     gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-3.5-flash-lite"

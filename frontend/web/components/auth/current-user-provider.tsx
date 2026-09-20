@@ -18,6 +18,7 @@ import {
   logout,
   type UserResponse,
 } from '../../lib/auth';
+import { detectBrowserTimezone } from '../../lib/settings';
 
 type CurrentUserContextValue = {
   user: UserResponse | null;
@@ -74,6 +75,7 @@ export function CurrentUserProvider({
     try {
       setError(null);
       const nextUser = await getCurrentUser();
+      await detectBrowserTimezone().catch(() => undefined);
       setUser(nextUser);
       return nextUser;
     } catch (requestError) {
@@ -103,7 +105,8 @@ export function CurrentUserProvider({
     let isMounted = true;
 
     getCurrentUser()
-      .then((nextUser) => {
+      .then(async (nextUser) => {
+        await detectBrowserTimezone().catch(() => undefined);
         if (isMounted) {
           setUser(nextUser);
           setError(null);

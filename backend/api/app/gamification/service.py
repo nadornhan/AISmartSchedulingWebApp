@@ -59,8 +59,10 @@ from app.gamification.schemas import (
     UpdatePlantRequest,
     UserPlantResponse,
 )
+from app.settings import service as settings_service
 from app.tasks.models import Task, TaskPriority, TaskStatus
 from app.tasks.overdue import utc_now
+from app.timezones import local_date, local_today, utc_bounds_for_local_date
 
 STAGE_LABELS = {
     "seedling": "Seedling",
@@ -195,22 +197,27 @@ def _count_focus_minutes(db: Session, user_id: uuid.UUID) -> int:
 
 def _count_active_days(db: Session, user_id: uuid.UUID) -> int:
     profile = get_or_create_profile(db, user_id)
-    # Approximate unique productive days from reward events + streak history.
+    timezone_name = settings_service.timezone_name_for_user(db, user_id)
     days = db.scalars(
-        select(func.date(RewardEvent.created_at)).where(
+        select(RewardEvent.created_at).where(
             RewardEvent.user_id == user_id,
             RewardEvent.source_type != SOURCE_ACHIEVEMENT_CLAIM,
         )
     ).all()
-    unique = {str(day) for day in days if day is not None}
+    unique = {
+        local_date(created_at, timezone_name).isoformat()
+        for created_at in days
+        if created_at is not None
+    }
     if profile.last_activity_date is not None:
         unique.add(str(profile.last_activity_date))
     return max(len(unique), profile.longest_streak)
 
 
 def _count_active_weeks(db: Session, user_id: uuid.UUID) -> int:
+    timezone_name = settings_service.timezone_name_for_user(db, user_id)
     rows = db.scalars(
-        select(func.date(RewardEvent.created_at)).where(
+        select(RewardEvent.created_at).where(
             RewardEvent.user_id == user_id,
             RewardEvent.source_type != SOURCE_ACHIEVEMENT_CLAIM,
         )
@@ -219,10 +226,7 @@ def _count_active_weeks(db: Session, user_id: uuid.UUID) -> int:
     for row in rows:
         if row is None:
             continue
-        if isinstance(row, date):
-            iso = row.isocalendar()
-        else:
-            continue
+        iso = local_date(row, timezone_name).isocalendar()
         weeks.add(f"{iso.year}-W{iso.week}")
     return len(weeks)
 
@@ -358,8 +362,7 @@ def _plant_response(plant: UserPlant, *, user_id: uuid.UUID, db: Session) -> Use
     )
 
 
-def _streak_message(profile: UserGamificationProfile) -> str:
-    today = utc_now().date()
+def _streak_message(profile: UserGamificationProfile, *, today: date) -> str:
     if profile.current_streak > 0:
         return f"{profile.current_streak}-day consistency streak"
     if profile.last_activity_date and profile.last_activity_date < today - timedelta(days=1):
@@ -374,6 +377,7 @@ def _profile_response(
     recently_unlocked: list[AchievementProgress] | None = None,
 ) -> GamificationProfileResponse:
     profile = get_or_create_profile(db, user_id)
+    timezone_name = settings_service.timezone_name_for_user(db, user_id)
     plant = _growing_plant(db, user_id)
     return GamificationProfileResponse(
         total_growth_points=profile.total_growth_points,
@@ -383,7 +387,7 @@ def _profile_response(
             current_streak=profile.current_streak,
             longest_streak=profile.longest_streak,
             last_activity_date=profile.last_activity_date,
-            message=_streak_message(profile),
+            message=_streak_message(profile, today=local_today(timezone_name)),
         ),
         current_plant=_plant_response(plant, user_id=user_id, db=db) if plant else None,
         needs_plant_selection=plant is None,
@@ -719,8 +723,7 @@ def _record_reward(
     return event
 
 
-def _update_streak(db: Session, profile: UserGamificationProfile) -> int:
-    today = utc_now().date()
+def _update_streak(profile: UserGamificationProfile, *, today: date) -> int:
     bonus = 0
     if profile.last_activity_date == today:
         return 0
@@ -1012,8 +1015,14 @@ def claim_achievement(
     )
 
 
-def _maybe_daily_clear_bonus(db: Session, user_id: uuid.UUID) -> int:
-    today = utc_now().date()
+def _maybe_daily_clear_bonus(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    today: date,
+    timezone_name: str,
+) -> int:
+    day_start, day_end = utc_bounds_for_local_date(today, timezone_name)
     source_id = today.isoformat()
     if _already_rewarded(db, user_id, SOURCE_DAILY_CLEAR, source_id):
         return 0
@@ -1024,7 +1033,8 @@ def _maybe_daily_clear_bonus(db: Session, user_id: uuid.UUID) -> int:
         .where(
             Task.user_id == user_id,
             Task.status != TaskStatus.DONE,
-            func.date(Task.due_date) == today,
+            Task.due_date >= day_start,
+            Task.due_date < day_end,
         )
     )
     due_today_total = db.scalar(
@@ -1032,7 +1042,8 @@ def _maybe_daily_clear_bonus(db: Session, user_id: uuid.UUID) -> int:
         .select_from(Task)
         .where(
             Task.user_id == user_id,
-            func.date(Task.due_date) == today,
+            Task.due_date >= day_start,
+            Task.due_date < day_end,
         )
     )
     if not due_today_total or open_due_today:
@@ -1054,6 +1065,8 @@ def award_for_task_completion(
     user_id: uuid.UUID,
     task: Task,
 ) -> RewardFeedback:
+    timezone_name = settings_service.timezone_name_for_user(db, user_id)
+    today = local_today(timezone_name)
     source_id = str(task.id)
     if _already_rewarded(db, user_id, SOURCE_TASK_COMPLETE, source_id):
         return RewardFeedback(
@@ -1078,19 +1091,24 @@ def award_for_task_completion(
         return RewardFeedback(awarded=False, profile=_profile_response(db, user_id))
 
     profile = _profile_for_update(db, user_id)
-    streak_bonus = _update_streak(db, profile)
+    streak_bonus = _update_streak(profile, today=today)
     if streak_bonus:
         _record_reward(
             db,
             user_id,
             source_type=SOURCE_STREAK_BONUS,
-            source_id=f"{utc_now().date().isoformat()}:{profile.current_streak}",
+            source_id=f"{today.isoformat()}:{profile.current_streak}",
             growth_points=streak_bonus,
             metadata={"streak": profile.current_streak},
         )
         points += streak_bonus
 
-    points += _maybe_daily_clear_bonus(db, user_id)
+    points += _maybe_daily_clear_bonus(
+        db,
+        user_id,
+        today=today,
+        timezone_name=timezone_name,
+    )
 
     plant, stage_changed, previous_stage, new_stage, plant_completed = _apply_points_to_plant(
         db,
@@ -1142,7 +1160,9 @@ def award_for_focus_session(
         return RewardFeedback(awarded=False, profile=_profile_response(db, user_id))
 
     points = FOCUS_SESSION_GP
-    today = utc_now().date()
+    timezone_name = settings_service.timezone_name_for_user(db, user_id)
+    today = local_today(timezone_name)
+    day_start, day_end = utc_bounds_for_local_date(today, timezone_name)
     sessions_today = int(
         db.scalar(
             select(func.count())
@@ -1151,7 +1171,8 @@ def award_for_focus_session(
                 FocusSession.user_id == user_id,
                 FocusSession.completed.is_(True),
                 FocusSession.duration_minutes >= MIN_VALID_FOCUS_MINUTES,
-                func.date(FocusSession.ended_at) == today,
+                FocusSession.ended_at >= day_start,
+                FocusSession.ended_at < day_end,
             )
         )
         or 0
@@ -1171,7 +1192,7 @@ def award_for_focus_session(
         return RewardFeedback(awarded=False, profile=_profile_response(db, user_id))
 
     profile = _profile_for_update(db, user_id)
-    streak_bonus = _update_streak(db, profile)
+    streak_bonus = _update_streak(profile, today=today)
     if streak_bonus:
         _record_reward(
             db,

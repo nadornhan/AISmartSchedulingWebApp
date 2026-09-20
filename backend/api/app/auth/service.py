@@ -10,6 +10,7 @@ from app.auth.models import User
 from app.auth.schemas import UserRegister
 from app.auth.security import hash_password, verify_password
 from app.config import get_settings
+from app.settings.models import UserSettings
 
 
 class DuplicateUserEmailError(ValueError):
@@ -56,6 +57,15 @@ def create_user(db: Session, user_data: UserRegister) -> User:
 
     db.add(user)
     try:
+        if user_data.timezone is not None:
+            db.flush()
+            db.add(
+                UserSettings(
+                    user_id=user.id,
+                    timezone=user_data.timezone,
+                    timezone_source="detected",
+                )
+            )
         db.commit()
     except IntegrityError as error:
         db.rollback()

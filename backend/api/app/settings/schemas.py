@@ -10,6 +10,7 @@ class WorkPatternSettings(BaseModel):
     work_start: time
     work_end: time
     timezone: str
+    timezone_source: str
     pomodoro_minutes: int = Field(ge=1, le=240)
     daily_work_limit_minutes: int = Field(ge=30, le=1440)
 

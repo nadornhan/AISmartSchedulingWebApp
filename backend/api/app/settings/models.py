@@ -36,6 +36,10 @@ class UserSettings(Base):
             "daily_work_limit_minutes BETWEEN 30 AND 1440",
             name="ck_user_settings_daily_work_limit_range",
         ),
+        CheckConstraint(
+            "timezone_source IN ('default', 'detected', 'user')",
+            name="ck_user_settings_timezone_source_allowed",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -64,6 +68,12 @@ class UserSettings(Base):
         String(64),
         default="UTC",
         server_default="UTC",
+        nullable=False,
+    )
+    timezone_source: Mapped[str] = mapped_column(
+        String(16),
+        default="default",
+        server_default="default",
         nullable=False,
     )
     pomodoro_minutes: Mapped[int] = mapped_column(
