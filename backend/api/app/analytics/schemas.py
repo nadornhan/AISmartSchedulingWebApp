@@ -20,14 +20,20 @@ class InsightRecommendation(BaseModel):
 
 
 class InsightsSummaryResponse(BaseModel):
+    period_start: datetime
+    period_end: datetime
+    timezone: str = "UTC"
     user_first_name: str
     greeting: str
     weekly_summary_text: str
     tasks_completed_this_week: int = Field(ge=0)
     tasks_completed_last_week: int = Field(ge=0)
     week_over_week_change_percent: int | None = None
+    completion_rate_this_week: float = Field(ge=0, le=1)
+    unfinished_workload_minutes_this_week: int = Field(ge=0)
     estimated_work_minutes_this_week: int = Field(ge=0)
     estimated_work_time_label: str
+    focus_duration_minutes_this_week: int = Field(ge=0)
     goal_progress_percent: int = Field(ge=0, le=100)
     current_streak_days: int = Field(ge=0)
     trend: list[InsightTrendPoint]
@@ -53,6 +59,8 @@ class HourlyProductivityPoint(BaseModel):
 class WeeklyMetrics(BaseModel):
     period_start: datetime
     period_end: datetime
+    timezone: str = "UTC"
+    focus_time_attribution: str = "Legacy report: focus time grouped by session start."
     completion_rate: float = Field(ge=0, le=1)
     completed_task_count: int = Field(ge=0)
     focus_duration_minutes: int = Field(ge=0)
@@ -61,6 +69,8 @@ class WeeklyMetrics(BaseModel):
     estimated_minutes: int = Field(ge=0)
     actual_minutes: int = Field(ge=0)
     estimate_accuracy_percent: float | None = Field(default=None, ge=0)
+    duration_comparison_task_count: int | None = Field(default=None, ge=0)
+    duration_comparison_excluded_task_count: int | None = Field(default=None, ge=0)
     productivity_trend: list[DailyProductivityPoint]
     productive_hours: list[HourlyProductivityPoint]
 

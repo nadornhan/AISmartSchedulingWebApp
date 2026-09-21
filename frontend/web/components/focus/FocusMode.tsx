@@ -30,6 +30,43 @@ const defaultDurations: FocusDurations = {
   longBreak: 15,
 };
 
+const timerStorageKey = 'focus-timer-state-v1';
+
+type PersistedTimerState = {
+  version: 1;
+  mode: Mode;
+  durations: FocusDurations;
+  remainingByMode: Record<Mode, number>;
+  running: boolean;
+  endTime: number | null;
+  sessionId: string | null;
+  sessionStartedAt: string | null;
+  focusedMilliseconds: number;
+  activeSegmentStartedAt: number | null;
+};
+
+function modeSeconds(durations: FocusDurations): Record<Mode, number> {
+  return {
+    Pomodoro: durations.focus * 60,
+    'Short Break': durations.shortBreak * 60,
+    'Long Break': durations.longBreak * 60,
+  };
+}
+
+function readPersistedTimer(): PersistedTimerState | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(timerStorageKey) ?? 'null') as
+      | PersistedTimerState
+      | null;
+    if (!parsed || parsed.version !== 1 || !modes.includes(parsed.mode)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function getModeSeconds(mode: Mode, durations: FocusDurations) {
   if (mode === 'Pomodoro') return durations.focus * 60;
   if (mode === 'Short Break') return durations.shortBreak * 60;
@@ -38,6 +75,9 @@ function getModeSeconds(mode: Mode, durations: FocusDurations) {
 
 export function FocusMode() {
   const searchParams = useSearchParams();
+  const [restoredTimer, setRestoredTimer] = useState<PersistedTimerState | null>(null);
+  const [timerHydrated, setTimerHydrated] = useState(false);
+  const [sessionHydrated, setSessionHydrated] = useState(false);
   const [mode, setMode] = useState<Mode>('Pomodoro');
   const [durations, setDurations] = useState<FocusDurations>(defaultDurations);
   const [seconds, setSeconds] = useState(defaultDurations.focus * 60);
@@ -54,6 +94,7 @@ export function FocusMode() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const endTimeRef = useRef<number | null>(null);
   const remainingRef = useRef(defaultDurations.focus * 60);
+  const remainingByModeRef = useRef<Record<Mode, number>>(modeSeconds(defaultDurations));
   const completionSoundPlayedRef = useRef(false);
   const sessionStartedAtRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -74,9 +115,57 @@ export function FocusMode() {
     .padStart(2, '0');
   const remainder = (seconds % 60).toString().padStart(2, '0');
 
+  function persistTimerSnapshot() {
+    const snapshot: PersistedTimerState = {
+      version: 1,
+      mode,
+      durations,
+      remainingByMode: { ...remainingByModeRef.current },
+      running,
+      endTime: endTimeRef.current,
+      sessionId: sessionIdRef.current,
+      sessionStartedAt: sessionStartedAtRef.current,
+      focusedMilliseconds: focusedMillisecondsRef.current,
+      activeSegmentStartedAt: activeSegmentStartedAtRef.current,
+    };
+    window.localStorage.setItem(timerStorageKey, JSON.stringify(snapshot));
+  }
+
   useEffect(() => {
+    const restored = readPersistedTimer();
+    if (restored) {
+      const restoredSeconds =
+        restored.running && restored.endTime !== null
+          ? Math.max(0, Math.ceil((restored.endTime - Date.now()) / 1000))
+          : restored.remainingByMode[restored.mode];
+      setRestoredTimer(restored);
+      setMode(restored.mode);
+      setDurations(restored.durations);
+      setSeconds(restoredSeconds);
+      setRunning(restored.running);
+      endTimeRef.current = restored.endTime;
+      remainingRef.current = restoredSeconds;
+      remainingByModeRef.current = {
+        ...restored.remainingByMode,
+        [restored.mode]: restoredSeconds,
+      };
+      completionSoundPlayedRef.current = Boolean(
+        restored.running && restored.endTime !== null && restoredSeconds === 0,
+      );
+      sessionStartedAtRef.current = restored.sessionStartedAt;
+      sessionIdRef.current = restored.sessionId;
+      activeSegmentStartedAtRef.current = restored.activeSegmentStartedAt;
+      focusedMillisecondsRef.current = restored.focusedMilliseconds;
+    }
+    setTimerHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!timerHydrated) return;
     remainingRef.current = seconds;
-  }, [seconds]);
+    remainingByModeRef.current[mode] = seconds;
+    persistTimerSnapshot();
+  }, [durations, mode, running, seconds, timerHydrated]);
 
   useEffect(() => {
     audioRef.current = new Audio('/sounds/focus-complete.wav');
@@ -85,16 +174,33 @@ export function FocusMode() {
   }, []);
 
   useEffect(() => {
+    if (!timerHydrated) return;
     const controller = new AbortController();
 
     void getActiveFocusSession(controller.signal)
       .then((session) => {
         setSessionError(null);
-        if (!session) return;
+        if (!session) {
+          sessionIdRef.current = null;
+          sessionStartedAtRef.current = null;
+          focusedMillisecondsRef.current = 0;
+          activeSegmentStartedAtRef.current = null;
+          setSessionTaskLocked(false);
+          if (mode === 'Pomodoro' && running) {
+            setRunning(false);
+            endTimeRef.current = null;
+          }
+          persistTimerSnapshot();
+          return;
+        }
 
         sessionIdRef.current = session.id;
         sessionStartedAtRef.current = session.started_at;
-        focusedMillisecondsRef.current = session.actual_duration_seconds * 1000;
+        const restoredSessionMatches = restoredTimer?.sessionId === session.id;
+        focusedMillisecondsRef.current = Math.max(
+          restoredSessionMatches ? focusedMillisecondsRef.current : 0,
+          session.actual_duration_seconds * 1000,
+        );
         setSelectedFocusTaskIds(
           session.task_ids.length > 0 ? session.task_ids : session.task_id ? [session.task_id] : [],
         );
@@ -104,9 +210,27 @@ export function FocusMode() {
           ...current,
           focus: session.planned_duration_minutes,
         }));
+
+        if (restoredSessionMatches) {
+          setSessionMessage(restoredTimer.running ? 'Focus session restored' : 'Focus session restored · paused');
+          if (!restoredTimer.running || restoredTimer.mode !== 'Pomodoro') {
+            void updateFocusSession(session.id, {
+              actual_duration_seconds: Math.round(focusedMillisecondsRef.current / 1000),
+              status: 'paused',
+            });
+          }
+          return;
+        }
+
         setMode('Pomodoro');
         setSeconds(Math.max(0, plannedSeconds - session.actual_duration_seconds));
+        remainingByModeRef.current.Pomodoro = Math.max(
+          0,
+          plannedSeconds - session.actual_duration_seconds,
+        );
         setRunning(false);
+        endTimeRef.current = null;
+        activeSegmentStartedAtRef.current = null;
         setSessionMessage('Previous focus session restored · paused');
 
         if (session.status === 'active') {
@@ -119,10 +243,13 @@ export function FocusMode() {
       .catch(() => {
         if (controller.signal.aborted) return;
         setSessionError('Unable to restore the active focus session.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSessionHydrated(true);
       });
 
     return () => controller.abort();
-  }, []);
+  }, [timerHydrated]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -179,6 +306,8 @@ export function FocusMode() {
   }, [selectedTaskId, selectedTaskTitle]);
 
   useEffect(() => {
+    if (!timerHydrated) return;
+    if (restoredTimer) return;
     if (!Number.isInteger(selectedDuration) || selectedDuration <= 0) return;
 
     setDurations((current) => ({
@@ -191,10 +320,10 @@ export function FocusMode() {
     setRunning(false);
     endTimeRef.current = null;
     completionSoundPlayedRef.current = false;
-  }, [selectedDuration]);
+  }, [restoredTimer, selectedDuration, timerHydrated]);
 
   useEffect(() => {
-    if (!running) return;
+    if (!timerHydrated || !sessionHydrated || !running) return;
 
     function tick() {
       if (endTimeRef.current === null) return;
@@ -211,6 +340,9 @@ export function FocusMode() {
       });
 
       if (nextSeconds === 0) {
+        if (mode === 'Pomodoro') {
+          captureActiveSegment(endTimeRef.current ?? Date.now());
+        }
         setRunning(false);
         endTimeRef.current = null;
         if (mode === 'Pomodoro' && completionSoundPlayedRef.current) {
@@ -223,12 +355,15 @@ export function FocusMode() {
     const timer = window.setInterval(tick, 250);
 
     return () => window.clearInterval(timer);
-  }, [mode, running]);
+  }, [mode, running, sessionHydrated, timerHydrated]);
 
-  function captureActiveSegment() {
+  function captureActiveSegment(segmentEndedAt = Date.now()) {
     if (activeSegmentStartedAtRef.current === null) return;
 
-    focusedMillisecondsRef.current += Math.max(0, Date.now() - activeSegmentStartedAtRef.current);
+    focusedMillisecondsRef.current += Math.max(
+      0,
+      segmentEndedAt - activeSegmentStartedAtRef.current,
+    );
     activeSegmentStartedAtRef.current = null;
   }
 
@@ -251,12 +386,14 @@ export function FocusMode() {
       sessionIdRef.current = null;
       sessionStartedAtRef.current = null;
       focusedMillisecondsRef.current = 0;
+      activeSegmentStartedAtRef.current = null;
       setSessionTaskLocked(false);
       setSessionMessage(
         completed
           ? `Focus session completed · ${actualMinutes} min recorded`
           : `Focus session stopped · ${actualMinutes} min recorded`,
       );
+      persistTimerSnapshot();
       return true;
     } catch (requestError) {
       setSessionMessage(null);
@@ -272,15 +409,30 @@ export function FocusMode() {
   }
 
   async function selectMode(nextMode: Mode) {
-    if (mode === 'Pomodoro' && sessionStartedAtRef.current) {
-      const stopped = await finishFocusSession(false);
-      if (!stopped) return;
+    if (nextMode === mode) return;
+
+    remainingByModeRef.current[mode] = remainingRef.current;
+    if (running) {
+      if (mode === 'Pomodoro') captureActiveSegment();
+      setRunning(false);
+      endTimeRef.current = null;
+
+      if (mode === 'Pomodoro' && sessionIdRef.current) {
+        try {
+          await updateFocusSession(sessionIdRef.current, {
+            actual_duration_seconds: Math.round(focusedMillisecondsRef.current / 1000),
+            status: 'paused',
+          });
+        } catch {
+          setSessionError('Timer switched modes, but focus progress could not be synced.');
+        }
+      }
     }
+
+    const nextSeconds = remainingByModeRef.current[nextMode];
     setMode(nextMode);
-    setSeconds(getModeSeconds(nextMode, durations));
-    remainingRef.current = getModeSeconds(nextMode, durations);
-    setRunning(false);
-    endTimeRef.current = null;
+    setSeconds(nextSeconds);
+    remainingRef.current = nextSeconds;
     completionSoundPlayedRef.current = false;
   }
 
@@ -290,8 +442,9 @@ export function FocusMode() {
       if (!stopped) return;
     }
     setDurations(nextDurations);
-    setSeconds(getModeSeconds(mode, nextDurations));
-    remainingRef.current = getModeSeconds(mode, nextDurations);
+    remainingByModeRef.current = modeSeconds(nextDurations);
+    setSeconds(remainingByModeRef.current[mode]);
+    remainingRef.current = remainingByModeRef.current[mode];
     setRunning(false);
     endTimeRef.current = null;
     completionSoundPlayedRef.current = false;
@@ -302,6 +455,7 @@ export function FocusMode() {
     if (seconds === 0) {
       setSeconds(totalSeconds);
       remainingRef.current = totalSeconds;
+      remainingByModeRef.current[mode] = totalSeconds;
       endTimeRef.current = null;
       completionSoundPlayedRef.current = false;
       return;
@@ -365,6 +519,7 @@ export function FocusMode() {
     setRunning(false);
     setSeconds(totalSeconds);
     remainingRef.current = totalSeconds;
+    remainingByModeRef.current[mode] = totalSeconds;
     endTimeRef.current = null;
     completionSoundPlayedRef.current = false;
     setSessionMessage(null);
@@ -378,6 +533,7 @@ export function FocusMode() {
     setRunning(false);
     setSeconds(totalSeconds);
     remainingRef.current = totalSeconds;
+    remainingByModeRef.current[mode] = totalSeconds;
     endTimeRef.current = null;
     completionSoundPlayedRef.current = false;
     void finishFocusSession(false);

@@ -3,12 +3,14 @@ import uuid
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import require_roles
 from app.auth.models import User
 from app.auth.security import create_access_token, hash_password, verify_password
 from app.config import get_settings
+from app.settings.models import UserSettings
 
 
 def unique_email(prefix: str = "auth-test") -> str:
@@ -91,6 +93,34 @@ def test_register_rejects_duplicate_email_case_insensitively(
 
     assert response.status_code == 409
     assert response.json()["detail"] == "An account with this email already exists"
+
+
+def test_register_persists_detected_browser_timezone(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    _, _, user = register_user(client, timezone="Australia/Sydney")
+
+    stored_settings = db_session.scalar(
+        select(UserSettings).where(UserSettings.user_id == uuid.UUID(user["id"]))
+    )
+
+    assert stored_settings is not None
+    assert stored_settings.timezone == "Australia/Sydney"
+    assert stored_settings.timezone_source == "detected"
+
+
+def test_register_rejects_invalid_timezone(client: TestClient) -> None:
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": unique_email("invalid-timezone"),
+            "password": "TestPassword123",
+            "timezone": "Australia/Atlantis",
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_register_rejects_invalid_role(client: TestClient) -> None:

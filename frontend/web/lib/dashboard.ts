@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import { getBrowserTimezone } from './settings';
 import type {
   TaskDisplayStatusValue,
   TaskPriorityValue,
@@ -92,6 +93,9 @@ export type DashboardSummary = {
 export function getDashboardSummary(signal?: AbortSignal) {
   return apiRequest<DashboardSummary>('/dashboard/summary', {
     method: 'GET',
+    headers: {
+      'X-Client-Timezone': getBrowserTimezone(),
+    },
     signal,
   });
 }

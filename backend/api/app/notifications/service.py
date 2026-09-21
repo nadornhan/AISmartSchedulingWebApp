@@ -9,6 +9,7 @@ from app.notifications.models import Notification
 from app.settings import service as settings_service
 from app.tasks.models import Task, TaskStatus
 from app.tasks.overdue import normalize_due_datetime, utc_now
+from app.timezones import local_date
 
 UPCOMING_DEADLINE_WINDOW = timedelta(hours=24)
 ACTIONABLE_TASK_NOTIFICATION_TYPES = ("task_reminder", "overdue_alert")
@@ -284,7 +285,8 @@ def create_productivity_message(
     user_id: uuid.UUID,
     now: datetime,
 ) -> int:
-    day_key = now.date().isoformat()
+    timezone_name = settings_service.timezone_name_for_user(db, user_id)
+    day_key = local_date(now, timezone_name).isoformat()
     notification = create_notification_once(
         db,
         user_id=user_id,

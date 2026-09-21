@@ -1,11 +1,13 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.projects.models import Project
+from app.settings.models import UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
+from app.timezones import user_timezone
 
 
 def create_auth_headers(client: TestClient) -> tuple[dict[str, str], str]:
@@ -101,6 +103,74 @@ def test_dashboard_summary_for_empty_user(client: TestClient) -> None:
     assert len(payload["weekly_activity"]) == 7
     assert all(point["done"] == 0 for point in payload["weekly_activity"])
     assert all(point["overdue"] == 0 for point in payload["weekly_activity"])
+
+
+def test_today_progress_uses_the_users_local_date(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    headers, user_id = create_auth_headers(client)
+    user_uuid = uuid.UUID(user_id)
+    settings = UserSettings(user_id=user_uuid, timezone="Australia/Sydney")
+    db_session.add(settings)
+
+    now = datetime.now(UTC)
+    timezone = user_timezone(settings.timezone)
+    local_today = now.astimezone(timezone).date()
+    candidates = [
+        datetime.combine(local_today, time(0, 30), timezone),
+        datetime.combine(local_today, time(23, 30), timezone),
+    ]
+    due_local_today = next(
+        candidate for candidate in candidates if candidate.astimezone(UTC).date() != now.date()
+    )
+    add_task(
+        db_session,
+        user_id=user_id,
+        title="Due today in Sydney",
+        due_date=due_local_today.astimezone(UTC),
+    )
+
+    response = client.get("/dashboard/summary", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["today_progress"] == {
+        "completed": 0,
+        "total": 1,
+        "percent": 0,
+    }
+
+
+def test_today_progress_uses_browser_timezone_for_default_utc_settings(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    headers, user_id = create_auth_headers(client)
+    now = datetime.now(UTC)
+    timezone = user_timezone("Australia/Sydney")
+    local_today = now.astimezone(timezone).date()
+    due_local_today = datetime.combine(local_today, time(23, 30), timezone)
+    if due_local_today.astimezone(UTC).date() == now.date():
+        due_local_today = datetime.combine(local_today, time(0, 30), timezone)
+
+    add_task(
+        db_session,
+        user_id=user_id,
+        title="Due today in the browser timezone",
+        due_date=due_local_today.astimezone(UTC),
+    )
+
+    response = client.get(
+        "/dashboard/summary",
+        headers={**headers, "X-Client-Timezone": "Australia/Sydney"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["today_progress"] == {
+        "completed": 0,
+        "total": 1,
+        "percent": 0,
+    }
 
 
 def test_dashboard_summary_derives_overdue_and_progress(

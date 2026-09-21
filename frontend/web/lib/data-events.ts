@@ -1,6 +1,7 @@
 export const TASK_DATA_CHANGED_EVENT = 'chrono:task-data-changed';
 export const PROJECT_DATA_CHANGED_EVENT = 'chrono:project-data-changed';
 export const SETTINGS_DATA_CHANGED_EVENT = 'chrono:settings-data-changed';
+export const FOCUS_DATA_CHANGED_EVENT = 'chrono:focus-data-changed';
 
 function emitDataChanged(eventName: string) {
   if (typeof window === 'undefined') return;
@@ -19,6 +20,10 @@ export function emitSettingsDataChanged() {
   emitDataChanged(SETTINGS_DATA_CHANGED_EVENT);
 }
 
+export function emitFocusDataChanged() {
+  emitDataChanged(FOCUS_DATA_CHANGED_EVENT);
+}
+
 export function onTaskDataChanged(listener: () => void) {
   if (typeof window === 'undefined') return () => {};
   window.addEventListener(TASK_DATA_CHANGED_EVENT, listener);
@@ -35,4 +40,10 @@ export function onSettingsDataChanged(listener: () => void) {
   if (typeof window === 'undefined') return () => {};
   window.addEventListener(SETTINGS_DATA_CHANGED_EVENT, listener);
   return () => window.removeEventListener(SETTINGS_DATA_CHANGED_EVENT, listener);
+}
+
+export function onFocusDataChanged(listener: () => void) {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener(FOCUS_DATA_CHANGED_EVENT, listener);
+  return () => window.removeEventListener(FOCUS_DATA_CHANGED_EVENT, listener);
 }

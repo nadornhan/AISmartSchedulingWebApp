@@ -95,7 +95,7 @@ export function AiRecommendationCard({
               onClick={() => router.push('/analytics')}
               type="button"
             >
-              See insights
+              View full analytics
             </button>
           </div>
         </div>

@@ -206,6 +206,31 @@ function calendarDotClass(task: CalendarTask) {
   return 'bg-dashboard-muted';
 }
 
+function OverdueBadge({ compact = false }: Readonly<{ compact?: boolean }>) {
+  return (
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center rounded-full border border-[var(--red-border)] bg-[var(--red-soft)] font-semibold text-[var(--red-light)]',
+        compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2.5 py-1 text-xs',
+      )}
+    >
+      Overdue
+    </span>
+  );
+}
+
+function OverdueDayIndicator() {
+  return (
+    <span
+      aria-label="Contains overdue tasks"
+      className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[var(--red-border)] bg-[var(--red-soft)] text-xs font-bold leading-none text-[var(--red-light)] shadow-[0_0_12px_rgba(248,113,113,0.18)]"
+      title="Contains overdue tasks"
+    >
+      !
+    </span>
+  );
+}
+
 function groupTasks(tasks: CalendarTask[]) {
   return tasks.reduce<Record<string, CalendarTask[]>>((groups, task) => {
     const key = dateKey(new Date(task.calendarDate));
@@ -791,15 +816,21 @@ function MobileCalendarView({
           {days.map((day) => {
             const dayTasks = tasksByDay[day.key] ?? [];
             const selected = day.key === selectedKey;
+            const hasOverdueTasks = dayTasks.some((task) => task.status === 'overdue');
             return (
               <button
-                aria-label={`${formatSelectedDate(day.date)}${dayTasks.length ? `, ${dayTasks.length} tasks` : ''}`}
+                aria-label={`${formatSelectedDate(day.date)}${dayTasks.length ? `, ${dayTasks.length} tasks` : ''}${hasOverdueTasks ? ', contains overdue tasks' : ''}`}
                 aria-pressed={selected}
-                className="flex h-[52px] flex-col items-center justify-center gap-1.5"
+                className="relative flex h-[52px] flex-col items-center justify-center gap-1.5"
                 key={day.key}
                 onClick={() => onSelectDate(day.date)}
                 type="button"
               >
+                {hasOverdueTasks ? (
+                  <span className="absolute right-0 top-0 scale-75">
+                    <OverdueDayIndicator />
+                  </span>
+                ) : null}
                 <span
                   className={cn(
                     'grid h-9 w-9 place-items-center rounded-[10px] text-sm font-medium transition',
@@ -869,6 +900,11 @@ function MobileCalendarView({
                     <span className="block truncate text-sm font-semibold text-dashboard-text">
                       {task.title}
                     </span>
+                    {task.status === 'overdue' ? (
+                      <span className="mt-1.5 block">
+                        <OverdueBadge compact />
+                      </span>
+                    ) : null}
                     <span className="mt-2 flex items-center gap-2 text-[11px] text-dashboard-muted">
                       <span>◷ {formatTime(task.calendarDate)}</span>
                       <span aria-hidden="true">·</span>
@@ -1065,7 +1101,12 @@ function DayViewTaskCard({
             {formatTime(task.calendarDate)}
           </time>
           <div className="min-w-0">
-            <h4 className="truncate text-lg font-semibold text-dashboard-text">{task.title}</h4>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h4 className="min-w-0 truncate text-lg font-semibold text-dashboard-text">
+                {task.title}
+              </h4>
+              {task.status === 'overdue' ? <OverdueBadge /> : null}
+            </div>
             <p className="mt-2 flex items-center gap-2 text-base text-dashboard-muted">
               <span
                 className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -1145,6 +1186,8 @@ function CalendarDayCell({
   tasks: CalendarTask[];
   variant?: 'month' | 'week';
 }>) {
+  const hasOverdueTasks = tasks.some((task) => task.status === 'overdue');
+
   return (
     <button
       className={cn(
@@ -1178,6 +1221,7 @@ function CalendarDayCell({
         >
           {day.date.getDate()}
         </span>
+        {hasOverdueTasks ? <OverdueDayIndicator /> : null}
       </div>
 
       <div className="accent-scrollbar mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
@@ -1215,7 +1259,12 @@ function CalendarTaskCard({
       }}
       title={task.scheduleLocked ? 'Unlock this task before rescheduling' : calendarTimeLabel(task)}
     >
-      <p className="truncate text-sm font-semibold leading-5 text-current">{task.title}</p>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <p className="min-w-0 flex-1 truncate text-sm font-semibold leading-5 text-current">
+          {task.title}
+        </p>
+        {task.status === 'overdue' ? <OverdueBadge compact /> : null}
+      </div>
       <p
         className={cn('mt-0.5 truncate text-sm font-medium', compact ? 'opacity-85' : 'opacity-75')}
       >
@@ -1392,9 +1441,12 @@ function AgendaTask({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="truncate text-[17px] font-medium tracking-[-0.01em] text-dashboard-text">
-              {task.title}
-            </h3>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h3 className="min-w-0 truncate text-[17px] font-medium tracking-[-0.01em] text-dashboard-text">
+                {task.title}
+              </h3>
+              {task.status === 'overdue' ? <OverdueBadge /> : null}
+            </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button

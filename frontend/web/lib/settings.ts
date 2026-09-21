@@ -4,6 +4,7 @@ export type WorkPatternSettings = {
   work_start: string;
   work_end: string;
   timezone: string;
+  timezone_source: 'default' | 'detected' | 'user';
   pomodoro_minutes: number;
   daily_work_limit_minutes: number;
 };
@@ -118,6 +119,14 @@ export function getBrowserTimezone() {
 
 export function getSettings(options: RequestOptions = {}) {
   return apiRequest<UserSettingsResponse>('/settings', {
+    signal: options.signal,
+  });
+}
+
+export function detectBrowserTimezone(options: RequestOptions = {}) {
+  return apiRequest<UserSettingsResponse>('/settings/timezone/detect', {
+    method: 'POST',
+    body: JSON.stringify({ timezone: getBrowserTimezone() }),
     signal: options.signal,
   });
 }

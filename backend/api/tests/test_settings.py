@@ -67,6 +67,7 @@ def test_get_settings_creates_default_settings(
         "work_start": "09:00",
         "work_end": "17:00",
         "timezone": "UTC",
+        "timezone_source": "default",
         "pomodoro_minutes": 25,
         "daily_work_limit_minutes": 480,
     }
@@ -131,6 +132,7 @@ def test_patch_settings_partially_updates_without_overwriting_other_fields(
         "work_start": "08:30",
         "work_end": "17:00",
         "timezone": "Australia/Sydney",
+        "timezone_source": "user",
         "pomodoro_minutes": 45,
         "daily_work_limit_minutes": 360,
     }
@@ -284,6 +286,81 @@ def test_patch_settings_validates_merged_work_window(client: TestClient) -> None
 
     assert response.status_code == 422
     assert response.json()["detail"] == "work_end must be later than work_start"
+
+
+def test_browser_timezone_detection_persists_for_default_settings(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    assert client.get("/settings", headers=auth_headers).status_code == 200
+
+    response = client.post(
+        "/settings/timezone/detect",
+        headers=auth_headers,
+        json={"timezone": "Australia/Sydney"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["work_pattern"]["timezone"] == "Australia/Sydney"
+    assert response.json()["work_pattern"]["timezone_source"] == "detected"
+
+
+def test_browser_timezone_detection_does_not_override_user_choice(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    update = client.patch(
+        "/settings",
+        headers=auth_headers,
+        json={"work_pattern": {"timezone": "Pacific/Auckland"}},
+    )
+    assert update.status_code == 200
+
+    response = client.post(
+        "/settings/timezone/detect",
+        headers=auth_headers,
+        json={"timezone": "Australia/Sydney"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["work_pattern"]["timezone"] == "Pacific/Auckland"
+    assert response.json()["work_pattern"]["timezone_source"] == "user"
+
+
+def test_browser_timezone_detection_tracks_region_changes(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+    first = client.post(
+        "/settings/timezone/detect",
+        headers=auth_headers,
+        json={"timezone": "Australia/Sydney"},
+    )
+    assert first.status_code == 200
+
+    response = client.post(
+        "/settings/timezone/detect",
+        headers=auth_headers,
+        json={"timezone": "America/New_York"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["work_pattern"]["timezone"] == "America/New_York"
+    assert response.json()["work_pattern"]["timezone_source"] == "detected"
+
+
+def test_browser_timezone_detection_rejects_invalid_timezone(
+    client: TestClient,
+) -> None:
+    auth_headers = create_auth_headers(client)
+
+    response = client.post(
+        "/settings/timezone/detect",
+        headers=auth_headers,
+        json={"timezone": "Not/A_Real_Timezone"},
+    )
+
+    assert response.status_code == 422
 
 
 def test_settings_are_isolated_by_user(client: TestClient) -> None:
