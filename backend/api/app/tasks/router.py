@@ -7,11 +7,13 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from app.auth.dependencies import CurrentUser, DatabaseSession
 from app.projects import service as project_service
 from app.tasks import service
+from app.tasks.decomposition_router import router as decomposition_router
 from app.tasks.duration_estimation.router import router as duration_estimation_router
 from app.tasks.generation_router import router as generation_router
 from app.tasks.models import Task, TaskPriority
 from app.tasks.schemas import (
     SortOrder,
+    SubtaskCompletionUpdate,
     TaskBulkDelete,
     TaskBulkResponse,
     TaskBulkUpdate,
@@ -28,6 +30,7 @@ from app.tasks.schemas import (
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 router.include_router(duration_estimation_router)
 router.include_router(generation_router)
+router.include_router(decomposition_router)
 
 
 def _ensure_project(
@@ -243,6 +246,32 @@ def update_task(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+
+@router.patch(
+    "/{task_id}/subtasks/{subtask_id}",
+    response_model=TaskResponse,
+)
+def update_subtask_completion(
+    task_id: uuid.UUID,
+    subtask_id: uuid.UUID,
+    payload: SubtaskCompletionUpdate,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> Task:
+    task = service.get_task_by_id(db, task_id, current_user.id)
+    if task is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
+    try:
+        return service.update_subtask_completion(db, task, subtask_id, payload)
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         ) from exc
 

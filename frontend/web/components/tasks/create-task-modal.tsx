@@ -13,13 +13,18 @@ import {
 } from '../../lib/duration';
 import type { Project } from '../../lib/projects';
 import {
+  confirmTaskDecomposition,
   confirmGeneratedTasks,
+  previewTaskDecomposition,
   previewGeneratedTasks,
+  type DecomposedTaskDraft,
+  type GeneratedSubtaskDraft,
   type GeneratedTaskDraft,
   TaskCreateInput,
   TaskPriorityValue,
   TaskResponse,
   type TaskGenerationPreview,
+  type TaskDecompositionPreview,
   TaskUpdateInput,
 } from '../../lib/tasks';
 import { CreateFolderModal } from '../folders/create-folder-modal';
@@ -65,6 +70,12 @@ type TaskFormInitialValues = {
 type TaskFormSubtask = {
   title: string;
   isCompleted: boolean;
+};
+
+type AiEntryMode = 'generate' | 'decompose';
+
+type SelectableGeneratedSubtask = GeneratedSubtaskDraft & {
+  selected: boolean;
 };
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -235,9 +246,15 @@ function TaskFormModal({
   const [dueTimeValue, setDueTimeValue] = useState(initialValues.dueTime);
   const [projectId, setProjectId] = useState(initialValues.projectId);
   const [naturalLanguageInput, setNaturalLanguageInput] = useState('');
+  const [aiEntryMode, setAiEntryMode] = useState<AiEntryMode>('generate');
   const [parseFeedback, setParseFeedback] = useState<string | null>(null);
   const [generationPreview, setGenerationPreview] = useState<TaskGenerationPreview | null>(null);
   const [generatedTasks, setGeneratedTasks] = useState<GeneratedTaskDraft[]>([]);
+  const [decompositionPreview, setDecompositionPreview] = useState<TaskDecompositionPreview | null>(
+    null,
+  );
+  const [decomposedTask, setDecomposedTask] = useState<DecomposedTaskDraft | null>(null);
+  const [decomposedSubtasks, setDecomposedSubtasks] = useState<SelectableGeneratedSubtask[]>([]);
   const [generationBusy, setGenerationBusy] = useState(false);
   const [isNaturalLanguageExpanded, setIsNaturalLanguageExpanded] = useState(true);
   const [isManualFormVisible, setIsManualFormVisible] = useState(!enableNaturalLanguage);
@@ -292,6 +309,20 @@ function TaskFormModal({
   const shouldShowNaturalLanguageInput = !isManualFormVisible || isNaturalLanguageExpanded;
   const isAiOnlyView = enableNaturalLanguage && !isManualFormVisible;
 
+  function clearAiPreview() {
+    setParseFeedback(null);
+    setGenerationPreview(null);
+    setGeneratedTasks([]);
+    setDecompositionPreview(null);
+    setDecomposedTask(null);
+    setDecomposedSubtasks([]);
+  }
+
+  function selectAiEntryMode(mode: AiEntryMode) {
+    setAiEntryMode(mode);
+    clearAiPreview();
+  }
+
   async function createFromNaturalLanguage() {
     if (!naturalLanguageInput.trim()) {
       setParseFeedback('Add a task description before generating details.');
@@ -301,9 +332,31 @@ function TaskFormModal({
     setParseFeedback(null);
     setSubmitError(null);
     try {
+      if (aiEntryMode === 'decompose') {
+        const preview = await previewTaskDecomposition(naturalLanguageInput.trim());
+        setDecompositionPreview(preview);
+        setDecomposedTask({
+          title: preview.proposal.title,
+          priority: preview.proposal.priority,
+          due_date: preview.proposal.due_date,
+          subtasks: preview.proposal.subtasks,
+        });
+        setDecomposedSubtasks(
+          preview.proposal.subtasks.map((subtask) => ({ ...subtask, selected: true })),
+        );
+        setGenerationPreview(null);
+        setGeneratedTasks([]);
+        setParseFeedback(
+          `${preview.proposal.subtasks.length} steps suggested. Choose and edit them before creating the task.`,
+        );
+        return;
+      }
       const preview = await previewGeneratedTasks(naturalLanguageInput.trim());
       setGenerationPreview(preview);
       setGeneratedTasks(preview.proposal.tasks);
+      setDecompositionPreview(null);
+      setDecomposedTask(null);
+      setDecomposedSubtasks([]);
       setParseFeedback(
         `${preview.proposal.tasks.length} task${preview.proposal.tasks.length === 1 ? '' : 's'} found. Review before creating.`,
       );
@@ -329,6 +382,36 @@ function TaskFormModal({
     setGenerationBusy(true);
     try {
       await confirmGeneratedTasks(generationPreview, generatedTasks);
+      onClose();
+    } catch (requestError) {
+      setParseFeedback(getErrorMessage(requestError));
+    } finally {
+      setGenerationBusy(false);
+    }
+  }
+
+  async function createDecomposedTask() {
+    if (!decompositionPreview || !decomposedTask) return;
+    const selectedSubtasks = decomposedSubtasks
+      .filter((subtask) => subtask.selected)
+      .map(({ client_id, title }) => ({ client_id, title: title.trim() }))
+      .filter((subtask) => subtask.title);
+    if (!decomposedTask.title.trim()) {
+      setParseFeedback('The main task needs a title.');
+      return;
+    }
+    if (selectedSubtasks.length === 0) {
+      setParseFeedback('Select at least one subtask to create.');
+      return;
+    }
+    setGenerationBusy(true);
+    setParseFeedback(null);
+    try {
+      await confirmTaskDecomposition(decompositionPreview, {
+        ...decomposedTask,
+        title: decomposedTask.title.trim(),
+        subtasks: selectedSubtasks,
+      });
       onClose();
     } catch (requestError) {
       setParseFeedback(getErrorMessage(requestError));
@@ -520,6 +603,38 @@ function TaskFormModal({
                       />
                     </div>
                   ) : null}
+                  <div
+                    aria-label="AI task action"
+                    className="mb-3 grid grid-cols-2 gap-2 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] p-1"
+                    role="group"
+                  >
+                    <button
+                      aria-pressed={aiEntryMode === 'generate'}
+                      className={cn(
+                        'h-10 rounded-lg px-3 text-sm font-semibold transition',
+                        aiEntryMode === 'generate'
+                          ? 'bg-dashboard-accent-soft text-dashboard-accent'
+                          : 'text-dashboard-muted hover:text-dashboard-text',
+                      )}
+                      onClick={() => selectAiEntryMode('generate')}
+                      type="button"
+                    >
+                      Generate tasks
+                    </button>
+                    <button
+                      aria-pressed={aiEntryMode === 'decompose'}
+                      className={cn(
+                        'h-10 rounded-lg px-3 text-sm font-semibold transition',
+                        aiEntryMode === 'decompose'
+                          ? 'bg-dashboard-accent-soft text-dashboard-accent'
+                          : 'text-dashboard-muted hover:text-dashboard-text',
+                      )}
+                      onClick={() => selectAiEntryMode('decompose')}
+                      type="button"
+                    >
+                      Break into subtasks
+                    </button>
+                  </div>
                   <div className="relative">
                     <div className="contents">
                       <textarea
@@ -527,9 +642,7 @@ function TaskFormModal({
                         className="h-40 w-full resize-none rounded-[var(--radius-sm)] border border-dashboard-border-strong bg-[var(--bg-input)] p-5 pb-[4.5rem] text-base text-dashboard-text shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] outline-none placeholder:text-[var(--text-placeholder)] transition focus:border-dashboard-accent focus:shadow-[0_0_0_1px_rgba(53,227,181,0.16),inset_0_1px_0_rgba(255,255,255,0.04)]"
                         onChange={(event) => {
                           setNaturalLanguageInput(event.target.value);
-                          setParseFeedback(null);
-                          setGenerationPreview(null);
-                          setGeneratedTasks([]);
+                          clearAiPreview();
                         }}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
@@ -537,7 +650,11 @@ function TaskFormModal({
                             void createFromNaturalLanguage();
                           }
                         }}
-                        placeholder="What would you like to get done?"
+                        placeholder={
+                          aiEntryMode === 'decompose'
+                            ? 'Describe a large task, e.g. Prepare my final presentation'
+                            : 'What would you like to get done?'
+                        }
                         value={naturalLanguageInput}
                       />
                     </div>
@@ -552,7 +669,7 @@ function TaskFormModal({
                       <button
                         aria-label="Automatically fill task"
                         className={cn(
-                          'flex h-11 items-center gap-2 rounded-full border px-5 font-[family-name:var(--font-figtree)] text-base font-medium transition',
+                          'flex h-11 items-center gap-2 rounded-full border px-5 font-sans text-base font-medium transition',
                           hasNaturalLanguageInput
                             ? 'border-dashboard-accent bg-gradient-to-br from-dashboard-accent via-dashboard-accent/85 to-dashboard-accent-strong text-[#04110d] shadow-[0_8px_24px_rgba(53,227,181,0.22),inset_0_1px_0_rgba(255,255,255,0.28)] hover:brightness-110'
                             : 'border-dashboard-border bg-gradient-to-br from-white/[0.08] via-white/[0.035] to-transparent text-dashboard-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md',
@@ -561,7 +678,13 @@ function TaskFormModal({
                         onClick={() => void createFromNaturalLanguage()}
                         type="button"
                       >
-                        {generationBusy ? 'Generating…' : 'Generate task'}
+                        {generationBusy
+                          ? aiEntryMode === 'decompose'
+                            ? 'Breaking down…'
+                            : 'Generating…'
+                          : aiEntryMode === 'decompose'
+                            ? 'Break down task'
+                            : 'Generate task'}
                         <ArrowDown aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
                       </button>
                       {hasNaturalLanguageInput ? (
@@ -649,6 +772,147 @@ function TaskFormModal({
                           {generationBusy
                             ? 'Creating…'
                             : `Create ${generatedTasks.length} task${generatedTasks.length === 1 ? '' : 's'}`}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                  {decompositionPreview && decomposedTask ? (
+                    <div className="mt-4 space-y-3 rounded-[var(--radius-md)] border border-dashboard-border bg-dashboard-surface p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-dashboard-text">Main task</p>
+                          <p className="text-xs text-dashboard-muted">
+                            Edit the task and choose which suggested steps to keep.
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-dashboard-accent-soft px-3 py-1 text-xs font-semibold text-dashboard-accent">
+                          {decomposedSubtasks.filter((subtask) => subtask.selected).length} selected
+                        </span>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-[1fr_140px_150px]">
+                        <input
+                          aria-label="Decomposed task title"
+                          className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-dashboard-text outline-none focus:border-dashboard-accent"
+                          onChange={(event) =>
+                            setDecomposedTask((current) =>
+                              current ? { ...current, title: event.target.value } : current,
+                            )
+                          }
+                          value={decomposedTask.title}
+                        />
+                        <select
+                          aria-label="Decomposed task priority"
+                          className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-dashboard-text outline-none focus:border-dashboard-accent"
+                          onChange={(event) =>
+                            setDecomposedTask((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    priority: event.target.value as TaskPriorityValue,
+                                  }
+                                : current,
+                            )
+                          }
+                          value={decomposedTask.priority}
+                        >
+                          <option value="no_priority">No priority</option>
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                        </select>
+                        <input
+                          aria-label="Decomposed task due date"
+                          className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-dashboard-text outline-none [color-scheme:dark] focus:border-dashboard-accent"
+                          onChange={(event) =>
+                            setDecomposedTask((current) =>
+                              current
+                                ? { ...current, due_date: event.target.value || null }
+                                : current,
+                            )
+                          }
+                          type="date"
+                          value={decomposedTask.due_date ?? ''}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        {decomposedSubtasks.map((subtask, index) => (
+                          <div
+                            className={cn(
+                              'flex items-center gap-2 rounded-[var(--radius-sm)] border p-2 transition',
+                              subtask.selected
+                                ? 'border-dashboard-accent/50 bg-dashboard-accent-soft/20'
+                                : 'border-dashboard-border bg-[var(--bg-input)] opacity-65',
+                            )}
+                            key={subtask.client_id}
+                          >
+                            <button
+                              aria-label={`${subtask.selected ? 'Exclude' : 'Include'} subtask ${index + 1}`}
+                              aria-pressed={subtask.selected}
+                              className={cn(
+                                'grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition',
+                                subtask.selected
+                                  ? 'border-dashboard-accent bg-dashboard-accent text-[#04110d]'
+                                  : 'border-dashboard-border text-dashboard-muted',
+                              )}
+                              onClick={() =>
+                                setDecomposedSubtasks((current) =>
+                                  current.map((item) =>
+                                    item.client_id === subtask.client_id
+                                      ? { ...item, selected: !item.selected }
+                                      : item,
+                                  ),
+                                )
+                              }
+                              type="button"
+                            >
+                              {subtask.selected ? <CheckIcon className="h-4 w-4" /> : null}
+                            </button>
+                            <input
+                              aria-label={`Subtask ${index + 1} title`}
+                              className="h-9 min-w-0 flex-1 bg-transparent px-2 text-sm text-dashboard-text outline-none"
+                              onChange={(event) =>
+                                setDecomposedSubtasks((current) =>
+                                  current.map((item) =>
+                                    item.client_id === subtask.client_id
+                                      ? { ...item, title: event.target.value }
+                                      : item,
+                                  ),
+                                )
+                              }
+                              value={subtask.title}
+                            />
+                            <button
+                              aria-label={`Remove subtask ${index + 1}`}
+                              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-dashboard-muted transition hover:bg-[var(--red-soft)] hover:text-[var(--red-light)]"
+                              onClick={() =>
+                                setDecomposedSubtasks((current) =>
+                                  current.filter((item) => item.client_id !== subtask.client_id),
+                                )
+                              }
+                              type="button"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-dashboard-border pt-3">
+                        <span className="text-xs text-dashboard-muted">
+                          Generated with Gemini · nothing is saved until you confirm
+                        </span>
+                        <button
+                          className="h-11 rounded-[var(--radius-sm)] bg-dashboard-accent px-5 font-semibold text-[#04110d] disabled:opacity-50"
+                          disabled={
+                            generationBusy ||
+                            !decomposedTask.title.trim() ||
+                            !decomposedSubtasks.some(
+                              (subtask) => subtask.selected && subtask.title.trim(),
+                            )
+                          }
+                          onClick={() => void createDecomposedTask()}
+                          type="button"
+                        >
+                          {generationBusy ? 'Creating…' : 'Create task with subtasks'}
                         </button>
                       </div>
                     </div>

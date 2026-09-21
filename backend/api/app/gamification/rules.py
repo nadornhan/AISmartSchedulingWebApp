@@ -21,6 +21,7 @@ DEFAULT_MATURE_GP = 100
 
 # Productivity rewards (backend-only; never exposed as an add-points endpoint).
 TASK_COMPLETE_GP = 10
+SUBTASK_COMPLETE_GP = 2
 HIGH_PRIORITY_BONUS_GP = 5
 FOCUS_SESSION_GP = 5
 FOCUS_SESSION_STREAK_BONUS_GP = 2  # when 2+ valid focus sessions same day
@@ -31,6 +32,7 @@ STREAK_DAY_BONUS_GP = 3
 MIN_VALID_FOCUS_MINUTES = 5
 
 SOURCE_TASK_COMPLETE = "task_complete"
+SOURCE_SUBTASK_COMPLETE = "subtask_complete"
 SOURCE_FOCUS_SESSION = "focus_session"
 SOURCE_DAILY_CLEAR = "daily_clear"
 SOURCE_STREAK_BONUS = "streak_bonus"

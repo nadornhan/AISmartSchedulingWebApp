@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from 'next';
-import { Figtree, Poppins } from 'next/font/google';
+import { Geist, Poppins } from 'next/font/google';
 import { UiPreferencesProvider } from '../components/layout/ui-preferences-provider';
 import './globals.css';
 
-const figtree = Figtree({
+const geist = Geist({
   subsets: ['latin'],
-  variable: '--font-figtree',
+  variable: '--font-geist',
 });
 
 const poppins = Poppins({
@@ -39,7 +39,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${figtree.variable} ${poppins.variable}`}>
+      <body className={`${geist.className} ${geist.variable} ${poppins.variable}`}>
         <UiPreferencesProvider>{children}</UiPreferencesProvider>
       </body>
     </html>

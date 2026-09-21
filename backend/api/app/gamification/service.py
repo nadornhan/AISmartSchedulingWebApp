@@ -29,9 +29,11 @@ from app.gamification.rules import (
     SOURCE_DAILY_CLEAR,
     SOURCE_FOCUS_SESSION,
     SOURCE_STREAK_BONUS,
+    SOURCE_SUBTASK_COMPLETE,
     SOURCE_TASK_COMPLETE,
     STAGE_THRESHOLDS,
     STREAK_DAY_BONUS_GP,
+    SUBTASK_COMPLETE_GP,
     SUPPORTIVE_MESSAGES,
     TASK_COMPLETE_GP,
     normalize_stage,
@@ -60,7 +62,7 @@ from app.gamification.schemas import (
     UserPlantResponse,
 )
 from app.settings import service as settings_service
-from app.tasks.models import Task, TaskPriority, TaskStatus
+from app.tasks.models import Subtask, Task, TaskPriority, TaskStatus
 from app.tasks.overdue import utc_now
 from app.timezones import local_date, local_today, utc_bounds_for_local_date
 
@@ -1133,6 +1135,69 @@ def award_for_task_completion(
         awarded=True,
         growth_points=points,
         message=f"Task completed · +{points} Growth Points",
+        plant_message=plant_message,
+        stage_changed=stage_changed,
+        previous_stage=previous_stage,
+        new_stage=new_stage,
+        plant_completed=plant_completed,
+        unlocked_achievements=unlocked,
+        profile=_profile_response(db, user_id, recently_unlocked=unlocked),
+    )
+
+
+def award_for_subtask_completion(
+    db: Session,
+    user_id: uuid.UUID,
+    task: Task,
+    subtask: Subtask,
+) -> RewardFeedback:
+    source_id = str(subtask.id)
+    if _already_rewarded(db, user_id, SOURCE_SUBTASK_COMPLETE, source_id):
+        return RewardFeedback(
+            awarded=False,
+            message="Growth Points already awarded for this subtask.",
+            profile=_profile_response(db, user_id),
+        )
+
+    points = SUBTASK_COMPLETE_GP
+    event = _record_reward(
+        db,
+        user_id,
+        source_type=SOURCE_SUBTASK_COMPLETE,
+        source_id=source_id,
+        growth_points=points,
+        metadata={
+            "task_id": str(task.id),
+            "task_title": task.title,
+            "subtask_title": subtask.title,
+        },
+    )
+    if event is None:
+        return RewardFeedback(awarded=False, profile=_profile_response(db, user_id))
+
+    profile = _profile_for_update(db, user_id)
+    plant, stage_changed, previous_stage, new_stage, plant_completed = _apply_points_to_plant(
+        db,
+        user_id,
+        profile,
+        points,
+    )
+    unlocked = _evaluate_achievements(db, user_id)
+    db.commit()
+
+    plant_name = _display_name(plant) if plant is not None else None
+    if plant is None:
+        plant_message = f"{points} Growth Points saved until you choose a plant"
+    elif plant_completed:
+        plant_message = SUPPORTIVE_MESSAGES["stage_mature"].format(name=plant_name)
+    elif stage_changed:
+        plant_message = SUPPORTIVE_MESSAGES["stage_up"].format(name=plant_name)
+    else:
+        plant_message = f"Your {plant_name} is getting stronger"
+    return RewardFeedback(
+        awarded=True,
+        growth_points=points,
+        message=f"Subtask completed · +{points} Growth Points",
         plant_message=plant_message,
         stage_changed=stage_changed,
         previous_stage=previous_stage,

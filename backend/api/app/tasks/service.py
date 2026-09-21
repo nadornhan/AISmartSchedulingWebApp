@@ -10,6 +10,7 @@ from app.tasks.models import Subtask, Task, TaskPriority, TaskStatus
 from app.tasks.overdue import task_overdue_condition, utc_now
 from app.tasks.schemas import (
     SortOrder,
+    SubtaskCompletionUpdate,
     SubtaskInput,
     TaskBulkUpdate,
     TaskCreate,
@@ -341,6 +342,42 @@ def update_task(
             setattr(result, "growth_reward", reward if reward.awarded else None)
         except Exception:
             setattr(result, "growth_reward", None)
+
+    return result
+
+
+def update_subtask_completion(
+    db: Session,
+    task: Task,
+    subtask_id: uuid.UUID,
+    payload: SubtaskCompletionUpdate,
+) -> Task:
+    subtask = next((item for item in task.subtasks if item.id == subtask_id), None)
+    if subtask is None:
+        raise LookupError("Subtask not found")
+
+    completed_now = payload.is_completed and not subtask.is_completed
+    subtask.is_completed = payload.is_completed
+    user_id = task.user_id
+    bump_schedule_revision(db, user_id)
+    db.commit()
+    db.refresh(subtask)
+    _invalidate_ai_plan(db, user_id)
+
+    result = get_task_by_id(db, task.id, user_id) or task
+    if completed_now:
+        from app.gamification import service as gamification_service
+
+        try:
+            reward = gamification_service.award_for_subtask_completion(
+                db,
+                user_id,
+                task,
+                subtask,
+            )
+            result.growth_reward = reward if reward.awarded else None
+        except Exception:  # noqa: BLE001 - rewards must not block task progress
+            result.growth_reward = None
 
     return result
 

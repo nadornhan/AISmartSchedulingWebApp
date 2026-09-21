@@ -196,7 +196,7 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-family: var(--font-geist), sans-serif;
+  font-family: var(--font-geist), var(--font-sans);
 }
 
 :root[data-theme='light'] body {
