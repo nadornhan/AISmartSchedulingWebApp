@@ -6,7 +6,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: [
-          'var(--font-figtree)',
+          'var(--font-geist)',
           '-apple-system',
           'BlinkMacSystemFont',
           'Segoe UI',

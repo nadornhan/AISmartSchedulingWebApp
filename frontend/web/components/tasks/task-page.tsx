@@ -15,6 +15,7 @@ import {
   getTask,
   listTasks,
   rescheduleTask,
+  updateSubtaskCompletion,
   updateTask,
   type TaskCreateInput,
   type TaskDisplayStatusValue,
@@ -350,6 +351,73 @@ function CheckBox({
   );
 }
 
+function SubtaskAccordion({
+  disabled,
+  onToggle,
+  task,
+}: Readonly<{
+  disabled: boolean;
+  onToggle: (subtaskId: string, isCompleted: boolean) => void;
+  task: Task;
+}>) {
+  const { completed, percent, total } = task.source.subtask_progress;
+
+  return (
+    <div className="rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)]/70 p-3 sm:p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-dashboard-muted">
+          Subtasks
+        </span>
+        <span className="text-xs font-medium text-dashboard-accent">
+          {completed}/{total} completed
+        </span>
+      </div>
+      <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-dashboard-border">
+        <div
+          className="h-full rounded-full bg-dashboard-accent transition-[width] duration-300"
+          style={{ width: `${percent ?? 0}%` }}
+        />
+      </div>
+      <div className="space-y-1.5">
+        {task.source.subtasks.map((subtask) => (
+          <button
+            aria-pressed={subtask.is_completed}
+            className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition hover:bg-dashboard-surface-hover disabled:cursor-wait disabled:opacity-60"
+            disabled={disabled}
+            key={subtask.id}
+            onClick={() => onToggle(subtask.id, !subtask.is_completed)}
+            type="button"
+          >
+            <span
+              className={cn(
+                'grid h-5 w-5 shrink-0 place-items-center rounded-full border transition',
+                subtask.is_completed
+                  ? 'border-dashboard-accent bg-dashboard-accent text-[#04110d]'
+                  : 'border-dashboard-border-strong bg-transparent',
+              )}
+            >
+              {subtask.is_completed ? <CheckIcon className="h-3.5 w-3.5" /> : null}
+            </span>
+            <span
+              className={cn(
+                'min-w-0 flex-1 text-sm text-dashboard-text',
+                subtask.is_completed && 'text-dashboard-muted line-through',
+              )}
+            >
+              {subtask.title}
+            </span>
+            {!subtask.is_completed ? (
+              <span className="shrink-0 rounded-full bg-dashboard-accent-soft px-2 py-0.5 text-[10px] font-semibold text-dashboard-accent">
+                +2 GP
+              </span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function TaskPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -364,6 +432,7 @@ export function TaskPage() {
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('All');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  const [expandedTaskIds, setExpandedTaskIds] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskResponse | null>(null);
   const [createProjectId, setCreateProjectId] = useState<string>(activeProjectId);
@@ -618,6 +687,25 @@ export function TaskPage() {
     setSelected((current) =>
       current.includes(id) ? current.filter((taskId) => taskId !== id) : [...current, id],
     );
+  }
+
+  function toggleTaskExpanded(id: string) {
+    setExpandedTaskIds((current) =>
+      current.includes(id) ? current.filter((taskId) => taskId !== id) : [...current, id],
+    );
+  }
+
+  async function toggleSubtask(task: Task, subtaskId: string, isCompleted: boolean) {
+    setIsMutating(true);
+    setError(null);
+    try {
+      const updated = await updateSubtaskCompletion(task.id, subtaskId, isCompleted);
+      setTasks((current) => current.map((item) => (item.id === task.id ? toTask(updated) : item)));
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+    } finally {
+      setIsMutating(false);
+    }
   }
 
   function toggleAllVisible() {
@@ -1226,67 +1314,111 @@ export function TaskPage() {
                   {groupTasks.map((task) => {
                     const completed = task.workflowStatus === 'Done';
                     return (
-                      <article className="flex items-start gap-3 px-4 py-4" key={task.id}>
-                        <button
-                          aria-label={completed ? `Reopen ${task.title}` : `Complete ${task.title}`}
-                          className={cn(
-                            'mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full border transition',
-                            completed
-                              ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
-                              : 'border-dashboard-border-strong bg-transparent hover:border-dashboard-accent',
-                          )}
-                          disabled={isMutating}
-                          onClick={() => void changeStatus(task.id, completed ? 'Pending' : 'Done')}
-                          type="button"
-                        >
-                          {completed ? <CheckIcon className="h-3.5 w-3.5" /> : null}
-                        </button>
-
-                        <button
-                          className="min-w-0 flex-1 text-left"
-                          onClick={() => setEditingTask(task.source)}
-                          type="button"
-                        >
-                          <span className="block truncate text-sm font-semibold text-dashboard-text">
-                            {task.title}
-                          </span>
-                          <span className="mt-2 flex min-w-0 items-center gap-2 text-[11px] text-dashboard-muted">
-                            <span className={cn(task.overdue && 'text-[var(--red-light)]')}>
-                              ◷ {task.dueDate}
-                            </span>
-                            <span aria-hidden="true">·</span>
-                            <span className="flex min-w-0 items-center gap-1.5 truncate">
-                              <span
-                                className="h-1.5 w-1.5 shrink-0 rounded-full"
-                                style={{
-                                  backgroundColor:
-                                    task.projectId === null
-                                      ? 'var(--dashboard-muted)'
-                                      : task.projectColor,
-                                }}
-                              />
-                              <span className="truncate">{task.project}</span>
-                            </span>
-                          </span>
-                        </button>
-
-                        <div className="flex shrink-0 flex-col items-end gap-2">
-                          <span
+                      <article className="px-4 py-4" key={task.id}>
+                        <div className="flex items-start gap-3">
+                          <button
+                            aria-label={
+                              completed ? `Reopen ${task.title}` : `Complete ${task.title}`
+                            }
                             className={cn(
-                              'inline-flex rounded-[var(--radius-pill)] border px-2.5 py-1 text-[10px] font-medium',
-                              priorityClass(task.priority),
+                              'mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full border transition',
+                              completed
+                                ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                                : 'border-dashboard-border-strong bg-transparent hover:border-dashboard-accent',
                             )}
-                          >
-                            {task.priority}
-                          </span>
-                          <StatusDropdown
-                            compact
                             disabled={isMutating}
-                            onChange={(status) => void changeStatus(task.id, status)}
-                            taskTitle={task.title}
-                            value={task.workflowStatus}
-                          />
+                            onClick={() =>
+                              void changeStatus(task.id, completed ? 'Pending' : 'Done')
+                            }
+                            type="button"
+                          >
+                            {completed ? <CheckIcon className="h-3.5 w-3.5" /> : null}
+                          </button>
+
+                          <button
+                            aria-expanded={
+                              task.source.subtasks.length > 0
+                                ? expandedTaskIds.includes(task.id)
+                                : undefined
+                            }
+                            className="min-w-0 flex-1 text-left"
+                            onClick={() =>
+                              task.source.subtasks.length > 0
+                                ? toggleTaskExpanded(task.id)
+                                : setEditingTask(task.source)
+                            }
+                            type="button"
+                          >
+                            <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-dashboard-text">
+                              <span className="truncate">{task.title}</span>
+                              {task.source.subtasks.length > 0 ? (
+                                <ChevronDownIcon
+                                  className={cn(
+                                    'h-4 w-4 shrink-0 text-dashboard-accent transition',
+                                    !expandedTaskIds.includes(task.id) && '-rotate-90',
+                                  )}
+                                />
+                              ) : null}
+                            </span>
+                            <span className="mt-2 flex min-w-0 items-center gap-2 text-[11px] text-dashboard-muted">
+                              <span className={cn(task.overdue && 'text-[var(--red-light)]')}>
+                                ◷ {task.dueDate}
+                              </span>
+                              <span aria-hidden="true">·</span>
+                              <span className="flex min-w-0 items-center gap-1.5 truncate">
+                                <span
+                                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                  style={{
+                                    backgroundColor:
+                                      task.projectId === null
+                                        ? 'var(--dashboard-muted)'
+                                        : task.projectColor,
+                                  }}
+                                />
+                                <span className="truncate">{task.project}</span>
+                              </span>
+                            </span>
+                          </button>
+
+                          <div className="flex shrink-0 flex-col items-end gap-2">
+                            <span
+                              className={cn(
+                                'inline-flex rounded-[var(--radius-pill)] border px-2.5 py-1 text-[10px] font-medium',
+                                priorityClass(task.priority),
+                              )}
+                            >
+                              {task.priority}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                aria-label={`Edit ${task.title}`}
+                                className="grid h-8 w-8 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-accent"
+                                onClick={() => setEditingTask(task.source)}
+                                type="button"
+                              >
+                                <EditIcon className="h-4 w-4" />
+                              </button>
+                              <StatusDropdown
+                                compact
+                                disabled={isMutating}
+                                onChange={(status) => void changeStatus(task.id, status)}
+                                taskTitle={task.title}
+                                value={task.workflowStatus}
+                              />
+                            </div>
+                          </div>
                         </div>
+                        {expandedTaskIds.includes(task.id) && task.source.subtasks.length > 0 ? (
+                          <div className="mt-3 pl-8">
+                            <SubtaskAccordion
+                              disabled={isMutating}
+                              onToggle={(subtaskId, isCompleted) =>
+                                void toggleSubtask(task, subtaskId, isCompleted)
+                              }
+                              task={task}
+                            />
+                          </div>
+                        ) : null}
                       </article>
                     );
                   })}
@@ -1355,7 +1487,18 @@ export function TaskPage() {
                   ) : null}
                 </div>
 
-                <div className="min-w-0">
+                <button
+                  aria-expanded={
+                    task.source.subtasks.length > 0 ? expandedTaskIds.includes(task.id) : undefined
+                  }
+                  className="min-w-0 text-left"
+                  onClick={() =>
+                    task.source.subtasks.length > 0
+                      ? toggleTaskExpanded(task.id)
+                      : setEditingTask(task.source)
+                  }
+                  type="button"
+                >
                   <div className="flex items-center gap-3">
                     {task.status === 'Done' ? (
                       <span className="hidden h-6 w-6 shrink-0 place-items-center rounded-full bg-dashboard-accent text-dashboard-bg lg:grid">
@@ -1380,8 +1523,16 @@ export function TaskPage() {
                         </span>
                       ) : null}
                     </div>
+                    {task.source.subtasks.length > 0 ? (
+                      <ChevronDownIcon
+                        className={cn(
+                          'h-5 w-5 shrink-0 text-dashboard-accent transition',
+                          !expandedTaskIds.includes(task.id) && '-rotate-90',
+                        )}
+                      />
+                    ) : null}
                   </div>
-                </div>
+                </button>
 
                 <div>
                   <span
@@ -1513,6 +1664,17 @@ export function TaskPage() {
                     </div>
                   ) : null}
                 </div>
+                {expandedTaskIds.includes(task.id) && task.source.subtasks.length > 0 ? (
+                  <div className="lg:col-span-full lg:pl-[48px]">
+                    <SubtaskAccordion
+                      disabled={isMutating}
+                      onToggle={(subtaskId, isCompleted) =>
+                        void toggleSubtask(task, subtaskId, isCompleted)
+                      }
+                      task={task}
+                    />
+                  </div>
+                ) : null}
               </article>
             ))
           ) : (

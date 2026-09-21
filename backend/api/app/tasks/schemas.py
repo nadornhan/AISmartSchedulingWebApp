@@ -54,6 +54,10 @@ class SubtaskResponse(BaseModel):
     updated_at: datetime
 
 
+class SubtaskCompletionUpdate(BaseModel):
+    is_completed: bool
+
+
 class SubtaskProgress(BaseModel):
     completed: int = Field(ge=0)
     total: int = Field(ge=0)

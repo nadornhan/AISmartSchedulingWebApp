@@ -15,6 +15,7 @@ from app.gamification.models import (
 from app.gamification.rules import (
     FOCUS_SESSION_GP,
     MIN_VALID_FOCUS_MINUTES,
+    SUBTASK_COMPLETE_GP,
     TASK_COMPLETE_GP,
     stage_for_points,
 )
@@ -139,6 +140,65 @@ def test_task_completion_awards_gp_once(client: TestClient) -> None:
     assert again.status_code == 200
     second = again.json().get("growth_reward")
     assert second is None or second.get("awarded") is False
+
+
+def test_subtask_completion_awards_gp_once_and_preserves_parent_status(
+    client: TestClient,
+) -> None:
+    headers, _user_id = auth_headers(client)
+    select_oak(client, headers)
+    create = client.post(
+        "/tasks",
+        headers=headers,
+        json={
+            "title": "Prepare presentation",
+            "subtasks": [
+                {"title": "Draft outline"},
+                {"title": "Rehearse delivery"},
+            ],
+        },
+    )
+    assert create.status_code == 201
+    task = create.json()
+    subtask_id = task["subtasks"][0]["id"]
+
+    completed = client.patch(
+        f"/tasks/{task['id']}/subtasks/{subtask_id}",
+        headers=headers,
+        json={"is_completed": True},
+    )
+    assert completed.status_code == 200
+    body = completed.json()
+    assert body["status"] == "pending"
+    assert body["subtask_progress"] == {"completed": 1, "total": 2, "percent": 50}
+    assert body["growth_reward"]["awarded"] is True
+    assert body["growth_reward"]["growth_points"] == SUBTASK_COMPLETE_GP
+
+    repeated = client.patch(
+        f"/tasks/{task['id']}/subtasks/{subtask_id}",
+        headers=headers,
+        json={"is_completed": True},
+    )
+    assert repeated.status_code == 200
+    assert repeated.json().get("growth_reward") is None
+
+    reopened = client.patch(
+        f"/tasks/{task['id']}/subtasks/{subtask_id}",
+        headers=headers,
+        json={"is_completed": False},
+    )
+    assert reopened.status_code == 200
+    completed_again = client.patch(
+        f"/tasks/{task['id']}/subtasks/{subtask_id}",
+        headers=headers,
+        json={"is_completed": True},
+    )
+    assert completed_again.status_code == 200
+    assert completed_again.json().get("growth_reward") is None
+
+    forest = client.get("/gamification/forest", headers=headers)
+    assert forest.status_code == 200
+    assert forest.json()["current_plant"]["current_growth_points"] == SUBTASK_COMPLETE_GP
 
 
 def test_task_rewards_are_stored_until_a_plant_is_selected(client: TestClient) -> None:

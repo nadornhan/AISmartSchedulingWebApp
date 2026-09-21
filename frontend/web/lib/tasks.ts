@@ -134,6 +134,34 @@ export type TaskGenerationPreview = {
   };
 };
 
+export type GeneratedSubtaskDraft = {
+  client_id: string;
+  title: string;
+};
+
+export type DecomposedTaskDraft = {
+  title: string;
+  priority: TaskPriorityValue;
+  due_date: string | null;
+  subtasks: GeneratedSubtaskDraft[];
+};
+
+export type TaskDecompositionPreview = {
+  feature: 'task_decomposition';
+  status: 'preview';
+  requires_confirmation: true;
+  proposal: DecomposedTaskDraft & {
+    proposal_id: string;
+    proposal_token: string;
+    expires_at: string;
+  };
+  metadata: {
+    source: 'gemini' | 'fake' | 'deterministic_fallback';
+    model: string;
+    fallback_reason: string | null;
+  };
+};
+
 export type TaskUpdateInput = Partial<TaskCreateInput> & {
   status?: TaskStatusValue;
 };
@@ -320,11 +348,47 @@ export function confirmGeneratedTasks(preview: TaskGenerationPreview, tasks: Gen
   });
 }
 
+export function previewTaskDecomposition(prompt: string) {
+  return apiRequest<TaskDecompositionPreview>('/tasks/decompose/preview', {
+    method: 'POST',
+    body: JSON.stringify({ prompt }),
+  });
+}
+
+export function confirmTaskDecomposition(
+  preview: TaskDecompositionPreview,
+  task: DecomposedTaskDraft,
+) {
+  return apiRequest<{ created: TaskResponse }>('/tasks/decompose/confirm', {
+    method: 'POST',
+    body: JSON.stringify({
+      proposal_token: preview.proposal.proposal_token,
+      task,
+    }),
+  }).then((result) => {
+    emitTaskDataChanged();
+    return result;
+  });
+}
+
 export function updateTask(taskId: string, input: TaskUpdateInput, options: RequestOptions = {}) {
   return apiRequest<TaskResponse>(`/tasks/${taskId}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
     signal: options.signal,
+  }).then((task) => {
+    emitTaskDataChanged();
+    if (task.growth_reward?.awarded) {
+      emitGrowthReward(task.growth_reward);
+    }
+    return task;
+  });
+}
+
+export function updateSubtaskCompletion(taskId: string, subtaskId: string, isCompleted: boolean) {
+  return apiRequest<TaskResponse>(`/tasks/${taskId}/subtasks/${subtaskId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_completed: isCompleted }),
   }).then((task) => {
     emitTaskDataChanged();
     if (task.growth_reward?.awarded) {
