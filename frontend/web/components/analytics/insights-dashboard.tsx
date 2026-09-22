@@ -16,6 +16,9 @@ import {
 
 function formatWeeklySummary(summary: InsightsSummary) {
   const change = summary.week_over_week_change_percent;
+  const completedTaskCount = summary.tasks_completed_this_week;
+  const taskLabel = completedTaskCount === 1 ? 'task' : 'tasks';
+
   if (summary.tasks_completed_this_week === 0) {
     return summary.weekly_summary_text;
   }
@@ -23,8 +26,11 @@ function formatWeeklySummary(summary: InsightsSummary) {
   if (change === null) {
     return (
       <>
-        You&apos;ve completed <strong>{summary.tasks_completed_this_week} tasks</strong> this week —
-        great start compared with last week!
+        You&apos;ve completed{' '}
+        <strong>
+          {completedTaskCount} {taskLabel}
+        </strong>{' '}
+        this week — great start compared with last week!
       </>
     );
   }
@@ -34,9 +40,13 @@ function formatWeeklySummary(summary: InsightsSummary) {
 
   return (
     <>
-      You&apos;ve completed <strong>{summary.tasks_completed_this_week} tasks</strong> this week,
-      that&apos;s <span className="font-semibold text-[var(--accent)]">{absolute}%</span>{' '}
-      {direction} than last week!
+      You&apos;ve completed{' '}
+      <strong>
+        {completedTaskCount} {taskLabel}
+      </strong>{' '}
+      this week, that&apos;s{' '}
+      <span className="font-semibold text-[var(--accent)]">{absolute}%</span> {direction} than last
+      week!
     </>
   );
 }
