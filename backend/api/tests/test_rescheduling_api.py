@@ -288,15 +288,19 @@ def test_mutation_hides_missing_or_foreign_proposals(
 
     if operation == "apply":
         monkeypatch.setattr(lifecycle, "apply_reschedule_proposal", missing)
-        call = lambda: router.apply_reschedule(
-            proposal_id,
-            RescheduleApplyRequest(option_id=uuid.uuid4()),
-            "db",
-            current_user,
-        )
+
+        def call():
+            return router.apply_reschedule(
+                proposal_id,
+                RescheduleApplyRequest(option_id=uuid.uuid4()),
+                "db",
+                current_user,
+            )
     else:
         monkeypatch.setattr(lifecycle, "undo_reschedule_proposal", missing)
-        call = lambda: router.undo_reschedule(proposal_id, "db", current_user)
+
+        def call():
+            return router.undo_reschedule(proposal_id, "db", current_user)
 
     with pytest.raises(HTTPException) as caught:
         call()
@@ -319,20 +323,24 @@ def test_lifecycle_conflicts_are_returned_as_typed_409_errors(
 
     if operation == "preview":
         monkeypatch.setattr(lifecycle, "create_reschedule_preview", conflict)
-        call = lambda: router.preview_reschedule(
-            ReschedulePreviewRequest(), "db", current_user, None
-        )
+
+        def call():
+            return router.preview_reschedule(ReschedulePreviewRequest(), "db", current_user, None)
     elif operation == "apply":
         monkeypatch.setattr(lifecycle, "apply_reschedule_proposal", conflict)
-        call = lambda: router.apply_reschedule(
-            proposal_id,
-            RescheduleApplyRequest(option_id=option_id),
-            "db",
-            current_user,
-        )
+
+        def call():
+            return router.apply_reschedule(
+                proposal_id,
+                RescheduleApplyRequest(option_id=option_id),
+                "db",
+                current_user,
+            )
     else:
         monkeypatch.setattr(lifecycle, "undo_reschedule_proposal", conflict)
-        call = lambda: router.undo_reschedule(proposal_id, "db", current_user)
+
+        def call():
+            return router.undo_reschedule(proposal_id, "db", current_user)
 
     with pytest.raises(HTTPException) as caught:
         call()

@@ -196,7 +196,10 @@ def test_gemini_provider_validates_response_and_collects_usage() -> None:
         ),
     )
     models = SimpleNamespace(generate_content=lambda **kwargs: response)
-    client_factory = lambda **kwargs: SimpleNamespace(models=models)
+
+    def client_factory(**kwargs):
+        return SimpleNamespace(models=models)
+
     settings = Settings(
         database_url="postgresql+psycopg://example",
         jwt_secret_key="secret",

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -13,6 +13,9 @@ if TYPE_CHECKING:
 
 class Notification(Base):
     __tablename__ = "notifications"
+    __table_args__ = (
+        Index("ix_notifications_user_read_created", "user_id", "read_at", "created_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
@@ -32,6 +35,7 @@ class Notification(Base):
         String(64),
         default="general",
         server_default="general",
+        index=True,
         nullable=False,
     )
     title: Mapped[str] = mapped_column(
@@ -49,11 +53,13 @@ class Notification(Base):
     )
     scheduled_for: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
+        index=True,
         nullable=True,
     )
     dedupe_key: Mapped[str | None] = mapped_column(
         String(255),
         unique=True,
+        index=True,
         nullable=True,
     )
     read_at: Mapped[datetime | None] = mapped_column(

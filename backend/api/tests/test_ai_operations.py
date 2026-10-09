@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import FastAPI
@@ -222,7 +222,7 @@ def test_ai_usage_persists_and_summarizes_by_feature() -> None:
                     user_id=user.id,
                     task_id=task.id,
                     suggested_start=now,
-                    suggested_end=now,
+                    suggested_end=now + timedelta(minutes=25),
                     explanation="Synthetic suggestion",
                     status=status,
                     generated_at=now,

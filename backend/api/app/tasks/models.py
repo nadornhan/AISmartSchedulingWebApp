@@ -39,6 +39,10 @@ class Task(Base):
     __tablename__ = "tasks"
     __table_args__ = (
         CheckConstraint(
+            "estimated_duration_minutes IS NULL OR estimated_duration_minutes > 0",
+            name="ck_tasks_estimated_duration_minutes_positive",
+        ),
+        CheckConstraint(
             "NOT schedule_locked OR "
             "(scheduled_start IS NOT NULL AND scheduled_end IS NOT NULL "
             "AND scheduled_end > scheduled_start)",

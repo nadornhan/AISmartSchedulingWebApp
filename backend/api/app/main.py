@@ -20,8 +20,8 @@ from app.notifications.router import router as notifications_router
 from app.projects.router import router as projects_router
 from app.scheduling.router import router as scheduling_router
 from app.settings.router import router as settings_router
-from app.tasks.router import router as tasks_router
 from app.tasks.priority_router import router as priority_router
+from app.tasks.router import router as tasks_router
 
 settings = get_settings()
 settings.upload_dir.mkdir(parents=True, exist_ok=True)

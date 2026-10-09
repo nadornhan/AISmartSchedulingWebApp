@@ -15,8 +15,12 @@ from app.auth.dependencies import CurrentUser, DatabaseSession
 from app.config import get_settings
 from app.scheduling.service import _preview_settings, invalidate_pending_plan
 from app.scheduling.windows import (
-    PlanningHorizon, derive_free_windows_for_periods, occupied_intervals_from_tasks,
-    scheduling_required_minutes, summarize_task_capacity, working_periods_for_horizon,
+    PlanningHorizon,
+    derive_free_windows_for_periods,
+    occupied_intervals_from_tasks,
+    scheduling_required_minutes,
+    summarize_task_capacity,
+    working_periods_for_horizon,
 )
 from app.scoring.engine import calculate_capacity_aware_task_importance
 from app.scoring.priority import suggest_priority
@@ -24,8 +28,11 @@ from app.scoring.profiles import SchedulingProfileV7
 from app.tasks import service
 from app.tasks.models import Task, TaskStatus
 from app.tasks.priority_schemas import (
-    DraftPriorityPreviewRequest, PriorityAIImportance, PriorityConfirmRequest,
-    PriorityPreviewRequest, PriorityPreviewResponse,
+    DraftPriorityPreviewRequest,
+    PriorityAIImportance,
+    PriorityConfirmRequest,
+    PriorityPreviewRequest,
+    PriorityPreviewResponse,
 )
 from app.tasks.schemas import TaskResponse
 
