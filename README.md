@@ -379,3 +379,10 @@ For backend changes:
 ```powershell
 backend/api/.venv/Scripts/python -m ruff check backend/api
 ```
+
+## Continuous Integration
+
+GitHub Actions checks pull requests and pushes to `main`/`develop`: web lint,
+TypeScript, production build, backend lint/tests and PostgreSQL migrations.
+See [CI setup and team workflow](docs/CI.md) for local commands, test reports
+and the required status check configuration.

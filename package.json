@@ -12,6 +12,8 @@
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
     "lint": "eslint .",
+    "lint:ci": "eslint frontend/web packages/shared",
+    "typecheck:ci": "pnpm --filter @ai-smart-scheduling/web typecheck && pnpm --filter @ai-smart-scheduling/shared typecheck",
     "format:check": "prettier --check .",
     "typecheck": "corepack pnpm -r --if-present typecheck"
   },
