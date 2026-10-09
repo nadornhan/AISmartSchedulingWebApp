@@ -112,8 +112,24 @@ Validated on Windows with a newly installed Python 3.12 environment from
 - Frozen pnpm lockfile verification: passed with pnpm 10.33.2.
 - GitHub workflow syntax: passed actionlint 1.7.12.
 
-The workflow uses Node.js 22 on Ubuntu; the first hosted GitHub Actions run
-remains to be verified after pushing. Local verification is not a hosted CI run.
+## Hosted validation evidence
+
+GitHub Actions verified the pipeline on Ubuntu 24.04 with Node.js 22,
+Python 3.12 and PostgreSQL 16 on 9 October 2026 (UTC):
+
+- Tested commit: `1090ed4466c515b181b6836ce0d2c35df38dd60f`.
+- [Successful CI run #2](https://github.com/nadornhan/AISmartSchedulingWebApp/actions/runs/37889496517).
+- Frontend checks, backend checks and the final **CI passed** gate: successful.
+- Backend tests: **517 passed, 6 third-party deprecation warnings**, in 25.61 seconds.
+- Backend lint, clean-database migrations and schema drift detection: passed.
+- [JUnit artifact](https://github.com/nadornhan/AISmartSchedulingWebApp/actions/runs/37889496517/artifacts/11598290575)
+  (`backend-test-results`, retained for 14 days). Download and archive it with
+  the final report before GitHub's retention period expires.
+
+The first hosted run failed before backend execution because `setup-uv@v10`
+did not resolve. The action was pinned to the published v10.1.0 commit; run #2
+then passed all three jobs. This evidence refers to the tested commit above;
+subsequent commits have their own CI runs.
 
 The first checks identified existing lint errors, missing model metadata for
 constraints/indexes already present in migrations, a test with an expired fixed
