@@ -101,11 +101,15 @@ For a feature such as Calendar, work inside:
 ```text
 frontend/web/app/(dashboard)/calendar/page.tsx
 frontend/web/components/calendar/
-frontend/web/lib/calendar.ts
-backend/api/app/calendar/
+frontend/web/lib/tasks.ts
+frontend/web/lib/scheduling.ts
+backend/api/app/tasks/
+backend/api/app/scheduling/
 ```
 
-Use the same pattern for other features:
+Calendar shares the task and scheduling API helpers; Priority shares task and project helpers. Neither needs an empty feature-named helper. See [frontend/README.md](frontend/README.md) for the current frontend map.
+
+Use the same pattern for other features where a feature-specific helper exists:
 
 ```text
 frontend/web/app/(dashboard)/<feature>/page.tsx

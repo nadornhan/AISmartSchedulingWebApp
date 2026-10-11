@@ -272,10 +272,10 @@ frontend/web/
     auth.ts
     tasks.ts
     folders.ts
-    calendar.ts
+    scheduling.ts
     analytics.ts
     focus.ts
-    priority.ts
+    projects.ts
     gamification.ts
     settings.ts
 

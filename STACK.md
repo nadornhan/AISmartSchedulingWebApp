@@ -184,8 +184,8 @@ The branch-to-folder mapping is:
 | `feature/auth-account`        | `frontend/web/app/auth`, `frontend/web/components/auth`, `frontend/web/lib/auth.ts`, `backend/api/app/auth`                                 |
 | `feature/task-management`     | `frontend/web/app/tasks`, `frontend/web/components/tasks`, `frontend/web/lib/tasks.ts`, `backend/api/app/tasks`                             |
 | `feature/folders-inbox`       | `frontend/web/app/folders`, `frontend/web/components/folders`, `frontend/web/lib/folders.ts`, `backend/api/app/folders`                     |
-| `feature/calendar-reminders`  | `frontend/web/app/calendar`, `frontend/web/components/calendar`, `frontend/web/lib/calendar.ts`, `backend/api/app/calendar`                 |
-| `feature/priority-view`       | `frontend/web/app/priority`, `frontend/web/components/priority`, `frontend/web/lib/priority.ts`, `backend/api/app/priority`                 |
+| `feature/calendar-reminders`  | `frontend/web/app/(dashboard)/calendar`, `frontend/web/components/calendar`, `frontend/web/lib/tasks.ts`, `frontend/web/lib/scheduling.ts`, `backend/api/app/tasks`, `backend/api/app/scheduling`                 |
+| `feature/priority-view`       | `frontend/web/app/(dashboard)/priority`, `frontend/web/components/priority`, `frontend/web/lib/tasks.ts`, `frontend/web/lib/projects.ts`, `backend/api/app/tasks`, `backend/api/app/projects`                 |
 | `feature/focus-mode`          | `frontend/web/app/focus`, `frontend/web/components/focus`, `frontend/web/lib/focus.ts`, `backend/api/app/focus`                             |
 | `feature/analytics-dashboard` | `frontend/web/app/analytics`, `frontend/web/components/analytics`, `frontend/web/lib/analytics.ts`, `backend/api/app/analytics`             |
 | `feature/gamification`        | `frontend/web/app/gamification`, `frontend/web/components/gamification`, `frontend/web/lib/gamification.ts`, `backend/api/app/gamification` |
