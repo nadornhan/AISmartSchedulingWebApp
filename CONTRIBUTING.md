@@ -46,7 +46,7 @@ If the branch exists on GitHub but not on your computer yet:
 git checkout -b feature/task-management origin/feature/task-management
 ```
 
-Step 3: Bring the latest shared scaffold and docs from `develop` into your feature branch.
+Step 3: Bring the latest integrated application and docs from `develop` into your feature branch.
 
 ```powershell
 git merge origin/develop
@@ -57,13 +57,13 @@ At this point, your local feature branch has the latest `develop` changes. If Gi
 Step 4: Work inside your assigned feature folders.
 
 ```text
-frontend/web/app/tasks/
+frontend/web/app/(dashboard)/tasks/
 frontend/web/components/tasks/
 frontend/web/lib/tasks.ts
 backend/api/app/tasks/
 ```
 
-Replace `tasks` with your assigned feature area, such as `auth`, `folders`, `calendar`, `analytics`, `focus`, `priority`, `gamification`, or `settings`.
+Replace `tasks` with your assigned feature area where corresponding modules exist. Login/register are public routes outside `(dashboard)`. Calendar and Priority reuse task/project helpers; `/folders` delegates to projects on the backend. Not every page owns a separate API package.
 
 ### Safe Push Commands
 
@@ -142,14 +142,14 @@ Do not create member branches such as `feature/minh-work` or `andy-branch`. Assi
 
 ## Six-Member Ownership Plan
 
-| Member | Branches | Frontend ownership | Backend ownership |
-| --- | --- | --- | --- |
-| 1 | `feature/navigation-shell`, `feature/settings-polish` | Layout shell, sidebar, route placeholders, responsive navigation, settings UI | Base app wiring, health/status cleanup, settings/preferences endpoints |
-| 2 | `feature/auth-account` | Login, register, sign out, account/profile UI, auth session state | Auth routes, password hashing or Supabase token verification, current-user dependency |
-| 3 | `feature/task-management` | Task list, task cards, task form, complete/reopen, edit/delete | Task schemas, task service, task CRUD endpoints, user-owned task filtering |
-| 4 | `feature/folders-inbox` | Folder list, inbox view, folder form, move tasks between folders, folder filters | Folder schemas, folder service, folder CRUD, task folder support |
-| 5 | `feature/calendar-reminders`, `feature/analytics-dashboard` | Calendar view, due dates, reminders, overdue/upcoming views, analytics dashboard | Deadline/reminder fields, reminder endpoints, analytics summary endpoints |
-| 6 | `feature/focus-mode`, `feature/priority-view`, `feature/gamification` | Pomodoro/focus UI, priority labels/views, streak/tree progress UI | Focus sessions, priority fields/endpoints, gamification progress endpoints |
+| Member | Branches                                                              | Frontend ownership                                                                    | Backend ownership                                                          |
+| ------ | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 1      | `feature/navigation-shell`, `feature/settings-polish`                 | Layout shell, sidebar, authenticated route layout, responsive navigation, settings UI | Base app wiring, health/status cleanup, settings/preferences endpoints     |
+| 2      | `feature/auth-account`                                                | Login, register, sign out, account/profile UI, auth session state                     | Auth routes, password hashing, JWT validation, current-user dependency     |
+| 3      | `feature/task-management`                                             | Task list, task cards, task form, complete/reopen, edit/delete                        | Task schemas, task service, task CRUD endpoints, user-owned task filtering |
+| 4      | `feature/folders-inbox`                                               | Folder list, inbox view, folder form, move tasks between folders, folder filters      | Folder schemas, folder service, folder CRUD, task folder support           |
+| 5      | `feature/calendar-reminders`, `feature/analytics-dashboard`           | Calendar view, due dates, reminders, overdue/upcoming views, analytics dashboard      | Deadline/reminder fields, reminder endpoints, analytics summary endpoints  |
+| 6      | `feature/focus-mode`, `feature/priority-view`, `feature/gamification` | Pomodoro/focus UI, priority labels/views, streak/tree progress UI                     | Focus sessions, priority fields/endpoints, gamification progress endpoints |
 
 Search and filtering should live inside the feature that owns the screen. Task search belongs with `feature/task-management`; folder/inbox filtering belongs with `feature/folders-inbox`. Only create `feature/search-filtering` if the team intentionally splits that work.
 
@@ -170,12 +170,12 @@ Core tech:
 
 Project architecture:
 
-- Pages live in `frontend/web/app/<feature>/page.tsx`.
+- Authenticated pages live in `frontend/web/app/(dashboard)/<feature>/page.tsx`; login/register live outside the route group.
 - Reusable UI lives in `frontend/web/components/<feature>/`.
 - Frontend API calls live in `frontend/web/lib/<feature>.ts`.
-- Backend endpoints live in `backend/api/app/<feature>/router.py`.
+- Registered backend endpoints live in feature routers included by `backend/api/app/main.py`; calendar/priority scaffold packages are not registered.
 - Backend request/response schemas live in `backend/api/app/<feature>/schemas.py`.
-- Backend logic and temporary storage live in `backend/api/app/<feature>/service.py`.
+- Backend business logic and PostgreSQL queries live in `backend/api/app/<feature>/service.py`.
 - `backend/api/app/main.py` should only configure the app and register routers.
 - Shared TypeScript contracts go in `packages/shared` only when multiple features need them.
 
@@ -204,18 +204,19 @@ Feature-specific checks:
 
 Current development scope:
 
-- Build frontend and FastAPI endpoints first.
-- Do not require Docker for day-to-day early development.
-- Do not require a deployed database for the first pass.
-- Use in-memory data, local SQLite, or mock data temporarily.
-- Keep endpoint shapes stable so PostgreSQL can replace temporary storage later.
+- Maintain the implemented demo UI and API contracts.
+- Use PostgreSQL and existing Alembic migrations for authenticated integration tests; Docker is optional when PostgreSQL is supplied separately.
+- Use isolated mocks only for component/unit tests, not as a replacement persistence path.
+- Keep the demo database and its users separate from disposable test data.
+- The demonstration targets `frontend/web`, including responsive/mobile-web presentation. React Native/Expo work and `dev:mobile` are not required for this milestone; keep the scaffold without expanding it during cleanup.
+- Clearly distinguish simulated mobile presentation from native device capabilities. Any wrapper, PWA enhancement or emulation setup needs its own scoped implementation and verification.
 
 ## Folder Rules
 
 Keep feature work inside matching frontend and backend folders.
 
 ```text
-frontend/web/app/<feature>/page.tsx
+frontend/web/app/(dashboard)/<feature>/page.tsx
 frontend/web/components/<feature>/
 frontend/web/lib/<feature>.ts
 
@@ -228,11 +229,11 @@ backend/api/app/<feature>/
 
 Use files this way:
 
-- `app/<feature>/page.tsx`: route entry point.
+- `app/(dashboard)/<feature>/page.tsx`: authenticated route entry point; login/register are outside this group.
 - `components/<feature>/`: reusable UI for that feature.
 - `lib/<feature>.ts`: frontend API helper functions.
 - `router.py`: FastAPI endpoints.
-- `models.py`: database models when persistence is added.
+- `models.py`: SQLAlchemy database models.
 - `schemas.py`: request and response schemas.
 - `service.py`: business logic and storage/query code.
 
@@ -245,51 +246,9 @@ Shared files should mostly connect feature modules together:
 
 ## Feature Folder Map
 
-```text
-frontend/web/
-  app/
-    auth/
-    tasks/
-    folders/
-    calendar/
-    analytics/
-    focus/
-    priority/
-    gamification/
-    settings/
-  components/
-    layout/
-    auth/
-    tasks/
-    folders/
-    calendar/
-    analytics/
-    focus/
-    priority/
-    gamification/
-    settings/
-  lib/
-    auth.ts
-    tasks.ts
-    folders.ts
-    scheduling.ts
-    analytics.ts
-    focus.ts
-    projects.ts
-    gamification.ts
-    settings.ts
+See [frontend/README.md](frontend/README.md) for the current frontend map and [STACK.md](STACK.md) for registered backend modules. The authenticated shell lives in `app/(dashboard)/layout.tsx`; root `app/layout.tsx` owns fonts/global styles and UI preferences.
 
-backend/api/app/
-  auth/
-  tasks/
-  folders/
-  calendar/
-  analytics/
-  focus/
-  priority/
-  gamification/
-  settings/
-```
+The current feature helpers include `api.ts`, `auth.ts`, `tasks.ts`, `projects.ts`, `folders.ts`, `dashboard.ts`, `scheduling.ts`, `focus.ts`, `analytics.ts`, `notifications.ts`, `gamification.ts`, `settings.ts`, `duration.ts` and `data-events.ts`. Empty `calendar.ts` and `priority.ts` were removed because live pages already use the shared task/project helpers.
 
 ## Development Order
 
@@ -301,20 +260,22 @@ For each feature:
 4. Build the UI.
 5. Run checks before merging.
 
-During early frontend and endpoint work, a real deployed database is not required. In-memory data or local SQLite can be used temporarily, but keep endpoint shapes stable so PostgreSQL can replace the temporary storage later.
+A deployed production database is not required, but authenticated local integration uses PostgreSQL. Run the existing migrations against a disposable test database for verification; do not substitute SQLite for PostgreSQL-specific integration tests.
 
 ## Setup
 
+Only copy environment examples when the destination does not exist; preserve existing local configuration. Configure a unique local JWT secret and a PostgreSQL connection. Root `.env` also supplies Docker Compose interpolation values.
+
 ```powershell
 corepack enable
-corepack pnpm install
+corepack pnpm install --frozen-lockfile
 python -m venv backend/api/.venv
-backend/api/.venv/Scripts/python -m pip install -e backend/api
+backend/api/.venv/Scripts/python -m pip install -e "backend/api[dev]"
 ```
 
 ```powershell
 Copy-Item .env.example .env
-Copy-Item frontend/web/.env.example frontend/web/.env
+Copy-Item frontend/web/.env.example frontend/web/.env.local
 Copy-Item backend/api/.env.example backend/api/.env
 ```
 
@@ -322,16 +283,17 @@ Copy-Item backend/api/.env.example backend/api/.env
 
 ```powershell
 corepack pnpm dev:web
-corepack pnpm dev:api
+# In another terminal, run the project virtual environment:
+backend/api/.venv/Scripts/python -m uvicorn app.main:app --app-dir backend/api --reload
 ```
 
 ## Quality Checks
 
-Before merging:
+Before merging, run the applicable checks and record existing failures rather than claiming an entirely green repository. For database tests, `DATABASE_URL` must target a disposable PostgreSQL database, never the demo database. See [README.md](README.md) for the migration workflow.
 
 ```powershell
 corepack pnpm lint
-corepack pnpm typecheck
+corepack pnpm --filter @ai-smart-scheduling/web typecheck
 corepack pnpm build
 corepack pnpm format:check
 ```
@@ -363,10 +325,10 @@ All frontend members must follow these conventions. Do not implement separate AP
 
 ### Shared API Client
 
-All API requests must use the shared client:
+All frontend API requests must use the existing shared client:
 
 ```text
-frontend/web/src/lib/api-client.ts
+frontend/web/lib/api.ts
 ```
 
 Do not create another Axios instance, fetch wrapper, or API client without team agreement.
@@ -389,21 +351,21 @@ The shared API client must automatically send the JWT access token:
 Authorization: Bearer <access_token>
 ```
 
-Components must not manually retrieve the token or construct this header.
+`apiRequest` attaches the token (except `auth: false` calls). It exports `ApiError`, token helpers and `getApiUrl`; use the feature helpers rather than introducing another client.
 
 ### HTTP Error Handling
 
-Use consistent behaviour for common API errors:
+Target error-handling conventions (not a claim that every existing component implements these yet):
 
-| Status | Required behaviour |
-|---|---|
-| `401` | Clear the invalid session and redirect to login |
-| `403` | Keep the session and display a permission error |
-| `404` | Display a not-found state |
-| `422` | Display validation errors beside the relevant fields |
-| `500` | Display a general error message and provide a retry option |
+| Status | Required behaviour                                         |
+| ------ | ---------------------------------------------------------- |
+| `401`  | Clear the invalid session and redirect to login            |
+| `403`  | Keep the session and display a permission error            |
+| `404`  | Display a not-found state                                  |
+| `422`  | Display validation errors beside the relevant fields       |
+| `500`  | Display a general error message and provide a retry option |
 
-Do not expose stack traces or internal backend error details to users.
+`ApiError` carries the HTTP status/details and uses status `0` for transport failures. The current-user provider currently clears the session on any `/auth/me` failure, not just `401`; changing that behaviour is separate from documentation cleanup. Do not expose stack traces or internal backend error details to users.
 
 ### Loading and Error States
 
