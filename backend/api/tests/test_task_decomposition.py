@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
@@ -18,6 +18,7 @@ from app.tasks.decomposition_schemas import (
     TaskDecompositionConfirmRequest,
 )
 from app.tasks.models import Subtask, Task, TaskPriority, TaskStatus
+from app.tasks.schemas import TaskDisplayStatus
 
 
 def _user(db_session):
@@ -30,11 +31,11 @@ def _user(db_session):
     return user
 
 
-def _response():
+def _response(*, due_date: str | None = None):
     return {
         "title": "Prepare final presentation",
         "priority": "high",
-        "due_date": "2026-10-01",
+        "due_date": due_date or (datetime.now(UTC) + timedelta(days=7)).date().isoformat(),
         "subtasks": [
             {"client_id": "subtask-1", "title": "Gather source material"},
             {"client_id": "subtask-2", "title": "Draft the slide outline"},
@@ -43,19 +44,22 @@ def _response():
     }
 
 
-def _ai():
-    return AIService(FakeAIProvider([_response()]), AIRequestLimiter(100))
+def _ai(*, due_date: str | None = None):
+    return AIService(FakeAIProvider([_response(due_date=due_date)]), AIRequestLimiter(100))
 
 
+@pytest.mark.parametrize("overdue", [False, True], ids=["future-deadline", "past-deadline"])
 def test_decomposition_preview_does_not_write_and_confirmation_creates_subtasks(
     db_session,
+    overdue: bool,
 ):
     user = _user(db_session)
+    deadline = (datetime.now(UTC) + timedelta(days=-7 if overdue else 7)).date().isoformat()
     preview = decomposition_service.preview(
         db_session,
         user_id=user.id,
-        prompt="Prepare my final presentation by October 1 with high priority",
-        ai_service=_ai(),
+        prompt=f"Prepare my final presentation by {deadline} with high priority",
+        ai_service=_ai(due_date=deadline),
     )
 
     assert preview.feature == "task_decomposition"
@@ -83,7 +87,10 @@ def test_decomposition_preview_does_not_write_and_confirmation_creates_subtasks(
     )
 
     assert result.created.title == "Edited presentation plan"
-    assert result.created.status == TaskStatus.PENDING
+    assert result.created.workflow_status == TaskStatus.PENDING
+    assert result.created.status == (
+        TaskDisplayStatus.OVERDUE if overdue else TaskDisplayStatus.PENDING
+    )
     assert result.created.priority == TaskPriority.HIGH
     assert [subtask.title for subtask in result.created.subtasks] == [
         "Gather source material",

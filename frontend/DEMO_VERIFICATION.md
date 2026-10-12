@@ -13,7 +13,7 @@ This batch verifies the integrated web app and corrects outdated documentation. 
 - Successful UI checks used a temporary same-origin proxy on port 3004, forwarding only to the isolated frontend/API. Its relative API URL was process/build-local; no proxy or API configuration was added to application source. This run does not prove that the original cross-origin browser issue is resolved.
 - The existing demonstration checkout, live database and Docker services were not modified. The audit tab and three temporary servers were closed/stopped. The exact auto-removing audit container was stopped, removing only its disposable synthetic data. Reports and screenshot evidence remain outside the repository.
 
-## Results
+## Initial verification results
 
 Backend suite: **516 passed, 1 failed**, 517 collected tests. Six dependency deprecation warnings were reported. This is not an entirely green suite.
 
@@ -35,7 +35,9 @@ Browser checks used mobile-width responsive web presentation:
 
 These are main-flow smoke checks, not exhaustive browser regression coverage. Live Gemini generation, microphone input, external notification delivery, mobile native behaviour and production deployment were not tested.
 
-## Findings retained for separate fixes
+## Findings from initial verification
+
+The date-sensitive test and lint findings below are historical; see the quality-fix follow-up for their resolution. The Pomodoro and auth transport findings remain open.
 
 1. **Date-sensitive decomposition test:** `backend/api/tests/test_task_decomposition.py` supplies a fixed `2026-10-01` deadline, then expects `TaskStatus.PENDING` at line 86. At this run's date, the response correctly exposes an overdue display status; `workflow_status` is a separate field. Review the fixture's clock/deadline or intended assertion instead of changing application overdue behaviour to make the test pass.
 2. **Pomodoro API/UI range mismatch:** the API accepted and persisted 35 minutes during the smoke test, while the settings dropdown offers only 15, 20, 25, 30, 45 and 60. The browser showed the first option for that unsupported value. Saving/reloading a supported value (45) passed. Align the intended contract in a separate change.
@@ -47,3 +49,16 @@ These are main-flow smoke checks, not exhaustive browser regression coverage. Li
 README, STACK, CONTRIBUTING and the frontend guide now identify the current `(dashboard)` routes, public login/register pages, `lib/api.ts`, PostgreSQL-backed persistence, registered routers, folders/projects compatibility and unregistered scaffold packages. Setup commands use the project virtual environment and warn against overwriting configuration or testing against the shared demo database. Error-handling guidelines are distinguished from current implementation limitations.
 
 The demonstration scope is web-only. React Native/Expo remains a future-work scaffold. Responsive viewport/touch simulation may be used for mobile presentation, but native-like presentation does not establish native feature support. No native wrapper, simulator or PWA/offline feature was implemented.
+
+## Quality-fix follow-up (2026-10-12)
+
+After the documentation commit `0da5ead`, a separate small batch resolved the test/lint findings without changing application deadline behaviour, UI markup, API contracts, schema or infrastructure:
+
+- The decomposition fake response now defaults to a deadline relative to the current UTC date. The confirmation test covers both past and future deadlines and checks `workflow_status` independently from the overdue/pending display status.
+- The 3D forest controls ref uses React's inferred `ComponentRef<typeof OrbitControls>` instead of `any`. Its transpiled JavaScript is identical to the baseline.
+- Task creation no longer imports the unused voice button or binds the unused state setter. The existing state hook/value, highlight condition and all handlers remain unchanged; the voice component itself is retained.
+- All JSX in both edited frontend components is byte-for-byte unchanged.
+
+Verification: **518 backend tests passed**, including both deadline cases; six existing dependency deprecation warnings remain. Repository ESLint, web TypeScript, the production frontend build, targeted Python lint and whitespace checks passed. The suite ran only against a new RAM-backed PostgreSQL audit container using the unchanged migration history; that exact auto-removing container was stopped after verification.
+
+Browser interaction checks were not repeated for this follow-up; the earlier browser evidence remains historical. Live AI, auth transport behaviour and the Pomodoro contract mismatch remain outside this batch. No changes were made to the demo database or the unrelated user-supplied image.
