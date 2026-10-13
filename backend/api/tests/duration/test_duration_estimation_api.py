@@ -23,7 +23,7 @@ from app.tasks.duration_estimation.proposal import create_proposal
 from app.tasks.duration_estimation.repository import get_owned_task
 from app.tasks.duration_estimation.schemas import DurationConfirmRequest, DurationEstimate
 from app.tasks.models import Task
-from tests.test_duration_estimation_history import make_history_task, make_user
+from tests.duration.test_duration_estimation_history import make_history_task, make_user
 
 
 @pytest.fixture

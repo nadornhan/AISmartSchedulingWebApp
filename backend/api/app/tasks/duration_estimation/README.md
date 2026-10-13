@@ -127,7 +127,7 @@ also honored. Never put keys in the frontend.
 
 With a disposable PostgreSQL database configured:
 
-    python -m pytest tests/test_duration_estimation_engine.py tests/test_duration_estimation_history.py tests/test_duration_estimation_api.py
+    python -m pytest tests/duration
 
 Tests use `FakeAIProvider` and include real PostgreSQL concurrency, rollback,
 ownership, baseline capture, stale/tampered tokens and duplicate confirmations.
