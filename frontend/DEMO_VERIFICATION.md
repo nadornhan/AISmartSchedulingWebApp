@@ -74,3 +74,32 @@ Verification: **33 auth regression tests passed**, using actual transpiled sourc
 The computer-use workflow also verified the actual production React provider/shell against a localhost-only synthetic API fixture: a `503` blocked feature content and displayed **Try again**, retry with `200` recovered the profile without another login (the fixture received the retained Authorization header), and a subsequent `401` returned to login. This is a client error-recovery test, not a real JWT/backend integration run or proof that the original cross-origin failure is resolved. The temporary fixture and frontend servers were stopped; the demo database and services were not touched.
 
 This auth batch does not change backend authorization, JWT storage keys, API contracts, CORS/security settings, database schema or normal feature layout/styles. Only the previously missing auth recovery/loading states are added. Pomodoro display/default behaviour remains unchanged. The separate user-supplied image remains untouched.
+
+## Task refactoring browser follow-up (2026-10-13)
+
+The current production frontend was tested through a localhost-only API fixture
+with ten initial in-memory sample tasks. The fixture implements the Task API
+responses needed for interaction checks; it is outside the repository. Auth
+bypass was disabled, but the fixture's synthetic token is not a real JWT. These
+checks do not repeat backend integration tests or exercise live Gemini output.
+
+Desktop checks passed for pagination, priority filtering, sorting, row selection,
+status changes, bulk completion, subtask expansion/completion and manual task
+creation/editing. A created sample task was duplicated, rescheduled and deleted;
+the corresponding UI refreshes and fixture mutations were observed. At a
+390-pixel viewport, due-date grouping, filters/reset, complete-to-pending reopening,
+editing, compact status changes, subtask toggling and pagination worked. A
+1600-pixel desktop capture and a 390-pixel mobile capture were saved outside the
+repository. No browser console errors were reported for the settled Task page.
+
+Two existing limitations were observed and retained: priority filtering changes
+the rows but the desktop footer uses status counts that do not include the
+priority filter; the fixed desktop grid requires horizontal scrolling near a
+1254-pixel viewport. Both follow the original page code/markup and are separate
+from the extraction. Live AI entry, personalized duration estimates, schedule
+locking and folder-move mutations were not tested in this fixture run.
+
+The initial webpack development page did not hydrate in this browser/proxy setup;
+the production build handled login and the Task interactions successfully. No
+application source was changed to work around that test setup. The temporary
+servers were stopped, browser viewport overrides reset and the test tab closed.
