@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint web and shared code
+        run: pnpm lint:ci
+      - name: Generate Next.js route types
+        run: pnpm --filter @ai-smart-scheduling/web exec next typegen
+      - name: Check TypeScript
+        run: pnpm typecheck:ci
+      - name: Build production web app
+        run: pnpm build
+
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend/api
+    env:
+      DATABASE_URL: postgresql+psycopg://chrono_ci:chrono_ci@localhost:5432/chrono_ci
+      JWT_SECRET_KEY: chrono-ci-only-signing-key-not-for-deployment
+      GEMINI_API_KEY: ''
+      AI_ENABLED: 'true'
+      PGTZ: UTC
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: chrono_ci
+          POSTGRES_PASSWORD: chrono_ci
+          POSTGRES_DB: chrono_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chrono_ci -d chrono_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: '0.12.5'
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: backend/api/uv.lock
+      - name: Configure temporary uploads
+        run: echo "UPLOAD_DIR=$RUNNER_TEMP/chrono-ci-uploads" >> "$GITHUB_ENV"
+      - name: Install locked dependencies
+        run: uv sync --locked --extra dev
+      - name: Lint backend and tests
+        run: uv run --no-sync ruff check app tests
+      - name: Apply migrations to a clean test database
+        run: uv run --no-sync alembic upgrade head
+      - name: Check models match migrations
+        run: uv run --no-sync alembic check
+      - name: Run backend test suite
+        run: uv run --no-sync pytest tests -q --junitxml=test-results/pytest.xml
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-test-results
+          path: backend/api/test-results/pytest.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+  ci:
+    name: CI passed
+    if: ${{ always() }}
+    needs: [frontend, backend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require both jobs to succeed
+        env:
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+        run: |
+          test "$FRONTEND_RESULT" = success
+          test "$BACKEND_RESULT" = success

@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
@@ -34,7 +34,7 @@ def _response():
     return {
         "title": "Prepare final presentation",
         "priority": "high",
-        "due_date": "2026-10-01",
+        "due_date": (datetime.now(UTC) + timedelta(days=30)).date().isoformat(),
         "subtasks": [
             {"client_id": "subtask-1", "title": "Gather source material"},
             {"client_id": "subtask-2", "title": "Draft the slide outline"},
@@ -54,7 +54,7 @@ def test_decomposition_preview_does_not_write_and_confirmation_creates_subtasks(
     preview = decomposition_service.preview(
         db_session,
         user_id=user.id,
-        prompt="Prepare my final presentation by October 1 with high priority",
+        prompt="Prepare my final presentation next month with high priority",
         ai_service=_ai(),
     )
 

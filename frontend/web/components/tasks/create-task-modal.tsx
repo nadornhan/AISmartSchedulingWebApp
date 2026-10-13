@@ -4,7 +4,6 @@ import { FormEvent, useMemo, useRef, useState } from 'react';
 import { ArrowDown, Sparkles } from 'lucide-react';
 
 import { ApiError } from '../../lib/api';
-import { VoiceTaskButton } from './voice-task-button';
 import { PrioritySuggestion } from './priority-suggestion';
 import {
   DURATION_PRESETS_MINUTES,
@@ -258,7 +257,7 @@ function TaskFormModal({
   const [generationBusy, setGenerationBusy] = useState(false);
   const [isNaturalLanguageExpanded, setIsNaturalLanguageExpanded] = useState(true);
   const [isManualFormVisible, setIsManualFormVisible] = useState(!enableNaturalLanguage);
-  const [recentlyGeneratedDetails, setRecentlyGeneratedDetails] = useState(false);
+  const [recentlyGeneratedDetails] = useState(false);
   const [availableProjects, setAvailableProjects] = useState(projects);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDetailsElement>(null);

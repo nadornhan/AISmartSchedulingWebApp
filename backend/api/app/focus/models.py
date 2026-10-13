@@ -3,7 +3,17 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -38,6 +48,15 @@ class FocusSessionStatus(str, enum.Enum):
 
 class FocusSession(Base):
     __tablename__ = "focus_sessions"
+    __table_args__ = (
+        CheckConstraint("duration_minutes > 0", name="ck_focus_sessions_duration_positive"),
+        CheckConstraint(
+            "planned_duration_minutes > 0", name="ck_focus_sessions_planned_duration_positive"
+        ),
+        CheckConstraint(
+            "actual_duration_seconds >= 0", name="ck_focus_sessions_actual_duration_nonnegative"
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -52,6 +71,7 @@ class FocusSession(Base):
     )
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        index=True,
         nullable=False,
     )
     ended_at: Mapped[datetime | None] = mapped_column(

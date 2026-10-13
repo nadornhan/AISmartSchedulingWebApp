@@ -750,7 +750,7 @@ function SceneContent({
   onPlaceAt,
   cameraResetKey = 0,
 }: ForestScene3DProps) {
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
