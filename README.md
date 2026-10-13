@@ -390,6 +390,6 @@ Run backend tests only after pointing `DATABASE_URL` at a disposable PostgreSQL 
 backend/api/.venv/Scripts/python -m pytest backend/api/tests -q
 ```
 
-Do not use auth bypass as evidence of successful integration. Record browser checks, test counts, existing failures and whether external Gemini output was actually exercised. The web workspace currently has no automated test script.
+Do not use auth bypass as evidence of successful integration. Record browser checks, test counts, existing failures and whether external Gemini output was actually exercised. Targeted auth regressions run with `corepack pnpm --filter @ai-smart-scheduling/web test:auth`; broader UI coverage remains manual.
 
 See [the demo verification report](frontend/DEMO_VERIFICATION.md) for the current isolated test results and limitations.

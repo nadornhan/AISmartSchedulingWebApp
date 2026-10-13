@@ -1,0 +1,313 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import test from 'node:test';
+import { fileURLToPath, URL } from 'node:url';
+import vm from 'node:vm';
+import ts from 'typescript';
+
+const root = fileURLToPath(new URL('../..', import.meta.url));
+function loadSource(file, dependencies = {}, globals = {}) {
+  const module = { exports: {} };
+  const code = ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  vm.runInNewContext(
+    code,
+    {
+      module,
+      exports: module.exports,
+      require: (name) => {
+        assert.ok(name in dependencies, `Unexpected dependency: ${name}`);
+        return dependencies[name];
+      },
+      process,
+      Error: globalThis.Error,
+      AbortController: globalThis.AbortController,
+      ...globals,
+    },
+    { filename: file },
+  );
+  return module.exports;
+}
+
+const { ApiError } = loadSource('lib/api.ts');
+const { createCurrentUserSession } = loadSource('lib/auth-session.ts', {
+  './api': { ApiError },
+});
+const user = { id: 'user-a', first_name: 'Test', email: 'test@example.com' };
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+}
+function harness(getCurrentUser = async () => user, onVerified) {
+  let token = 'token-a';
+  let clears = 0;
+  let redirects = 0;
+  const session = createCurrentUserSession({
+    getAccessToken: () => token,
+    getCurrentUser,
+    clearSession: () => {
+      token = null;
+      clears += 1;
+    },
+    onUnauthenticated: () => {
+      redirects += 1;
+    },
+    onVerified,
+  });
+  return {
+    session,
+    setToken: (value) => {
+      token = value;
+    },
+    token: () => token,
+    clears: () => clears,
+    redirects: () => redirects,
+  };
+}
+
+for (const status of [0, 403, 500, 503]) {
+  for (const phase of ['initial check', 'refresh']) {
+    test(`${phase}: HTTP/transport ${status} keeps credentials and blocks unverified content`, async () => {
+      let fail = phase === 'initial check';
+      const h = harness(async () => {
+        if (fail) throw new ApiError('Temporary failure', status);
+        return user;
+      });
+      await h.session.start();
+      if (!fail) {
+        fail = true;
+        await h.session.refresh();
+      }
+      assert.equal(h.session.getSnapshot().status, 'unavailable');
+      assert.equal(h.token(), 'token-a');
+      assert.equal(h.clears(), 0);
+      assert.equal(h.redirects(), 0);
+      h.session.dispose();
+    });
+  }
+}
+
+for (const error of [
+  new TypeError('Network failure'),
+  new SyntaxError('Invalid JSON'),
+  new globalThis.DOMException('Cancelled', 'AbortError'),
+]) {
+  test(`${error.name} is recoverable, not an invalid session`, async () => {
+    const h = harness(async () => {
+      throw error;
+    });
+    await h.session.start();
+    assert.equal(h.session.getSnapshot().status, 'unavailable');
+    assert.equal(h.token(), 'token-a');
+    assert.equal(h.redirects(), 0);
+    h.session.dispose();
+  });
+}
+
+for (const phase of ['initial check', 'refresh']) {
+  test(`${phase}: 401 clears credentials and redirects`, async () => {
+    let fail = phase === 'initial check';
+    const h = harness(async () => {
+      if (fail) throw new ApiError('Invalid credentials', 401);
+      return user;
+    });
+    await h.session.start();
+    if (!fail) {
+      fail = true;
+      await h.session.refresh();
+    }
+    assert.equal(h.session.getSnapshot().status, 'unauthenticated');
+    assert.equal(h.session.getSnapshot().user, null);
+    assert.equal(h.token(), null);
+    assert.equal(h.redirects(), 1);
+    h.session.dispose();
+  });
+}
+
+test('missing token redirects without a profile request', async () => {
+  let calls = 0;
+  const h = harness(async () => {
+    calls += 1;
+    return user;
+  });
+  h.setToken(null);
+  await h.session.start();
+  assert.equal(calls, 0);
+  assert.equal(h.session.getSnapshot().status, 'unauthenticated');
+  assert.equal(h.redirects(), 1);
+});
+
+test('retry verifies the user with the retained token', async () => {
+  let fail = true;
+  const h = harness(async () => {
+    if (fail) throw new ApiError('Unavailable', 503);
+    return user;
+  });
+  await h.session.start();
+  assert.equal(h.session.getSnapshot().status, 'unavailable');
+  fail = false;
+  assert.equal(await h.session.refresh(), user);
+  assert.equal(h.session.getSnapshot().status, 'authenticated');
+  assert.equal(h.session.getSnapshot().error, null);
+  assert.equal(h.clears(), 0);
+  h.session.dispose();
+});
+
+for (const outcome of ['reject', 'resolve']) {
+  test(`older ${outcome} cannot replace a newer verified request`, async () => {
+    const old = deferred();
+    let calls = 0;
+    let oldSignal;
+    const h = harness((signal) => {
+      calls += 1;
+      if (calls === 1) {
+        oldSignal = signal;
+        return old.promise;
+      }
+      return Promise.resolve(user);
+    });
+    const pending = h.session.start();
+    await h.session.refresh();
+    assert.equal(oldSignal.aborted, true);
+    if (outcome === 'reject') old.reject(new ApiError('Old 401', 401));
+    else old.resolve({ ...user, first_name: 'Stale' });
+    await pending;
+    assert.equal(h.session.getSnapshot().user, user);
+    assert.equal(h.session.getSnapshot().status, 'authenticated');
+    assert.equal(h.clears(), 0);
+    h.session.dispose();
+  });
+}
+
+for (const action of ['signOut', 'dispose', 'token change']) {
+  test(`${action} makes an in-flight success stale`, async () => {
+    const pendingUser = deferred();
+    const h = harness(() => pendingUser.promise);
+    const pending = h.session.start();
+    if (action === 'token change') h.setToken('token-b');
+    else h.session[action]();
+    pendingUser.resolve(user);
+    assert.equal(await pending, null);
+    assert.notEqual(h.session.getSnapshot().status, 'authenticated');
+    if (action === 'signOut') assert.equal(h.token(), null);
+  });
+}
+
+test('dispose/restart supports Strict Mode without stale failure logout', async () => {
+  const old = deferred();
+  let calls = 0;
+  const h = harness(() => (++calls === 1 ? old.promise : Promise.resolve(user)));
+  const pending = h.session.start();
+  h.session.dispose();
+  await h.session.start();
+  old.reject(new ApiError('Old 401', 401));
+  await pending;
+  assert.equal(h.session.getSnapshot().status, 'authenticated');
+  assert.equal(h.clears(), 0);
+  h.session.dispose();
+});
+
+test('avatar update keeps identity, and late update cannot undo sign-out', async () => {
+  const h = harness();
+  await h.session.start();
+  h.session.setUser({ ...user, avatar_url: '/photo.png' });
+  assert.equal(h.session.getSnapshot().user.avatar_url, '/photo.png');
+  h.session.setUser({ ...user, id: 'other-user' });
+  assert.equal(h.session.getSnapshot().user.id, user.id);
+  h.session.signOut();
+  h.session.setUser(user);
+  assert.equal(h.session.getSnapshot().status, 'unauthenticated');
+  assert.equal(h.session.getSnapshot().user, null);
+});
+
+test('timezone synchronization failure does not invalidate verified auth', async () => {
+  const h = harness(
+    async () => user,
+    async () => {
+      throw new ApiError('Timezone unavailable', 500);
+    },
+  );
+  await h.session.start();
+  await Promise.resolve();
+  assert.equal(h.session.getSnapshot().status, 'authenticated');
+  assert.equal(h.clears(), 0);
+  h.session.dispose();
+});
+
+for (const action of ['none', 'signOut', 'abort', 'token change']) {
+  test(`profile cache ignores stale success after ${action}`, async () => {
+    const values = new Map([['chrono_access_token', 'token-a']]);
+    const localStorage = {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    };
+    const response = deferred();
+    const controller = new globalThis.AbortController();
+    const api = loadSource(
+      'lib/api.ts',
+      {},
+      {
+        localStorage,
+        window: { localStorage },
+        Headers: globalThis.Headers,
+        fetch: async (_url, init) => {
+          assert.equal(init.signal, controller.signal);
+          return response.promise;
+        },
+      },
+    );
+    const auth = loadSource(
+      'lib/auth.ts',
+      { './api': api, './settings': {} },
+      {
+        localStorage,
+        window: { localStorage },
+      },
+    );
+    const pending = auth.getCurrentUser({ signal: controller.signal });
+    if (action === 'signOut') auth.clearSession();
+    if (action === 'abort') controller.abort();
+    if (action === 'token change') values.set('chrono_access_token', 'token-b');
+    response.resolve(new globalThis.Response(JSON.stringify(user)));
+    await pending;
+    assert.equal(values.has('chrono.auth.currentUser'), action === 'none');
+  });
+}
+
+for (const operation of ['uploadCurrentUserAvatar', 'deleteCurrentUserAvatar']) {
+  for (const action of ['none', 'signOut', 'token change']) {
+    test(`${operation} cache cannot overwrite a ${action} session`, async () => {
+      const values = new Map([['chrono_access_token', 'token-a']]);
+      const localStorage = {
+        getItem: (key) => values.get(key) ?? null,
+        setItem: (key, value) => values.set(key, value),
+        removeItem: (key) => values.delete(key),
+      };
+      const response = deferred();
+      const globals = {
+        localStorage,
+        window: { localStorage },
+        Headers: globalThis.Headers,
+        FormData: globalThis.FormData,
+        fetch: async () => response.promise,
+      };
+      const api = loadSource('lib/api.ts', {}, globals);
+      const auth = loadSource('lib/auth.ts', { './api': api, './settings': {} }, globals);
+      const pending = auth[operation](new globalThis.Blob(['synthetic avatar']));
+      if (action === 'signOut') auth.clearSession();
+      if (action === 'token change') values.set('chrono_access_token', 'token-b');
+      response.resolve(new globalThis.Response(JSON.stringify(user)));
+      await pending;
+      assert.equal(values.has('chrono.auth.currentUser'), action === 'none');
+    });
+  }
+}

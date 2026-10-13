@@ -37,7 +37,7 @@ These are main-flow smoke checks, not exhaustive browser regression coverage. Li
 
 ## Findings from initial verification
 
-The date-sensitive test and lint findings below are historical; see the quality-fix follow-up for their resolution. The Pomodoro and auth transport findings remain open.
+The date-sensitive test and lint findings below are historical; see the quality-fix follow-up for their resolution. Session recovery is addressed in the auth follow-up below; the Pomodoro issue and the original cross-origin transport trigger remain open.
 
 1. **Date-sensitive decomposition test:** `backend/api/tests/test_task_decomposition.py` supplies a fixed `2026-10-01` deadline, then expects `TaskStatus.PENDING` at line 86. At this run's date, the response correctly exposes an overdue display status; `workflow_status` is a separate field. Review the fixture's clock/deadline or intended assertion instead of changing application overdue behaviour to make the test pass.
 2. **Pomodoro API/UI range mismatch:** the API accepted and persisted 35 minutes during the smoke test, while the settings dropdown offers only 15, 20, 25, 30, 45 and 60. The browser showed the first option for that unsupported value. Saving/reloading a supported value (45) passed. Align the intended contract in a separate change.
@@ -62,3 +62,15 @@ After the documentation commit `0da5ead`, a separate small batch resolved the te
 Verification: **518 backend tests passed**, including both deadline cases; six existing dependency deprecation warnings remain. Repository ESLint, web TypeScript, the production frontend build, targeted Python lint and whitespace checks passed. The suite ran only against a new RAM-backed PostgreSQL audit container using the unchanged migration history; that exact auto-removing container was stopped after verification.
 
 Browser interaction checks were not repeated for this follow-up; the earlier browser evidence remains historical. Live AI, auth transport behaviour and the Pomodoro contract mismatch remain outside this batch. No changes were made to the demo database or the unrelated user-supplied image.
+
+## Auth recovery follow-up (2026-10-12)
+
+The current-user provider now shares a testable session coordinator for initial checks and refreshes. Transport errors, malformed responses, cancellation and server/permission errors preserve credentials and present a retryable unavailable state. Missing credentials, explicit sign-out and rejected credentials (`401`) still clear the session and redirect. Protected feature content is rendered only after a successful current-user check; a cached identity is not treated as verified auth.
+
+New requests, unmount and sign-out invalidate older checks through request revisions and abort signals. Profile/avatar cache writes are guarded against sign-out, token replacement and cancelled requests; successful avatar updates retain their existing behaviour. Best-effort timezone synchronization does not decide authentication success. Existing local auth-bypass behaviour is retained for development, but was disabled for verification.
+
+Verification: **33 auth regression tests passed**, using actual transpiled source modules with in-memory dependencies, without real credentials or network/database requests. Repository ESLint, web TypeScript and the production build passed. No new runtime/test dependencies were added. Use `corepack pnpm --filter @ai-smart-scheduling/web test:auth` to rerun the tests.
+
+The computer-use workflow also verified the actual production React provider/shell against a localhost-only synthetic API fixture: a `503` blocked feature content and displayed **Try again**, retry with `200` recovered the profile without another login (the fixture received the retained Authorization header), and a subsequent `401` returned to login. This is a client error-recovery test, not a real JWT/backend integration run or proof that the original cross-origin failure is resolved. The temporary fixture and frontend servers were stopped; the demo database and services were not touched.
+
+This auth batch does not change backend authorization, JWT storage keys, API contracts, CORS/security settings, database schema or normal feature layout/styles. Only the previously missing auth recovery/loading states are added. Pomodoro display/default behaviour remains unchanged. The separate user-supplied image remains untouched.

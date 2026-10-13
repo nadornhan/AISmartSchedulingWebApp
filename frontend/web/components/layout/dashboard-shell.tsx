@@ -98,7 +98,7 @@ function DashboardShellContent({
 }>) {
   const pathname = usePathname();
   const meta = getRouteMeta(pathname);
-  const { isCheckingSession, user } = useCurrentUser();
+  const { error, refreshUser, sessionStatus, user } = useCurrentUser();
 
   return (
     <div className="min-h-dvh bg-dashboard-bg text-dashboard-text lg:flex">
@@ -110,12 +110,30 @@ function DashboardShellContent({
         <MobileTopHeader title={meta.title} user={user} />
         <Header subtitle={meta.subtitle} title={meta.title} user={user} />
         <main className="min-h-[calc(100dvh-7rem)] px-6 pb-32 pt-7 lg:px-10 lg:py-8 xl:px-12">
-          {isCheckingSession && !user ? (
+          {sessionStatus === 'checking' ? (
             <div className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted">
               Checking your session...
             </div>
-          ) : (
+          ) : sessionStatus === 'unavailable' ? (
+            <div
+              className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted"
+              role="alert"
+            >
+              <p>{error ?? 'Unable to check your session. Please try again.'}</p>
+              <button
+                className="mt-4 rounded-lg border border-dashboard-border px-4 py-2 text-sm font-medium text-dashboard-text transition hover:border-dashboard-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
+                onClick={() => void refreshUser()}
+                type="button"
+              >
+                Try again
+              </button>
+            </div>
+          ) : sessionStatus === 'authenticated' ? (
             children
+          ) : (
+            <div className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted">
+              Redirecting to sign in...
+            </div>
           )}
         </main>
         <GrowthRewardToast />

@@ -43,11 +43,12 @@ The demo is the Next.js web app; React Native/Expo is deferred. Use the existing
 
 ```powershell
 corepack pnpm --filter @ai-smart-scheduling/web typecheck
+corepack pnpm --filter @ai-smart-scheduling/web test:auth
 corepack pnpm exec eslint frontend/web
 corepack pnpm --filter @ai-smart-scheduling/web build
 ```
 
-There is currently no frontend test script. Type checking and building do not replace authenticated browser testing of task creation/editing, scheduling, focus, settings, profile and the other demonstrated features.
+`test:auth` runs targeted session-recovery and stale-response regressions using Node's built-in test runner and the existing TypeScript dependency. It makes no real API/database requests. Broader feature UI coverage remains manual; type checking and building do not replace authenticated browser testing of the demonstrated features.
 
 See [AUDIT.md](AUDIT.md) for the cleanup scope and preservation decisions.
 

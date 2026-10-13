@@ -3,26 +3,22 @@
 import { useRouter } from 'next/navigation';
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 
-import {
-  clearSession,
-  getCachedCurrentUser,
-  getCurrentUser,
-  logout,
-  type UserResponse,
-} from '../../lib/auth';
+import { clearSession, getCurrentUser, type UserResponse } from '../../lib/auth';
+import { getAccessToken } from '../../lib/api';
+import { createCurrentUserSession, type SessionStatus } from '../../lib/auth-session';
 import { detectBrowserTimezone } from '../../lib/settings';
 
 type CurrentUserContextValue = {
   user: UserResponse | null;
   isCheckingSession: boolean;
+  sessionStatus: SessionStatus;
   error: string | null;
   refreshUser: () => Promise<UserResponse | null>;
   setUser: (user: UserResponse | null) => void;
@@ -53,96 +49,47 @@ export function CurrentUserProvider({
   children: ReactNode;
 }>) {
   const router = useRouter();
-  const [user, setUser] = useState<UserResponse | null>(null);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const signOut = useCallback(() => {
-    logout();
-    setUser(null);
-    router.replace('/login');
-  }, [router]);
-
-  const refreshUser = useCallback(async () => {
-    if (process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true') {
-      const bypassUser = localBypassUser();
-      setUser(bypassUser);
-      setError(null);
-      setIsCheckingSession(false);
-      return bypassUser;
-    }
-
-    try {
-      setError(null);
-      const nextUser = await getCurrentUser();
-      await detectBrowserTimezone().catch(() => undefined);
-      setUser(nextUser);
-      return nextUser;
-    } catch (requestError) {
-      clearSession();
-      setUser(null);
-      setError(requestError instanceof Error ? requestError.message : 'Your session has expired.');
-      router.replace('/login');
-      return null;
-    } finally {
-      setIsCheckingSession(false);
-    }
-  }, [router]);
+  const session = useMemo(
+    () =>
+      createCurrentUserSession({
+        getAccessToken: () =>
+          process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true' ? 'local-bypass' : getAccessToken(),
+        getCurrentUser: (signal) =>
+          process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true'
+            ? Promise.resolve(localBypassUser())
+            : getCurrentUser({ signal }),
+        clearSession,
+        onUnauthenticated: () => router.replace('/login'),
+        onVerified: async (signal) => {
+          if (process.env.NEXT_PUBLIC_BYPASS_AUTH !== 'true') {
+            await detectBrowserTimezone({ signal });
+          }
+        },
+      }),
+    [router],
+  );
+  const snapshot = useSyncExternalStore(
+    session.subscribe,
+    session.getSnapshot,
+    session.getServerSnapshot,
+  );
 
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true') {
-      setUser(localBypassUser());
-      setIsCheckingSession(false);
-      return;
-    }
-
-    const cachedUser = getCachedCurrentUser();
-
-    if (cachedUser) {
-      setUser(cachedUser);
-    }
-
-    let isMounted = true;
-
-    getCurrentUser()
-      .then(async (nextUser) => {
-        await detectBrowserTimezone().catch(() => undefined);
-        if (isMounted) {
-          setUser(nextUser);
-          setError(null);
-        }
-      })
-      .catch((requestError) => {
-        if (!isMounted) return;
-
-        clearSession();
-        setUser(null);
-        setError(
-          requestError instanceof Error ? requestError.message : 'Your session has expired.',
-        );
-        router.replace('/login');
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsCheckingSession(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [router]);
+    void session.start();
+    return () => session.dispose();
+  }, [session]);
 
   const value = useMemo<CurrentUserContextValue>(
     () => ({
-      user,
-      isCheckingSession,
-      error,
-      refreshUser,
-      setUser,
-      signOut,
+      user: snapshot.user,
+      isCheckingSession: snapshot.status === 'checking',
+      sessionStatus: snapshot.status,
+      error: snapshot.error,
+      refreshUser: session.refresh,
+      setUser: session.setUser,
+      signOut: session.signOut,
     }),
-    [error, isCheckingSession, refreshUser, signOut, user],
+    [session, snapshot],
   );
 
   return <CurrentUserContext.Provider value={value}>{children}</CurrentUserContext.Provider>;

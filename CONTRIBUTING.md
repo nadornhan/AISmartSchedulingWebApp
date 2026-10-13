@@ -365,7 +365,7 @@ Target error-handling conventions (not a claim that every existing component imp
 | `422`  | Display validation errors beside the relevant fields       |
 | `500`  | Display a general error message and provide a retry option |
 
-`ApiError` carries the HTTP status/details and uses status `0` for transport failures. The current-user provider currently clears the session on any `/auth/me` failure, not just `401`; changing that behaviour is separate from documentation cleanup. Do not expose stack traces or internal backend error details to users.
+`ApiError` carries the HTTP status/details and uses status `0` for transport failures. Current-user checks clear credentials on `401` or a missing token. Transport/server/permission failures retain the token and block unverified feature content behind a retry state; cached identity is not proof of authentication. Superseded or cancelled checks cannot overwrite a newer session. Run `corepack pnpm --filter @ai-smart-scheduling/web test:auth` for these regressions. Do not expose stack traces or internal backend error details to users.
 
 ### Loading and Error States
 
