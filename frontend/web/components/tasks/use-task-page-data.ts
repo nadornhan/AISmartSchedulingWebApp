@@ -53,6 +53,7 @@ export function useTaskPageData({
     Overdue: 0,
   });
   const [totalPages, setTotalPages] = useState(0);
+  const [totalTasks, setTotalTasks] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshTasks = useCallback(async () => {
@@ -64,6 +65,7 @@ export function useTaskPageData({
         const task = await getTask(targetTaskId);
         setTasks([toTask(task)]);
         setTotalPages(1);
+        setTotalTasks(1);
         setSelected([]);
         setMenuTaskId(null);
         return;
@@ -81,12 +83,14 @@ export function useTaskPageData({
       });
       setTasks(response.items.map(toTask));
       setTotalPages(response.total_pages);
+      setTotalTasks(response.total);
       setSelected([]);
       setMenuTaskId(null);
     } catch (requestError) {
       setError(getErrorMessage(requestError));
       setTasks([]);
       setTotalPages(0);
+      setTotalTasks(0);
     } finally {
       setIsLoading(false);
     }
@@ -187,5 +191,15 @@ export function useTaskPageData({
     [refreshCounts],
   );
 
-  return { tasks, setTasks, projects, counts, totalPages, isLoading, refreshTasks, refreshCounts };
+  return {
+    tasks,
+    setTasks,
+    projects,
+    counts,
+    totalPages,
+    totalTasks,
+    isLoading,
+    refreshTasks,
+    refreshCounts,
+  };
 }

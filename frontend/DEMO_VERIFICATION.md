@@ -103,3 +103,12 @@ The initial webpack development page did not hydrate in this browser/proxy setup
 the production build handled login and the Task interactions successfully. No
 application source was changed to work around that test setup. The temporary
 servers were stopped, browser viewport overrides reset and the test tab closed.
+
+## Task footer-total fix (2026-10-14)
+
+The footer now uses `total` from the filtered task-list response, matching the
+rows and `total_pages`, instead of the broader status-tab count. Single-task
+views report one result; empty results and failed requests clear the result
+total. Status-tab badges keep their existing project/search scope. Regression
+coverage checks priority-filter changes, clearing the filter, empty results and
+failed refreshes. The desktop grid width remains a separate follow-up.

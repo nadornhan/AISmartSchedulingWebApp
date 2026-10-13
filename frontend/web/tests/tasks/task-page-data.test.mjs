@@ -168,6 +168,7 @@ test('initial load retains query defaults, counts, projects and selection/menu r
   assert.equal(h.calls.length, 6);
   assert.equal(data.tasks[0].id, 'task-a');
   assert.equal(data.totalPages, 3);
+  assert.equal(data.totalTasks, 14);
   assert.equal(data.isLoading, false);
   assert.deepEqual(plain(data.counts), {
     All: 14,
@@ -228,6 +229,7 @@ test('targeted task loading bypasses list filters and retains one-page result', 
   assert.deepEqual(h.calls[0], { getTask: 'target-a' });
   assert.equal(data.tasks[0].id, 'target-a');
   assert.equal(data.totalPages, 1);
+  assert.equal(data.totalTasks, 1);
   assert.equal(h.calls.length, 6);
 });
 
@@ -241,6 +243,7 @@ test('main request failure clears tasks/pages and exposes error without clearing
   const data = await h.settle();
   assert.deepEqual(plain(data.tasks), []);
   assert.equal(data.totalPages, 0);
+  assert.equal(data.totalTasks, 0);
   assert.equal(data.isLoading, false);
   assert.equal(h.state().error, 'Request failed');
   assert.deepEqual(h.state().selected, ['selected-task']);
@@ -363,4 +366,50 @@ test('explicit retry clears the prior request error and restores tasks', async (
   assert.equal(h.state().error, null);
   assert.equal(h.render().tasks[0].id, 'recovered-a');
   assert.equal(h.render().isLoading, false);
+});
+
+test('priority-filtered totals follow the paginated response rather than status badge counts', async () => {
+  const h = harness({
+    listTasks: async (params) => {
+      if (params.pageSize === 1) return { total: 14, items: [], total_pages: 14 };
+      const total = params.priority === 'high' ? 5 : 14;
+      return { total, items: [{ id: 'task-a' }], total_pages: Math.ceil(total / params.pageSize) };
+    },
+  });
+  h.render();
+  const initial = await h.settle();
+  assert.equal(initial.totalTasks, 14);
+  h.render({ priorityFilter: 'High' });
+  const filtered = await h.settle();
+  assert.equal(filtered.totalTasks, 5);
+  assert.equal(filtered.totalPages, 1);
+  assert.equal(filtered.counts.All, 14);
+  h.render({ priorityFilter: 'All' });
+  assert.equal((await h.settle()).totalTasks, 14);
+});
+
+test('zero matches and failed refreshes clear the previously displayed filtered total', async () => {
+  let mode = 'matches';
+  const h = harness(
+    {
+      listTasks: async () => {
+        if (mode === 'failure') throw new Error('Request failed');
+        const total = mode === 'matches' ? 5 : 0;
+        return { total, items: total ? [{ id: 'task-a' }] : [], total_pages: total ? 1 : 0 };
+      },
+    },
+    { priorityFilter: 'High' },
+  );
+  h.render();
+  const data = await h.settle();
+  assert.equal(data.totalTasks, 5);
+  mode = 'empty';
+  await data.refreshTasks();
+  assert.equal(h.render().totalTasks, 0);
+  mode = 'matches';
+  await data.refreshTasks();
+  assert.equal(h.render().totalTasks, 5);
+  mode = 'failure';
+  await data.refreshTasks();
+  assert.equal(h.render().totalTasks, 0);
 });

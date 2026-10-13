@@ -160,21 +160,30 @@ export function TaskPage() {
     return () => window.removeEventListener('open-create-task', handleOpenCreateTask);
   }, [activeProjectId]);
 
-  const { tasks, setTasks, projects, counts, totalPages, isLoading, refreshTasks, refreshCounts } =
-    useTaskPageData({
-      activeProjectId,
-      searchQuery,
-      targetTaskId,
-      activeFilter,
-      priorityFilter,
-      sortBy,
-      sortAscending,
-      page,
-      pageSize,
-      setError,
-      setSelected,
-      setMenuTaskId,
-    });
+  const {
+    tasks,
+    setTasks,
+    projects,
+    counts,
+    totalPages,
+    totalTasks,
+    isLoading,
+    refreshTasks,
+    refreshCounts,
+  } = useTaskPageData({
+    activeProjectId,
+    searchQuery,
+    targetTaskId,
+    activeFilter,
+    priorityFilter,
+    sortBy,
+    sortAscending,
+    page,
+    pageSize,
+    setError,
+    setSelected,
+    setMenuTaskId,
+  });
 
   const visibleTasks = tasks;
   const activeProject = projects.find((project) => project.id === activeProjectId);
@@ -187,7 +196,7 @@ export function TaskPage() {
 
   const allVisibleSelected =
     visibleTasks.length > 0 && visibleTasks.every((task) => selected.includes(task.id));
-  const visibleTotal = targetTaskId ? visibleTasks.length : counts[activeFilter];
+  const visibleTotal = targetTaskId ? visibleTasks.length : totalTasks;
   const visibleStart = visibleTotal === 0 ? 0 : (page - 1) * pageSize + 1;
   const visibleEnd = targetTaskId ? visibleTasks.length : Math.min(page * pageSize, visibleTotal);
 
