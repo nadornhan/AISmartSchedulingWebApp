@@ -313,8 +313,9 @@ button {
 .focus-timer-stage {
   position: relative;
   display: grid;
-  width: min(360px, 42vh);
-  min-width: 280px;
+  width: min(100%, 420px);
+  min-width: 0;
+  container-type: inline-size;
   aspect-ratio: 1 / 1;
   margin: 32px auto 0;
   place-items: center;
@@ -353,25 +354,84 @@ button {
   transition: stroke-dasharray 250ms linear;
 }
 
+.focus-timer-content {
+  /* The square fits inside the ring after reserving a 1.5cm radial gap.
+     94% also accounts for the SVG ring radius and stroke width. */
+  --focus-safe-diameter: calc(94cqi - 3cm - 2px);
+  --focus-control-size: clamp(20px, 8cqi, 44px);
+  position: relative;
+  z-index: 10;
+  display: flex;
+  width: calc(var(--focus-safe-diameter) * 0.707106);
+  aspect-ratio: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(2px, 1cqi, 8px);
+  text-align: center;
+}
+
+.focus-timer-label {
+  display: flex;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  font-size: clamp(10px, calc(var(--focus-safe-diameter) * 0.07), 18px);
+  line-height: 1.2;
+}
+
+.focus-timer-label svg {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+}
+
 .focus-timer-time {
-  font-size: clamp(48px, 6vw, 68px);
+  max-width: 100%;
+  font-size: clamp(16px, calc(var(--focus-safe-diameter) * 0.2), 64px);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .focus-timer-action {
-  min-width: 136px;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  height: var(--focus-control-size);
+  padding: 0 8px;
+  place-items: center;
+  font-size: clamp(9px, calc(var(--focus-safe-diameter) * 0.055), 16px);
+  line-height: 1;
+}
+
+.focus-timer-action-icon {
+  display: none;
 }
 
 .focus-timer-controls {
-  display: flex;
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) repeat(2, var(--focus-control-size));
   align-items: center;
-  gap: 10px;
-  margin-top: 22px;
+  justify-items: center;
+  gap: clamp(4px, 2cqi, 10px);
+}
+
+.focus-timer-controls svg {
+  width: clamp(12px, 4cqi, 20px);
+  height: clamp(12px, 4cqi, 20px);
+}
+
+.focus-timer-controls button:focus-visible {
+  outline: 2px solid var(--dashboard-accent);
+  outline-offset: 3px;
 }
 
 .focus-reset-action {
   display: grid;
-  min-width: 76px;
-  height: 48px;
+  width: var(--focus-control-size);
+  height: var(--focus-control-size);
   place-items: center;
   border: 1px solid rgba(34, 240, 177, 0.3);
   border-radius: 9999px;
@@ -396,9 +456,8 @@ button {
 
 .focus-skip-action {
   display: grid;
-  width: 48px;
-  height: 48px;
-  flex: 0 0 48px;
+  width: var(--focus-control-size);
+  height: var(--focus-control-size);
   place-items: center;
   border: 1px solid rgba(34, 240, 177, 0.3);
   border-radius: 9999px;
@@ -412,9 +471,8 @@ button {
 
 .focus-stop-action {
   display: grid;
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+  width: var(--focus-control-size);
+  height: var(--focus-control-size);
   place-items: center;
   border: 1px solid rgba(248, 113, 113, 0.42);
   border-radius: 9999px;
@@ -443,14 +501,44 @@ button {
   transform: translateX(2px);
 }
 
+@container (min-width: 260px) and (max-width: 359px) {
+  .focus-timer-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .focus-timer-action {
+    width: 100%;
+    grid-column: 1 / -1;
+  }
+}
+
+@container (max-width: 259px) {
+  .focus-timer-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2px;
+  }
+
+  .focus-timer-action {
+    width: var(--focus-control-size);
+    padding: 0;
+  }
+
+  .focus-timer-action-label {
+    display: none;
+  }
+
+  .focus-timer-action-icon {
+    display: grid;
+    place-items: center;
+  }
+}
+
 @media (max-width: 640px) {
   .focus-mode-panel {
     padding: 72px 16px 24px;
   }
 
   .focus-timer-stage {
-    width: min(76vw, 320px);
-    min-width: 0;
     margin-top: 20px;
   }
 
@@ -460,30 +548,6 @@ button {
 
   .focus-timer-stage::after {
     inset: -60px;
-  }
-
-  .focus-timer-time {
-    font-size: clamp(40px, 14vw, 58px);
-  }
-
-  .focus-timer-action {
-    min-width: 100px;
-  }
-
-  .focus-timer-controls {
-    gap: 8px;
-    margin-top: 18px;
-  }
-
-  .focus-reset-action {
-    min-width: 64px;
-    height: 42px;
-  }
-
-  .focus-skip-action {
-    width: 42px;
-    height: 42px;
-    flex-basis: 42px;
   }
 }
 

@@ -572,6 +572,15 @@ export function FocusMode() {
           .some((value) => value?.toLocaleLowerCase().includes(normalizedTaskSearch)),
       )
     : tasks;
+  const timerActionLabel = isSessionMutating
+    ? isSavingSessionRef.current
+      ? 'Saving...'
+      : 'Starting...'
+    : seconds === 0
+      ? 'Reset'
+      : running
+        ? 'Pause'
+        : 'Start';
 
   return (
     <div className="mx-auto max-w-[1450px] space-y-5 sm:space-y-7">
@@ -625,12 +634,10 @@ export function FocusMode() {
             />
           </svg>
 
-          <div className="relative z-10 flex flex-col items-center">
-            <div className="mb-3 flex items-center gap-2 text-dashboard-accent sm:mb-5">
+          <div className="focus-timer-content">
+            <div className="focus-timer-label text-dashboard-accent">
               <ClockIcon />
-              <span className="text-sm font-medium sm:text-lg">
-                {mode === 'Pomodoro' ? 'Focus Time' : mode}
-              </span>
+              <span className="font-medium">{mode === 'Pomodoro' ? 'Focus Time' : mode}</span>
             </div>
 
             <p className="focus-timer-time font-poppins font-medium leading-none tracking-tight text-dashboard-text">
@@ -639,20 +646,22 @@ export function FocusMode() {
 
             <div className="focus-timer-controls">
               <button
-                className="focus-timer-action rounded-full bg-gradient-to-r from-dashboard-accent-strong to-dashboard-accent px-6 py-2.5 text-base font-semibold text-white shadow-glow transition hover:brightness-110"
+                aria-label={timerActionLabel}
+                className="focus-timer-action rounded-full bg-gradient-to-r from-dashboard-accent-strong to-dashboard-accent font-semibold text-white shadow-glow transition hover:brightness-110"
                 disabled={isSessionMutating}
                 onClick={() => void toggleTimer()}
                 type="button"
               >
-                {isSessionMutating
-                  ? isSavingSessionRef.current
-                    ? 'Saving...'
-                    : 'Starting...'
-                  : seconds === 0
-                    ? 'Reset'
-                    : running
-                      ? 'Pause'
-                      : 'Start'}
+                <span className="focus-timer-action-label">{timerActionLabel}</span>
+                <span aria-hidden="true" className="focus-timer-action-icon">
+                  {seconds === 0 || isSessionMutating ? (
+                    <ResetIcon />
+                  ) : running ? (
+                    <PauseIcon />
+                  ) : (
+                    <PlayIcon />
+                  )}
+                </span>
               </button>
 
               {mode === 'Pomodoro' && sessionTaskLocked ? (
@@ -670,12 +679,14 @@ export function FocusMode() {
 
               {!sessionTaskLocked ? (
                 <button
+                  aria-label="Reset timer"
                   className="focus-reset-action"
                   disabled={isSessionMutating}
                   onClick={resetTimer}
+                  title="Reset timer"
                   type="button"
                 >
-                  Reset
+                  <ResetIcon />
                 </button>
               ) : null}
 
@@ -909,6 +920,38 @@ function formatTaskDueDate(value: string) {
     month: 'short',
     day: 'numeric',
   }).format(date)}`;
+}
+
+function ResetIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+    >
+      <path d="M3 11a9 9 0 1 1 2.6 7.4M3 4v7h7" />
+    </svg>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+      <path d="m8 5 11 7-11 7V5Z" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M6 5h4v14H6V5Zm8 0h4v14h-4V5Z" />
+    </svg>
+  );
 }
 
 function SkipIcon() {
