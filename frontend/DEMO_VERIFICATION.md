@@ -112,3 +112,66 @@ views report one result; empty results and failed requests clear the result
 total. Status-tab badges keep their existing project/search scope. Regression
 coverage checks priority-filter changes, clearing the filter, empty results and
 failed refreshes. The desktop grid width remains a separate follow-up.
+
+## Task desktop-width fix (2026-10-14)
+
+Desktop rows below 1536 pixels now place the existing project/date and
+priority/status fields on additional rows, with field labels and actions beside
+the title. At 1536 pixels and above, the existing seven-column layout remains.
+The mobile component and task handlers are unchanged.
+
+With the production frontend and disposable local Task fixture, document and
+Task-row scroll widths matched their available widths at 1024, 1254, 1440, 1600
+and 390 pixels. Edit/menu controls stayed within the viewport, row selection and
+status changes worked, and the edit dialog opened/closed. High-priority filtering
+also displayed the corrected `1–5 of 5 tasks` footer. The 56 Task regression tests,
+scoped lint and production build passed. No browser console errors were reported.
+The temporary tab/servers were closed and viewport overrides reset. This is
+frontend fixture verification, not a new backend or live AI integration run.
+
+## Focus and auth styling follow-up (2026-10-14)
+
+Focus now uses a reset icon and responsive timer/control sizing within a safe
+area inside the circle. The requested 1.5 cm clearance is expressed in CSS units
+(approximately 56.7 pixels); measured content clearance was at least 58 pixels
+at viewport widths from 320 to 1600 pixels, without horizontal overflow. Long
+break labels and a 120-minute timer were checked on the narrowest viewport.
+Start, pause, reset, skip and session stop worked against the disposable fixture.
+Timer state, effects and session handlers are unchanged.
+
+The auth layout reference is applied to the form on the right, with compact
+vertical spacing, centered headings, a full-width submit button and account-switch
+link below the existing social controls. The original full-height mountain panel
+is restored on the left, including its original logo, Chrono title and tagline.
+The form headings are now `Sign in` and `Create account`.
+Existing colours, font families, fields, checkboxes and submit handlers remain.
+The earlier rounded input styling and accent-coloured buttons are retained.
+
+The form layout was checked on the development server before restoring the left
+mountain panel; navigation worked and both pages had no horizontal overflow at
+390 pixels. The final mountain-panel restoration passed scoped lint; its production
+build passed with the Task action extraction below. Earlier desktop previews are
+historical and are saved outside the repository. These are frontend styling/fixture
+checks, not real OAuth or backend integration tests. No database schema or
+infrastructure changed.
+
+## Task action extraction (2026-10-14)
+
+`use-task-page-actions.ts` now owns Task mutation handlers and move/reschedule/busy
+state. The page retains route/filter/selection state and its existing rendering.
+`use-task-ai-entry.ts` now owns generation/decomposition previews, editable drafts,
+confirmation requests and their feedback/busy state. The create/edit modal retains
+manual fields, duration-estimate guards and its existing rendering.
+
+All 18 extracted handler bodies and the page/form render markup match the previous
+source, except the edit-dialog delete callback is now a named action with a null
+guard. There are no new API endpoints, dependencies, schema or product behaviours.
+The two extracted hooks are grouped with the existing Task components.
+
+Verification: all 70 Task regression checks passed, including 14 action checks for
+status rollback, last-row pagination, create/edit/delete failures, local end-of-day
+rescheduling, schedule-lock validation, AI preview edits, mode reset, selected
+subtask confirmation and retryable confirmation failures. Checks use in-memory
+API doubles rather than live Gemini or the demonstration database. Scoped lint,
+web TypeScript and the production build passed. Browser interaction checks were
+not repeated for this extraction.
