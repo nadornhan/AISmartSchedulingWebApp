@@ -2,21 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import {
-  bulkDeleteTasks,
-  bulkUpdateTasks,
-  createTask,
-  deleteTask,
-  duplicateTask,
-  rescheduleTask,
-  updateSubtaskCompletion,
-  updateTask,
-  type TaskCreateInput,
-  type TaskPriorityValue,
-  type TaskResponse,
-  type TaskSortValue,
-  type TaskUpdateInput,
-} from '../../lib/tasks';
+import { type TaskPriorityValue, type TaskResponse, type TaskSortValue } from '../../lib/tasks';
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -31,23 +17,19 @@ import { CreateTaskModal, EditTaskModal } from './create-task-modal';
 
 import { TaskDesktopTable, TaskMobileList } from './task-list-views';
 import { useTaskPageData } from './use-task-page-data';
+import { useTaskPageActions } from './use-task-page-actions';
 import {
   cn,
   filterOrder,
-  getErrorMessage,
   mobileFilterOrder,
   mobileGroupForTask,
   pageSizeOptions,
   priorityFilters,
   priorityFromApi,
   sortOptions,
-  statusToApi,
-  toTask,
   type PriorityFilter,
-  type Task,
   type TaskFilter,
   type TaskPriority,
-  type TaskStatus,
 } from './task-page-model';
 
 export function TaskPage() {
@@ -71,11 +53,7 @@ export function TaskPage() {
   const [sortAscending, setSortAscending] = useState(true);
   const [pageSize, setPageSize] = useState(8);
   const [menuTaskId, setMenuTaskId] = useState<string | null>(null);
-  const [isMoveOpen, setIsMoveOpen] = useState(false);
-  const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
-  const [rescheduleDueDate, setRescheduleDueDate] = useState('');
   const [page, setPage] = useState(1);
-  const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -185,6 +163,42 @@ export function TaskPage() {
     setMenuTaskId,
   });
 
+  const {
+    isMutating,
+    isMoveOpen,
+    setIsMoveOpen,
+    rescheduleTaskId,
+    setRescheduleTaskId,
+    rescheduleDueDate,
+    setRescheduleDueDate,
+    toggleSubtask,
+    changeStatus,
+    completeSelected,
+    deleteSelected,
+    moveSelected,
+    handleDuplicate,
+    toggleScheduleLock,
+    handleDeleteOne,
+    handleReschedule,
+    openReschedule,
+    addTask,
+    editTask,
+    deleteEditingTask,
+  } = useTaskPageActions({
+    tasks,
+    setTasks,
+    selected,
+    page,
+    editingTask,
+    setEditingTask,
+    setPage,
+    setError,
+    setMenuTaskId,
+    setIsModalOpen,
+    refreshTasks,
+    refreshCounts,
+  });
+
   const visibleTasks = tasks;
   const activeProject = projects.find((project) => project.id === activeProjectId);
   const mobileTaskGroups = (['Overdue', 'Today', 'Upcoming', 'Other'] as const)
@@ -212,19 +226,6 @@ export function TaskPage() {
     );
   }
 
-  async function toggleSubtask(task: Task, subtaskId: string, isCompleted: boolean) {
-    setIsMutating(true);
-    setError(null);
-    try {
-      const updated = await updateSubtaskCompletion(task.id, subtaskId, isCompleted);
-      setTasks((current) => current.map((item) => (item.id === task.id ? toTask(updated) : item)));
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
   function toggleAllVisible() {
     if (allVisibleSelected) {
       const visibleIds = new Set(visibleTasks.map((task) => task.id));
@@ -236,200 +237,6 @@ export function TaskPage() {
       ...current,
       ...visibleTasks.map((task) => task.id).filter((id) => !current.includes(id)),
     ]);
-  }
-
-  async function changeStatus(id: string, status: TaskStatus) {
-    const previousTask = tasks.find((task) => task.id === id);
-    const apiStatus = statusToApi[status];
-
-    setTasks((current) =>
-      current.map((task) =>
-        task.id === id
-          ? {
-              ...task,
-              status,
-              workflowStatus: status,
-              overdue: false,
-              source: {
-                ...task.source,
-                status: apiStatus,
-                workflow_status: apiStatus,
-              },
-            }
-          : task,
-      ),
-    );
-    setIsMutating(true);
-    setError(null);
-    try {
-      await updateTask(id, { status: apiStatus });
-      await Promise.all([refreshTasks(), refreshCounts()]);
-    } catch (requestError) {
-      if (previousTask) {
-        setTasks((current) =>
-          current.map((task) => (task.id === previousTask.id ? previousTask : task)),
-        );
-      }
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function completeSelected() {
-    setIsMutating(true);
-    setError(null);
-    try {
-      await bulkUpdateTasks({ task_ids: selected, status: 'done' });
-      await Promise.all([refreshTasks(), refreshCounts()]);
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function deleteSelected() {
-    setIsMutating(true);
-    setError(null);
-    try {
-      await bulkDeleteTasks(selected);
-      const shouldGoBack = tasks.length === selected.length && page > 1;
-      if (shouldGoBack) {
-        setPage((current) => current - 1);
-      } else {
-        await refreshTasks();
-      }
-      await refreshCounts();
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function moveSelected(projectId: string | null) {
-    setIsMutating(true);
-    setError(null);
-    try {
-      await bulkUpdateTasks({ task_ids: selected, project_id: projectId });
-      setIsMoveOpen(false);
-      await Promise.all([refreshTasks(), refreshCounts()]);
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleDuplicate(taskId: string) {
-    setIsMutating(true);
-    setError(null);
-    setMenuTaskId(null);
-    try {
-      await duplicateTask(taskId);
-      await Promise.all([refreshTasks(), refreshCounts()]);
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function toggleScheduleLock(task: Task) {
-    if (
-      !task.source.schedule_locked &&
-      (!task.source.scheduled_start || !task.source.scheduled_end)
-    ) {
-      setError('Schedule this task before locking its time.');
-      setMenuTaskId(null);
-      return;
-    }
-
-    setIsMutating(true);
-    setError(null);
-    setMenuTaskId(null);
-    try {
-      await updateTask(task.id, { schedule_locked: !task.source.schedule_locked });
-      await refreshTasks();
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleDeleteOne(taskId: string) {
-    setIsMutating(true);
-    setError(null);
-    setMenuTaskId(null);
-    try {
-      await deleteTask(taskId);
-      await Promise.all([refreshTasks(), refreshCounts()]);
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleReschedule() {
-    if (!rescheduleTaskId || !rescheduleDueDate) return;
-
-    setIsMutating(true);
-    setError(null);
-    try {
-      const dueDateTime = new Date(`${rescheduleDueDate}T23:59:00`);
-      await rescheduleTask(rescheduleTaskId, {
-        due_date: Number.isNaN(dueDateTime.getTime()) ? null : dueDateTime.toISOString(),
-      });
-      setRescheduleTaskId(null);
-      setRescheduleDueDate('');
-      await Promise.all([refreshTasks(), refreshCounts()]);
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  function openReschedule(task: Task) {
-    setMenuTaskId(null);
-    setRescheduleTaskId(task.id);
-    setRescheduleDueDate(task.dueDateIso ? task.dueDateIso.slice(0, 10) : '');
-  }
-
-  async function addTask(input: TaskCreateInput) {
-    setIsMutating(true);
-    setError(null);
-    try {
-      await createTask(input);
-      setIsModalOpen(false);
-      setPage(1);
-      await Promise.all([refreshTasks(), refreshCounts()]);
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-      throw requestError;
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function editTask(input: TaskUpdateInput) {
-    if (!editingTask) return;
-
-    setIsMutating(true);
-    setError(null);
-    try {
-      await updateTask(editingTask.id, input);
-      setEditingTask(null);
-      await Promise.all([refreshTasks(), refreshCounts()]);
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-      throw requestError;
-    } finally {
-      setIsMutating(false);
-    }
   }
 
   function clearProjectFilter() {
@@ -975,16 +782,7 @@ export function TaskPage() {
         <EditTaskModal
           isSubmitting={isMutating}
           onClose={() => setEditingTask(null)}
-          onDelete={async () => {
-            setIsMutating(true);
-            try {
-              await deleteTask(editingTask.id);
-              setEditingTask(null);
-              await Promise.all([refreshTasks(), refreshCounts()]);
-            } finally {
-              setIsMutating(false);
-            }
-          }}
+          onDelete={deleteEditingTask}
           onUpdate={editTask}
           projects={projects}
           task={editingTask}

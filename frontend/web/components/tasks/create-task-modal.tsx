@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useRef, useState } from 'react';
 import { ArrowDown, Sparkles } from 'lucide-react';
 
-import { ApiError } from '../../lib/api';
+import { getErrorMessage, useTaskAiEntry } from './use-task-ai-entry';
 import { PrioritySuggestion } from './priority-suggestion';
 import {
   DURATION_PRESETS_MINUTES,
@@ -11,21 +11,7 @@ import {
   parseCustomDuration,
 } from '../../lib/duration';
 import type { Project } from '../../lib/projects';
-import {
-  confirmTaskDecomposition,
-  confirmGeneratedTasks,
-  previewTaskDecomposition,
-  previewGeneratedTasks,
-  type DecomposedTaskDraft,
-  type GeneratedSubtaskDraft,
-  type GeneratedTaskDraft,
-  TaskCreateInput,
-  TaskPriorityValue,
-  TaskResponse,
-  type TaskGenerationPreview,
-  type TaskDecompositionPreview,
-  TaskUpdateInput,
-} from '../../lib/tasks';
+import { TaskCreateInput, TaskPriorityValue, TaskResponse, TaskUpdateInput } from '../../lib/tasks';
 import { CreateFolderModal } from '../folders/create-folder-modal';
 import { DurationEstimatePanel } from './duration-estimate-panel';
 import {
@@ -71,20 +57,8 @@ type TaskFormSubtask = {
   isCompleted: boolean;
 };
 
-type AiEntryMode = 'generate' | 'decompose';
-
-type SelectableGeneratedSubtask = GeneratedSubtaskDraft & {
-  selected: boolean;
-};
-
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
-}
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Something went wrong. Please try again.';
 }
 
 function toDateInputValue(value: string | null) {
@@ -244,17 +218,6 @@ function TaskFormModal({
   const [dueDateValue, setDueDateValue] = useState(initialValues.dueDate);
   const [dueTimeValue, setDueTimeValue] = useState(initialValues.dueTime);
   const [projectId, setProjectId] = useState(initialValues.projectId);
-  const [naturalLanguageInput, setNaturalLanguageInput] = useState('');
-  const [aiEntryMode, setAiEntryMode] = useState<AiEntryMode>('generate');
-  const [parseFeedback, setParseFeedback] = useState<string | null>(null);
-  const [generationPreview, setGenerationPreview] = useState<TaskGenerationPreview | null>(null);
-  const [generatedTasks, setGeneratedTasks] = useState<GeneratedTaskDraft[]>([]);
-  const [decompositionPreview, setDecompositionPreview] = useState<TaskDecompositionPreview | null>(
-    null,
-  );
-  const [decomposedTask, setDecomposedTask] = useState<DecomposedTaskDraft | null>(null);
-  const [decomposedSubtasks, setDecomposedSubtasks] = useState<SelectableGeneratedSubtask[]>([]);
-  const [generationBusy, setGenerationBusy] = useState(false);
   const [isNaturalLanguageExpanded, setIsNaturalLanguageExpanded] = useState(true);
   const [isManualFormVisible, setIsManualFormVisible] = useState(!enableNaturalLanguage);
   const [recentlyGeneratedDetails] = useState(false);
@@ -276,6 +239,28 @@ function TaskFormModal({
   const [subtasks, setSubtasks] = useState<TaskFormSubtask[]>(initialValues.subtasks);
   const [subtaskDraft, setSubtaskDraft] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const {
+    naturalLanguageInput,
+    setNaturalLanguageInput,
+    aiEntryMode,
+    parseFeedback,
+    setParseFeedback,
+    generationPreview,
+    generatedTasks,
+    setGeneratedTasks,
+    decompositionPreview,
+    decomposedTask,
+    setDecomposedTask,
+    decomposedSubtasks,
+    setDecomposedSubtasks,
+    generationBusy,
+    clearAiPreview,
+    selectAiEntryMode,
+    createFromNaturalLanguage,
+    updateGeneratedTask,
+    createGeneratedTasks,
+    createDecomposedTask,
+  } = useTaskAiEntry({ onClose, setSubmitError });
   const [savedDuration, setSavedDuration] = useState(initialDuration);
   const [durationBusy, setDurationBusy] = useState(false);
   const [durationPending, setDurationPending] = useState(false);
@@ -307,117 +292,6 @@ function TaskFormModal({
   const hasNaturalLanguageInput = Boolean(naturalLanguageInput.trim());
   const shouldShowNaturalLanguageInput = !isManualFormVisible || isNaturalLanguageExpanded;
   const isAiOnlyView = enableNaturalLanguage && !isManualFormVisible;
-
-  function clearAiPreview() {
-    setParseFeedback(null);
-    setGenerationPreview(null);
-    setGeneratedTasks([]);
-    setDecompositionPreview(null);
-    setDecomposedTask(null);
-    setDecomposedSubtasks([]);
-  }
-
-  function selectAiEntryMode(mode: AiEntryMode) {
-    setAiEntryMode(mode);
-    clearAiPreview();
-  }
-
-  async function createFromNaturalLanguage() {
-    if (!naturalLanguageInput.trim()) {
-      setParseFeedback('Add a task description before generating details.');
-      return;
-    }
-    setGenerationBusy(true);
-    setParseFeedback(null);
-    setSubmitError(null);
-    try {
-      if (aiEntryMode === 'decompose') {
-        const preview = await previewTaskDecomposition(naturalLanguageInput.trim());
-        setDecompositionPreview(preview);
-        setDecomposedTask({
-          title: preview.proposal.title,
-          priority: preview.proposal.priority,
-          due_date: preview.proposal.due_date,
-          subtasks: preview.proposal.subtasks,
-        });
-        setDecomposedSubtasks(
-          preview.proposal.subtasks.map((subtask) => ({ ...subtask, selected: true })),
-        );
-        setGenerationPreview(null);
-        setGeneratedTasks([]);
-        setParseFeedback(
-          `${preview.proposal.subtasks.length} steps suggested. Choose and edit them before creating the task.`,
-        );
-        return;
-      }
-      const preview = await previewGeneratedTasks(naturalLanguageInput.trim());
-      setGenerationPreview(preview);
-      setGeneratedTasks(preview.proposal.tasks);
-      setDecompositionPreview(null);
-      setDecomposedTask(null);
-      setDecomposedSubtasks([]);
-      setParseFeedback(
-        `${preview.proposal.tasks.length} task${preview.proposal.tasks.length === 1 ? '' : 's'} found. Review before creating.`,
-      );
-    } catch (requestError) {
-      setParseFeedback(getErrorMessage(requestError));
-    } finally {
-      setGenerationBusy(false);
-    }
-  }
-
-  function updateGeneratedTask(index: number, patch: Partial<GeneratedTaskDraft>) {
-    setGeneratedTasks((current) =>
-      current.map((task, taskIndex) => (taskIndex === index ? { ...task, ...patch } : task)),
-    );
-  }
-
-  async function createGeneratedTasks() {
-    if (!generationPreview) return;
-    if (generatedTasks.some((task) => !task.title.trim())) {
-      setParseFeedback('Every task needs a title.');
-      return;
-    }
-    setGenerationBusy(true);
-    try {
-      await confirmGeneratedTasks(generationPreview, generatedTasks);
-      onClose();
-    } catch (requestError) {
-      setParseFeedback(getErrorMessage(requestError));
-    } finally {
-      setGenerationBusy(false);
-    }
-  }
-
-  async function createDecomposedTask() {
-    if (!decompositionPreview || !decomposedTask) return;
-    const selectedSubtasks = decomposedSubtasks
-      .filter((subtask) => subtask.selected)
-      .map(({ client_id, title }) => ({ client_id, title: title.trim() }))
-      .filter((subtask) => subtask.title);
-    if (!decomposedTask.title.trim()) {
-      setParseFeedback('The main task needs a title.');
-      return;
-    }
-    if (selectedSubtasks.length === 0) {
-      setParseFeedback('Select at least one subtask to create.');
-      return;
-    }
-    setGenerationBusy(true);
-    setParseFeedback(null);
-    try {
-      await confirmTaskDecomposition(decompositionPreview, {
-        ...decomposedTask,
-        title: decomposedTask.title.trim(),
-        subtasks: selectedSubtasks,
-      });
-      onClose();
-    } catch (requestError) {
-      setParseFeedback(getErrorMessage(requestError));
-    } finally {
-      setGenerationBusy(false);
-    }
-  }
 
   function addSubtask() {
     const titleValue = subtaskDraft.trim();
