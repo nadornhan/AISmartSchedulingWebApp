@@ -58,17 +58,17 @@ export function TaskDesktopTable({
 }: Readonly<TaskDesktopTableProps>) {
   return (
     <section className="hidden rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 shadow-panel lg:block">
-      <div className="hidden min-h-16 grid-cols-[36px_minmax(260px,1.6fr)_minmax(110px,0.8fr)_minmax(126px,0.85fr)_minmax(108px,0.75fr)_minmax(128px,0.95fr)_88px] items-center gap-3 rounded-t-[var(--radius-lg)] border-b border-dashboard-border px-5 text-sm font-semibold uppercase tracking-wide text-dashboard-muted lg:grid">
+      <div className="hidden min-h-16 grid-cols-[24px_minmax(0,1fr)_minmax(0,1fr)_88px] items-center gap-3 rounded-t-[var(--radius-lg)] border-b border-dashboard-border px-5 text-sm font-semibold uppercase tracking-wide text-dashboard-muted lg:grid 2xl:grid-cols-[36px_minmax(260px,1.6fr)_minmax(110px,0.8fr)_minmax(126px,0.85fr)_minmax(108px,0.75fr)_minmax(128px,0.95fr)_88px]">
         <CheckBox
           checked={allVisibleSelected}
           label="Select all visible tasks"
           onChange={toggleAllVisible}
         />
-        <span>Task</span>
-        <span>Project</span>
-        <span>Due date</span>
-        <span>Priority</span>
-        <span>Status</span>
+        <span className="col-span-2 2xl:col-span-1">Task</span>
+        <span className="hidden 2xl:block">Project</span>
+        <span className="hidden 2xl:block">Due date</span>
+        <span className="hidden 2xl:block">Priority</span>
+        <span className="hidden 2xl:block">Status</span>
         <span className="text-right">Actions</span>
       </div>
 
@@ -84,7 +84,7 @@ export function TaskDesktopTable({
           visibleTasks.map((task, taskIndex) => (
             <article
               className={cn(
-                'group grid gap-4 bg-[var(--bg-surface)]/45 px-5 py-6 transition hover:bg-[var(--bg-surface-hover)]/65 lg:grid-cols-[36px_minmax(260px,1.6fr)_minmax(110px,0.8fr)_minmax(126px,0.85fr)_minmax(108px,0.75fr)_minmax(128px,0.95fr)_88px] lg:items-center lg:gap-3',
+                'group grid gap-4 bg-[var(--bg-surface)]/45 px-5 py-6 transition hover:bg-[var(--bg-surface-hover)]/65 lg:grid-cols-[24px_minmax(0,1fr)_minmax(0,1fr)_88px] lg:items-center lg:gap-3 2xl:grid-cols-[36px_minmax(260px,1.6fr)_minmax(110px,0.8fr)_minmax(126px,0.85fr)_minmax(108px,0.75fr)_minmax(128px,0.95fr)_88px]',
                 selected.includes(task.id) && 'bg-dashboard-accent-soft',
                 targetTaskId === task.id &&
                   'bg-dashboard-accent-soft shadow-[inset_3px_0_0_var(--dashboard-accent)]',
@@ -110,7 +110,7 @@ export function TaskDesktopTable({
                 aria-expanded={
                   task.source.subtasks.length > 0 ? expandedTaskIds.includes(task.id) : undefined
                 }
-                className="min-w-0 text-left"
+                className="min-w-0 text-left col-span-2 2xl:col-span-1"
                 onClick={() =>
                   task.source.subtasks.length > 0
                     ? toggleTaskExpanded(task.id)
@@ -153,10 +153,13 @@ export function TaskDesktopTable({
                 </div>
               </button>
 
-              <div>
+              <div className="col-start-2 row-start-2 min-w-0 2xl:col-start-auto 2xl:row-start-auto">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-dashboard-muted 2xl:hidden">
+                  Project
+                </span>
                 <span
                   className={cn(
-                    'inline-flex rounded-[var(--radius-pill)] px-3.5 py-2 text-sm font-medium',
+                    'inline-flex max-w-full break-words rounded-[var(--radius-pill)] px-3.5 py-2 text-sm font-medium',
                     task.projectId === null && 'bg-[var(--bg-surface-raised)] text-dashboard-muted',
                   )}
                   style={
@@ -174,14 +177,20 @@ export function TaskDesktopTable({
 
               <p
                 className={cn(
-                  'text-base text-dashboard-muted',
+                  'col-span-2 col-start-3 row-start-2 min-w-0 text-base text-dashboard-muted 2xl:col-span-1 2xl:col-start-auto 2xl:row-start-auto',
                   task.overdue && 'font-medium text-[var(--red-light)]',
                 )}
               >
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-dashboard-muted 2xl:hidden">
+                  Due date
+                </span>
                 {task.dueDate}
               </p>
 
-              <div>
+              <div className="col-start-2 row-start-3 min-w-0 2xl:col-start-auto 2xl:row-start-auto">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-dashboard-muted 2xl:hidden">
+                  Priority
+                </span>
                 <span
                   className={cn(
                     'inline-flex rounded-[var(--radius-pill)] border px-3.5 py-2 text-sm font-medium',
@@ -192,7 +201,10 @@ export function TaskDesktopTable({
                 </span>
               </div>
 
-              <div className="space-y-2">
+              <div className="col-span-2 col-start-3 row-start-3 space-y-2 2xl:col-span-1 2xl:col-start-auto 2xl:row-start-auto">
+                <span className="block text-xs font-semibold uppercase tracking-wide text-dashboard-muted 2xl:hidden">
+                  Status
+                </span>
                 {task.overdue ? (
                   <p className="text-sm font-semibold text-[var(--red-light)]">Overdue</p>
                 ) : null}
@@ -204,7 +216,7 @@ export function TaskDesktopTable({
                 />
               </div>
 
-              <div className="relative flex justify-end gap-1 text-dashboard-muted">
+              <div className="relative col-start-4 row-start-1 flex justify-end gap-1 text-dashboard-muted 2xl:col-start-auto 2xl:row-start-auto">
                 <button
                   aria-label={`Edit ${task.title}`}
                   className="grid h-10 w-10 place-items-center rounded-lg transition hover:bg-dashboard-surface hover:text-dashboard-accent"
@@ -281,7 +293,7 @@ export function TaskDesktopTable({
                 ) : null}
               </div>
               {expandedTaskIds.includes(task.id) && task.source.subtasks.length > 0 ? (
-                <div className="lg:col-span-full lg:pl-[48px]">
+                <div className="col-span-full pl-9 2xl:pl-[48px]">
                   <SubtaskAccordion
                     disabled={isMutating}
                     onToggle={(subtaskId, isCompleted) =>

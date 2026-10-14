@@ -400,7 +400,7 @@ test('desktop task title opens editing without subtasks and expansion with subta
       }),
     );
     elements(tree)
-      .find((node) => node.type === 'button' && node.props.className === 'min-w-0 text-left')
+      .find((node) => node.type === 'button' && node.props.className?.includes('min-w-0 text-left'))
       .props.onClick();
     assert.deepEqual(calls, [
       [withSubtasks ? 'expand' : 'edit', withSubtasks ? task.id : task.source],
