@@ -32,18 +32,13 @@ export function AuthShell({
           </p>
         </div>
       </aside>
-
       <section className="flex w-full min-h-screen items-center justify-center bg-[#000306] px-6 py-10 lg:w-[49%] lg:rounded-r-2xl lg:px-[clamp(2rem,8vw,6.5rem)]">
-        <div className="w-full max-w-[404px]">
-          <div className="mb-10 flex flex-col items-center text-center lg:hidden">
-            <img
-              alt="Chrono logo"
-              className="mb-3 size-16 object-contain"
-              src="/chrono-logo.png"
-            />
-            <p className="font-[family-name:var(--font-poppins)] text-4xl font-semibold text-white">
+        <div className="w-full max-w-[350px]">
+          <div className="mb-12 flex items-center justify-center gap-2 lg:hidden">
+            <img alt="Chrono logo" className="size-9 object-contain" src="/chrono-logo.png" />
+            <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-semibold leading-none text-[var(--accent)]">
               Chrono
-            </p>
+            </h1>
           </div>
           {children}
         </div>

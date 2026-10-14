@@ -227,9 +227,9 @@ button {
 }
 
 .chrono-autofill-auth {
-  --chrono-autofill-bg: #000306;
+  --chrono-autofill-bg: #252525;
   --chrono-autofill-color: #f4f7f6;
-  --chrono-autofill-border: #ececf2;
+  --chrono-autofill-border: #303030;
   --chrono-autofill-focus-border: var(--accent);
 }
 

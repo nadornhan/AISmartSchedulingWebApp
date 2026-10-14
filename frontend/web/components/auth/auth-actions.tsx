@@ -18,7 +18,7 @@ export function AuthPrimaryButton({
 }: AuthPrimaryButtonProps) {
   return (
     <button
-      className={`h-[46px] flex-1 rounded-lg bg-[var(--accent)] px-4 text-sm font-bold transition hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-70 ${
+      className={`h-11 flex-1 rounded-md border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold shadow-sm transition hover:bg-[var(--accent-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-70 ${
         tone === 'light' ? 'text-white' : 'text-[#040c14]'
       }`}
       disabled={disabled}
@@ -38,7 +38,7 @@ type AuthSecondaryLinkProps = {
 export function AuthSecondaryLink({ href, children }: AuthSecondaryLinkProps) {
   return (
     <Link
-      className="inline-flex h-[46px] flex-1 items-center justify-center rounded-lg bg-[rgba(94,129,244,0.1)] px-4 text-sm font-bold text-[var(--accent)] transition hover:bg-[rgba(94,129,244,0.16)]"
+      className="font-semibold text-[var(--accent)] transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
       href={href}
     >
       {children}
