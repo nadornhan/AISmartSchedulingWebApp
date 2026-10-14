@@ -9,7 +9,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:auth": "node --test tests/auth/auth-session.test.mjs",
-    "test:tasks": "node --test tests/tasks/task-page.test.mjs tests/tasks/task-page-data.test.mjs tests/tasks/task-actions.test.mjs"
+    "test:tasks": "node --test tests/tasks/task-page.test.mjs tests/tasks/task-page-data.test.mjs tests/tasks/task-actions.test.mjs",
+    "test:calendar": "node --test tests/calendar/calendar.test.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",
