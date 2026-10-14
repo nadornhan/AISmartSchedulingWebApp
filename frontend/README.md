@@ -31,6 +31,11 @@ The `(dashboard)` route group does not appear in URLs. Its pages include `/`, `/
 
 Calendar uses `lib/tasks.ts`, `lib/projects.ts` and the shared task-creation modal. Scheduling recommendations use `lib/scheduling.ts`. Priority uses `lib/tasks.ts` and `lib/projects.ts`. These features do not require empty `calendar.ts` or `priority.ts` modules.
 
+Within `web/components/calendar`, `calendar-page.tsx` owns navigation and view
+selection, `calendar-model.ts` owns date/task mapping helpers, `calendar-views.tsx`
+contains the existing responsive views and reschedule dialog, and
+`use-calendar-tasks.ts` owns API loading, refresh subscriptions and task actions.
+
 Settings persistence is implemented through `lib/settings.ts` and the backend settings API. UI preferences and auth caches have their existing browser-storage responsibilities; do not replace server-backed settings with the earlier local-only implementation.
 
 `mobile/` is an Expo scaffold and `packages/shared/` is a shared workspace scaffold. Both remain declared workspaces and are retained.
@@ -44,11 +49,16 @@ The demo is the Next.js web app; React Native/Expo is deferred. Use the existing
 ```powershell
 corepack pnpm --filter @ai-smart-scheduling/web typecheck
 corepack pnpm --filter @ai-smart-scheduling/web test:auth
+corepack pnpm --filter @ai-smart-scheduling/web test:calendar
 corepack pnpm exec eslint frontend/web
 corepack pnpm --filter @ai-smart-scheduling/web build
 ```
 
 `test:auth` runs targeted session-recovery and stale-response regressions using Node's built-in test runner and the existing TypeScript dependency. It makes no real API/database requests. Broader feature UI coverage remains manual; type checking and building do not replace authenticated browser testing of the demonstrated features.
+
+`test:calendar` checks date boundaries, paginated loading, refresh cleanup, failure
+handling, schedule locks and rescheduling payloads with in-memory API doubles.
+Its tests are grouped in `web/tests/calendar`.
 
 See [AUDIT.md](AUDIT.md) for the cleanup scope and preservation decisions.
 

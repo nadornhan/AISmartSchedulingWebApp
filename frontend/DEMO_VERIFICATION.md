@@ -175,3 +175,29 @@ subtask confirmation and retryable confirmation failures. Checks use in-memory
 API doubles rather than live Gemini or the demonstration database. Scoped lint,
 web TypeScript and the production build passed. Browser interaction checks were
 not repeated for this extraction.
+
+## Calendar refactoring
+
+The Calendar page now coordinates navigation, view selection and derived display
+data in approximately 310 lines. Its existing date/task helpers are in
+`calendar-model.ts`, responsive views and reschedule dialog in
+`calendar-views.tsx`, and API loading, event subscriptions and task actions in
+`use-calendar-tasks.ts`. Calendar task types remain re-exported from the page for
+compatibility. The existing route, task/project API helpers and shared creation
+modal are retained.
+
+A syntax-tree comparison against `8983823` confirms all 42 original helper,
+view, navigation and action function bodies are preserved, allowing formatting
+changes. Page render markup, loading callback and refresh effects are also
+preserved. Desktop completed-task filtering and the mobile task display keep
+their existing behaviour. No scheduling rules, UI styling, API contracts,
+database schema, migrations or dependencies changed.
+
+All 16 Calendar regression checks passed: leap/year boundaries, scheduled-date
+precedence, paginated range filtering, task/project refresh subscriptions,
+cancellation and cleanup, load/create/update failures, schedule locks, drag
+rescheduling with due-time or interval preservation, and dialog rescheduling
+validation/default time. Checks use in-memory API doubles without application
+data or external services. Scoped lint and the production build (including
+TypeScript) passed. Authenticated browser interactions were not repeated for
+this source extraction.
