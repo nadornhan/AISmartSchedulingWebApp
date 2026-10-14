@@ -1,6 +1,7 @@
 # Frontend guide
 
-This guide describes GitHub `develop` at `3fb1d1d` and the subsequent unused-file cleanup. The web app is implemented; it is not a settings-only scaffold.
+This guide describes the current `develop` web demonstration and its completed
+cleanup/refactoring batches. The web app includes all demonstrated feature routes.
 
 ## Run the web app
 

@@ -228,3 +228,39 @@ duration-change save guards, task selection limits and task-loading cancellation
 Scoped lint and the production build (including TypeScript) passed. These checks
 do not exercise real browser audio or live backend transport; authenticated browser
 interactions were not repeated for the extraction.
+
+## Remaining refactoring batches (2026-10-15)
+
+The unused `chrono-node` dependency was removed after repository-wide searches
+found no callers outside its manifest/lockfile and historical audit note. An offline
+lockfile update removed only that dependency; the web production build, including
+TypeScript and all existing routes, passed. Used UI/3D dependencies remain.
+
+Backend helper extraction preserves all 97 original function definitions and
+signatures from `018e245`, confirmed with Python syntax-tree comparisons:
+
+- `analytics/metrics.py`: time boundaries, task/focus metrics, trend and weekly
+  productivity calculations.
+- `scheduling/plan_helpers.py`: plan queries, response mapping, candidate validation,
+  chronological ordering and staleness checks.
+- `gamification/read_model.py`: profile lookup/creation, plant queries, unlock metrics
+  and response mapping. Initial profile creation keeps its existing behaviour.
+
+Existing service names/helpers remain available to callers. Cache generation,
+schedule application, reward mutations and transaction/locking operations stay
+in their service entry points. No rules, endpoints, schemas or migrations changed.
+The rescheduling engine already has its own cohesive module and was retained.
+
+All 518 existing backend tests passed with six existing dependency deprecation
+warnings. Scoped Python lint passed. Tests used an auto-removing PostgreSQL 16
+container with RAM-backed storage on localhost port 55439, synthetic credentials
+and AI disabled. All 32 existing migrations applied to this disposable database;
+the exact container was stopped afterward, removing only its synthetic data.
+The demonstration database and Docker services were untouched. No additional
+backend test files were needed.
+
+Audit/code-map documentation now distinguishes completed work from historical
+findings and records the remaining Pomodoro range mismatch and cross-origin auth
+transport investigation as separate bug/integration tasks. Live AI and browser
+flows were not repeated for these helper/dependency extractions. A separate
+concurrent analytics UI edit and the user-supplied image are outside these commits.

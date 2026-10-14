@@ -1,4 +1,36 @@
-# Develop cleanup: first batch
+# Cleanup and refactoring audit
+
+## Current status (2026-10-15)
+
+The planned cleanup/refactoring batches are complete:
+
+- Unused frontend modules and unregistered backend calendar/priority source
+  scaffolds were removed; backend tests are grouped by feature.
+- Task data loading, list views, mutations and AI-entry state are separated.
+- Calendar date helpers, responsive views and API orchestration are separated.
+- Focus timer/session coordination and task-choice loading are separated from UI.
+- Backend analytics metrics, scheduling-plan helpers and gamification query/response
+  helpers now have dedicated modules; existing service entry points are retained.
+- The unused `chrono-node` dependency was removed from the web manifest and lockfile.
+  Used UI/3D dependencies and the deferred mobile/shared workspaces remain.
+- The current code map and verification notes are updated. The demonstrated features,
+  database schema, migration history and infrastructure are preserved.
+
+Task has 70 targeted checks, Calendar 16 and Focus 16, recorded in their completed
+batches. The final backend extraction passed all 518 existing backend tests on a
+disposable PostgreSQL instance. Scoped Python lint and the web production build
+passed. See [DEMO_VERIFICATION.md](DEMO_VERIFICATION.md) for test methods and limits.
+
+The Pomodoro settings/API range mismatch and the original cross-origin auth
+transport trigger remain separate bug/integration follow-ups. Mobile implementation,
+deployment and live Gemini verification remain outside the demonstration cleanup.
+Large cohesive view/engine files may remain; line count alone is not a reason to
+split them further. No additional mandatory extraction is queued for this batch.
+
+## Initial deletion batch (historical)
+
+The following audit describes the first batch only. Its integrity/import counts
+and retained/deferred decisions are historical; later changes are summarized above.
 
 Date: 2026-10-12. Baseline: GitHub `develop`, `3fb1d1d4a805cd2849d4802c3d763f7dc82f70e0`.
 

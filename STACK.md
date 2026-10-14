@@ -101,7 +101,14 @@ layout
 
 `layout` is frontend-only and lives under `frontend/web/components/layout`. Public auth pages are `/login` and `/register`; the authenticated route group is `app/(dashboard)`. `/auth` is currently a retained null route, not the login screen.
 
-Registered backend modules include `auth`, `projects`, `folders`, `tasks` (including nested AI helpers), `notifications`, `settings`, `analytics`, `ai`, `scheduling`, `focus`, `dashboard` and `gamification`. The `/folders` API delegates to project services/models. Backend `calendar` and `priority` packages are unregistered scaffolds; live priority routes are registered from `tasks/priority_router.py`. Calendar UI reads task/project data rather than a standalone calendar API.
+Registered backend modules include `auth`, `projects`, `folders`, `tasks` (including nested AI helpers), `notifications`, `settings`, `analytics`, `ai`, `scheduling`, `focus`, `dashboard` and `gamification`. The `/folders` API delegates to project services/models. Unregistered calendar/priority source scaffolds were removed; live priority routes are registered from `tasks/priority_router.py`. Calendar UI reads task/project data rather than a standalone calendar API.
+
+Feature modules use additional files when they have a distinct responsibility.
+Analytics calculations live in `analytics/metrics.py`; scheduling query/validation
+and response helpers in `scheduling/plan_helpers.py`; gamification profile queries,
+unlock checks and response mapping in `gamification/read_model.py`. Existing
+`service.py` entry points coordinate the API operations and transactions.
+The feature-folder example above does not require empty models/services files.
 
 ## Backend Design
 
@@ -177,12 +184,17 @@ Persistent data uses PostgreSQL through FastAPI's shared SQLAlchemy engine, sess
 
 Keep both `/folders` and `/projects` compatibility APIs. Supabase files are optional historical notes, not the active auth/storage path. Browser-local settings from the earlier checkout must not replace the current settings API.
 
-## Follow-up Work
+## Refactoring status and follow-up work
 
-- Verify authenticated browser flows alongside backend tests.
-- Correct existing lint findings in small behaviour-preserving batches.
-- Extract large live components incrementally with checks; do not delete them as scaffolds.
-- Keep shared contracts aligned with existing feature helpers; move them into `packages/shared` only when there is a real consumer.
+Task, Calendar and Focus extraction, backend service separation, unused dependency
+removal and documentation reconciliation are complete. Verification details live
+in `frontend/DEMO_VERIFICATION.md`; historical cleanup decisions and current status
+live in `frontend/AUDIT.md`.
+
+Remaining product/integration findings are the Pomodoro settings/API range mismatch
+and the original cross-origin auth transport trigger. Live Gemini verification and
+production deployment are separate work. Shared contracts should move into
+`packages/shared` only when there is a real consumer.
 
 ## Quality Checks
 

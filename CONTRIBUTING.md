@@ -173,9 +173,9 @@ Project architecture:
 - Authenticated pages live in `frontend/web/app/(dashboard)/<feature>/page.tsx`; login/register live outside the route group.
 - Reusable UI lives in `frontend/web/components/<feature>/`.
 - Frontend API calls live in `frontend/web/lib/<feature>.ts`.
-- Registered backend endpoints live in feature routers included by `backend/api/app/main.py`; calendar/priority scaffold packages are not registered.
+- Registered backend endpoints live in feature routers included by `backend/api/app/main.py`. Calendar reads task/project data; priority routes live under `tasks/priority_router.py`. Unregistered calendar/priority source scaffolds were removed.
 - Backend request/response schemas live in `backend/api/app/<feature>/schemas.py`.
-- Backend business logic and PostgreSQL queries live in `backend/api/app/<feature>/service.py`.
+- Backend service entry points live in `backend/api/app/<feature>/service.py`; distinct calculations, queries and mapping helpers can live alongside them. Keep service signatures and transaction ownership stable when extracting helpers.
 - `backend/api/app/main.py` should only configure the app and register routers.
 - Shared TypeScript contracts go in `packages/shared` only when multiple features need them.
 

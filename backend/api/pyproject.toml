@@ -1,7 +1,7 @@
 [project]
 name = "smart-scheduling-api"
 version = "0.1.0"
-description = "FastAPI backend scaffold for AI Smart Scheduling"
+description = "FastAPI backend for AI Smart Scheduling"
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.16.0,<2.0.0",
