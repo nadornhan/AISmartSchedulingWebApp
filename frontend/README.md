@@ -36,6 +36,11 @@ selection, `calendar-model.ts` owns date/task mapping helpers, `calendar-views.t
 contains the existing responsive views and reschedule dialog, and
 `use-calendar-tasks.ts` owns API loading, refresh subscriptions and task actions.
 
+Within `web/components/focus`, `FocusMode.tsx` renders the timer, task picker and
+settings modal. `use-focus-timer.ts` owns the countdown, local timer persistence,
+active-session restoration, task selection and focus-session requests.
+`use-focus-tasks.ts` loads the active-task choices and deep-link fallback.
+
 Settings persistence is implemented through `lib/settings.ts` and the backend settings API. UI preferences and auth caches have their existing browser-storage responsibilities; do not replace server-backed settings with the earlier local-only implementation.
 
 `mobile/` is an Expo scaffold and `packages/shared/` is a shared workspace scaffold. Both remain declared workspaces and are retained.
@@ -50,6 +55,7 @@ The demo is the Next.js web app; React Native/Expo is deferred. Use the existing
 corepack pnpm --filter @ai-smart-scheduling/web typecheck
 corepack pnpm --filter @ai-smart-scheduling/web test:auth
 corepack pnpm --filter @ai-smart-scheduling/web test:calendar
+corepack pnpm --filter @ai-smart-scheduling/web test:focus
 corepack pnpm exec eslint frontend/web
 corepack pnpm --filter @ai-smart-scheduling/web build
 ```
@@ -59,6 +65,11 @@ corepack pnpm --filter @ai-smart-scheduling/web build
 `test:calendar` checks date boundaries, paginated loading, refresh cleanup, failure
 handling, schedule locks and rescheduling payloads with in-memory API doubles.
 Its tests are grouped in `web/tests/calendar`.
+
+`test:focus` checks countdown/session accounting, persistence and restoration,
+completion and save failures, duration changes and task choices using a simulated
+clock, local storage and in-memory API doubles. Its tests are grouped in
+`web/tests/focus`.
 
 See [AUDIT.md](AUDIT.md) for the cleanup scope and preservation decisions.
 

@@ -201,3 +201,30 @@ validation/default time. Checks use in-memory API doubles without application
 data or external services. Scoped lint and the production build (including
 TypeScript) passed. Authenticated browser interactions were not repeated for
 this source extraction.
+
+## Focus refactoring (2026-10-15)
+
+`FocusMode.tsx` now renders the existing screen in approximately 460 lines.
+`use-focus-timer.ts` owns countdown/session state and refs, local timer snapshots,
+active-session restoration, elapsed-time accounting, completion audio, mode changes,
+duration changes and session requests. `use-focus-tasks.ts` owns task-choice loading
+and the existing deep-link fallback. Settings visibility and task-search presentation
+remain in the screen. The timer/session hook retains these interdependent concerns
+together rather than splitting their refs and lifecycle across several modules.
+
+A syntax-tree comparison against `8bfb1b1` confirms 26 original helper, action and
+icon bodies, all seven effect bodies/dependencies and all state/ref initializers
+are preserved, allowing formatting changes. The independent task-loading effect
+now runs in its own hook. Screen markup and the previously adjusted circle CSS are
+unchanged, as are `focus-timer-state-v1`, URL inputs, task selection limits, duration
+defaults and focus API contracts. No backend, schema, migrations or infrastructure
+changed.
+
+All 16 Focus regression checks passed using a simulated clock, storage, audio and
+API doubles. They cover URL initialization, active-time accounting across pauses,
+start failure, single completion save/sound with expiry-time capping, failed-save
+retry, per-mode countdowns, break reset, local/server restoration, malformed storage,
+duration-change save guards, task selection limits and task-loading cancellation.
+Scoped lint and the production build (including TypeScript) passed. These checks
+do not exercise real browser audio or live backend transport; authenticated browser
+interactions were not repeated for the extraction.
