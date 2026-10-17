@@ -2,7 +2,7 @@
 
 import type { Dispatch, SetStateAction } from 'react';
 import type { TaskResponse } from '../../lib/tasks';
-import { CalendarIcon, CheckIcon, ChevronDownIcon, EditIcon, MoreIcon } from '../layout/icons';
+import { CalendarIcon, CheckIcon, ChevronDownIcon, ClockIcon, EditIcon, MoreIcon } from '../layout/icons';
 import { CheckBox, StatusDropdown, SubtaskAccordion } from './task-page-controls';
 import {
   cn,
@@ -85,7 +85,6 @@ export function TaskDesktopTable({
             <article
               className={cn(
                 'group grid gap-4 bg-[var(--bg-surface)]/45 px-5 py-6 transition hover:bg-[var(--bg-surface-hover)]/65 lg:grid-cols-[24px_minmax(0,1fr)_minmax(0,1fr)_88px] lg:items-center lg:gap-3 2xl:grid-cols-[36px_minmax(260px,1.6fr)_minmax(110px,0.8fr)_minmax(126px,0.85fr)_minmax(108px,0.75fr)_minmax(128px,0.95fr)_88px]',
-                selected.includes(task.id) && 'bg-dashboard-accent-soft',
                 targetTaskId === task.id &&
                   'bg-dashboard-accent-soft shadow-[inset_3px_0_0_var(--dashboard-accent)]',
                 menuTaskId === task.id && 'relative z-30',
@@ -95,15 +94,13 @@ export function TaskDesktopTable({
             >
               <div className="flex items-center gap-3">
                 <CheckBox
-                  checked={selected.includes(task.id)}
-                  label={`Select ${task.title}`}
-                  onChange={() => toggleSelected(task.id)}
+                  checked={task.workflowStatus === 'Done'}
+                  disabled={isMutating}
+                  label={`${task.workflowStatus === 'Done' ? 'Reopen' : 'Complete'} ${task.title}`}
+                  onChange={() =>
+                    void changeStatus(task.id, task.workflowStatus === 'Done' ? 'Pending' : 'Done')
+                  }
                 />
-                {task.status === 'Done' ? (
-                  <span className="grid h-6 w-6 place-items-center rounded-full bg-dashboard-accent text-dashboard-on-accent lg:hidden">
-                    <CheckIcon className="h-4 w-4" />
-                  </span>
-                ) : null}
               </div>
 
               <button
@@ -119,21 +116,23 @@ export function TaskDesktopTable({
                 type="button"
               >
                 <div className="flex items-center gap-3">
-                  {task.status === 'Done' ? (
-                    <span className="hidden h-6 w-6 shrink-0 place-items-center rounded-full bg-dashboard-accent text-dashboard-on-accent lg:grid">
-                      <CheckIcon className="h-4 w-4" />
-                    </span>
-                  ) : null}
                   <div className="min-w-0">
                     <h2 className="whitespace-normal break-words text-[17px] font-semibold leading-6 text-dashboard-text">
                       {task.title}
+                      {task.overdue ? (
+                        <span className="ml-2 inline-flex whitespace-nowrap rounded-full border border-[var(--red-border)] bg-[var(--red-soft)] px-2 py-0.5 align-middle text-[11px] font-semibold leading-4 text-[var(--red-light)]">
+                          Overdue
+                        </span>
+                      ) : null}
                     </h2>
-                    <p className="mt-1 truncate text-sm leading-5 text-dashboard-muted">
-                      {task.description}
-                    </p>
                     {task.subtaskProgressLabel || task.durationLabel ? (
                       <p className="mt-1 text-sm font-medium text-dashboard-muted">
-                        {task.subtaskProgressLabel ?? task.durationLabel}
+                        {task.subtaskProgressLabel ?? (
+                          <span className="inline-flex items-center gap-1.5" aria-label={`Estimated duration: ${task.durationLabel}`}>
+                            <ClockIcon className="h-3.5 w-3.5 shrink-0" />
+                            {task.durationLabel}
+                          </span>
+                        )}
                       </p>
                     ) : null}
                     {task.source.schedule_locked ? (
@@ -205,9 +204,6 @@ export function TaskDesktopTable({
                 <span className="block text-xs font-semibold uppercase tracking-wide text-dashboard-muted 2xl:hidden">
                   Status
                 </span>
-                {task.overdue ? (
-                  <p className="text-sm font-semibold text-[var(--red-light)]">Overdue</p>
-                ) : null}
                 <StatusDropdown
                   disabled={isMutating}
                   onChange={(status) => void changeStatus(task.id, status)}
@@ -241,6 +237,16 @@ export function TaskDesktopTable({
                       taskIndex >= visibleTasks.length - 2 ? 'bottom-11' : 'top-11',
                     )}
                   >
+                    <button
+                      className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
+                      onClick={() => {
+                        toggleSelected(task.id);
+                        setMenuTaskId(null);
+                      }}
+                      type="button"
+                    >
+                      {selected.includes(task.id) ? 'Remove from bulk selection' : 'Select for bulk actions'}
+                    </button>
                     <button
                       className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent"
                       onClick={() => {
@@ -367,12 +373,12 @@ export function TaskMobileList({
                 {groupTasks.map((task) => {
                   const completed = task.workflowStatus === 'Done';
                   return (
-                    <article className="px-4 py-4" key={task.id}>
-                      <div className="flex items-start gap-3">
+                    <article className="px-4 py-3" key={task.id}>
+                      <div className="flex items-center gap-3">
                         <button
                           aria-label={completed ? `Reopen ${task.title}` : `Complete ${task.title}`}
                           className={cn(
-                            'mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full border transition',
+                            'grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border transition',
                             completed
                               ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
                               : 'border-dashboard-border-strong bg-transparent hover:border-dashboard-accent',
@@ -398,8 +404,10 @@ export function TaskMobileList({
                           }
                           type="button"
                         >
-                          <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-dashboard-text">
-                            <span className="truncate">{task.title}</span>
+                          <span className="flex min-w-0 items-start gap-2 text-base font-semibold text-dashboard-text">
+                            <span className="min-w-0 whitespace-normal break-words leading-5">
+                              {task.title}
+                            </span>
                             {task.source.subtasks.length > 0 ? (
                               <ChevronDownIcon
                                 className={cn(
@@ -410,9 +418,7 @@ export function TaskMobileList({
                             ) : null}
                           </span>
                           <span className="mt-2 flex min-w-0 items-center gap-2 text-[11px] text-dashboard-muted">
-                            <span className={cn(task.overdue && 'text-[var(--red-light)]')}>
-                              ◷ {task.dueDate}
-                            </span>
+                            <span className={cn(task.overdue && 'text-[var(--red-light)]')}>◷ {task.dueDate}</span>
                             <span aria-hidden="true">·</span>
                             <span className="flex min-w-0 items-center gap-1.5 truncate">
                               <span
@@ -438,23 +444,7 @@ export function TaskMobileList({
                           >
                             {task.priority}
                           </span>
-                          <div className="flex items-center gap-1">
-                            <button
-                              aria-label={`Edit ${task.title}`}
-                              className="grid h-8 w-8 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-accent"
-                              onClick={() => setEditingTask(task.source)}
-                              type="button"
-                            >
-                              <EditIcon className="h-4 w-4" />
-                            </button>
-                            <StatusDropdown
-                              compact
-                              disabled={isMutating}
-                              onChange={(status) => void changeStatus(task.id, status)}
-                              taskTitle={task.title}
-                              value={task.workflowStatus}
-                            />
-                          </div>
+                          <button aria-label={`Edit ${task.title}`} className="grid h-8 w-8 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-accent" onClick={() => setEditingTask(task.source)} type="button"><EditIcon className="h-4 w-4" /></button>
                         </div>
                       </div>
                       {expandedTaskIds.includes(task.id) && task.source.subtasks.length > 0 ? (

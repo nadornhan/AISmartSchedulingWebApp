@@ -15,7 +15,6 @@ import {
   InsightsIcon,
   PlusIcon,
   PriorityIcon,
-  SettingsIcon,
   TasksIcon,
 } from './icons';
 
@@ -65,6 +64,25 @@ function isActive(pathname: string, item: NavItem) {
   }
 
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+function AccountIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      {...props}
+    >
+      <path d="M17.925 20.056a6 6 0 0 0-11.851.001" />
+      <circle cx="12" cy="11" r="4" />
+      <circle cx="12" cy="12" r="10" />
+    </svg>
+  );
 }
 
 function useScrollFeedback<T extends HTMLElement>() {
@@ -215,7 +233,6 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   const searchParams = useSearchParams();
   const activeProjectId = searchParams.get('project_id');
   const foldersActive = pathname === '/folders' || pathname.startsWith('/folders/');
-  const settingsActive = pathname === '/settings' || pathname.startsWith('/settings/');
   const sidebarRef = useScrollFeedback<HTMLElement>();
   const folderListRef = useScrollFeedback<HTMLDivElement>();
   const [folders, setFolders] = useState<Project[]>([]);
@@ -508,22 +525,19 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             </p>
           </div>
         ) : null}
-
         <Link
-          aria-current={settingsActive ? 'page' : undefined}
+          aria-current={pathname === '/account' ? 'page' : undefined}
           className={cn(
             'flex h-[52px] items-center gap-4 rounded-lg border-t border-dashboard-border px-3 pt-4 text-base font-medium transition',
             sidebarCollapsed && 'justify-center gap-0 px-0',
-            settingsActive
-              ? 'text-dashboard-accent'
-              : 'text-dashboard-muted hover:text-dashboard-text',
+            pathname === '/account' ? 'text-dashboard-accent' : 'text-dashboard-muted hover:text-dashboard-text',
           )}
-          href="/settings"
+          href="/account"
           onClick={onNavigate}
-          title={sidebarCollapsed ? 'Settings' : undefined}
+          title={sidebarCollapsed ? 'Account' : undefined}
         >
-          <SettingsIcon className="h-[22px] w-[22px] shrink-0" />
-          <span className={cn('flex-1', sidebarCollapsed && 'sr-only')}>Settings</span>
+          <AccountIcon className="h-[22px] w-[22px] shrink-0" />
+          <span className={cn('flex-1', sidebarCollapsed && 'sr-only')}>Account</span>
           {!sidebarCollapsed ? <ChevronRightIcon className="h-[22px] w-[22px]" /> : null}
         </Link>
       </div>

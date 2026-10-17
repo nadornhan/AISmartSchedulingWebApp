@@ -28,7 +28,7 @@ Port 3002 avoids conflicts if another checkout occupies port 3001. Use any free 
 | Feature API contracts and helpers             | `web/lib/*.ts`                                             |
 | Runtime images, models and sounds             | `web/public`                                               |
 
-The `(dashboard)` route group does not appear in URLs. Its pages include `/`, `/tasks`, `/folders`, `/calendar`, `/priority`, `/focus`, `/analytics`, `/notifications`, `/profile`, `/settings`, `/gamification` and `/gamification/forest`. Keep the shared route layout; feature pages should not duplicate it.
+The `(dashboard)` route group does not appear in URLs. Its pages include `/`, `/tasks`, `/folders`, `/calendar`, `/priority`, `/focus`, `/analytics`, `/notifications`, `/profile`, `/account`, `/gamification` and `/gamification/forest`. Account Settings replaces the removed `/settings` route. Keep the shared route layout; feature pages should not duplicate it.
 
 Calendar uses `lib/tasks.ts`, `lib/projects.ts` and the shared task-creation modal. Scheduling recommendations use `lib/scheduling.ts`. Priority uses `lib/tasks.ts` and `lib/projects.ts`. These features do not require empty `calendar.ts` or `priority.ts` modules.
 
@@ -42,7 +42,15 @@ settings modal. `use-focus-timer.ts` owns the countdown, local timer persistence
 active-session restoration, task selection and focus-session requests.
 `use-focus-tasks.ts` loads the active-task choices and deep-link fallback.
 
-Settings persistence is implemented through `lib/settings.ts` and the backend settings API. UI preferences and auth caches have their existing browser-storage responsibilities; do not replace server-backed settings with the earlier local-only implementation.
+Account Settings (`components/profile/account-page.tsx`) provides Account, Notifications, Theme, Work preferences and Scheduling priorities sections. Desktop uses navigation beside the selected content; mobile uses horizontal section controls. The Account view links to Profile, AI Insights and Personal Forest. Log out sits beneath the section navigation. Settings persistence uses `lib/settings.ts` and the backend settings API; theme choice uses `UiPreferencesProvider` and browser storage.
+
+The Profile page uses a two-column desktop layout: photo and editable names on the left, with read-only account information and account access stacked on the right. The camera icon opens image upload and Save changes spans the name form. The columns stack on mobile. Password changes, two-step verification and account deletion are not implemented by this layout.
+
+## Interface design documentation
+
+[Frontend Architecture and Integration Design](Frontend_Architecture_and_Integration_Design.docx) contains Chapter 6 Frontend and UI UX Design for insertion into the final report. It compares the current interface with the A4 prototype, describes the less is more approach, light mode, authentication, dashboard, Tasks and Calendar, Account Settings and Profile, and leaves labelled screenshot placeholders. Existing architecture and integration sections remain part of the chapter. See [Theme.md](Theme.md) for visual conventions; `web/app/globals.css` is the implementation source for theme tokens.
+
+Mobile navigation exposes Home, Tasks, central task creation, Calendar and Account. Desktop retains the wider feature sidebar. Dark and light workspace themes share semantic tokens; authentication artwork currently remains dark. Google and Facebook buttons on authentication pages are visual mock-ups.
 
 `mobile/` is an Expo scaffold and `packages/shared/` is a shared workspace scaffold. Both remain declared workspaces and are retained.
 

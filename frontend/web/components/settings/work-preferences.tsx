@@ -63,6 +63,7 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
       eyebrow="Work pattern"
       title="Work Preferences"
       description="Default planning windows used by the scheduling flow."
+      showHeader={false}
     >
       <div className="grid min-w-0 items-start gap-x-4 gap-y-5 md:grid-cols-2 xl:grid-cols-3">
         <label className="grid min-w-0 content-start gap-2 text-sm font-medium text-dashboard-text">

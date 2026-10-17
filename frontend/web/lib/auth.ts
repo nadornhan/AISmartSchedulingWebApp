@@ -95,6 +95,23 @@ export async function getCurrentUser(
   return user;
 }
 
+export async function updateCurrentUserProfile(input: {
+  firstName: string;
+  lastName: string;
+}): Promise<UserResponse> {
+  const accessToken = getAccessToken();
+  const user = await apiRequest<UserResponse>('/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify({
+      first_name: input.firstName.trim(),
+      last_name: input.lastName.trim(),
+    }),
+  });
+
+  cacheCurrentUser(user, accessToken);
+  return user;
+}
+
 /**
  * Upload a new avatar for the signed-in user.
  */

@@ -233,15 +233,15 @@ test('existing task error messages are preserved, including 401/403 handling', (
   assert.equal(model.getErrorMessage(null), 'Something went wrong. Please try again.');
 });
 
-test('checkbox keeps its accessibility state and callback', () => {
+test('completion checkbox keeps its accessibility state and callback', () => {
   let calls = 0;
   const element = controls.CheckBox({
     checked: true,
-    label: 'Select Demo task',
+    label: 'Complete Demo task',
     onChange: () => calls++,
   });
   assert.equal(element.props['aria-pressed'], true);
-  assert.equal(element.props['aria-label'], 'Select Demo task');
+  assert.equal(element.props['aria-label'], 'Complete Demo task');
   element.props.onClick();
   assert.equal(calls, 1);
   assert.match(renderToStaticMarkup(element), /border-dashboard-accent/);
@@ -358,7 +358,7 @@ test('desktop table retains its responsive wrapper, column headers and loading/e
   assert.ok(!loading.includes('No tasks found'));
 });
 
-test('desktop selection, target highlighting, edit and status callbacks retain the correct task', () => {
+test('desktop completion checkbox updates status while bulk selection stays separate', () => {
   const task = model.toTask(response());
   const calls = [];
   const tree = TaskDesktopTable(
@@ -375,13 +375,17 @@ test('desktop selection, target highlighting, edit and status callbacks retain t
   );
   const nodes = elements(tree);
   const checkboxes = nodes.filter((node) => node.type === controls.CheckBox);
-  assert.ok(checkboxes.every((node) => node.props.checked));
-  checkboxes.forEach((node) => node.props.onChange());
+  assert.equal(checkboxes.length, 2);
+  assert.equal(checkboxes[0].props.checked, true);
+  assert.equal(checkboxes[1].props.checked, false);
+  assert.equal(checkboxes[1].props.label, 'Complete Demo task');
+  checkboxes[0].props.onChange();
+  checkboxes[1].props.onChange();
   nodes.find((node) => node.props?.['aria-label'] === 'Edit Demo task').props.onClick();
   nodes.find((node) => node.type === controls.StatusDropdown).props.onChange('Done');
   assert.deepEqual(calls, [
     'all',
-    ['select', task.id],
+    ['status', task.id, 'Done'],
     ['edit', task.source],
     ['status', task.id, 'Done'],
   ]);
@@ -601,28 +605,18 @@ test('mobile title edits without subtasks and toggles expansion with subtasks', 
   }
 });
 
-test('mobile explicit edit and compact status dropdown retain source and workflow status', () => {
+test('mobile explicit edit retains source and omits the status dropdown', () => {
   const task = model.toTask(response({ status: 'overdue', workflow_status: 'in_progress' }));
-  const calls = [];
   const nodes = elements(
     TaskMobileList(
       mobileProps({
         mobileTaskGroups: [{ group: 'Overdue', tasks: [task] }],
-        setEditingTask: (source) => calls.push(['edit', source]),
-        changeStatus: async (...args) => calls.push(['status', ...args]),
+        setEditingTask: (source) => assert.equal(source, task.source),
       }),
     ),
   );
   nodes.find((node) => node.props?.['aria-label'] === 'Edit Demo task').props.onClick();
-  const dropdown = nodes.find((node) => node.type === controls.StatusDropdown);
-  assert.equal(dropdown.props.compact, true);
-  assert.equal(dropdown.props.value, 'In Progress');
-  assert.equal(dropdown.props.taskTitle, task.title);
-  dropdown.props.onChange('Done');
-  assert.deepEqual(calls, [
-    ['edit', task.source],
-    ['status', task.id, 'Done'],
-  ]);
+  assert.equal(nodes.some((node) => node.type === controls.StatusDropdown), false);
 });
 
 test('mobile expanded subtasks retain mutation disabling and completion arguments', () => {
@@ -641,7 +635,7 @@ test('mobile expanded subtasks retain mutation disabling and completion argument
     nodes.find((node) => node.props?.['aria-label'] === 'Complete Demo task').props.disabled,
     true,
   );
-  assert.equal(nodes.find((node) => node.type === controls.StatusDropdown).props.disabled, true);
+  assert.equal(nodes.some((node) => node.type === controls.StatusDropdown), false);
   const accordion = nodes.find((node) => node.type === controls.SubtaskAccordion);
   assert.equal(accordion.props.disabled, true);
   accordion.props.onToggle('sub-a', true);

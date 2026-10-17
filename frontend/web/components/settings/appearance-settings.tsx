@@ -28,6 +28,7 @@ export function AppearanceSettings() {
       description="Choose how Chrono looks. Your choice is saved on this device."
       eyebrow="Interface"
       title="Appearance"
+      showHeader={false}
     >
       <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Color theme">
         {themeOptions.map((option) => {

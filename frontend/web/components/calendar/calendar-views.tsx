@@ -11,8 +11,6 @@ import {
   calendarTimeLabel,
   mobilePriorityClasses,
   mobilePriorityLabel,
-  mobileStatusClasses,
-  mobileStatusLabel,
   priorityClasses,
   type CalendarDay,
   type CalendarTask,
@@ -184,11 +182,11 @@ export function MobileCalendarView({
             {selectedTasks.map((task) => {
               const completed = task.status === 'done';
               return (
-                <article className="flex items-start gap-3 px-4 py-4" key={task.id}>
+                <article className="flex items-center gap-3 px-4 py-3" key={task.id}>
                   <button
                     aria-label={completed ? `Reopen ${task.title}` : `Complete ${task.title}`}
                     className={cn(
-                      'mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full border transition',
+                      'grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border transition',
                       completed
                         ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
                         : 'border-dashboard-border-strong hover:border-dashboard-accent',
@@ -208,13 +206,10 @@ export function MobileCalendarView({
                     <span className="block truncate text-sm font-semibold text-dashboard-text">
                       {task.title}
                     </span>
-                    {task.status === 'overdue' ? (
-                      <span className="mt-1.5 block">
-                        <OverdueBadge compact />
-                      </span>
-                    ) : null}
-                    <span className="mt-2 flex items-center gap-2 text-[11px] text-dashboard-muted">
-                      <span>◷ {formatTime(task.calendarDate)}</span>
+                    <span className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-dashboard-muted">
+                      {task.durationMinutes !== null ? <span className="inline-flex items-center gap-1"><span aria-hidden="true">◷</span>{formatDurationLabel(task.durationMinutes)}</span> : null}
+                      {task.durationMinutes !== null ? <span aria-hidden="true">·</span> : null}
+                      <span>{formatTime(task.calendarDate)}</span>
                       <span aria-hidden="true">·</span>
                       <span className="flex min-w-0 items-center gap-1.5 truncate">
                         <span
@@ -226,26 +221,19 @@ export function MobileCalendarView({
                     </span>
                   </button>
 
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    <span
-                      className={cn(
-                        'rounded-[var(--radius-pill)] border px-2.5 py-1 text-[10px] font-medium',
-                        mobilePriorityClasses(task.priority),
-                      )}
-                    >
-                      {mobilePriorityLabel(task.priority)}
-                    </span>
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
                     <button
-                      className={cn(
-                        'h-7 rounded-[var(--radius-pill)] border px-2.5 text-[10px] font-medium',
-                        mobileStatusClasses(task.status),
-                      )}
+                      aria-label={`Edit due date for ${task.title}`}
+                      className="grid h-8 w-8 place-items-center rounded-lg border border-dashboard-border text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-accent"
                       disabled={mutatingTaskId === task.id}
-                      onClick={() => onToggleTask(task)}
+                      onClick={() => onReschedule(task)}
                       type="button"
                     >
-                      {mobileStatusLabel(task.status)}⌄
+                      <EditIcon className="h-4 w-4" />
                     </button>
+                    <span className={cn('rounded-[var(--radius-pill)] border px-2.5 py-1 text-[10px] font-medium', mobilePriorityClasses(task.priority))}>
+                      {mobilePriorityLabel(task.priority)}
+                    </span>
                   </div>
                 </article>
               );
@@ -721,7 +709,7 @@ function AgendaTask({
   return (
     <article
       className={cn(
-        'grid grid-cols-[58px_14px_minmax(0,1fr)] items-center gap-3',
+        'grid grid-cols-1 items-center gap-3 lg:grid-cols-[58px_14px_minmax(0,1fr)]',
         task.scheduleLocked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
       )}
       draggable={!isMutating && !task.scheduleLocked}
@@ -734,16 +722,16 @@ function AgendaTask({
       }}
       title={task.scheduleLocked ? 'Unlock this task before rescheduling' : calendarTimeLabel(task)}
     >
-      <time className="text-right text-xs font-semibold tabular-nums tracking-[-0.01em] text-dashboard-muted">
+      <time className="hidden text-right text-xs font-semibold tabular-nums tracking-[-0.01em] text-dashboard-muted lg:block">
         {formatTime(task.calendarDate)}
       </time>
       <span
-        className="relative z-10 h-3 w-3 justify-self-center rounded-full shadow-[0_0_0_4px_var(--bg-surface),0_0_12px_currentColor]"
+        className="relative z-10 hidden h-3 w-3 justify-self-center rounded-full shadow-[0_0_0_4px_var(--bg-surface),0_0_12px_currentColor] lg:block"
         style={{ backgroundColor: task.projectColor }}
       />
       <div
         className={cn(
-          'rounded-xl border bg-dashboard-bg/35 p-5 shadow-[0_10px_28px_rgb(var(--shadow-color)/calc(0.12*var(--shadow-strength)))] transition hover:-translate-y-0.5 hover:bg-dashboard-raised/75 hover:shadow-[0_14px_34px_rgb(var(--shadow-color)/calc(0.2*var(--shadow-strength)))]',
+          'hidden rounded-xl border bg-dashboard-bg/35 p-5 shadow-[0_10px_28px_rgb(var(--shadow-color)/calc(0.12*var(--shadow-strength)))] transition hover:-translate-y-0.5 hover:bg-dashboard-raised/75 hover:shadow-[0_14px_34px_rgb(var(--shadow-color)/calc(0.2*var(--shadow-strength)))] lg:block',
           priorityClasses(task),
         )}
       >
@@ -820,6 +808,52 @@ function AgendaTask({
               {formatDurationLabel(task.durationMinutes)}
             </span>
           ) : null}
+        </div>
+      </div>
+      <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-dashboard-border bg-dashboard-surface px-3.5 py-3.5 shadow-panel lg:hidden">
+        <button
+          aria-label={task.status === 'done' ? 'Reopen task' : 'Complete task'}
+          className={cn(
+            'grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border transition',
+            task.status === 'done'
+              ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
+              : 'border-dashboard-border-strong bg-transparent hover:border-dashboard-accent',
+            isMutating && 'cursor-wait opacity-60',
+          )}
+          disabled={isMutating}
+          onClick={() => onToggleTask(task)}
+          type="button"
+        >
+          {task.status === 'done' ? <CheckIcon className="h-3.5 w-3.5" /> : null}
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <h3 className="min-w-0 break-words text-sm font-semibold leading-5 text-dashboard-text">{task.title}</h3>
+          </div>
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dashboard-muted">
+            {task.durationMinutes !== null ? <span className="inline-flex items-center gap-1"><span aria-hidden="true">◷</span>{formatDurationLabel(task.durationMinutes)}</span> : null}
+            {task.durationMinutes !== null ? <span aria-hidden="true">·</span> : null}
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: task.projectColor }} />
+              <span className="truncate">{task.project}</span>
+            </span>
+            <span aria-hidden="true">·</span>
+            <span className="whitespace-nowrap">{formatTime(task.calendarDate)}</span>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <button
+            aria-label={`Edit due date for ${task.title}`}
+            className="grid h-8 w-8 place-items-center rounded-lg border border-dashboard-border text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-accent"
+            disabled={isMutating}
+            onClick={() => onReschedule(task)}
+            type="button"
+          >
+            <EditIcon className="h-4 w-4" />
+          </button>
+          <span className={cn('inline-flex rounded-[var(--radius-pill)] border px-2.5 py-1 text-[10px] font-medium', mobilePriorityClasses(task.priority))}>
+            {mobilePriorityLabel(task.priority)}
+          </span>
         </div>
       </div>
     </article>

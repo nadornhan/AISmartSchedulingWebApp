@@ -505,7 +505,7 @@ function TaskFormModal({
                       onClick={() => selectAiEntryMode('decompose')}
                       type="button"
                     >
-                      Break into subtasks
+                      Break down
                     </button>
                   </div>
                   <div className="relative">

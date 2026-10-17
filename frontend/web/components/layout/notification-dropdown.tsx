@@ -135,7 +135,7 @@ export function NotificationDropdown({
       ) : null}
 
       {!isLoading && !error && items.length > 0 ? (
-        <div className="grid max-h-[min(25rem,calc(100vh-12rem))] gap-1 overflow-y-auto pr-1">
+        <div className="accent-scrollbar grid max-h-[min(25rem,calc(100vh-12rem))] gap-1 overflow-y-auto pr-1">
           {items.map((item) => (
             <button
               className={cn(

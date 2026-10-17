@@ -33,7 +33,7 @@ export function SuggestedTaskCard({
           <PlantVisual
             className="!h-full !w-full [&>svg]:h-full [&>svg]:w-full"
             size={144}
-            speciesKey={forest?.species_name?.toLowerCase().replace(/\s+/g, '_')}
+            speciesKey="oak"
             stage={forest?.growth_stage || 'seedling'}
           />
         </div>

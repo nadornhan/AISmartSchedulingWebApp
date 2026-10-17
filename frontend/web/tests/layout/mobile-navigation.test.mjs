@@ -46,6 +46,7 @@ function pageHeading(heading, props = {}) {
     './dashboard-heading-context': {
       useDashboardHeading: () => ({ heading, setActionsTarget: () => {} }),
     },
+    './ui-preferences-provider': { useUiPreferences: () => ({ theme: 'dark' }) },
   });
   return PageHeading({ title: 'Dashboard', subtitle: 'Plan your day.', ...props });
 }
@@ -56,6 +57,7 @@ function mobileHeader(title) {
   const HeaderActions = () => null;
   const { MobileTopHeader } = load('mobile-top-header.tsx', {
     'next/link': { default: 'a' },
+    'lucide-react': { ArrowLeft: Icon },
     react: {
       useEffect: () => {},
       useState: () => [
@@ -71,14 +73,7 @@ function mobileHeader(title) {
   return { render: () => MobileTopHeader({ title }), SearchBox, HeaderActions };
 }
 
-for (const title of [
-  'All Tasks',
-  'Calendar',
-  'Focus Mode',
-  'Profile',
-  'Personal Forest',
-  'AI Insights',
-]) {
+for (const title of ['All Tasks', 'Calendar', 'Focus Mode', 'Personal Forest', 'AI Insights']) {
   test(`${title} mobile header has a left title and only a search button on the right`, () => {
     const h = mobileHeader(title);
     const tree = h.render();
@@ -86,7 +81,7 @@ for (const title of [
     assert.match(tree.props.children[0].props.className, /justify-between/);
     assert.equal(items.find((node) => node.type === 'h1').props.children, title);
     assert.match(items.find((node) => node.type === 'h1').props.className, /\btext-2xl\b/);
-    assert.match(items.find((node) => node.type === 'h1').props.className, /font-normal/);
+    assert.match(items.find((node) => node.type === 'h1').props.className, /font-semibold/);
     assert.equal(
       items.some((node) => node.type === h.HeaderActions),
       false,
@@ -101,6 +96,22 @@ for (const title of [
     );
   });
 }
+
+test('Profile mobile header centers its title and returns to Account', () => {
+  const h = mobileHeader('Profile');
+  const items = nodes(h.render());
+  const title = items.find((node) => node.type === 'h1');
+  assert.equal(title.props.children, 'Profile');
+  assert.match(title.props.className, /text-center/);
+  assert.equal(
+    items.find((node) => node.props?.['aria-label'] === 'Back to account').props.href,
+    '/account',
+  );
+  assert.equal(
+    items.some((node) => node.props?.['aria-label'] === 'Search tasks'),
+    false,
+  );
+});
 
 for (const title of ['Calendar', 'All Tasks']) {
   test(`${title} search opens a focused field and Escape closes it`, () => {
@@ -138,8 +149,10 @@ test('mobile dashboard shows the greeting before the suggested task card', () =>
   assert.match(card.props.className, /lg:hidden/);
   assert.doesNotMatch(card.props.className, /-ml-|translate-x/);
   assert.equal(greeting.props.children[0].type, 'h1');
-  const lines = nodes(greeting.props.children[0]).filter((node) => node.type === 'span');
-  assert.equal(lines[0].props.children.join(''), 'Good morning,');
+  const lines = nodes(greeting.props.children[0]).filter(
+    (node) => node.type === 'span' && /text-xs|text-2xl|hidden lg:inline/.test(node.props.className ?? ''),
+  );
+  assert.equal(lines[0].props.children.filter((child) => typeof child === 'string').join(''), 'Good morning,');
   assert.match(lines[0].props.className, /text-xs/);
   assert.match(lines[0].props.className, /block/);
   assert.equal(lines[1].props.children, 'Minh');
@@ -311,73 +324,39 @@ test('desktop header retains date theme notifications and profile', () => {
   );
 });
 
-function moreMenu({ pathname = '/', theme = 'dark' } = {}) {
-  let open = false;
-  let signOutCalls = 0;
-  let nextTheme;
+function mobileNavigation(pathname = '/') {
   const { MobileBottomNavigation } = load('mobile-bottom-navigation.tsx', {
     'next/link': { default: 'a' },
-    'next/navigation': { usePathname: () => pathname, useRouter: () => ({}) },
-    react: { useState: () => [open, (value) => (open = value)], useEffect: () => {} },
+    'next/navigation': { usePathname: () => pathname, useRouter: () => ({ push: () => {} }) },
     'lucide-react': icons,
     './icons': icons,
-    '../auth/current-user-provider': {
-      useCurrentUser: () => ({
-        signOut: () => {
-          signOutCalls += 1;
-        },
-      }),
-    },
+    '../auth/current-user-provider': { useCurrentUser: () => ({ signOut: () => {} }) },
     './ui-preferences-provider': {
-      useUiPreferences: () => ({ theme, setTheme: (value) => (nextTheme = value) }),
+      useUiPreferences: () => ({ theme: 'dark', setTheme: () => {} }),
     },
   });
-  const render = () => nodes(MobileBottomNavigation());
-  render()
-    .find((node) => node.props?.['aria-expanded'] === false)
-    .props.onClick();
-  return { render, signOutCalls: () => signOutCalls, nextTheme: () => nextTheme };
+  return {
+    render: () => nodes(MobileBottomNavigation()),
+  };
 }
 
-test('More contains the active Profile link and closes when selected', () => {
-  const h = moreMenu({ pathname: '/profile' });
-  const profile = h.render().find((node) => node.props?.href === '/profile');
-  assert.equal(profile.props['aria-current'], 'page');
-  profile.props.onClick();
-  assert.equal(
-    h.render().some((node) => node.props?.['aria-label'] === 'More navigation'),
-    false,
-  );
+test('mobile navigation opens Account directly alongside Home, Tasks, and Calendar', () => {
+  const h = mobileNavigation('/tasks');
+  const items = h.render();
+  const links = items.filter((node) => node.type === 'a');
+  assert.deepEqual(links.map((node) => node.props.href), ['/', '/tasks', '/calendar', '/account']);
+  assert.equal(links.find((node) => node.props.href === '/tasks').props['aria-current'], 'page');
+  assert.ok(links.some((node) => nodes(node).some((child) => child.props?.children === 'Account')));
+  assert.equal(items.find((node) => node.props?.['aria-label'] === 'Create task') !== undefined, true);
+
+  assert.equal(items.some((node) => node.props?.['aria-haspopup'] === 'dialog'), false);
+  assert.equal(items.some((node) => /^Switch to (light|dark) mode$/.test(node.props?.['aria-label'] ?? '')), false);
 });
 
-test('Log out closes More and uses the existing session signOut action', () => {
-  const h = moreMenu();
-  const button = h
-    .render()
-    .find(
-      (node) =>
-        node.type === 'button' &&
-        nodes(node).some(
-          (child) =>
-            Array.isArray(child.props?.children) && child.props.children.includes('Log out'),
-        ),
-    );
-  assert.ok(button);
-  button.props.onClick();
-  assert.equal(h.signOutCalls(), 1);
-  assert.equal(
-    h.render().some((node) => node.props?.['aria-label'] === 'More navigation'),
-    false,
-  );
+test('Account stays active while visiting its profile, settings, and progress destinations', () => {
+  for (const pathname of ['/account', '/profile', '/analytics', '/gamification', '/gamification/forest']) {
+    const links = mobileNavigation(pathname).render().filter((node) => node.type === 'a');
+    assert.equal(links.find((node) => node.props.href === '/account').props['aria-current'], 'page');
+    assert.equal(links.filter((node) => node.props['aria-current'] === 'page').length, 1);
+  }
 });
-
-for (const theme of ['dark', 'light']) {
-  test(`More preserves theme switching from ${theme}`, () => {
-    const h = moreMenu({ theme });
-    const next = theme === 'dark' ? 'light' : 'dark';
-    h.render()
-      .find((node) => node.props?.['aria-label'] === `Switch to ${next} mode`)
-      .props.onClick();
-    assert.equal(h.nextTheme(), next);
-  });
-}

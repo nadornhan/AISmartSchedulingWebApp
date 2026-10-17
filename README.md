@@ -15,7 +15,7 @@ See [STACK.md](STACK.md) for architecture and stack decisions.
 
 ## Design Theme
 
-The product uses a dark green productivity theme. Use these tokens as the shared source of truth for frontend UI work so feature pages stay visually consistent with the navigation shell.
+The product supports dark and light workspace themes with a shared green accent. Use `frontend/web/app/globals.css` as the implementation source for theme tokens, and `frontend/Theme.md` for visual guidance. Authentication artwork currently remains dark. The values below describe the dark palette; feature pages should consume shared variables so light mode remains consistent with the navigation shell.
 
 ### Core Palette
 
@@ -349,7 +349,7 @@ docker compose up --build
 Expected local URLs:
 
 ```text
-Web: http://localhost:3000 (or the free port printed by Next.js)
+Web: http://localhost:3001
 API: http://localhost:8000
 API docs: http://localhost:8000/docs
 ```

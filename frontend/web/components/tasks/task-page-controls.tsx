@@ -100,13 +100,15 @@ export function CheckBox({
   checked,
   label,
   onChange,
-}: Readonly<{ checked: boolean; label: string; onChange: () => void }>) {
+  disabled = false,
+}: Readonly<{ checked: boolean; label: string; onChange: () => void; disabled?: boolean }>) {
   return (
     <button
       aria-label={label}
       aria-pressed={checked}
+      disabled={disabled}
       className={cn(
-        'grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border transition',
+        'grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border transition disabled:cursor-not-allowed disabled:opacity-50',
         checked
           ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
           : 'border-dashboard-border-strong bg-[var(--bg-input)] hover:border-dashboard-accent/70',

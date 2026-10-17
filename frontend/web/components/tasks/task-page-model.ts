@@ -165,8 +165,8 @@ export function priorityClass(priority: TaskPriority) {
 
 export function statusClass(status: DisplayTaskStatus) {
   return {
-    Pending: 'border-[var(--orange-border)] bg-[var(--orange-soft)] text-[var(--yellow)]',
-    'In Progress': 'border-[var(--blue-border)] bg-[var(--blue-soft)] text-[var(--blue-light)]',
+    Pending: 'border-[var(--red-border)] bg-[var(--red-soft)] text-[var(--red-light)]',
+    'In Progress': 'border-[var(--orange-border)] bg-[var(--orange-soft)] text-[var(--yellow)]',
     Done: 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]',
     Overdue: 'border-[var(--red-border)] bg-[var(--red-soft)] text-[var(--red-light)]',
   }[status];
@@ -175,9 +175,9 @@ export function statusClass(status: DisplayTaskStatus) {
 export function statusOptionClass(status: TaskStatus) {
   return {
     Pending:
-      'border-[var(--orange-border)] bg-[var(--orange-soft)] text-[var(--yellow)] hover:border-[var(--yellow)] hover:brightness-125',
+      'border-[var(--red-border)] bg-[var(--red-soft)] text-[var(--red-light)] hover:border-[var(--red-light)] hover:brightness-125',
     'In Progress':
-      'border-[var(--blue-border)] bg-[var(--blue-soft)] text-[var(--blue-light)] hover:border-[var(--blue-light)] hover:brightness-125',
+      'border-[var(--orange-border)] bg-[var(--orange-soft)] text-[var(--yellow)] hover:border-[var(--yellow)] hover:brightness-125',
     Done: 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)] hover:border-[var(--accent)] hover:brightness-125',
   }[status];
 }

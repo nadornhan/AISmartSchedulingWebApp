@@ -1,13 +1,13 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import {
   AuthCheckbox,
   AuthField,
   AuthPrimaryButton,
-  AuthSecondaryLink,
   AuthShell,
   AuthSocialRow,
   EmailIcon,
@@ -45,19 +45,20 @@ export default function LoginPage() {
 
   return (
     <AuthShell>
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-[11px]">
           <h2 className="font-poppins text-[32px] font-bold leading-[42px] text-[#f4f7f6]">
-            Sign in to continue to <span className="text-[var(--accent)]">Chrono.</span>
+            <span className="lg:hidden">Sign In</span>
+            <span className="hidden lg:inline">Sign in to continue to <span className="text-[var(--accent)]">Chrono.</span></span>
           </h2>
           <p className="text-sm leading-[21px] text-[#8181a5]">
             Enter your details to proceed further
           </p>
         </div>
 
-        <form className="flex flex-col gap-[38px]" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-[34px]">
-            <div className="flex flex-col gap-[13px]">
+        <form className="flex flex-col gap-8" onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
               <AuthField
                 autoComplete="email"
                 icon={<EmailIcon />}
@@ -77,7 +78,6 @@ export default function LoginPage() {
                 type="password"
               />
             </div>
-
             <div className="flex items-center justify-between gap-3">
               <AuthCheckbox
                 checked={rememberMe}
@@ -97,11 +97,16 @@ export default function LoginPage() {
             </p>
           ) : null}
 
-          <div className="flex gap-[9px]">
+          <div className="grid gap-3">
             <AuthPrimaryButton disabled={isSubmitting} tone="light">
               {isSubmitting ? 'Signing in...' : 'Sign In'}
             </AuthPrimaryButton>
-            <AuthSecondaryLink href="/register">Sign Up</AuthSecondaryLink>
+            <p className="text-right text-sm text-dashboard-muted">
+              Don&apos;t have an account?{' '}
+              <Link className="font-semibold text-[var(--accent)] hover:underline" href="/register">
+                Create an account
+              </Link>
+            </p>
           </div>
         </form>
 

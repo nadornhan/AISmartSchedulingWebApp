@@ -1,13 +1,13 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import {
   AuthCheckbox,
   AuthField,
   AuthPrimaryButton,
-  AuthSecondaryLink,
   AuthShell,
   AuthSocialRow,
   EmailIcon,
@@ -80,19 +80,19 @@ export default function RegisterPage() {
 
   return (
     <AuthShell>
-      <div className="flex flex-col gap-[62px]">
+      <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-[11px]">
           <h2 className="font-poppins text-[32px] font-bold leading-[42px] text-[#f4f7f6]">
-            Create your account
+            Create account
           </h2>
           <p className="text-sm leading-[21px] text-[#b6b6b6]">
             Enter your details to proceed further
           </p>
         </div>
 
-        <form className="flex flex-col gap-[38px]" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-[34px]">
-            <div className="flex flex-col gap-[13px]">
+        <form className="flex flex-col gap-8" onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
               <AuthField
                 autoComplete="name"
                 icon={<UserIcon />}
@@ -136,11 +136,16 @@ export default function RegisterPage() {
             </p>
           ) : null}
 
-          <div className="flex gap-[9px]">
+          <div className="grid gap-3">
             <AuthPrimaryButton disabled={isSubmitting}>
               {isSubmitting ? 'Creating account...' : 'Sign Up'}
             </AuthPrimaryButton>
-            <AuthSecondaryLink href="/login">Sign In</AuthSecondaryLink>
+            <p className="text-right text-sm text-dashboard-muted">
+              Have an account?{' '}
+              <Link className="font-semibold text-[var(--accent)] hover:underline" href="/login">
+                Sign in
+              </Link>
+            </p>
           </div>
         </form>
 

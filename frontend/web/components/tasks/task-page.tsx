@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { type TaskPriorityValue, type TaskResponse, type TaskSortValue } from '../../lib/tasks';
 import {
   CheckIcon,
@@ -503,9 +504,10 @@ export function TaskPage() {
 
       <section
         aria-label="Task controls"
-        className="mb-5 hidden flex-wrap items-center gap-4 lg:flex"
+        className="mb-5 hidden flex-nowrap items-center gap-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex"
+        tabIndex={0}
       >
-        <div className="flex max-w-full gap-2 overflow-x-auto rounded-[var(--radius-xl)] border border-dashboard-border bg-dashboard-surface/70 p-2">
+        <div className="flex max-w-full shrink-0 gap-2 overflow-x-auto rounded-[var(--radius-xl)] border border-dashboard-border bg-dashboard-surface/70 p-2">
           {filterOrder.map((filter) => (
             <button
               aria-pressed={activeFilter === filter}
@@ -537,7 +539,7 @@ export function TaskPage() {
           ))}
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-3">
+        <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-3">
           <label className="relative">
             <span className="sr-only">Filter by priority</span>
             <select
@@ -557,22 +559,7 @@ export function TaskPage() {
             <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
           </label>
 
-          <label className="relative">
-            <span className="sr-only">Sort tasks</span>
-            <select
-              className="h-11 appearance-none rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface py-0 pl-10 pr-10 text-sm font-medium text-dashboard-muted outline-none transition hover:border-dashboard-border-strong hover:text-dashboard-text"
-              onChange={(event) => setSortBy(event.target.value as TaskSortValue)}
-              value={sortBy}
-            >
-              {sortOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <SortIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-            <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-          </label>
+          <TaskSortMenu value={sortBy} onChange={setSortBy} />
 
           <button
             aria-label={sortAscending ? 'Sort ascending' : 'Sort descending'}
@@ -886,6 +873,113 @@ export function TaskPage() {
             </div>
           </div>
         </div>
+      ) : null}
+    </>
+  );
+}
+
+function TaskSortMenu({ value, onChange }: {
+  value: TaskSortValue;
+  onChange: (value: TaskSortValue) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const updatePosition = () => {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const width = Math.max(rect.width, 184);
+      setPosition({
+        top: rect.bottom + 8,
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+        width,
+      });
+    };
+    const dismissOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && !triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) {
+        setIsOpen(false);
+      }
+    };
+    const closeMenu = () => setIsOpen(false);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+
+    updatePosition();
+    document.addEventListener('pointerdown', dismissOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('resize', closeMenu);
+    window.addEventListener('scroll', closeMenu, true);
+    return () => {
+      document.removeEventListener('pointerdown', dismissOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('resize', closeMenu);
+      window.removeEventListener('scroll', closeMenu, true);
+    };
+  }, [isOpen]);
+
+  const selectedLabel = sortOptions.find((option) => option.value === value)?.label ?? 'Due date';
+
+  return (
+    <>
+      <button
+        aria-controls="task-sort-menu"
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        aria-label={`Sort tasks: ${selectedLabel}`}
+        className="flex h-11 shrink-0 items-center gap-3 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface px-4 text-sm font-medium text-dashboard-muted outline-none transition hover:border-dashboard-border-strong hover:text-dashboard-text focus-visible:border-dashboard-accent focus-visible:ring-2 focus-visible:ring-dashboard-accent/20"
+        onClick={() => setIsOpen((open) => !open)}
+        ref={triggerRef}
+        type="button"
+      >
+        <SortIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
+        <span>{selectedLabel}</span>
+        <ChevronDownIcon aria-hidden="true" className={`h-4 w-4 shrink-0 transition ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && position ? createPortal(
+        <div
+          className="fixed z-[220] overflow-hidden rounded-xl border border-dashboard-border-strong bg-dashboard-raised p-1.5 shadow-panel"
+          id="task-sort-menu"
+          ref={menuRef}
+          role="menu"
+          style={position}
+        >
+          {sortOptions.map((option) => {
+            const selected = value === option.value;
+            return (
+              <button
+                aria-checked={selected}
+                className={cn(
+                  'flex h-10 w-full items-center justify-between rounded-lg px-3 text-left text-sm font-medium transition',
+                  selected
+                    ? 'bg-dashboard-accent-soft text-dashboard-accent'
+                    : 'text-dashboard-muted hover:bg-dashboard-surface-hover hover:text-dashboard-text',
+                )}
+                key={option.value}
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+                role="menuitemradio"
+                type="button"
+              >
+                {option.label}
+                {selected ? <CheckIcon aria-hidden="true" className="h-4 w-4" /> : null}
+              </button>
+            );
+          })}
+        </div>,
+        document.body,
       ) : null}
     </>
   );

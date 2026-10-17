@@ -9,7 +9,6 @@ import { getDashboardSummary, type DashboardSummary } from '../../lib/dashboard'
 import { formatDurationLabel } from '../../lib/duration';
 import { updateTask } from '../../lib/tasks';
 import { CalendarIcon, CheckIcon, FlameIcon, FocusIcon } from '../layout/icons';
-import { DashboardEmptyState } from './dashboard-empty-state';
 import { DashboardErrorState } from './dashboard-error-state';
 import { DashboardLoadingState } from './dashboard-loading-state';
 import { DashboardStatCard } from './dashboard-stat-card';
@@ -151,12 +150,6 @@ export function DashboardPage() {
   const focusValue = formatFocusMinutes(focusGoal.completed_minutes);
   const focusMeta = `of ${formatFocusMinutes(focusGoal.goal_minutes)} daily goal`;
 
-  const hasDashboardTasks =
-    summary.task_progress.total > 0 ||
-    summary.ai_recommendation !== null ||
-    summary.quick_wins.length > 0 ||
-    summary.in_progress.length > 0;
-
   return (
     <div className="mx-auto max-w-[1480px] space-y-8">
       <section
@@ -204,8 +197,6 @@ export function DashboardPage() {
           value={String(summary.overdue_count)}
         />
       </section>
-
-      {!hasDashboardTasks ? <DashboardEmptyState /> : null}
 
       <div className="grid items-start gap-6 lg:items-stretch lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <SuggestedTaskCard

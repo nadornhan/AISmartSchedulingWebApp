@@ -47,6 +47,10 @@ const routeMeta: Record<string, RouteMeta> = {
     title: 'Profile',
     subtitle: 'View your account details and manage your profile photo.',
   },
+  '/account': {
+    title: 'Account Settings',
+    subtitle: 'Your profile, progress, and preferences.',
+  },
   '/priority': {
     title: 'Priority View',
     subtitle: 'Focus on what matters most.',
@@ -66,10 +70,6 @@ const routeMeta: Record<string, RouteMeta> = {
   '/gamification/forest': {
     title: 'Your Forest',
     subtitle: 'Wander your garden and place mature trees.',
-  },
-  '/settings': {
-    title: 'Settings',
-    subtitle: 'Tune your account, scheduling, and notification preferences.',
   },
 };
 
@@ -151,7 +151,7 @@ function DashboardShellContent({
         </Suspense>
 
         <div className="min-w-0 flex-1">
-          <MobileTopHeader title={meta.title} />
+          <MobileTopHeader title={meta.title} totalXp={totalXp} user={user} />
           <Header totalXp={totalXp} user={user} />
           <main
             className={`min-h-[calc(100dvh-7rem)] px-6 pb-32 ${pathname === '/' ? 'pt-[max(1.25rem,env(safe-area-inset-top))]' : 'pt-5'} lg:min-h-[calc(100dvh-6rem)] lg:px-10 lg:pb-8 lg:pt-5 xl:px-12`}
@@ -161,7 +161,7 @@ function DashboardShellContent({
                 mobileTitleInHeader={pathname !== '/'}
                 mobileSearch={pathname === '/' ? <SearchBox compact /> : undefined}
                 mobileActions={
-                  pathname === '/' ? <HeaderActions compact showXp={false} /> : undefined
+                  pathname === '/' ? <HeaderActions compact /> : undefined
                 }
                 title={meta.title}
                 subtitle={meta.subtitle}

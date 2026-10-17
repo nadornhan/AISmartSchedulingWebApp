@@ -2,19 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, type SVGProps } from 'react';
-import { LogOut, Moon, Sun, TreePine, UserRound } from 'lucide-react';
-import { useCurrentUser } from '../auth/current-user-provider';
-import { useUiPreferences } from './ui-preferences-provider';
+import type { SVGProps } from 'react';
+import { CircleUserRound } from 'lucide-react';
 import {
   CalendarIcon,
-  CloseIcon,
-  FolderIcon,
-  FocusIcon,
-  InsightsIcon,
   PlusIcon,
-  PriorityIcon,
-  SettingsIcon,
   TasksIcon,
 } from './icons';
 
@@ -39,31 +31,13 @@ function HomeIcon(props: NavIconProps) {
   );
 }
 
-function MoreHorizontalIcon(props: NavIconProps) {
-  return (
-    <svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24" {...props}>
-      <circle cx="5" cy="12" r="1.5" />
-      <circle cx="12" cy="12" r="1.5" />
-      <circle cx="19" cy="12" r="1.5" />
-    </svg>
-  );
-}
-
 const primaryItems = [
   { href: '/', label: 'Home', icon: HomeIcon },
   { href: '/tasks', label: 'Tasks', icon: TasksIcon },
   { href: '/calendar', label: 'Calendar', icon: CalendarIcon },
 ] as const;
 
-const moreItems = [
-  { href: '/priority', label: 'Priority', icon: PriorityIcon },
-  { href: '/focus', label: 'Focus', icon: FocusIcon },
-  { href: '/folders', label: 'Folders', icon: FolderIcon },
-  { href: '/analytics', label: 'AI Insights', icon: InsightsIcon },
-  { href: '/gamification', label: 'Personal Forest', icon: TreePine },
-  { href: '/settings', label: 'Settings', icon: SettingsIcon },
-  { href: '/profile', label: 'Profile', icon: UserRound },
-] as const;
+const accountRoutes = ['/account', '/analytics', '/gamification', '/profile'];
 
 function routeIsActive(pathname: string, href: string) {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
@@ -72,20 +46,6 @@ function routeIsActive(pathname: string, href: string) {
 export function MobileBottomNavigation() {
   const pathname = usePathname();
   const router = useRouter();
-  const { signOut } = useCurrentUser();
-  const { theme, setTheme } = useUiPreferences();
-  const [moreOpen, setMoreOpen] = useState(false);
-
-  useEffect(() => setMoreOpen(false), [pathname]);
-
-  useEffect(() => {
-    if (!moreOpen) return;
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') setMoreOpen(false);
-    }
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [moreOpen]);
 
   function openCreateTask() {
     if (pathname === '/tasks') {
@@ -95,81 +55,10 @@ export function MobileBottomNavigation() {
     router.push('/tasks?create=1');
   }
 
-  const moreIsActive = moreItems.some((item) => routeIsActive(pathname, item.href));
+  const accountIsActive = accountRoutes.some((href) => routeIsActive(pathname, href));
 
   return (
     <>
-      {moreOpen ? (
-        <div className="fixed inset-0 z-[180] lg:hidden">
-          <button
-            aria-label="Close more navigation"
-            className="absolute inset-0 bg-dashboard-overlay-soft backdrop-blur-sm"
-            onClick={() => setMoreOpen(false)}
-            type="button"
-          />
-          <section
-            aria-label="More navigation"
-            className="absolute inset-x-3 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] max-h-[calc(100dvh-9rem)] overflow-y-auto rounded-2xl border border-dashboard-border bg-dashboard-raised p-3 shadow-popover"
-          >
-            <div className="mb-2 flex items-center justify-between px-2 py-1">
-              <h2 className="text-sm font-semibold text-dashboard-text">More</h2>
-              <button
-                aria-label="Close menu"
-                className="grid h-9 w-9 place-items-center rounded-full text-dashboard-muted hover:bg-dashboard-surface hover:text-dashboard-text"
-                onClick={() => setMoreOpen(false)}
-                type="button"
-              >
-                <CloseIcon className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {moreItems.map((item) => {
-                const active = routeIsActive(pathname, item.href);
-                const Icon = item.icon;
-                return (
-                  <Link
-                    aria-current={active ? 'page' : undefined}
-                    className={`flex min-h-14 items-center gap-3 rounded-xl px-4 text-sm transition ${active ? 'bg-dashboard-accent-soft text-dashboard-accent' : 'text-dashboard-muted hover:bg-dashboard-surface hover:text-dashboard-text'}`}
-                    href={item.href}
-                    key={item.href}
-                    onClick={() => setMoreOpen(false)}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-              <button
-                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                className="flex min-h-14 items-center gap-3 rounded-xl px-4 text-sm text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-text"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                type="button"
-              >
-                {theme === 'dark' ? (
-                  <Sun aria-hidden="true" className="h-5 w-5 shrink-0" />
-                ) : (
-                  <Moon aria-hidden="true" className="h-5 w-5 shrink-0" />
-                )}
-                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-              </button>
-            </div>
-            <div className="mt-2 border-t border-dashboard-border pt-2">
-              <button
-                className="flex min-h-14 w-full items-center gap-3 rounded-xl px-4 text-sm font-medium text-dashboard-danger transition hover:bg-dashboard-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
-                onClick={() => {
-                  setMoreOpen(false);
-                  signOut();
-                }}
-                type="button"
-              >
-                <LogOut aria-hidden="true" className="h-5 w-5 shrink-0" />
-                Log out
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
       <nav
         aria-label="Mobile navigation"
         className="fixed inset-x-0 bottom-0 z-[190] border-t border-dashboard-border bg-[var(--bg-sidebar)] px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgb(var(--shadow-color)/calc(0.18*var(--shadow-strength)))] lg:hidden"
@@ -218,16 +107,14 @@ export function MobileBottomNavigation() {
             );
           })}
 
-          <button
-            aria-expanded={moreOpen}
-            aria-haspopup="dialog"
-            className={`flex min-h-16 flex-col items-center justify-center gap-1 text-xs transition ${moreIsActive || moreOpen ? 'text-dashboard-accent' : 'text-dashboard-subtle hover:text-dashboard-text'}`}
-            onClick={() => setMoreOpen(true)}
-            type="button"
+          <Link
+            aria-current={accountIsActive ? 'page' : undefined}
+            className={`flex min-h-16 flex-col items-center justify-center gap-1 text-xs transition ${accountIsActive ? 'text-dashboard-accent' : 'text-dashboard-subtle hover:text-dashboard-text'}`}
+            href="/account"
           >
-            <MoreHorizontalIcon className="h-6 w-6" />
-            <span>More</span>
-          </button>
+            <CircleUserRound aria-hidden="true" className="h-6 w-6" />
+            <span>Account</span>
+          </Link>
         </div>
       </nav>
     </>

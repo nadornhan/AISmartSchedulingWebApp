@@ -7,6 +7,7 @@ from app.auth.dependencies import CurrentUser
 from app.auth.schemas import (
     TokenResponse,
     UserLogin,
+    UserProfileUpdate,
     UserRegister,
     UserResponse,
 )
@@ -19,6 +20,7 @@ from app.auth.service import (
     delete_user_avatar,
     get_user_by_email,
     save_user_avatar,
+    update_user_profile,
 )
 from app.database import get_db
 
@@ -81,6 +83,15 @@ def login(
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: CurrentUser) -> UserResponse:
     return current_user
+
+
+@router.patch("/me", response_model=UserResponse)
+def update_me(
+    payload: UserProfileUpdate,
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> UserResponse:
+    return update_user_profile(db, current_user, payload)
 
 
 @router.post("/me/avatar", response_model=UserResponse)
