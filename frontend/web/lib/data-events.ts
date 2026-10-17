@@ -1,3 +1,5 @@
+import { invalidateReadCache } from './read-cache';
+
 export const TASK_DATA_CHANGED_EVENT = 'chrono:task-data-changed';
 export const PROJECT_DATA_CHANGED_EVENT = 'chrono:project-data-changed';
 export const SETTINGS_DATA_CHANGED_EVENT = 'chrono:settings-data-changed';
@@ -9,10 +11,14 @@ function emitDataChanged(eventName: string) {
 }
 
 export function emitTaskDataChanged() {
+  invalidateReadCache('tasks');
+  invalidateReadCache('projects');
   emitDataChanged(TASK_DATA_CHANGED_EVENT);
 }
 
 export function emitProjectDataChanged() {
+  invalidateReadCache('projects');
+  invalidateReadCache('tasks');
   emitDataChanged(PROJECT_DATA_CHANGED_EVENT);
 }
 

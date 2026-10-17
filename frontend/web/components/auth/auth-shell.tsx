@@ -27,7 +27,7 @@ export function AuthShell({
       <aside className="relative hidden w-[60%] min-h-screen overflow-hidden lg:block">
         <img
           alt=""
-          className="absolute inset-0 h-full w-full object-cover object-bottom"
+          className="absolute inset-0 h-full w-full object-cover object-[center_125%] 2xl:object-[center_105%]"
           src="/auth/auth-hero.png"
         />
         <div className="absolute inset-0 bg-black/20" />

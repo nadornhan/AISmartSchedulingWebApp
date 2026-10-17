@@ -48,7 +48,23 @@ The Profile page uses a two-column desktop layout: photo and editable names on t
 
 ## Interface design documentation
 
+Task navigation now uses `GET /tasks/counts` instead of five separate count
+requests. Task lists/counts and project choices use a bounded, authentication-scoped
+memory cache with shared in-flight requests. Recent task snapshots display on
+return visits while expired reads refresh. Mutation events invalidate affected
+entries before triggering view refreshes, and sign-out clears the cache. See the
+[task loading guide](web/components/tasks/README.md#loading-and-navigation) for
+lifetimes, request counts and verification scope. The updated frontend requires
+the backend version that provides `/tasks/counts`; no migration is needed.
+
 [Frontend Architecture and Integration Design](Frontend_Architecture_and_Integration_Design.docx) contains Chapter 6 Frontend and UI UX Design for insertion into the final report. It compares the current interface with the A4 prototype, describes the less is more approach, light mode, authentication, dashboard, Tasks and Calendar, Account Settings and Profile, and leaves labelled screenshot placeholders. Existing architecture and integration sections remain part of the chapter. See [Theme.md](Theme.md) for visual conventions; `web/app/globals.css` is the implementation source for theme tokens.
+
+[Data Fetching and Performance Review](Chrono_Data_Fetching_and_Performance_Review.docx)
+explains the implemented before/after request flow, aggregate counts, browser
+cache policy, mutation and authentication boundaries, verification limits and
+prioritised performance proposals. The architecture chapter reflects the current
+cache module; proposed calendar, shell, database and query-library changes are
+not described as implemented features.
 
 Mobile navigation exposes Home, Tasks, central task creation, Calendar and Account. Desktop retains the wider feature sidebar. Dark and light workspace themes share semantic tokens; authentication artwork currently remains dark. Google and Facebook buttons on authentication pages are visual mock-ups.
 

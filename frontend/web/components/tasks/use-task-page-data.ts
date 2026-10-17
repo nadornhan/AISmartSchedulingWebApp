@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { onProjectDataChanged, onTaskDataChanged } from '../../lib/data-events';
-import { listProjects, type Project } from '../../lib/projects';
-import { getTask, listTasks, type TaskSortValue } from '../../lib/tasks';
+import { getCachedProjects, listProjects, type Project } from '../../lib/projects';
+import { getCachedTaskList, getCachedTaskCounts, getTaskCounts, getTask, listTasks, type TaskCounts, type TaskSortValue } from '../../lib/tasks';
 import {
   filterToApi,
   getErrorMessage,
@@ -43,26 +43,50 @@ export function useTaskPageData({
   setSelected,
   setMenuTaskId,
 }: TaskPageDataOptions) {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [counts, setCounts] = useState<Record<TaskFilter, number>>({
-    All: 0,
-    Pending: 0,
-    'In Progress': 0,
-    Done: 0,
-    Overdue: 0,
+  const taskParams = {
+    projectId: activeProjectId || undefined,
+    search: searchQuery || undefined,
+    status: filterToApi[activeFilter],
+    priority: priorityFilterToApi[priorityFilter],
+    sortBy,
+    sortOrder: sortAscending ? 'asc' as const : 'desc' as const,
+    page,
+    pageSize,
+  };
+  const cached = targetTaskId ? undefined : getCachedTaskList(taskParams);
+  const countParams = { projectId: activeProjectId || undefined, search: searchQuery || undefined };
+  const displayCounts = (value?: TaskCounts): Record<TaskFilter, number> => ({
+    All: value?.total ?? 0,
+    Pending: value?.pending ?? 0,
+    'In Progress': value?.in_progress ?? 0,
+    Done: value?.done ?? 0,
+    Overdue: value?.overdue ?? 0,
   });
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalTasks, setTotalTasks] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [tasks, setTasks] = useState<Task[]>(() => cached?.items.map(toTask) ?? []);
+  const [projects, setProjects] = useState<Project[]>(() => getCachedProjects() ?? []);
+  const [counts, setCounts] = useState(() => displayCounts(getCachedTaskCounts(countParams)));
+  const [totalPages, setTotalPages] = useState(cached?.total_pages ?? 0);
+  const [totalTasks, setTotalTasks] = useState(cached?.total ?? 0);
+  const [isLoading, setIsLoading] = useState(!cached);
+  const taskRevision = useRef(0);
+  const countRevision = useRef(0);
+  const projectRevision = useRef(0);
 
   const refreshTasks = useCallback(async () => {
-    setIsLoading(true);
+    const revision = ++taskRevision.current;
+    const previous = targetTaskId ? undefined : getCachedTaskList(taskParams);
+    if (previous) {
+      setTasks(previous.items.map(toTask));
+      setTotalPages(previous.total_pages);
+      setTotalTasks(previous.total);
+    }
+    setIsLoading(!previous);
     setError(null);
 
     try {
       if (targetTaskId) {
         const task = await getTask(targetTaskId);
+        if (revision !== taskRevision.current) return;
         setTasks([toTask(task)]);
         setTotalPages(1);
         setTotalTasks(1);
@@ -71,28 +95,23 @@ export function useTaskPageData({
         return;
       }
 
-      const response = await listTasks({
-        projectId: activeProjectId || undefined,
-        search: searchQuery || undefined,
-        status: filterToApi[activeFilter],
-        priority: priorityFilterToApi[priorityFilter],
-        sortBy,
-        sortOrder: sortAscending ? 'asc' : 'desc',
-        page,
-        pageSize,
-      });
+      const response = await listTasks(taskParams);
+      if (revision !== taskRevision.current) return;
       setTasks(response.items.map(toTask));
       setTotalPages(response.total_pages);
       setTotalTasks(response.total);
       setSelected([]);
       setMenuTaskId(null);
     } catch (requestError) {
+      if (revision !== taskRevision.current) return;
       setError(getErrorMessage(requestError));
-      setTasks([]);
-      setTotalPages(0);
-      setTotalTasks(0);
+      if (!previous) {
+        setTasks([]);
+        setTotalPages(0);
+        setTotalTasks(0);
+      }
     } finally {
-      setIsLoading(false);
+      if (revision === taskRevision.current) setIsLoading(false);
     }
   }, [
     activeFilter,
@@ -110,66 +129,39 @@ export function useTaskPageData({
   ]);
 
   const refreshCounts = useCallback(async () => {
+    const revision = ++countRevision.current;
     try {
-      const projectId = activeProjectId || undefined;
-      const [all, pending, inProgress, done, overdue] = await Promise.all([
-        listTasks({
-          projectId,
-          search: searchQuery || undefined,
-          page: 1,
-          pageSize: 1,
-        }),
-        listTasks({
-          projectId,
-          search: searchQuery || undefined,
-          status: 'pending',
-          page: 1,
-          pageSize: 1,
-        }),
-        listTasks({
-          projectId,
-          search: searchQuery || undefined,
-          status: 'in_progress',
-          page: 1,
-          pageSize: 1,
-        }),
-        listTasks({
-          projectId,
-          search: searchQuery || undefined,
-          status: 'done',
-          page: 1,
-          pageSize: 1,
-        }),
-        listTasks({
-          projectId,
-          search: searchQuery || undefined,
-          status: 'overdue',
-          page: 1,
-          pageSize: 1,
-        }),
-      ]);
-      setCounts({
-        All: all.total,
-        Pending: pending.total,
-        'In Progress': inProgress.total,
-        Done: done.total,
-        Overdue: overdue.total,
-      });
+      const response = await getTaskCounts(countParams);
+      if (revision === countRevision.current) setCounts(displayCounts(response));
     } catch {
       // The main task request displays the actionable API error.
     }
   }, [activeProjectId, searchQuery]);
 
+  const refreshProjects = useCallback(async () => {
+    const revision = ++projectRevision.current;
+    try {
+      const response = await listProjects();
+      if (revision === projectRevision.current) setProjects(response);
+    } catch {
+      if (revision === projectRevision.current && !getCachedProjects()) setProjects([]);
+    }
+  }, []);
+
   useEffect(() => {
     void refreshTasks();
+    return () => { taskRevision.current++; };
   }, [refreshTasks]);
 
   useEffect(() => {
     void refreshCounts();
-    void listProjects()
-      .then(setProjects)
-      .catch(() => setProjects([]));
+    return () => { countRevision.current++; };
   }, [refreshCounts]);
+
+  useEffect(() => {
+    void refreshProjects();
+    return () => { projectRevision.current++; };
+  }, [refreshProjects]);
 
   useEffect(
     () =>
@@ -183,12 +175,11 @@ export function useTaskPageData({
   useEffect(
     () =>
       onProjectDataChanged(() => {
-        void listProjects()
-          .then(setProjects)
-          .catch(() => setProjects([]));
+        void refreshProjects();
+        void refreshTasks();
         void refreshCounts();
       }),
-    [refreshCounts],
+    [refreshCounts, refreshProjects, refreshTasks],
   );
 
   return {

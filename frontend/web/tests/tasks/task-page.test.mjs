@@ -65,7 +65,7 @@ const priorityDeclarations = modal.statements.filter(
 );
 assert.equal(priorityDeclarations.length, 2);
 const priority = load(priorityDeclarations.map((statement) => statement.getText(modal)).join('\n'));
-const { ApiError } = load(read('lib/api.ts'));
+const { ApiError } = load(read('lib/api.ts'), { './read-cache': load(read('lib/read-cache.ts')) });
 const duration = load(read('lib/duration.ts'));
 const model = load(read('components/tasks/task-page-model.ts'), {
   '../../lib/api': { ApiError },

@@ -18,6 +18,7 @@ from app.tasks.schemas import (
     TaskBulkResponse,
     TaskBulkUpdate,
     TaskCreate,
+    TaskCountsResponse,
     TaskDisplayStatus,
     TaskDuplicate,
     TaskListResponse,
@@ -104,6 +105,21 @@ def list_tasks(
         total=total,
         total_pages=math.ceil(total / page_size) if page_size else 0,
     )
+
+
+@router.get("/counts", response_model=TaskCountsResponse)
+def task_counts(
+    db: DatabaseSession,
+    current_user: CurrentUser,
+    search: str | None = Query(default=None, min_length=1, max_length=255),
+    project_id: uuid.UUID | None = None,
+    inbox_only: bool = Query(default=False),
+) -> TaskCountsResponse:
+    if project_id is not None and not inbox_only:
+        _ensure_project(db, current_user.id, project_id)
+    return TaskCountsResponse(**service.count_tasks(
+        db, current_user.id, search=search, project_id=project_id, inbox_only=inbox_only,
+    ))
 
 
 @router.post(

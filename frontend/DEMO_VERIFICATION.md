@@ -1,5 +1,25 @@
 # Demo verification and documentation consistency
 
+## Task loading optimisation on 18 October 2026
+
+Tasks now uses one `GET /tasks/counts` aggregate request instead of five list
+requests for its status badges. A cold feature load uses three reads (tasks,
+counts and projects), excluding shared shell requests. A bounded memory cache
+shares in-flight task/count/project reads, reuses recent results and supplies
+cached task snapshots on return visits. Task and project mutation events
+invalidate affected entries, and authentication changes clear the cache.
+
+Verification: 121 frontend regressions passed across task presentation, loading,
+actions, read-cache behaviour and auth sessions. TypeScript and scoped ESLint
+passed. Five backend regressions passed using an isolated in-memory SQLite
+database: status totals match existing list filters, search/project/Inbox and
+ownership scopes hold, empty results are zero, the aggregate uses one SQL query,
+and `/tasks/counts` precedes the task-ID route. No demonstration records were
+accessed. These are functional checks, not a live PostgreSQL integration test or
+a measured browser-navigation benchmark. Calendar range loading and development
+compilation remain separate performance considerations. Deploy the updated API
+alongside the frontend; the endpoint requires no schema migration.
+
 Date: 2026-10-12 (Australia/Sydney). Source baseline: `54fdf02`, the three local cleanup commits on GitHub develop `3fb1d1d`.
 
 This batch verifies the integrated web app and corrects outdated documentation. It does not refactor active feature code, change schema/infrastructure, implement React Native or configure mobile simulation tooling.

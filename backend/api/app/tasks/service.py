@@ -50,6 +50,39 @@ def _replace_subtasks(task: Task, subtasks: list[SubtaskInput]) -> None:
     )
 
 
+def count_tasks(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    search: str | None = None,
+    project_id: uuid.UUID | None = None,
+    inbox_only: bool = False,
+) -> dict[str, int]:
+    """Count all display-status tabs in one query without loading task records."""
+    conditions = [Task.user_id == user_id]
+    if search is not None and search.strip():
+        pattern = f"%{search.strip()}%"
+        conditions.append(or_(Task.title.ilike(pattern), Task.description.ilike(pattern)))
+    if inbox_only:
+        conditions.append(Task.project_id.is_(None))
+    elif project_id is not None:
+        conditions.append(Task.project_id == project_id)
+
+    overdue = task_overdue_condition(Task)
+
+    def count_when(condition, label):
+        return func.coalesce(func.sum(case((condition, 1), else_=0)), 0).label(label)
+
+    statement = select(
+        func.count(Task.id).label("total"),
+        count_when((Task.status == TaskStatus.PENDING) & ~overdue, "pending"),
+        count_when((Task.status == TaskStatus.IN_PROGRESS) & ~overdue, "in_progress"),
+        count_when(Task.status == TaskStatus.DONE, "done"),
+        count_when(overdue, "overdue"),
+    ).where(*conditions)
+    return dict(db.execute(statement).mappings().one())
+
+
 def list_tasks(
     db: Session,
     user_id: uuid.UUID,

@@ -18,15 +18,36 @@
 - `create-task-modal.tsx`: existing create/edit forms and AI-assisted task
   flows. The page model continues using its existing priority-label helper.
 
-This extraction preserves the existing UI, handlers and API contracts. It does
-not change authentication, backend services, database schema or infrastructure.
-Responsive mobile layouts remain part of the web demonstration; this does not
-introduce React Native work.
+The presentation extractions preserve the responsive web layout. The subsequent
+loading optimisation adds `GET /tasks/counts` and a short-lived browser-memory
+read cache without changing the database schema.
+
+## Loading and navigation
+
+Initial Tasks loading uses the task-list request, one aggregate counts request,
+and the shared project-list request (three cold reads instead of seven). The
+counts endpoint uses one aggregate SQL query and retains project/search scoping
+and the existing computed-overdue rules. Count badges remain independent of the
+priority filter, while pagination uses the filtered list response.
+
+`lib/read-cache.ts` shares in-flight requests and reuses task lists/counts for
+15 seconds and projects for 60 seconds. Recent snapshots remain available for up
+to five minutes so a returning Tasks page can show content while revalidating.
+The memory cache is limited to 50 query entries and clears on authentication
+changes. It does not provide offline persistence or cross-tab synchronisation.
+Task and project mutation events invalidate affected caches before notifying
+mounted views. Calls with an AbortSignal remain independent requests so cancelling
+one view cannot cancel another view's shared request. Request revisions prevent
+old filter results or unmounted loaders from changing the current Tasks view.
+
+Folders remain available. Project choices are shared and no longer reloaded for
+every search query; they are still loaded on a cold visit because Tasks uses them
+for its existing folder controls and edit/create forms.
 
 Run Task regression tests from `frontend/web`:
 
 ```sh
-node --test tests/tasks/task-page.test.mjs tests/tasks/task-page-data.test.mjs
+node --test tests/tasks/task-page.test.mjs tests/tasks/task-page-data.test.mjs tests/tasks/task-actions.test.mjs tests/tasks/task-read-cache.test.mjs
 ```
 
 The tests cover display/workflow status separation, priorities, date labels,
