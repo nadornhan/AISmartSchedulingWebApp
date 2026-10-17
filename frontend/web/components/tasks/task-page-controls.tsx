@@ -108,7 +108,7 @@ export function CheckBox({
       className={cn(
         'grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border transition',
         checked
-          ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+          ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
           : 'border-dashboard-border-strong bg-[var(--bg-input)] hover:border-dashboard-accent/70',
       )}
       onClick={onChange}
@@ -160,7 +160,7 @@ export function SubtaskAccordion({
               className={cn(
                 'grid h-5 w-5 shrink-0 place-items-center rounded-full border transition',
                 subtask.is_completed
-                  ? 'border-dashboard-accent bg-dashboard-accent text-[#04110d]'
+                  ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
                   : 'border-dashboard-border-strong bg-transparent',
               )}
             >

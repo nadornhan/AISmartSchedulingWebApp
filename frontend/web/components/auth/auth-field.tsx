@@ -8,15 +8,15 @@ type AuthFieldProps = {
 
 export function AuthField({ id, label, icon, ...inputProps }: AuthFieldProps) {
   return (
-    <label className="relative block w-full" htmlFor={id}>
-      <span className="sr-only">{label}</span>
+    <label className="relative block h-[72px] w-full" htmlFor={id}>
+      <span className="absolute left-0 top-2.5 text-sm text-[#65737a]">{label}</span>
       <input
-        className={`chrono-autofill chrono-autofill-auth h-11 w-full rounded-md border border-[#303030] bg-[#252525] pr-3 text-sm font-normal text-[#f5f5f5] outline-none transition placeholder:text-[#777777] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] ${icon ? 'pl-10' : 'pl-3'}`}
+        className="chrono-autofill chrono-autofill-auth absolute inset-x-0 bottom-0 h-12 w-full border-0 border-b border-[#ececf2] bg-transparent pr-8 text-sm font-bold text-[#f4f7f6] outline-none placeholder:font-semibold placeholder:text-[#65737a] focus:border-[var(--accent)]"
         id={id}
         {...inputProps}
       />
       {icon ? (
-        <span className="pointer-events-none absolute left-3 top-1/2 flex size-4 -translate-y-1/2 items-center justify-center text-[#858585]">
+        <span className="pointer-events-none absolute right-0 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center text-[#f4f7f6] opacity-80">
           {icon}
         </span>
       ) : null}

@@ -45,19 +45,19 @@ export default function LoginPage() {
 
   return (
     <AuthShell>
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2 text-center">
+      <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-[11px]">
           <h2 className="font-poppins text-[32px] font-bold leading-[42px] text-[#f4f7f6]">
-            Sign in
+            Sign in to continue to <span className="text-[var(--accent)]">Chrono.</span>
           </h2>
           <p className="text-sm leading-[21px] text-[#8181a5]">
             Enter your details to proceed further
           </p>
         </div>
 
-        <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-2">
+        <form className="flex flex-col gap-[38px]" onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-[34px]">
+            <div className="flex flex-col gap-[13px]">
               <AuthField
                 autoComplete="email"
                 icon={<EmailIcon />}
@@ -101,14 +101,11 @@ export default function LoginPage() {
             <AuthPrimaryButton disabled={isSubmitting} tone="light">
               {isSubmitting ? 'Signing in...' : 'Sign In'}
             </AuthPrimaryButton>
+            <AuthSecondaryLink href="/register">Sign Up</AuthSecondaryLink>
           </div>
         </form>
 
         <AuthSocialRow />
-        <p className="text-center text-xs text-[#8181a5]">
-          Don&apos;t have an account?{' '}
-          <AuthSecondaryLink href="/register">Sign Up</AuthSecondaryLink>
-        </p>
       </div>
     </AuthShell>
   );

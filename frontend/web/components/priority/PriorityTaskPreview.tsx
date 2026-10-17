@@ -58,7 +58,7 @@ export function PriorityTaskPreview({ task, onClose }: Props) {
   return (
     <div
       aria-modal="true"
-      className="fixed inset-0 z-[350] grid place-items-center bg-black/55 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[350] grid place-items-center bg-dashboard-overlay-soft p-4 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}

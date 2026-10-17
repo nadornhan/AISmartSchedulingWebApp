@@ -91,7 +91,7 @@ export function FolderList({
         </p>
         {onAddFolder ? (
           <button
-            className="mt-6 h-11 rounded-lg bg-dashboard-accent px-5 font-semibold text-dashboard-bg transition hover:brightness-110"
+            className="mt-6 h-11 rounded-lg bg-dashboard-accent px-5 font-semibold text-dashboard-on-accent transition hover:brightness-110"
             onClick={onAddFolder}
             type="button"
           >

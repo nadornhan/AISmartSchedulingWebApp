@@ -99,9 +99,15 @@ function useScrollFeedback<T extends HTMLElement>() {
 }
 
 function BrandMark() {
+  const { theme } = useUiPreferences();
+
   return (
     <div className="grid h-11 w-11 shrink-0 place-items-center bg-transparent">
-      <img alt="Chrono" className="h-10 w-10 object-contain" src="/chrono-logo.png" />
+      <img
+        alt="Chrono"
+        className="h-10 w-10 object-contain"
+        src={theme === 'light' ? '/chrono-logo-light.png' : '/chrono-logo.png'}
+      />
     </div>
   );
 }
@@ -324,7 +330,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       </div>
 
       <div className={cn('group relative mb-10', sidebarCollapsed && 'mb-7')}>
-        <div className="flex h-14 overflow-hidden rounded-xl border border-dashboard-accent/60 bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong text-white transition hover:brightness-110">
+        <div className="flex h-14 overflow-hidden rounded-xl border border-dashboard-accent/60 bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong text-dashboard-on-accent-inverse transition hover:brightness-110">
           <button
             aria-label="Add task"
             className={cn(
@@ -416,22 +422,32 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         </section>
 
         <section className="border-t border-dashboard-border pt-6">
-          <SectionTitle
-            actionLabel="Add folder"
-            collapsed={sidebarCollapsed}
-            onAction={openCreateFolderModal}
-          >
-            Projects / Folders
-          </SectionTitle>
+          <div className="mb-1.5 flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <NavLink
+                active={foldersActive}
+                collapsed={sidebarCollapsed}
+                item={foldersNavItem}
+                onNavigate={onNavigate}
+              />
+            </div>
+            {!sidebarCollapsed ? (
+              <button
+                aria-label="Add folder"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-dashboard-border bg-dashboard-surface text-dashboard-text transition hover:border-dashboard-accent/60 hover:text-dashboard-accent"
+                onClick={openCreateFolderModal}
+                type="button"
+              >
+                <PlusIcon className="h-5 w-5" />
+              </button>
+            ) : null}
+          </div>
           <div className="space-y-1.5">
-            <NavLink
-              active={foldersActive}
-              collapsed={sidebarCollapsed}
-              item={foldersNavItem}
-              onNavigate={onNavigate}
-            />
             <div
-              className="accent-scrollbar max-h-[232px] overflow-y-auto pt-1"
+              className={cn(
+                'accent-scrollbar max-h-[232px] overflow-y-auto pt-1',
+                !sidebarCollapsed && 'pl-5',
+              )}
               ref={folderListRef}
             >
               {folders.map((folder) => (
@@ -480,7 +496,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           <div
             className="mb-6 overflow-hidden rounded-2xl border border-dashboard-border p-6 aspect-[4.2/3]"
             style={{
-              backgroundImage: "url('/sidebar.png')",
+              backgroundImage: 'var(--sidebar-artwork)',
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { getApiUrl } from '../../lib/api';
 
 type UserAvatarProps = {
@@ -47,19 +48,24 @@ export function UserAvatar({
   lastName,
 }: UserAvatarProps) {
   const initials = getUserInitials({ email, firstName, lastName });
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+  const src = avatarUrl ? resolveAvatarUrl(avatarUrl) : null;
 
   return (
     <span
       className={cn(
-        'grid shrink-0 place-items-center overflow-hidden rounded-full border border-dashboard-border-strong bg-gradient-to-br from-dashboard-muted to-dashboard-surface text-sm font-semibold text-dashboard-bg',
+        'grid shrink-0 place-items-center overflow-hidden rounded-full border border-dashboard-border-strong [background:var(--avatar-background)] text-sm font-semibold text-[var(--avatar-text)]',
         className,
       )}
     >
-      {avatarUrl ? (
+      {src && src !== failedAvatarUrl ? (
         <img
+          key={src}
           alt=""
           className={cn('h-full w-full object-cover', imageClassName)}
-          src={resolveAvatarUrl(avatarUrl)}
+          onError={() => setFailedAvatarUrl(src)}
+          onLoad={() => setFailedAvatarUrl(null)}
+          src={src}
         />
       ) : (
         initials

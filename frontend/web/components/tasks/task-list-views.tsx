@@ -100,7 +100,7 @@ export function TaskDesktopTable({
                   onChange={() => toggleSelected(task.id)}
                 />
                 {task.status === 'Done' ? (
-                  <span className="grid h-6 w-6 place-items-center rounded-full bg-dashboard-accent text-dashboard-bg lg:hidden">
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-dashboard-accent text-dashboard-on-accent lg:hidden">
                     <CheckIcon className="h-4 w-4" />
                   </span>
                 ) : null}
@@ -120,7 +120,7 @@ export function TaskDesktopTable({
               >
                 <div className="flex items-center gap-3">
                   {task.status === 'Done' ? (
-                    <span className="hidden h-6 w-6 shrink-0 place-items-center rounded-full bg-dashboard-accent text-dashboard-bg lg:grid">
+                    <span className="hidden h-6 w-6 shrink-0 place-items-center rounded-full bg-dashboard-accent text-dashboard-on-accent lg:grid">
                       <CheckIcon className="h-4 w-4" />
                     </span>
                   ) : null}
@@ -374,7 +374,7 @@ export function TaskMobileList({
                           className={cn(
                             'mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full border transition',
                             completed
-                              ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                              ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
                               : 'border-dashboard-border-strong bg-transparent hover:border-dashboard-accent',
                           )}
                           disabled={isMutating}

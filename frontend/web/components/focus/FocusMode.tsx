@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
+import { Clock3, LoaderCircle } from 'lucide-react';
 import { FocusSettingsModal } from './FocusSettingsModal';
 import { useFocusTasks, type FocusTask } from './use-focus-tasks';
 import { modes, useFocusTimer } from './use-focus-timer';
@@ -17,7 +18,6 @@ export function FocusMode() {
   const {
     mode,
     durations,
-    seconds,
     running,
     progress,
     minutes,
@@ -33,7 +33,6 @@ export function FocusMode() {
     saveDurations,
     toggleTimer,
     skipSession,
-    resetTimer,
     stopFocusSession,
     toggleFocusTask,
   } = useFocusTimer({ selectedTaskId, selectedDuration, setSettingsOpen });
@@ -82,6 +81,7 @@ export function FocusMode() {
                   : 'text-dashboard-muted hover:text-dashboard-text'
               }`}
               key={item}
+              disabled={isSessionMutating}
               onClick={() => void selectMode(item)}
               type="button"
             >
@@ -106,7 +106,7 @@ export function FocusMode() {
               fill="none"
               pathLength="100"
               r="96"
-              stroke="var(--dashboard-accent)"
+              stroke="rgb(var(--accent-fill-strong-rgb))"
               strokeDasharray={`${progress * 100} 100`}
               strokeLinecap="round"
               strokeWidth="2.6"
@@ -114,27 +114,25 @@ export function FocusMode() {
           </svg>
 
           <div className="focus-timer-content">
-            <div className="focus-timer-label text-dashboard-accent">
-              <ClockIcon />
-              <span className="font-medium">{mode === 'Pomodoro' ? 'Focus Time' : mode}</span>
-            </div>
-
+            <Clock3 aria-hidden="true" className="focus-timer-clock text-dashboard-accent" />
             <p className="focus-timer-time font-poppins font-medium leading-none tracking-tight text-dashboard-text">
               {minutes}:{remainder}
             </p>
 
-            <div className="focus-timer-controls">
+            <div
+              className={`focus-timer-controls${mode === 'Pomodoro' && sessionTaskLocked ? ' focus-timer-controls--with-stop' : ''}`}
+            >
               <button
                 aria-label={timerActionLabel}
-                className="focus-timer-action rounded-full bg-gradient-to-r from-dashboard-accent-strong to-dashboard-accent font-semibold text-white shadow-glow transition hover:brightness-110"
+                className="focus-timer-action rounded-full bg-gradient-to-r from-dashboard-accent-strong to-dashboard-accent font-semibold text-dashboard-on-accent-inverse shadow-glow transition hover:brightness-110"
                 disabled={isSessionMutating}
                 onClick={() => void toggleTimer()}
                 type="button"
               >
                 <span className="focus-timer-action-label">{timerActionLabel}</span>
                 <span aria-hidden="true" className="focus-timer-action-icon">
-                  {seconds === 0 || isSessionMutating ? (
-                    <ResetIcon />
+                  {isSessionMutating ? (
+                    <LoaderCircle className="animate-spin motion-reduce:animate-none" />
                   ) : running ? (
                     <PauseIcon />
                   ) : (
@@ -156,23 +154,11 @@ export function FocusMode() {
                 </button>
               ) : null}
 
-              {!sessionTaskLocked ? (
-                <button
-                  aria-label="Reset timer"
-                  className="focus-reset-action"
-                  disabled={isSessionMutating}
-                  onClick={resetTimer}
-                  title="Reset timer"
-                  type="button"
-                >
-                  <ResetIcon />
-                </button>
-              ) : null}
-
               <button
                 aria-label={mode === 'Pomodoro' ? 'Skip to short break' : 'Skip to focus session'}
                 className="focus-skip-action"
-                onClick={skipSession}
+                disabled={isSessionMutating}
+                onClick={() => void skipSession()}
                 title={mode === 'Pomodoro' ? 'Skip to break' : 'Skip to focus'}
                 type="button"
               >
@@ -277,7 +263,7 @@ export function FocusMode() {
                 <button
                   aria-pressed={selected}
                   className={`flex w-full items-center gap-4 border-b border-dashboard-border px-5 py-4 text-left transition last:border-0 disabled:cursor-not-allowed disabled:opacity-55 ${
-                    selected ? 'bg-dashboard-accent/[0.1]' : 'hover:bg-white/[0.025]'
+                    selected ? 'bg-dashboard-accent/[0.1]' : 'hover:bg-dashboard-raised/60'
                   }`}
                   disabled={sessionTaskLocked || selectionLimitReached}
                   key={task.id}
@@ -287,7 +273,7 @@ export function FocusMode() {
                   <span
                     className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border transition ${
                       selected
-                        ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                        ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
                         : 'border-dashboard-muted/60 text-transparent'
                     }`}
                   >
@@ -334,21 +320,6 @@ export function FocusMode() {
         open={settingsOpen}
       />
     </div>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg
-      className="h-5 w-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      viewBox="0 0 24 24"
-    >
-      <circle cx="12" cy="12" r="8" />
-      <path d="M12 7v5l3 2M8 2h8" />
-    </svg>
   );
 }
 
@@ -399,22 +370,6 @@ function formatTaskDueDate(value: string) {
     month: 'short',
     day: 'numeric',
   }).format(date)}`;
-}
-
-function ResetIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.8"
-      viewBox="0 0 24 24"
-    >
-      <path d="M3 11a9 9 0 1 1 2.6 7.4M3 4v7h7" />
-    </svg>
-  );
 }
 
 function PlayIcon() {

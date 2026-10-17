@@ -51,7 +51,7 @@ export function FocusSettingsModal({
   return (
     <div
       aria-modal="true"
-      className="fixed inset-0 z-[300] grid place-items-center bg-black/65 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[300] grid place-items-center bg-dashboard-overlay-soft p-4 backdrop-blur-sm"
       role="dialog"
     >
       <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-dashboard-border bg-dashboard-raised p-5 shadow-panel sm:p-6">
@@ -116,7 +116,7 @@ export function FocusSettingsModal({
         </div>
 
         <button
-          className="mt-6 h-11 w-full rounded-xl bg-dashboard-accent font-semibold text-dashboard-bg transition hover:bg-dashboard-accent-strong"
+          className="mt-6 h-11 w-full rounded-xl bg-dashboard-accent font-semibold text-dashboard-on-accent transition hover:bg-dashboard-accent-strong"
           onClick={saveSettings}
           type="button"
         >

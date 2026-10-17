@@ -11,7 +11,7 @@ import {
 } from 'react';
 
 import { clearSession, getCurrentUser, type UserResponse } from '../../lib/auth';
-import { getAccessToken } from '../../lib/api';
+import { getAccessToken, onUnauthorized } from '../../lib/api';
 import { createCurrentUserSession, type SessionStatus } from '../../lib/auth-session';
 import { detectBrowserTimezone } from '../../lib/settings';
 
@@ -60,6 +60,7 @@ export function CurrentUserProvider({
             : getCurrentUser({ signal }),
         clearSession,
         onUnauthenticated: () => router.replace('/login'),
+        subscribeToUnauthorized: onUnauthorized,
         onVerified: async (signal) => {
           if (process.env.NEXT_PUBLIC_BYPASS_AUTH !== 'true') {
             await detectBrowserTimezone({ signal });

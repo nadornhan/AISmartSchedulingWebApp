@@ -37,6 +37,113 @@ const { createCurrentUserSession } = loadSource('lib/auth-session.ts', {
   './api': { ApiError },
 });
 const user = { id: 'user-a', first_name: 'Test', email: 'test@example.com' };
+
+function apiSessionHarness(fetchPage) {
+  const values = new Map([
+    ['chrono_access_token', 'token-a'],
+    ['chrono.auth.currentUser', JSON.stringify(user)],
+  ]);
+  const localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+  const globals = {
+    localStorage,
+    window: { localStorage },
+    Headers: globalThis.Headers,
+    fetch: (url, init) =>
+      url.endsWith('/auth/me')
+        ? Promise.resolve(new globalThis.Response(JSON.stringify(user)))
+        : fetchPage(url, init),
+  };
+  const api = loadSource('lib/api.ts', {}, globals);
+  const auth = loadSource('lib/auth.ts', { './api': api, './settings': {} }, globals);
+  const { createCurrentUserSession: createSession } = loadSource('lib/auth-session.ts', {
+    './api': api,
+  });
+  let redirects = 0;
+  const session = createSession({
+    getAccessToken: api.getAccessToken,
+    getCurrentUser: auth.getCurrentUser,
+    clearSession: auth.clearSession,
+    subscribeToUnauthorized: api.onUnauthorized,
+    onUnauthenticated: () => {
+      redirects += 1;
+    },
+  });
+  return { api, session, values, redirects: () => redirects };
+}
+
+test('parallel protected-page 401s clear the session and redirect only once', async () => {
+  const h = apiSessionHarness(
+    async () =>
+      new globalThis.Response(JSON.stringify({ detail: 'Could not validate credentials' }), {
+        status: 401,
+      }),
+  );
+  await h.session.start();
+  assert.equal(h.session.getSnapshot().status, 'authenticated');
+  const results = await Promise.allSettled([
+    h.api.apiRequest('/tasks'),
+    h.api.apiRequest('/notifications'),
+  ]);
+  assert.ok(results.every((result) => result.status === 'rejected'));
+  assert.equal(h.session.getSnapshot().status, 'unauthenticated');
+  assert.equal(h.session.getSnapshot().user, null);
+  assert.equal(h.values.has('chrono_access_token'), false);
+  assert.equal(h.values.has('chrono.auth.currentUser'), false);
+  assert.equal(h.redirects(), 1);
+  h.session.dispose();
+});
+
+for (const status of [403, 500, 503, 'network']) {
+  test(`protected-page ${status} does not log out a verified session`, async () => {
+    const h = apiSessionHarness(async () => {
+      if (status === 'network') throw new TypeError('Network failure');
+      return new globalThis.Response('{}', { status });
+    });
+    await h.session.start();
+    await assert.rejects(h.api.apiRequest('/tasks'));
+    assert.equal(h.session.getSnapshot().status, 'authenticated');
+    assert.equal(h.values.get('chrono_access_token'), 'token-a');
+    assert.equal(h.redirects(), 0);
+    h.session.dispose();
+  });
+}
+
+for (const scenario of ['public login', 'new token', 'aborted request', 'disposed provider']) {
+  test(`${scenario}: a 401 cannot invalidate the current session`, async () => {
+    const response = deferred();
+    const h = apiSessionHarness(() => response.promise);
+    await h.session.start();
+    const controller = new globalThis.AbortController();
+    const pending = h.api.apiRequest(scenario === 'public login' ? '/auth/login' : '/tasks', {
+      auth: scenario !== 'public login',
+      signal: controller.signal,
+    });
+    if (scenario === 'new token') h.values.set('chrono_access_token', 'token-b');
+    if (scenario === 'aborted request') controller.abort();
+    if (scenario === 'disposed provider') h.session.dispose();
+    response.resolve(new globalThis.Response('{}', { status: 401 }));
+    await assert.rejects(pending);
+    assert.equal(h.redirects(), 0);
+    assert.ok(h.values.has('chrono_access_token'));
+    h.session.dispose();
+  });
+}
+
+test('unauthorized subscription survives Strict Mode dispose/restart', async () => {
+  const h = apiSessionHarness(async () => new globalThis.Response('{}', { status: 401 }));
+  await h.session.start();
+  h.session.dispose();
+  await h.session.start();
+  await assert.rejects(h.api.apiRequest('/calendar'));
+  assert.equal(h.session.getSnapshot().status, 'unauthenticated');
+  assert.equal(h.redirects(), 1);
+  h.session.dispose();
+});
+
 function deferred() {
   let resolve;
   let reject;

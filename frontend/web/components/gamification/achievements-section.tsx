@@ -80,7 +80,7 @@ function AchievementCard({ item, claiming, onClaim }: {
           </div>
           {item.claimable ? (
             <button
-              className="mt-4 w-full rounded-lg bg-dashboard-accent px-3 py-2 text-sm font-semibold text-dashboard-bg transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
+              className="mt-4 w-full rounded-lg bg-dashboard-accent px-3 py-2 text-sm font-semibold text-dashboard-on-accent transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
               disabled={claiming}
               onClick={onClaim}
               type="button"

@@ -68,7 +68,7 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
         <label className="grid min-w-0 content-start gap-2 text-sm font-medium text-dashboard-text">
           Work start
           <input
-            className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
+            className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
             disabled={isDisabled}
             onChange={(event) => updateField('workStart', event.target.value)}
             type="time"
@@ -78,7 +78,7 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
         <label className="grid min-w-0 content-start gap-2 text-sm font-medium text-dashboard-text">
           Work end
           <input
-            className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
+            className="h-[var(--input-height-desktop)] rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-sm text-dashboard-muted outline-none focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
             disabled={isDisabled}
             onChange={(event) => updateField('workEnd', event.target.value)}
             type="time"

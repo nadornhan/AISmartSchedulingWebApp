@@ -223,7 +223,7 @@ export function CalendarPage() {
               </div>
 
               <button
-                className="flex h-10 items-center gap-2 rounded-lg bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-4 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
+                className="flex h-10 items-center gap-2 rounded-lg bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-4 text-sm font-semibold text-dashboard-on-accent shadow-glow transition hover:brightness-110"
                 onClick={() => void openCreateTaskModal()}
                 type="button"
               >

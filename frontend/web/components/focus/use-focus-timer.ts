@@ -32,6 +32,7 @@ type PersistedTimerState = {
   sessionStartedAt: string | null;
   focusedMilliseconds: number;
   activeSegmentStartedAt: number | null;
+  hasStarted?: boolean;
 };
 
 function modeSeconds(durations: FocusDurations): Record<Mode, number> {
@@ -80,6 +81,7 @@ export function useFocusTimer({
   const [durations, setDurations] = useState<FocusDurations>(defaultDurations);
   const [seconds, setSeconds] = useState(defaultDurations.focus * 60);
   const [running, setRunning] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   const [sessionMessage, setSessionMessage] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isSessionMutating, setIsSessionMutating] = useState(false);
@@ -117,6 +119,7 @@ export function useFocusTimer({
       sessionStartedAt: sessionStartedAtRef.current,
       focusedMilliseconds: focusedMillisecondsRef.current,
       activeSegmentStartedAt: activeSegmentStartedAtRef.current,
+      hasStarted,
     };
     window.localStorage.setItem(timerStorageKey, JSON.stringify(snapshot));
   }
@@ -133,6 +136,10 @@ export function useFocusTimer({
       setDurations(restored.durations);
       setSeconds(restoredSeconds);
       setRunning(restored.running);
+      setHasStarted(
+        restored.hasStarted ??
+          (restored.running || restoredSeconds < getModeSeconds(restored.mode, restored.durations)),
+      );
       endTimeRef.current = restored.endTime;
       remainingRef.current = restoredSeconds;
       remainingByModeRef.current = {
@@ -155,7 +162,7 @@ export function useFocusTimer({
     remainingRef.current = seconds;
     remainingByModeRef.current[mode] = seconds;
     persistTimerSnapshot();
-  }, [durations, mode, running, seconds, timerHydrated]);
+  }, [durations, hasStarted, mode, running, seconds, timerHydrated]);
 
   useEffect(() => {
     audioRef.current = new Audio('/sounds/focus-complete.wav');
@@ -194,6 +201,7 @@ export function useFocusTimer({
         setSelectedFocusTaskIds(
           session.task_ids.length > 0 ? session.task_ids : session.task_id ? [session.task_id] : [],
         );
+        setHasStarted(true);
         setSessionTaskLocked(true);
         const plannedSeconds = session.planned_duration_minutes * 60;
         setDurations((current) => ({
@@ -325,6 +333,13 @@ export function useFocusTimer({
       sessionStartedAtRef.current = null;
       focusedMillisecondsRef.current = 0;
       activeSegmentStartedAtRef.current = null;
+      setRunning(false);
+      setHasStarted(false);
+      setSeconds(totalSeconds);
+      remainingRef.current = totalSeconds;
+      remainingByModeRef.current[mode] = totalSeconds;
+      endTimeRef.current = null;
+      completionSoundPlayedRef.current = false;
       setSessionTaskLocked(false);
       setSessionMessage(
         completed
@@ -347,7 +362,7 @@ export function useFocusTimer({
   }
 
   async function selectMode(nextMode: Mode) {
-    if (nextMode === mode) return;
+    if (nextMode === mode || isSessionMutating || isSavingSessionRef.current) return;
 
     remainingByModeRef.current[mode] = remainingRef.current;
     if (running) {
@@ -392,6 +407,7 @@ export function useFocusTimer({
   async function toggleTimer() {
     if (seconds === 0) {
       setSeconds(totalSeconds);
+      setHasStarted(false);
       remainingRef.current = totalSeconds;
       remainingByModeRef.current[mode] = totalSeconds;
       endTimeRef.current = null;
@@ -437,6 +453,7 @@ export function useFocusTimer({
       endTimeRef.current = Date.now() + remainingRef.current * 1000;
       if (mode === 'Pomodoro') activeSegmentStartedAtRef.current = Date.now();
       audioRef.current?.load();
+      setHasStarted(true);
       setRunning(true);
     } catch (requestError) {
       setSessionError(
@@ -447,20 +464,24 @@ export function useFocusTimer({
     }
   }
 
-  function skipSession() {
-    void selectMode(mode === 'Pomodoro' ? 'Short Break' : 'Pomodoro');
-  }
-
-  function resetTimer() {
-    if (sessionTaskLocked || isSessionMutating) return;
-
+  async function skipSession() {
+    if (isSessionMutating || isSavingSessionRef.current) return;
+    captureActiveSegment();
     setRunning(false);
-    setSeconds(totalSeconds);
-    remainingRef.current = totalSeconds;
-    remainingByModeRef.current[mode] = totalSeconds;
     endTimeRef.current = null;
+
+    if (sessionIdRef.current && !(await finishFocusSession(false))) return;
+
+    const nextMode = mode === 'Pomodoro' ? 'Short Break' : 'Pomodoro';
+    const nextSeconds = getModeSeconds(nextMode, durations);
+    // Skip advances to a fresh phase, unlike manually viewing another mode.
+    remainingByModeRef.current[mode] = getModeSeconds(mode, durations);
+    remainingByModeRef.current[nextMode] = nextSeconds;
+    remainingRef.current = nextSeconds;
+    setMode(nextMode);
+    setSeconds(nextSeconds);
+    setHasStarted(false);
     completionSoundPlayedRef.current = false;
-    setSessionMessage(null);
     setSessionError(null);
   }
 
@@ -469,11 +490,7 @@ export function useFocusTimer({
 
     captureActiveSegment();
     setRunning(false);
-    setSeconds(totalSeconds);
-    remainingRef.current = totalSeconds;
-    remainingByModeRef.current[mode] = totalSeconds;
     endTimeRef.current = null;
-    completionSoundPlayedRef.current = false;
     void finishFocusSession(false);
   }
 
@@ -491,17 +508,16 @@ export function useFocusTimer({
     ? isSavingSessionRef.current
       ? 'Saving...'
       : 'Starting...'
-    : seconds === 0
-      ? 'Reset'
-      : running
-        ? 'Pause'
-        : 'Start';
+    : running
+      ? 'Pause'
+      : 'Start';
 
   return {
     mode,
     durations,
     seconds,
     running,
+    hasStarted,
     progress,
     minutes,
     remainder,
@@ -516,7 +532,6 @@ export function useFocusTimer({
     saveDurations,
     toggleTimer,
     skipSession,
-    resetTimer,
     stopFocusSession,
     toggleFocusTask,
   };

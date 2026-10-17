@@ -80,19 +80,19 @@ export default function RegisterPage() {
 
   return (
     <AuthShell>
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2 text-center">
+      <div className="flex flex-col gap-[62px]">
+        <div className="flex flex-col gap-[11px]">
           <h2 className="font-poppins text-[32px] font-bold leading-[42px] text-[#f4f7f6]">
-            Create account
+            Create your account
           </h2>
           <p className="text-sm leading-[21px] text-[#b6b6b6]">
             Enter your details to proceed further
           </p>
         </div>
 
-        <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-2">
+        <form className="flex flex-col gap-[38px]" onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-[34px]">
+            <div className="flex flex-col gap-[13px]">
               <AuthField
                 autoComplete="name"
                 icon={<UserIcon />}
@@ -140,13 +140,11 @@ export default function RegisterPage() {
             <AuthPrimaryButton disabled={isSubmitting}>
               {isSubmitting ? 'Creating account...' : 'Sign Up'}
             </AuthPrimaryButton>
+            <AuthSecondaryLink href="/login">Sign In</AuthSecondaryLink>
           </div>
         </form>
 
         <AuthSocialRow />
-        <p className="text-center text-xs text-[#8181a5]">
-          Already have an account? <AuthSecondaryLink href="/login">Sign In</AuthSecondaryLink>
-        </p>
       </div>
     </AuthShell>
   );

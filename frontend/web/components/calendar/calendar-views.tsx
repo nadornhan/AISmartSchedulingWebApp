@@ -139,7 +139,7 @@ export function MobileCalendarView({
                     'grid h-9 w-9 place-items-center rounded-[10px] text-sm font-medium transition',
                     !day.isCurrentMonth && 'text-dashboard-subtle',
                     day.isCurrentMonth && !selected && 'text-dashboard-text',
-                    selected && 'bg-dashboard-accent font-semibold text-[#042019] shadow-glow',
+                    selected && 'bg-dashboard-accent font-semibold text-dashboard-on-accent shadow-glow',
                     day.isToday &&
                       !selected &&
                       'ring-1 ring-dashboard-accent/55 text-dashboard-accent',
@@ -190,7 +190,7 @@ export function MobileCalendarView({
                     className={cn(
                       'mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full border transition',
                       completed
-                        ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                        ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
                         : 'border-dashboard-border-strong hover:border-dashboard-accent',
                     )}
                     disabled={mutatingTaskId === task.id}
@@ -388,7 +388,7 @@ function DayViewTaskCard({
   return (
     <article
       className={cn(
-        'group rounded-xl border p-4 shadow-[0_12px_32px_rgba(0,0,0,0.14)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_38px_rgba(0,0,0,0.22)] sm:p-5',
+        'group rounded-xl border p-4 shadow-[0_12px_32px_rgb(var(--shadow-color)/calc(0.14*var(--shadow-strength)))] transition hover:-translate-y-0.5 hover:shadow-[0_16px_38px_rgb(var(--shadow-color)/calc(0.22*var(--shadow-strength)))] sm:p-5',
         priorityClasses(task),
         task.scheduleLocked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
         isMutating && 'cursor-wait opacity-60',
@@ -440,7 +440,7 @@ function DayViewTaskCard({
             className={cn(
               'inline-flex h-10 items-center gap-2 rounded-lg border px-3.5 text-sm font-semibold transition',
               task.status === 'done'
-                ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
                 : 'border-dashboard-border-strong bg-dashboard-bg/60 text-dashboard-muted hover:border-dashboard-accent/70 hover:text-dashboard-accent',
             )}
             disabled={isMutating}
@@ -524,7 +524,7 @@ function CalendarDayCell({
             'text-base font-semibold',
             day.isCurrentMonth ? 'text-dashboard-text' : 'text-dashboard-subtle',
             day.isToday &&
-              'grid h-8 min-w-8 place-items-center rounded-full bg-dashboard-accent text-dashboard-bg',
+              'grid h-8 min-w-8 place-items-center rounded-full bg-dashboard-accent text-dashboard-on-accent',
           )}
         >
           {day.date.getDate()}
@@ -551,7 +551,7 @@ function CalendarTaskCard({
   return (
     <div
       className={cn(
-        'rounded-md border px-3 py-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.18)]',
+        'rounded-md border px-3 py-2.5 shadow-[0_10px_28px_rgb(var(--shadow-color)/calc(0.18*var(--shadow-strength)))]',
         priorityClasses(task),
         task.status === 'done' && 'opacity-70',
         task.scheduleLocked ? 'cursor-default' : 'cursor-grab',
@@ -688,7 +688,7 @@ export function DayAgenda({
           className={cn(
             'grid h-5 w-5 place-items-center rounded-[5px] border transition',
             showCompleted
-              ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+              ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
               : 'border-dashboard-border-strong bg-dashboard-bg hover:border-dashboard-accent/70',
           )}
           onClick={onShowCompletedChange}
@@ -743,7 +743,7 @@ function AgendaTask({
       />
       <div
         className={cn(
-          'rounded-xl border bg-dashboard-bg/35 p-5 shadow-[0_10px_28px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5 hover:bg-dashboard-raised/75 hover:shadow-[0_14px_34px_rgba(0,0,0,0.2)]',
+          'rounded-xl border bg-dashboard-bg/35 p-5 shadow-[0_10px_28px_rgb(var(--shadow-color)/calc(0.12*var(--shadow-strength)))] transition hover:-translate-y-0.5 hover:bg-dashboard-raised/75 hover:shadow-[0_14px_34px_rgb(var(--shadow-color)/calc(0.2*var(--shadow-strength)))]',
           priorityClasses(task),
         )}
       >
@@ -772,7 +772,7 @@ function AgendaTask({
               className={cn(
                 'grid h-9 w-9 place-items-center rounded-lg border transition',
                 task.status === 'done'
-                  ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                  ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
                   : 'border-dashboard-border-strong bg-dashboard-bg text-dashboard-muted hover:border-dashboard-accent/70 hover:text-dashboard-accent',
                 isMutating && 'cursor-wait opacity-60',
               )}
@@ -851,14 +851,14 @@ export function RescheduleDialog({
     <div
       aria-labelledby="reschedule-dialog-title"
       aria-modal="true"
-      className="fixed inset-0 z-[350] grid place-items-center overflow-y-auto bg-[#000306]/80 p-4 backdrop-blur-[5px]"
+      className="fixed inset-0 z-[350] grid place-items-center overflow-y-auto bg-dashboard-overlay p-4 backdrop-blur-[5px]"
       onMouseDown={(event) => {
         if (event.currentTarget === event.target && !isSubmitting) onClose();
       }}
       role="dialog"
     >
       <form
-        className="w-full max-w-md rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-6 shadow-[0_32px_100px_rgba(0,0,0,.6)]"
+        className="w-full max-w-md rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-6 shadow-modal"
         onSubmit={(event) => {
           event.preventDefault();
           onSubmit();
@@ -924,7 +924,7 @@ export function RescheduleDialog({
             Cancel
           </button>
           <button
-            className="h-10 rounded-[var(--radius-sm)] bg-dashboard-accent px-4 text-sm font-semibold text-dashboard-bg transition hover:bg-dashboard-accent/90 disabled:cursor-wait disabled:opacity-60"
+            className="h-10 rounded-[var(--radius-sm)] bg-dashboard-accent px-4 text-sm font-semibold text-dashboard-on-accent transition hover:bg-dashboard-accent/90 disabled:cursor-wait disabled:opacity-60"
             disabled={isSubmitting || !date}
             type="submit"
           >

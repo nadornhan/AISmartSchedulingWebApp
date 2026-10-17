@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { PageEntrance } from '../layout/page-entrance';
 
 type AuthShellProps = {
   children: ReactNode;
@@ -10,7 +11,7 @@ export function AuthShell({
   tagline = 'Join thousands of productive people managing their work smarter',
 }: AuthShellProps) {
   return (
-    <main className="flex min-h-screen bg-[#000306] text-[var(--text-primary)]">
+    <main data-theme="dark" className="flex min-h-screen bg-[#000306] text-[var(--text-primary)]">
       <aside className="relative hidden w-[51%] min-h-screen overflow-hidden lg:block">
         <img
           alt=""
@@ -33,15 +34,19 @@ export function AuthShell({
         </div>
       </aside>
       <section className="flex w-full min-h-screen items-center justify-center bg-[#000306] px-6 py-10 lg:w-[49%] lg:rounded-r-2xl lg:px-[clamp(2rem,8vw,6.5rem)]">
-        <div className="w-full max-w-[350px]">
-          <div className="mb-12 flex items-center justify-center gap-2 lg:hidden">
-            <img alt="Chrono logo" className="size-9 object-contain" src="/chrono-logo.png" />
-            <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-semibold leading-none text-[var(--accent)]">
+        <PageEntrance className="w-full max-w-[404px]">
+          <div className="mb-10 flex flex-col items-center text-center lg:hidden">
+            <img
+              alt="Chrono logo"
+              className="mb-3 size-16 object-contain"
+              src="/chrono-logo.png"
+            />
+            <p className="font-[family-name:var(--font-poppins)] text-4xl font-semibold text-white">
               Chrono
-            </h1>
+            </p>
           </div>
           {children}
-        </div>
+        </PageEntrance>
       </section>
     </main>
   );

@@ -55,7 +55,11 @@ function runner(file, exportName, dependencies, options, globals = {}) {
   const module = { exports: {} };
   vm.runInNewContext(
     ts.transpileModule(fs.readFileSync(new URL(file, root), 'utf8'), {
-      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+        jsx: ts.JsxEmit.ReactJSX,
+      },
     }).outputText,
     {
       module,
@@ -196,6 +200,51 @@ function timerHarness(overrides = {}, initial = {}) {
   };
 }
 
+test('timer controls never render reset, including restored and running states', () => {
+  for (const hasStarted of [false, true]) {
+    for (const running of [false, true]) {
+      const jsx = (type, props) => ({ type, props });
+      const h = runner(
+        'components/focus/FocusMode.tsx',
+        'FocusMode',
+        {
+          'react/jsx-runtime': { jsx, jsxs: jsx },
+          'next/navigation': { useSearchParams: () => ({ get: () => null }) },
+          'lucide-react': { Clock3: 'clock', LoaderCircle: 'loading' },
+          './FocusSettingsModal': { FocusSettingsModal: 'settings' },
+          './use-focus-tasks': { useFocusTasks: () => ({ tasks: [] }) },
+          './use-focus-timer': {
+            modes: ['Pomodoro', 'Short Break', 'Long Break'],
+            useFocusTimer: () => ({
+              mode: 'Pomodoro',
+              hasStarted,
+              running,
+              sessionTaskLocked: hasStarted,
+              selectedFocusTaskIds: [],
+              timerActionLabel: running ? 'Pause' : 'Start',
+            }),
+          },
+        },
+        {},
+      );
+      const buttons = [];
+      function visit(node) {
+        if (Array.isArray(node)) return node.forEach(visit);
+        if (!node || typeof node !== 'object') return;
+        if (node.type === 'button') buttons.push(node.props);
+        visit(node.props?.children);
+      }
+      visit(h.render());
+      assert.equal(
+        buttons.some((props) => /reset/i.test(props['aria-label'] ?? '')),
+        false,
+      );
+      assert.ok(buttons.some((props) => props['aria-label'] === 'Skip to short break'));
+      h.unmount();
+    }
+  }
+});
+
 test('URL task and duration initialize a paused timer and keep the storage contract', async () => {
   const h = timerHarness({}, { options: { selectedTaskId: 'task-a', selectedDuration: 40 } });
   const state = await h.hydrate();
@@ -239,6 +288,10 @@ test('pause and resume record active time while excluding paused time', async ()
     ['finish', 'session-a', 15, false],
   );
   assert.equal(h.render().sessionTaskLocked, false);
+  assert.equal(h.render().hasStarted, false);
+  assert.equal(h.render().seconds, 1500);
+  assert.equal(h.snapshot().hasStarted, false);
+  assert.equal(h.snapshot().remainingByMode.Pomodoro, 1500);
   h.unmount();
   assert.equal(h.intervalCount(), 0);
 });
@@ -265,7 +318,10 @@ test('completion caps recorded time at timer expiry and saves and sounds once', 
   await h.render().toggleTimer();
   await h.settle();
   await h.advance(65000);
-  assert.equal(h.render().seconds, 0);
+  assert.equal(h.render().seconds, 60);
+  assert.equal(h.render().hasStarted, false);
+  assert.equal(h.snapshot().hasStarted, false);
+  assert.equal(h.snapshot().sessionId, null);
   assert.equal(h.render().running, false);
   assert.deepEqual(
     h.calls.filter(([name]) => name === 'finish'),
@@ -277,7 +333,8 @@ test('completion caps recorded time at timer expiry and saves and sounds once', 
   await h.render().toggleTimer();
   await h.settle();
   assert.equal(h.render().seconds, 60);
-  assert.equal(h.render().running, false);
+  assert.equal(h.render().running, true);
+  assert.equal(h.calls.filter(([name]) => name === 'start').length, 2);
   h.unmount();
 });
 
@@ -295,6 +352,8 @@ test('failed session save retains its identity and lock so stopping can be retri
   h.render().stopFocusSession();
   await h.settle();
   assert.equal(h.render().sessionError, 'Save failed');
+  assert.equal(h.render().seconds, 1493);
+  assert.equal(h.render().hasStarted, true);
   assert.equal(h.render().sessionTaskLocked, true);
   assert.equal(h.render().isSessionMutating, false);
   assert.equal(h.snapshot().sessionId, 'session-a');
@@ -308,6 +367,8 @@ test('failed session save retains its identity and lock so stopping can be retri
     ],
   );
   assert.equal(h.render().sessionTaskLocked, false);
+  assert.equal(h.render().seconds, 1500);
+  assert.equal(h.render().hasStarted, false);
   h.unmount();
 });
 
@@ -334,7 +395,7 @@ test('switching modes pauses focus progress and preserves each mode countdown', 
   h.unmount();
 });
 
-test('break timers and reset work without creating a focus session', async () => {
+test('skipping a break opens a fresh focus timer without creating a session', async () => {
   const h = timerHarness();
   await h.hydrate();
   await h.render().selectMode('Short Break');
@@ -342,14 +403,64 @@ test('break timers and reset work without creating a focus session', async () =>
   await h.render().toggleTimer();
   await h.settle();
   await h.advance(10000);
-  h.render().resetTimer();
+  await h.render().skipSession();
   await h.settle();
-  assert.equal(h.render().seconds, 300);
+  assert.equal(h.render().mode, 'Pomodoro');
+  assert.equal(h.render().seconds, 1500);
   assert.equal(h.render().running, false);
+  assert.equal(h.render().hasStarted, false);
   assert.equal(
     h.calls.some(([name]) => name === 'start' || name === 'finish'),
     false,
   );
+  h.unmount();
+});
+
+test('skip records elapsed focus and advances without reviving an old countdown', async () => {
+  const h = timerHarness();
+  await h.hydrate();
+  await h.render().toggleTimer();
+  await h.settle();
+  await h.advance(7000);
+  await h.render().skipSession();
+  await h.settle();
+  assert.deepEqual(
+    h.calls.find(([name]) => name === 'finish'),
+    ['finish', 'session-a', 7, false],
+  );
+  assert.equal(h.render().mode, 'Short Break');
+  assert.equal(h.render().seconds, 300);
+  assert.equal(h.render().sessionTaskLocked, false);
+  assert.equal(h.render().hasStarted, false);
+  await h.render().toggleTimer();
+  await h.settle();
+  await h.advance(10000);
+  await h.render().skipSession();
+  await h.settle();
+  assert.equal(h.render().mode, 'Pomodoro');
+  assert.equal(h.render().seconds, 1500);
+  assert.equal(h.render().running, false);
+  assert.equal(h.snapshot().remainingByMode['Short Break'], 300);
+  h.unmount();
+});
+
+test('skip does not advance or discard the session when recording fails', async () => {
+  const h = timerHarness({
+    finishFocusSession: async () => {
+      throw new Error('Save failed');
+    },
+  });
+  await h.hydrate();
+  await h.render().toggleTimer();
+  await h.settle();
+  await h.advance(7000);
+  await h.render().skipSession();
+  await h.settle();
+  assert.equal(h.render().mode, 'Pomodoro');
+  assert.equal(h.render().seconds, 1493);
+  assert.equal(h.render().sessionTaskLocked, true);
+  assert.equal(h.render().sessionError, 'Save failed');
+  assert.equal(h.snapshot().sessionId, 'session-a');
   h.unmount();
 });
 

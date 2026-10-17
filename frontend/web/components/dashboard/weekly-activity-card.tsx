@@ -34,7 +34,7 @@ export function WeeklyActivityCard({
             Completed
           </span>
           <span className="inline-flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-[var(--red-light)]" />
+            <span className="h-3 w-3 rounded-full bg-[var(--red-fill)]" />
             Overdue
           </span>
         </div>
@@ -83,7 +83,7 @@ export function WeeklyActivityCard({
                       </span>
                     ) : null}
                     <span
-                      className="w-full rounded-t-[var(--radius-xs)] bg-[var(--red-light)] shadow-[0_0_14px_rgba(255,95,110,.18)]"
+                      className="w-full rounded-t-[var(--radius-xs)] bg-[var(--red-fill)] shadow-[0_0_14px_rgba(255,95,110,.18)]"
                       style={{ height: `${overdueHeight}%` }}
                     />
                   </div>

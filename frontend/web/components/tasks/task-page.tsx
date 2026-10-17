@@ -357,7 +357,7 @@ export function TaskPage() {
         <div
           aria-labelledby="mobile-task-filter-title"
           aria-modal="true"
-          className="fixed inset-0 z-[260] grid place-items-end bg-black/65 p-3 pb-[calc(6.5rem+env(safe-area-inset-bottom))] backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-[260] grid place-items-end bg-dashboard-overlay-soft p-3 pb-[calc(6.5rem+env(safe-area-inset-bottom))] backdrop-blur-sm lg:hidden"
           onMouseDown={(event) => {
             if (event.currentTarget === event.target) setShowMobileFilters(false);
           }}
@@ -410,7 +410,7 @@ export function TaskPage() {
                         option === 'All' && 'bg-dashboard-muted',
                         option === 'No priority' && 'border border-dashboard-muted',
                         option === 'Low' && 'bg-[var(--blue)]',
-                        option === 'Medium' && 'bg-[var(--yellow)]',
+                        option === 'Medium' && 'bg-[var(--yellow-fill)]',
                         option === 'High' && 'bg-[var(--red)]',
                       )}
                     />
@@ -490,7 +490,7 @@ export function TaskPage() {
                 Reset
               </button>
               <button
-                className="h-11 rounded-[var(--radius-sm)] bg-dashboard-accent text-sm font-semibold text-[#042019] shadow-glow transition hover:brightness-110"
+                className="h-11 rounded-[var(--radius-sm)] bg-dashboard-accent text-sm font-semibold text-dashboard-on-accent shadow-glow transition hover:brightness-110"
                 onClick={() => setShowMobileFilters(false)}
                 type="button"
               >
@@ -584,7 +584,7 @@ export function TaskPage() {
           </button>
 
           <button
-            className="flex h-11 items-center gap-2 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
+            className="flex h-11 items-center gap-2 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-dashboard-on-accent shadow-glow transition hover:brightness-110"
             onClick={() => {
               setCreateProjectId(activeProjectId);
               setIsModalOpen(true);
@@ -793,13 +793,13 @@ export function TaskPage() {
         <div
           aria-labelledby="move-tasks-title"
           aria-modal="true"
-          className="fixed inset-0 z-[300] grid place-items-center bg-[#000306]/80 p-4 backdrop-blur-[5px]"
+          className="fixed inset-0 z-[300] grid place-items-center bg-dashboard-overlay p-4 backdrop-blur-[5px]"
           onMouseDown={(event) => {
             if (event.currentTarget === event.target) setIsMoveOpen(false);
           }}
           role="dialog"
         >
-          <div className="w-full max-w-md rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-6 shadow-[0_32px_100px_rgba(0,0,0,.6)]">
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-6 shadow-modal">
             <h2 className="text-xl font-semibold text-dashboard-text" id="move-tasks-title">
               Move {selected.length} task{selected.length === 1 ? '' : 's'}
             </h2>
@@ -844,7 +844,7 @@ export function TaskPage() {
         <div
           aria-labelledby="reschedule-task-title"
           aria-modal="true"
-          className="fixed inset-0 z-[300] grid place-items-center bg-[#000306]/80 p-4 backdrop-blur-[5px]"
+          className="fixed inset-0 z-[300] grid place-items-center bg-dashboard-overlay p-4 backdrop-blur-[5px]"
           onMouseDown={(event) => {
             if (event.currentTarget === event.target) {
               setRescheduleTaskId(null);
@@ -853,7 +853,7 @@ export function TaskPage() {
           }}
           role="dialog"
         >
-          <div className="w-full max-w-md rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-6 shadow-[0_32px_100px_rgba(0,0,0,.6)]">
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-6 shadow-modal">
             <h2 className="text-xl font-semibold text-dashboard-text" id="reschedule-task-title">
               Reschedule task
             </h2>
@@ -876,7 +876,7 @@ export function TaskPage() {
                 Cancel
               </button>
               <button
-                className="h-10 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d]"
+                className="h-10 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-dashboard-on-accent"
                 disabled={!rescheduleDueDate || isMutating}
                 onClick={() => void handleReschedule()}
                 type="button"

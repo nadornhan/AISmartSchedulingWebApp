@@ -89,10 +89,7 @@ export function ForestPage() {
     [loadAll],
   );
 
-  const unlockedCatalog = useMemo(
-    () => catalog.filter((plant) => plant.unlocked),
-    [catalog],
-  );
+  const unlockedCatalog = useMemo(() => catalog.filter((plant) => plant.unlocked), [catalog]);
 
   async function handleSelect(speciesId: string) {
     setSelectingId(speciesId);
@@ -121,9 +118,7 @@ export function ForestPage() {
       }
     } catch (requestError) {
       setError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Unable to claim that achievement.',
+        requestError instanceof Error ? requestError.message : 'Unable to claim that achievement.',
       );
     } finally {
       setClaimingAchievementId(null);
@@ -143,7 +138,7 @@ export function ForestPage() {
       <div className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6">
         <p className="text-dashboard-text">{error}</p>
         <button
-          className="mt-4 rounded-lg bg-dashboard-accent px-4 py-2 text-sm font-medium text-dashboard-bg"
+          className="mt-4 rounded-lg bg-dashboard-accent px-4 py-2 text-sm font-medium text-dashboard-on-accent"
           onClick={() => void loadAll()}
           type="button"
         >
@@ -161,15 +156,13 @@ export function ForestPage() {
   return (
     <div className="mx-auto max-w-[1480px] space-y-8">
       <section className="space-y-2">
-        <p className="text-sm font-medium text-dashboard-muted">Personal Forest</p>
-        <h1 className="font-poppins text-3xl font-semibold tracking-normal text-dashboard-text sm:text-4xl">
+        <p className="hidden text-sm font-medium text-dashboard-muted lg:block">Personal Forest</p>
+        <h1 className="hidden font-poppins text-3xl font-semibold tracking-normal text-dashboard-text lg:block lg:text-4xl">
           Watch your forest grow with every effort
         </h1>
         <p className="max-w-2xl text-sm text-dashboard-muted">{forest.supportive_message}</p>
         <div className="inline-flex items-center gap-3 rounded-lg border border-dashboard-accent/30 bg-dashboard-accent/10 px-4 py-3">
-          <span className="text-sm font-medium text-dashboard-muted">
-            Available Growth Points
-          </span>
+          <span className="text-sm font-medium text-dashboard-muted">Available Growth Points</span>
           <span className="text-lg font-semibold text-dashboard-accent">
             {forest.unassigned_growth_points} GP
           </span>
@@ -252,7 +245,7 @@ export function ForestPage() {
               </div>
               <div className="pt-1">
                 <Link
-                  className="inline-flex items-center justify-center rounded-lg bg-dashboard-accent px-4 py-2.5 text-sm font-medium text-dashboard-bg transition hover:brightness-110"
+                  className="inline-flex items-center justify-center rounded-lg bg-dashboard-accent px-4 py-2.5 text-sm font-medium text-dashboard-on-accent transition hover:brightness-110"
                   href="/gamification/forest"
                 >
                   {plant.is_placed_in_forest ? 'Visit in Forest' : 'Plant in Forest'}
@@ -263,25 +256,12 @@ export function ForestPage() {
         </section>
       ) : null}
 
-      <section className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-6 shadow-panel">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-dashboard-text">Your Forest Collection</h2>
-            <p className="mt-1 text-sm text-dashboard-muted">
-              {forest.total_trees_grown > 0
-                ? `${forest.total_trees_grown} mature tree${forest.total_trees_grown === 1 ? '' : 's'} grown so far.`
-                : 'Plant your seedling early — it will grow in the forest as you earn Growth Points.'}
-            </p>
-          </div>
-          <Link
-            className="inline-flex items-center justify-center rounded-lg border border-dashboard-border bg-dashboard-bg/40 px-4 py-2.5 text-sm font-medium text-dashboard-text transition hover:border-dashboard-accent/50"
-            href="/gamification/forest"
-          >
-            {plant?.is_placed_in_forest ? 'Visit in Forest' : 'Open Forest'}
-          </Link>
-        </div>
-        {forest.completed_plants.length > 0 ? (
-          <div className="mt-5 flex gap-4 overflow-x-auto pb-2">
+      {forest.completed_plants.length > 0 ? (
+        <section
+          aria-label="Forest collection"
+          className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-6 shadow-panel"
+        >
+          <div className="flex gap-4 overflow-x-auto pb-2">
             {forest.completed_plants.map((tree) => (
               <div
                 className="min-w-[140px] rounded-xl border border-dashboard-border bg-dashboard-bg/40 p-3 text-center"
@@ -294,8 +274,8 @@ export function ForestPage() {
               </div>
             ))}
           </div>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
 
       <section className="space-y-4">
         <div>

@@ -14,6 +14,7 @@ type SessionDependencies = {
   getCurrentUser: (signal: AbortSignal) => Promise<UserResponse>;
   clearSession: () => void;
   onUnauthenticated: () => void;
+  subscribeToUnauthorized?: (listener: (token: string, message: string) => void) => () => void;
   onVerified?: (signal: AbortSignal) => Promise<unknown>;
 };
 
@@ -24,6 +25,7 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
   let revision = 0;
   let controller: AbortController | null = null;
   let verifiedToken: string | null = null;
+  let unsubscribeUnauthorized: (() => void) | undefined;
   const listeners = new Set<() => void>();
 
   function publish(next: SessionSnapshot) {
@@ -95,11 +97,23 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
     },
     start() {
       active = true;
+      unsubscribeUnauthorized?.();
+      unsubscribeUnauthorized = dependencies.subscribeToUnauthorized?.((token, message) => {
+        if (
+          active &&
+          snapshot.status !== 'unauthenticated' &&
+          dependencies.getAccessToken() === token
+        ) {
+          unauthenticate(message);
+        }
+      });
       return refresh();
     },
     refresh,
     dispose() {
       active = false;
+      unsubscribeUnauthorized?.();
+      unsubscribeUnauthorized = undefined;
       invalidate();
     },
     signOut() {

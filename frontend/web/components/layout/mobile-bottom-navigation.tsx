@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type SVGProps } from 'react';
-import { TreePine } from 'lucide-react';
+import { LogOut, Moon, Sun, TreePine, UserRound } from 'lucide-react';
+import { useCurrentUser } from '../auth/current-user-provider';
+import { useUiPreferences } from './ui-preferences-provider';
 import {
   CalendarIcon,
   CloseIcon,
@@ -60,6 +62,7 @@ const moreItems = [
   { href: '/analytics', label: 'AI Insights', icon: InsightsIcon },
   { href: '/gamification', label: 'Personal Forest', icon: TreePine },
   { href: '/settings', label: 'Settings', icon: SettingsIcon },
+  { href: '/profile', label: 'Profile', icon: UserRound },
 ] as const;
 
 function routeIsActive(pathname: string, href: string) {
@@ -69,6 +72,8 @@ function routeIsActive(pathname: string, href: string) {
 export function MobileBottomNavigation() {
   const pathname = usePathname();
   const router = useRouter();
+  const { signOut } = useCurrentUser();
+  const { theme, setTheme } = useUiPreferences();
   const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => setMoreOpen(false), [pathname]);
@@ -98,13 +103,13 @@ export function MobileBottomNavigation() {
         <div className="fixed inset-0 z-[180] lg:hidden">
           <button
             aria-label="Close more navigation"
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-dashboard-overlay-soft backdrop-blur-sm"
             onClick={() => setMoreOpen(false)}
             type="button"
           />
           <section
             aria-label="More navigation"
-            className="absolute inset-x-3 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] rounded-2xl border border-dashboard-border bg-dashboard-raised p-3 shadow-2xl"
+            className="absolute inset-x-3 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] max-h-[calc(100dvh-9rem)] overflow-y-auto rounded-2xl border border-dashboard-border bg-dashboard-raised p-3 shadow-popover"
           >
             <div className="mb-2 flex items-center justify-between px-2 py-1">
               <h2 className="text-sm font-semibold text-dashboard-text">More</h2>
@@ -127,12 +132,39 @@ export function MobileBottomNavigation() {
                     className={`flex min-h-14 items-center gap-3 rounded-xl px-4 text-sm transition ${active ? 'bg-dashboard-accent-soft text-dashboard-accent' : 'text-dashboard-muted hover:bg-dashboard-surface hover:text-dashboard-text'}`}
                     href={item.href}
                     key={item.href}
+                    onClick={() => setMoreOpen(false)}
                   >
                     <Icon className="h-5 w-5" />
                     {item.label}
                   </Link>
                 );
               })}
+              <button
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                className="flex min-h-14 items-center gap-3 rounded-xl px-4 text-sm text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-text"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                type="button"
+              >
+                {theme === 'dark' ? (
+                  <Sun aria-hidden="true" className="h-5 w-5 shrink-0" />
+                ) : (
+                  <Moon aria-hidden="true" className="h-5 w-5 shrink-0" />
+                )}
+                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              </button>
+            </div>
+            <div className="mt-2 border-t border-dashboard-border pt-2">
+              <button
+                className="flex min-h-14 w-full items-center gap-3 rounded-xl px-4 text-sm font-medium text-dashboard-danger transition hover:bg-dashboard-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
+                onClick={() => {
+                  setMoreOpen(false);
+                  signOut();
+                }}
+                type="button"
+              >
+                <LogOut aria-hidden="true" className="h-5 w-5 shrink-0" />
+                Log out
+              </button>
             </div>
           </section>
         </div>
@@ -140,7 +172,7 @@ export function MobileBottomNavigation() {
 
       <nav
         aria-label="Mobile navigation"
-        className="fixed inset-x-0 bottom-0 z-[190] border-t border-dashboard-border bg-[var(--bg-sidebar)]/95 px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-[190] border-t border-dashboard-border bg-[var(--bg-sidebar)] px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgb(var(--shadow-color)/calc(0.18*var(--shadow-strength)))] lg:hidden"
       >
         <div className="mx-auto grid max-w-lg grid-cols-5 items-end">
           {primaryItems.slice(0, 2).map((item) => {
@@ -165,7 +197,7 @@ export function MobileBottomNavigation() {
             onClick={openCreateTask}
             type="button"
           >
-            <span className="grid h-16 w-16 -translate-y-3 place-items-center rounded-full border-[5px] border-[var(--bg-sidebar)] bg-gradient-to-br from-dashboard-accent to-dashboard-accent-strong text-[#032219] shadow-[0_10px_24px_rgba(32,201,157,0.28)] transition group-active:scale-95">
+            <span className="grid h-16 w-16 -translate-y-3 place-items-center rounded-full border-[5px] border-[var(--bg-sidebar)] bg-gradient-to-br from-dashboard-accent to-dashboard-accent-strong text-dashboard-on-accent shadow-[0_10px_24px_rgba(32,201,157,0.28)] transition group-active:scale-95">
               <PlusIcon className="h-8 w-8" />
             </span>
           </button>

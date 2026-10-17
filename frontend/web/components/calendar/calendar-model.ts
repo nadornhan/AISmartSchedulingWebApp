@@ -184,9 +184,9 @@ export function mobileStatusClasses(status: CalendarTaskStatus) {
 
 export function calendarDotClass(task: CalendarTask) {
   if (task.status === 'done') return 'bg-dashboard-accent';
-  if (task.priority === 'high') return 'bg-[var(--red-light)]';
-  if (task.priority === 'medium') return 'bg-[var(--yellow)]';
-  if (task.priority === 'low') return 'bg-[var(--blue-light)]';
+  if (task.priority === 'high') return 'bg-[var(--red-fill)]';
+  if (task.priority === 'medium') return 'bg-[var(--yellow-fill)]';
+  if (task.priority === 'low') return 'bg-[var(--blue-fill)]';
   return 'bg-dashboard-muted';
 }
 
