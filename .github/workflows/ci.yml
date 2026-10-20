@@ -41,6 +41,8 @@ jobs:
         run: pnpm typecheck:ci
       - name: Build production web app
         run: pnpm build
+      - name: Validate production Compose configuration
+        run: docker compose --env-file .env.production.example -f docker-compose.prod.yml config --quiet
 
   backend:
     name: Backend checks

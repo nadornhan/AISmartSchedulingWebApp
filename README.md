@@ -400,3 +400,10 @@ GitHub Actions checks pull requests and pushes to `main`/`develop`: web lint,
 TypeScript, production build, backend lint/tests and PostgreSQL migrations.
 See [CI setup and team workflow](docs/CI.md) for local commands, test reports
 and the required status check configuration.
+
+## Deployment
+
+Use the production-readiness checklist before promoting `develop` to `main`.
+It covers secret rotation, staging, production environment variables, database
+migrations, persistent avatar storage, health checks, smoke tests, domain setup
+and rollback. See [the CHRONO deployment guide](docs/DEPLOYMENT.md).
