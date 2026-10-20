@@ -7,6 +7,7 @@ frontend/web/next-env.d.ts
 .venv/
 __pycache__/
 **/.pytest_cache/
+backend/api/test-results/
 *.pyc
 *.egg-info/
 .expo/

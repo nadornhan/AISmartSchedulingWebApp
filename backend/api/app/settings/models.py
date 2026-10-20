@@ -1,7 +1,17 @@
 import uuid
 from datetime import datetime, time
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Time, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Time,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -16,6 +26,7 @@ def effective_daily_work_limit_minutes(settings: "UserSettings") -> int:
 class UserSettings(Base):
     __tablename__ = "user_settings"
     __table_args__ = (
+        UniqueConstraint("user_id", name="user_settings_user_id_key"),
         CheckConstraint(
             "pomodoro_minutes BETWEEN 1 AND 240",
             name="ck_user_settings_pomodoro_minutes_range",
@@ -48,7 +59,6 @@ class UserSettings(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        unique=True,
         index=True,
         nullable=False,
     )

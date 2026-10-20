@@ -147,6 +147,11 @@ class UserPlant(Base):
 
 class Achievement(Base):
     __tablename__ = "achievements"
+    __table_args__ = (
+        CheckConstraint(
+            "reward_growth_points >= 0", name="ck_achievements_reward_growth_points_nonnegative"
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)

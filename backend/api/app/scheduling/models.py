@@ -114,6 +114,11 @@ class AiRecommendation(Base):
 
 class AiScheduleSuggestion(Base):
     __tablename__ = "ai_schedule_suggestions"
+    __table_args__ = (
+        CheckConstraint(
+            "suggested_end > suggested_start", name="ck_ai_schedule_suggestions_range"
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(

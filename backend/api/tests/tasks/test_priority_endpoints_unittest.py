@@ -1,19 +1,19 @@
 """Executable without pytest; uses fake AI and mocked persistence only."""
 import unittest
 import uuid
-from datetime import UTC, datetime, timedelta, time
+from datetime import UTC, datetime, time, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 
-from app.main import app  # load ORM relationships
 from app.ai import AIService
 from app.ai.fake import FakeAIProvider
 from app.ai.limiter import AIRequestLimiter
+from app.main import app  # noqa: F401 -- load ORM relationships for isolated unit tests
 from app.tasks.models import Task, TaskPriority, TaskStatus
 from app.tasks.priority_router import build_preview, confirm_priority
-from app.tasks.priority_schemas import PriorityPreviewRequest, PriorityConfirmRequest
+from app.tasks.priority_schemas import PriorityConfirmRequest, PriorityPreviewRequest
 
 
 class PriorityFlowTests(unittest.TestCase):
