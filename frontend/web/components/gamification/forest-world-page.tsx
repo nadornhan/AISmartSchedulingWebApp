@@ -163,7 +163,7 @@ export function ForestWorldPage() {
       <div className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6">
         <p className="text-dashboard-text">{error || 'Forest scene unavailable.'}</p>
         <button
-          className="mt-4 rounded-lg bg-dashboard-accent px-4 py-2 text-sm font-medium text-dashboard-bg"
+          className="mt-4 rounded-lg bg-dashboard-accent px-4 py-2 text-sm font-medium text-dashboard-on-accent"
           onClick={() => void loadScene()}
           type="button"
         >
@@ -199,7 +199,7 @@ export function ForestWorldPage() {
             Reset camera
           </button>
           <Link
-            className="rounded-lg bg-dashboard-accent px-4 py-2 text-sm font-medium text-dashboard-bg"
+            className="rounded-lg bg-dashboard-accent px-4 py-2 text-sm font-medium text-dashboard-on-accent"
             href="/gamification"
           >
             Back to growth
@@ -216,7 +216,7 @@ export function ForestWorldPage() {
             watch it grow with every effort.
           </p>
           <Link
-            className="mt-5 inline-flex rounded-lg bg-dashboard-accent px-4 py-2.5 text-sm font-medium text-dashboard-bg"
+            className="mt-5 inline-flex rounded-lg bg-dashboard-accent px-4 py-2.5 text-sm font-medium text-dashboard-on-accent"
             href="/gamification"
           >
             Choose a plant

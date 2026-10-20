@@ -35,6 +35,7 @@ export function SchedulingWeights({ isDisabled = false, value, onChange }: Sched
       eyebrow="AI scheduling"
       title="Scheduling Weights"
       description="Balance the active factors used for production task importance."
+      showHeader={false}
     >
       <div className="grid gap-4">
         <div className="flex items-center justify-between gap-4 border-b border-dashboard-border pb-4">

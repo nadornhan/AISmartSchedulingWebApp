@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, LoaderCircle, Sparkles } from 'lucide-react';
 import { apiRequest } from '../../lib/api';
 import type { TaskPriorityValue } from '../../lib/tasks';
 
@@ -112,7 +113,9 @@ export function PrioritySuggestion({
     }
   }
   const button =
-    'rounded-lg border border-dashboard-accent/30 px-2.5 py-1.5 text-xs text-dashboard-accent hover:bg-dashboard-accent/10 disabled:opacity-50';
+    'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-dashboard-border px-3.5 py-2 text-sm font-medium text-dashboard-text transition hover:border-dashboard-accent hover:bg-dashboard-accent-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent disabled:cursor-not-allowed disabled:opacity-50';
+  const primaryButton =
+    'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-dashboard-accent px-4 py-2.5 text-sm font-semibold text-dashboard-on-accent transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent disabled:cursor-not-allowed disabled:opacity-50';
   const priorityLabels: Record<TaskPriorityValue, string> = {
     no_priority: 'No priority',
     low: 'Low',
@@ -128,30 +131,51 @@ export function PrioritySuggestion({
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        ✧ Suggest with AI
+        <Sparkles aria-hidden="true" className="h-4 w-4 shrink-0 text-dashboard-accent" />
+        Suggest with AI
       </button>
       {open && (
-        <div className="w-full space-y-3 rounded-lg border border-dashboard-accent/30 bg-dashboard-accent/5 p-3 text-sm">
-          <input
-            aria-label="Why this task matters"
-            placeholder="Why it matters (optional)"
-            maxLength={2000}
-            className="w-full rounded border border-dashboard-border bg-[var(--bg-input)] p-2"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            disabled={disabled}
-          />
-          <details>
-            <summary className="cursor-pointer text-xs text-dashboard-muted">
-              Prerequisites (optional)
-              {dependencies.length > 0 ? ` · ${dependencies.length} selected` : ''}
+        <div className="w-full min-w-0 space-y-4 rounded-xl border border-dashboard-accent/30 bg-dashboard-accent-soft p-4 font-sans text-sm font-normal sm:p-5">
+          <label className="block space-y-2">
+            <span className="block text-sm font-medium text-dashboard-text">
+              Why it matters <span className="font-normal text-dashboard-muted">(optional)</span>
+            </span>
+            <textarea
+              aria-label="Why this task matters"
+              placeholder="Add a little context for the suggestion"
+              maxLength={2000}
+              rows={3}
+              className="block min-h-24 w-full min-w-0 resize-y rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 py-3 text-sm leading-5 text-dashboard-text outline-none transition placeholder:text-dashboard-muted focus:border-dashboard-accent focus:ring-2 focus:ring-dashboard-accent/15"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={disabled}
+            />
+          </label>
+          <details className="group rounded-lg border border-dashboard-border bg-[var(--bg-input)]">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-dashboard-text outline-none transition hover:bg-dashboard-surface focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-dashboard-accent [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0 flex-1">
+                Prerequisites <span className="font-normal text-dashboard-muted">(optional)</span>
+                {dependencies.length > 0 ? ` · ${dependencies.length} selected` : ''}
+              </span>
+              <ChevronDown
+                aria-hidden="true"
+                className="h-4 w-4 shrink-0 text-dashboard-muted transition-transform group-open:rotate-180"
+              />
             </summary>
-            {dependencyError && <p role="alert">{dependencyError}</p>}
-            <div className="max-h-36 space-y-1 overflow-y-auto">
+            {dependencyError && (
+              <p className="px-3 pb-3 text-sm text-dashboard-danger" role="alert">
+                {dependencyError}
+              </p>
+            )}
+            <div className="max-h-44 space-y-2 overflow-y-auto px-3 pb-3 pt-2">
               {taskOptions.map((task) => (
-                <label key={task.id} className="flex items-center gap-2">
+                <label
+                  key={task.id}
+                  className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 transition ${dependencies.includes(task.id) ? 'border-dashboard-accent/40 bg-dashboard-accent-soft' : 'border-dashboard-border hover:bg-dashboard-surface'}`}
+                >
                   <input
                     type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent disabled:cursor-not-allowed"
                     checked={dependencies.includes(task.id)}
                     disabled={
                       disabled || (!dependencies.includes(task.id) && dependencies.length >= 100)
@@ -164,24 +188,39 @@ export function PrioritySuggestion({
                       )
                     }
                   />
-                  {task.title}
+                  <span className="min-w-0 break-words text-sm leading-5 text-dashboard-text">
+                    {task.title}
+                  </span>
                 </label>
               ))}
               {!dependencyError && taskOptions.length === 0 && (
-                <p className="text-xs text-dashboard-muted">No open tasks available.</p>
+                <p className="py-2 text-sm text-dashboard-muted">No open tasks available.</p>
               )}
             </div>
           </details>
-          <button type="button" className={button} onClick={preview} disabled={busy || disabled}>
+          <button
+            type="button"
+            className={`${primaryButton} w-full sm:w-auto`}
+            onClick={preview}
+            disabled={busy || disabled}
+          >
+            {busy ? (
+              <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles aria-hidden="true" className="h-4 w-4" />
+            )}
             {busy ? 'Generating…' : 'Get suggestion'}
           </button>
           {error && (
-            <p role="alert" className="text-red-400">
+            <p role="alert" className="text-dashboard-danger">
               {error}
             </p>
           )}
           {proposal && (
-            <div role="status" className="space-y-2">
+            <div
+              role="status"
+              className="space-y-3 rounded-lg border border-dashboard-border bg-[var(--bg-input)] p-3 sm:p-4"
+            >
               <p>
                 Suggested priority:{' '}
                 <strong className="text-dashboard-accent">
@@ -194,10 +233,10 @@ export function PrioritySuggestion({
                   {Math.round(proposal.confidence * 100)}%
                 </strong>
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2 border-t border-dashboard-border pt-3">
                 <button
                   type="button"
-                  className={button}
+                  className={primaryButton}
                   disabled={disabled}
                   onClick={() => {
                     onChoose(proposal.suggested_priority);
@@ -210,7 +249,7 @@ export function PrioritySuggestion({
                   aria-label="Change suggested priority"
                   value={choice}
                   onChange={(e) => setChoice(e.target.value as TaskPriorityValue)}
-                  className="rounded bg-[var(--bg-input)] p-1"
+                  className="min-h-10 min-w-0 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 py-2 text-sm text-dashboard-text outline-none focus:border-dashboard-accent focus:ring-2 focus:ring-dashboard-accent/15"
                 >
                   <option value="no_priority">No priority</option>
                   <option value="low">Low</option>

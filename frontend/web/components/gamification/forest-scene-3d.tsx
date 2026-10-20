@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { ReactNode } from 'react';
+import type { ComponentRef, ReactNode } from 'react';
 import * as THREE from 'three';
 
 import type { UserPlant } from '../../lib/gamification';
@@ -750,7 +750,7 @@ function SceneContent({
   onPlaceAt,
   cameraResetKey = 0,
 }: ForestScene3DProps) {
-  const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
+  const controlsRef = useRef<ComponentRef<typeof OrbitControls>>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {

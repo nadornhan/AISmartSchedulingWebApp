@@ -109,7 +109,7 @@ export function InboxList({
                 <button
                   aria-label={`${completed ? 'Reopen' : 'Complete'} ${task.title}`}
                   aria-pressed={completed}
-                  className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border transition ${completed ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg' : 'border-dashboard-muted hover:border-dashboard-accent'}`}
+                  className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border transition ${completed ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent' : 'border-dashboard-muted hover:border-dashboard-accent'}`}
                   disabled={!onTaskToggle}
                   onClick={() => onTaskToggle?.(task)}
                   type="button"

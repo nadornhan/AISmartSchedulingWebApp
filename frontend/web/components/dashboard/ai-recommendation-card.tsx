@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Sparkles } from 'lucide-react';
 
 import type { DashboardAiRecommendation } from '../../lib/dashboard';
 import { acceptRecommendation, dismissRecommendation } from '../../lib/scheduling';
@@ -51,7 +52,10 @@ export function AiRecommendationCard({
       <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-dashboard-accent/10 blur-3xl" />
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-dashboard-text">Smart priority</h2>
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-dashboard-text">
+            <Sparkles aria-hidden="true" className="size-5 shrink-0 text-dashboard-accent" />
+            Smart priority
+          </h2>
           <p className="mt-1 text-xs text-dashboard-muted">
             Ranked from deadlines, priority, duration, and your scheduling preferences.
           </p>
@@ -75,9 +79,9 @@ export function AiRecommendationCard({
               </span>
             ))}
           </div>
-          <div className="relative flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button
-              className="h-11 py-3 flex-1 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
+              className="h-11 py-3 flex-1 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-dashboard-on-accent shadow-glow transition hover:brightness-110"
               onClick={() => void startFocus()}
               type="button"
             >

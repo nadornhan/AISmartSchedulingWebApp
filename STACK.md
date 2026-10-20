@@ -1,24 +1,23 @@
 # Todo List Stack
 
-This document explains the intended stack and how the frontend, API, storage, and feature folders should fit together.
+This document describes the integrated develop branch and how the frontend, API, storage, and feature folders should fit together.
 
 ## Current Stack
 
-| Area              | Technology                                          | Purpose                                                                                        |
-| ----------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Monorepo          | pnpm workspaces                                     | Manage web, mobile, backend, and shared packages in one repository.                            |
-| Web app           | Next.js App Router, React, TypeScript, Tailwind CSS | Browser-based task and scheduling UI.                                                          |
-| Mobile scaffold   | Expo, React Native                                  | Optional mobile app scaffold.                                                                  |
-| API               | Python, FastAPI                                     | HTTP endpoints for auth, tasks, folders, scheduling, focus, analytics, and gamification.       |
-| Database          | PostgreSQL 16, SQLAlchemy 2, Alembic                | Persistent application data, ORM models, sessions, and schema migrations.                      |
-| Temporary storage | In-memory data or local SQLite                      | Acceptable for isolated frontend or endpoint work before a feature integrates with PostgreSQL. |
-| Auth              | FastAPI-managed JWT with PostgreSQL-backed users    | Registration, login, token issuance, and current-user loading.                                 |
-| Containers        | Docker Compose                                      | Local service orchestration when needed.                                                       |
-| Shared code       | TypeScript workspace packages                       | Shared constants and frontend/backend API contracts.                                           |
+| Area            | Technology                                          | Purpose                                                                                  |
+| --------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Monorepo        | pnpm workspaces                                     | Manage web, mobile, backend, and shared packages in one repository.                      |
+| Web app         | Next.js App Router, React, TypeScript, Tailwind CSS | Browser-based task and scheduling UI.                                                    |
+| Mobile scaffold | Expo, React Native                                  | Optional mobile app scaffold.                                                            |
+| API             | Python, FastAPI                                     | HTTP endpoints for auth, tasks, folders, scheduling, focus, analytics, and gamification. |
+| Database        | PostgreSQL 16, SQLAlchemy 2, Alembic                | Persistent application data, ORM models, sessions, and schema migrations.                |
+| Auth            | FastAPI-managed JWT with PostgreSQL-backed users    | Registration, login, token issuance, and current-user loading.                           |
+| Containers      | Docker Compose                                      | Local service orchestration when needed.                                                 |
+| Shared code     | TypeScript workspace packages                       | Reserved shared TypeScript package; currently an empty export.                           |
 
 ## Architecture Overview
 
-The target production data path is:
+The implemented application data path is:
 
 ```text
 Next.js web app
@@ -27,36 +26,15 @@ Next.js web app
   -> PostgreSQL
 ```
 
-During early development, the backend may temporarily use:
-
-```text
-Next.js web app
-  -> FastAPI backend
-  -> in-memory data or local SQLite
-```
-
-That is acceptable as long as the frontend talks to stable API endpoints and does not depend on the temporary storage implementation.
+The frontend uses `frontend/web/lib/api.ts` for requests and JWT headers, then feature API helpers. Protected routes obtain the current user through the shared auth provider. Server data is persisted through SQLAlchemy and Alembic-managed PostgreSQL tables; browser caches and UI preferences do not replace server persistence.
 
 ## Current Development Scope
 
-The first development pass should focus on usable frontend screens and FastAPI endpoint contracts.
+The integrated demo includes auth/profile, tasks/subtasks, projects/folders, dashboard, calendar and priority views, scheduling, focus sessions, analytics, notifications, settings and gamification/forest. Authenticated integration requires a working PostgreSQL database and the existing migrations.
 
-In scope now:
+Production hosting, secret management and security hardening remain separate deployment work. Mobile and shared TypeScript packages remain scaffolds. React Native/Expo is not part of the current demonstration.
 
-- Next.js pages and reusable components.
-- Frontend API helper files in `frontend/web/lib`.
-- FastAPI routers, schemas, and services.
-- Temporary in-memory data, local SQLite, or frontend mock data.
-
-The shared PostgreSQL, SQLAlchemy, Alembic, and Docker foundation is available for feature integration.
-
-Still out of scope until feature flows stabilize:
-
-- Production-hosted PostgreSQL deployment.
-- Production secret management and connection pooling.
-- Production authentication hardening.
-
-Feature members may still use temporary storage for isolated work, but persistent feature data should use the shared SQLAlchemy engine, session dependency, declarative base, and Alembic workflow.
+Mobile demonstration means the responsive Next.js web app, optionally using viewport/touch simulation or separately reviewed native-like presentation tooling. Do not treat simulation as validation of native integrations, background behaviour or push notifications. No native wrapper, PWA/offline enhancement or emulation tooling was implemented in this documentation batch.
 
 ## Authentication Architecture
 
@@ -87,7 +65,7 @@ backend/
   api/       FastAPI backend
 packages/
   shared/    Shared TypeScript constants and types
-supabase/    Optional Supabase SQL notes/migrations if Supabase Auth is used
+supabase/    Historical/optional SQL notes; not the active auth/storage path
 ```
 
 ## Feature Modules
@@ -95,7 +73,7 @@ supabase/    Optional Supabase SQL notes/migrations if Supabase Auth is used
 Use feature modules so six members can work in parallel with fewer conflicts.
 
 ```text
-frontend/web/app/<feature>/page.tsx
+frontend/web/app/(dashboard)/<feature>/page.tsx
 frontend/web/components/<feature>/
 frontend/web/lib/<feature>.ts
 
@@ -121,7 +99,16 @@ settings
 layout
 ```
 
-`layout` is frontend-only and lives under `frontend/web/components/layout`.
+`layout` is frontend-only and lives under `frontend/web/components/layout`. Public auth pages are `/login` and `/register`; the authenticated route group is `app/(dashboard)`. `/auth` is currently a retained null route, not the login screen.
+
+Registered backend modules include `auth`, `projects`, `folders`, `tasks` (including nested AI helpers), `notifications`, `settings`, `analytics`, `ai`, `scheduling`, `focus`, `dashboard` and `gamification`. The `/folders` API delegates to project services/models. Unregistered calendar/priority source scaffolds were removed; live priority routes are registered from `tasks/priority_router.py`. Calendar UI reads task/project data rather than a standalone calendar API.
+
+Feature modules use additional files when they have a distinct responsibility.
+Analytics calculations live in `analytics/metrics.py`; scheduling query/validation
+and response helpers in `scheduling/plan_helpers.py`; gamification profile queries,
+unlock checks and response mapping in `gamification/read_model.py`. Existing
+`service.py` entry points coordinate the API operations and transactions.
+The feature-folder example above does not require empty models/services files.
 
 ## Backend Design
 
@@ -141,16 +128,16 @@ Each feature should keep endpoint logic split by responsibility:
 - `router.py`: FastAPI route definitions.
 - `schemas.py`: Pydantic request/response models.
 - `service.py`: business logic and storage access.
-- `models.py`: database models once persistence is added.
+- `models.py`: current SQLAlchemy database models.
 
-Early endpoints may use in-memory data in `service.py`. Later, the service can be changed to PostgreSQL without changing the frontend API calls.
+Existing services use SQLAlchemy and PostgreSQL. Keep API contracts and ownership checks stable during cleanup; do not introduce a second permanent storage path.
 
 ## Frontend Design
 
 The web app should use route folders for pages and component folders for reusable UI:
 
 ```text
-frontend/web/app/tasks/page.tsx
+frontend/web/app/(dashboard)/tasks/page.tsx
 frontend/web/components/tasks/
 frontend/web/lib/tasks.ts
 ```
@@ -178,43 +165,42 @@ main
 
 The branch-to-folder mapping is:
 
-| Branch                        | Main folders                                                                                                                                |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `feature/navigation-shell`    | `frontend/web/components/layout`, shared route shell files                                                                                  |
-| `feature/auth-account`        | `frontend/web/app/auth`, `frontend/web/components/auth`, `frontend/web/lib/auth.ts`, `backend/api/app/auth`                                 |
-| `feature/task-management`     | `frontend/web/app/tasks`, `frontend/web/components/tasks`, `frontend/web/lib/tasks.ts`, `backend/api/app/tasks`                             |
-| `feature/folders-inbox`       | `frontend/web/app/folders`, `frontend/web/components/folders`, `frontend/web/lib/folders.ts`, `backend/api/app/folders`                     |
-| `feature/calendar-reminders`  | `frontend/web/app/calendar`, `frontend/web/components/calendar`, `frontend/web/lib/calendar.ts`, `backend/api/app/calendar`                 |
-| `feature/priority-view`       | `frontend/web/app/priority`, `frontend/web/components/priority`, `frontend/web/lib/priority.ts`, `backend/api/app/priority`                 |
-| `feature/focus-mode`          | `frontend/web/app/focus`, `frontend/web/components/focus`, `frontend/web/lib/focus.ts`, `backend/api/app/focus`                             |
-| `feature/analytics-dashboard` | `frontend/web/app/analytics`, `frontend/web/components/analytics`, `frontend/web/lib/analytics.ts`, `backend/api/app/analytics`             |
-| `feature/gamification`        | `frontend/web/app/gamification`, `frontend/web/components/gamification`, `frontend/web/lib/gamification.ts`, `backend/api/app/gamification` |
-| `feature/settings-polish`     | `frontend/web/app/settings`, `frontend/web/components/settings`, `frontend/web/lib/settings.ts`, `backend/api/app/settings`                 |
+| Branch                        | Main folders                                                                                                                                                                                  |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `feature/navigation-shell`    | `frontend/web/components/layout`, shared route shell files                                                                                                                                    |
+| `feature/auth-account`        | `frontend/web/app/login`, `frontend/web/app/register`, `frontend/web/app/(dashboard)/profile`, `frontend/web/components/auth`, `frontend/web/lib/auth.ts`, `backend/api/app/auth`             |
+| `feature/task-management`     | `frontend/web/app/(dashboard)/tasks`, `frontend/web/components/tasks`, `frontend/web/lib/tasks.ts`, `backend/api/app/tasks`                                                                   |
+| `feature/folders-inbox`       | `frontend/web/app/(dashboard)/folders`, `frontend/web/components/folders`, `frontend/web/lib/folders.ts`, `backend/api/app/folders`                                                           |
+| `feature/calendar-reminders`  | `frontend/web/app/(dashboard)/calendar`, `frontend/web/components/calendar`, `frontend/web/lib/tasks.ts`, `frontend/web/lib/projects.ts`, `backend/api/app/tasks`, `backend/api/app/projects` |
+| `feature/priority-view`       | `frontend/web/app/(dashboard)/priority`, `frontend/web/components/priority`, `frontend/web/lib/tasks.ts`, `frontend/web/lib/projects.ts`, `backend/api/app/tasks`, `backend/api/app/projects` |
+| `feature/focus-mode`          | `frontend/web/app/(dashboard)/focus`, `frontend/web/components/focus`, `frontend/web/lib/focus.ts`, `backend/api/app/focus`                                                                   |
+| `feature/analytics-dashboard` | `frontend/web/app/(dashboard)/analytics`, `frontend/web/components/analytics`, `frontend/web/lib/analytics.ts`, `backend/api/app/analytics`                                                   |
+| `feature/gamification`        | `frontend/web/app/(dashboard)/gamification`, `frontend/web/components/gamification`, `frontend/web/lib/gamification.ts`, `backend/api/app/gamification`                                       |
+| `feature/settings-polish`     | `frontend/web/app/(dashboard)/settings`, `frontend/web/components/settings`, `frontend/web/lib/settings.ts`, `backend/api/app/settings`                                                       |
 
-## Data Storage Plan
+## Data Storage
 
-Early development can use temporary storage:
+Persistent data uses PostgreSQL through FastAPI's shared SQLAlchemy engine, session dependency and declarative base. Apply the existing Alembic migration history before exercising features. Never run tests or migration experiments against the shared demo database.
 
-- In-memory lists/dictionaries for quick endpoint work.
-- Local SQLite if local persistence is useful.
-- Mock data in the frontend only for isolated UI work.
+Keep both `/folders` and `/projects` compatibility APIs. Supabase files are optional historical notes, not the active auth/storage path. Browser-local settings from the earlier checkout must not replace the current settings API.
 
-Final integration should use PostgreSQL through the FastAPI backend. Avoid building a second permanent task-storage path directly from the frontend to Supabase or another database.
+## Refactoring status and follow-up work
 
-## Recommended Improvements
+Task, Calendar and Focus extraction, backend service separation, unused dependency
+removal and documentation reconciliation are complete. Verification details live
+in `frontend/DEMO_VERIFICATION.md`; historical cleanup decisions and current status
+live in `frontend/AUDIT.md`.
 
-1. Implement PostgreSQL-backed registration, login, password hashing, and JWT validation.
-2. Add feature-owned SQLAlchemy models and reviewed Alembic migrations.
-3. Replace temporary feature storage with SQLAlchemy service queries.
-4. Add backend API tests for task CRUD, auth failures, and user data isolation.
-5. Add shared TypeScript types for request/response contracts used by multiple features.
-6. Keep `main.py`, root layout, and global CSS small to reduce conflicts.
+Remaining product/integration findings are the Pomodoro settings/API range mismatch
+and the original cross-origin auth transport trigger. Live Gemini verification and
+production deployment are separate work. Shared contracts should move into
+`packages/shared` only when there is a real consumer.
 
 ## Quality Checks
 
 ```powershell
 corepack pnpm lint
-corepack pnpm typecheck
+corepack pnpm --filter @ai-smart-scheduling/web typecheck
 corepack pnpm build
 corepack pnpm format:check
 ```

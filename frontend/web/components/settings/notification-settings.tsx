@@ -87,6 +87,7 @@ export function NotificationSettings({
       eyebrow="Notifications"
       title="Notification Settings"
       description="Choose which reminders and reports should be active."
+      showHeader={false}
     >
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_180px]">
         <div className="divide-y divide-dashboard-border">

@@ -2,6 +2,16 @@ const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').rep
 
 const ACCESS_TOKEN_KEY = 'chrono_access_token';
 
+type UnauthorizedListener = (token: string, message: string) => void;
+const unauthorizedListeners = new Set<UnauthorizedListener>();
+
+export function onUnauthorized(listener: UnauthorizedListener) {
+  unauthorizedListeners.add(listener);
+  return () => {
+    unauthorizedListeners.delete(listener);
+  };
+}
+
 export type ApiRequestOptions = RequestInit & {
   auth?: boolean;
 };
@@ -87,9 +97,18 @@ export async function apiRequest<T>(path: string, init: ApiRequestOptions = {}):
       ? details.detail
       : null;
 
-  throw new ApiError(
-    detailMessage ?? `Request failed with status ${response.status}`,
-    response.status,
-    details,
-  );
+  const message = detailMessage ?? `Request failed with status ${response.status}`;
+
+  // An older request must not invalidate a newer login, or an aborted session check.
+  if (
+    response.status === 401 &&
+    auth &&
+    token &&
+    !requestInit.signal?.aborted &&
+    getAccessToken() === token
+  ) {
+    unauthorizedListeners.forEach((listener) => listener(token, message));
+  }
+
+  throw new ApiError(message, response.status, details);
 }

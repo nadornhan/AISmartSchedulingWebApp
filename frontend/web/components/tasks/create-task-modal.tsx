@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useRef, useState } from 'react';
 import { ArrowDown, Sparkles } from 'lucide-react';
 
-import { ApiError } from '../../lib/api';
+import { getErrorMessage, useTaskAiEntry } from './use-task-ai-entry';
 import { PrioritySuggestion } from './priority-suggestion';
 import {
   DURATION_PRESETS_MINUTES,
@@ -11,21 +11,7 @@ import {
   parseCustomDuration,
 } from '../../lib/duration';
 import type { Project } from '../../lib/projects';
-import {
-  confirmTaskDecomposition,
-  confirmGeneratedTasks,
-  previewTaskDecomposition,
-  previewGeneratedTasks,
-  type DecomposedTaskDraft,
-  type GeneratedSubtaskDraft,
-  type GeneratedTaskDraft,
-  TaskCreateInput,
-  TaskPriorityValue,
-  TaskResponse,
-  type TaskGenerationPreview,
-  type TaskDecompositionPreview,
-  TaskUpdateInput,
-} from '../../lib/tasks';
+import { TaskCreateInput, TaskPriorityValue, TaskResponse, TaskUpdateInput } from '../../lib/tasks';
 import { CreateFolderModal } from '../folders/create-folder-modal';
 import { DurationEstimatePanel } from './duration-estimate-panel';
 import {
@@ -71,20 +57,8 @@ type TaskFormSubtask = {
   isCompleted: boolean;
 };
 
-type AiEntryMode = 'generate' | 'decompose';
-
-type SelectableGeneratedSubtask = GeneratedSubtaskDraft & {
-  selected: boolean;
-};
-
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
-}
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Something went wrong. Please try again.';
 }
 
 function toDateInputValue(value: string | null) {
@@ -244,17 +218,6 @@ function TaskFormModal({
   const [dueDateValue, setDueDateValue] = useState(initialValues.dueDate);
   const [dueTimeValue, setDueTimeValue] = useState(initialValues.dueTime);
   const [projectId, setProjectId] = useState(initialValues.projectId);
-  const [naturalLanguageInput, setNaturalLanguageInput] = useState('');
-  const [aiEntryMode, setAiEntryMode] = useState<AiEntryMode>('generate');
-  const [parseFeedback, setParseFeedback] = useState<string | null>(null);
-  const [generationPreview, setGenerationPreview] = useState<TaskGenerationPreview | null>(null);
-  const [generatedTasks, setGeneratedTasks] = useState<GeneratedTaskDraft[]>([]);
-  const [decompositionPreview, setDecompositionPreview] = useState<TaskDecompositionPreview | null>(
-    null,
-  );
-  const [decomposedTask, setDecomposedTask] = useState<DecomposedTaskDraft | null>(null);
-  const [decomposedSubtasks, setDecomposedSubtasks] = useState<SelectableGeneratedSubtask[]>([]);
-  const [generationBusy, setGenerationBusy] = useState(false);
   const [isNaturalLanguageExpanded, setIsNaturalLanguageExpanded] = useState(true);
   const [isManualFormVisible, setIsManualFormVisible] = useState(!enableNaturalLanguage);
   const [recentlyGeneratedDetails] = useState(false);
@@ -276,6 +239,28 @@ function TaskFormModal({
   const [subtasks, setSubtasks] = useState<TaskFormSubtask[]>(initialValues.subtasks);
   const [subtaskDraft, setSubtaskDraft] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const {
+    naturalLanguageInput,
+    setNaturalLanguageInput,
+    aiEntryMode,
+    parseFeedback,
+    setParseFeedback,
+    generationPreview,
+    generatedTasks,
+    setGeneratedTasks,
+    decompositionPreview,
+    decomposedTask,
+    setDecomposedTask,
+    decomposedSubtasks,
+    setDecomposedSubtasks,
+    generationBusy,
+    clearAiPreview,
+    selectAiEntryMode,
+    createFromNaturalLanguage,
+    updateGeneratedTask,
+    createGeneratedTasks,
+    createDecomposedTask,
+  } = useTaskAiEntry({ onClose, setSubmitError });
   const [savedDuration, setSavedDuration] = useState(initialDuration);
   const [durationBusy, setDurationBusy] = useState(false);
   const [durationPending, setDurationPending] = useState(false);
@@ -307,117 +292,6 @@ function TaskFormModal({
   const hasNaturalLanguageInput = Boolean(naturalLanguageInput.trim());
   const shouldShowNaturalLanguageInput = !isManualFormVisible || isNaturalLanguageExpanded;
   const isAiOnlyView = enableNaturalLanguage && !isManualFormVisible;
-
-  function clearAiPreview() {
-    setParseFeedback(null);
-    setGenerationPreview(null);
-    setGeneratedTasks([]);
-    setDecompositionPreview(null);
-    setDecomposedTask(null);
-    setDecomposedSubtasks([]);
-  }
-
-  function selectAiEntryMode(mode: AiEntryMode) {
-    setAiEntryMode(mode);
-    clearAiPreview();
-  }
-
-  async function createFromNaturalLanguage() {
-    if (!naturalLanguageInput.trim()) {
-      setParseFeedback('Add a task description before generating details.');
-      return;
-    }
-    setGenerationBusy(true);
-    setParseFeedback(null);
-    setSubmitError(null);
-    try {
-      if (aiEntryMode === 'decompose') {
-        const preview = await previewTaskDecomposition(naturalLanguageInput.trim());
-        setDecompositionPreview(preview);
-        setDecomposedTask({
-          title: preview.proposal.title,
-          priority: preview.proposal.priority,
-          due_date: preview.proposal.due_date,
-          subtasks: preview.proposal.subtasks,
-        });
-        setDecomposedSubtasks(
-          preview.proposal.subtasks.map((subtask) => ({ ...subtask, selected: true })),
-        );
-        setGenerationPreview(null);
-        setGeneratedTasks([]);
-        setParseFeedback(
-          `${preview.proposal.subtasks.length} steps suggested. Choose and edit them before creating the task.`,
-        );
-        return;
-      }
-      const preview = await previewGeneratedTasks(naturalLanguageInput.trim());
-      setGenerationPreview(preview);
-      setGeneratedTasks(preview.proposal.tasks);
-      setDecompositionPreview(null);
-      setDecomposedTask(null);
-      setDecomposedSubtasks([]);
-      setParseFeedback(
-        `${preview.proposal.tasks.length} task${preview.proposal.tasks.length === 1 ? '' : 's'} found. Review before creating.`,
-      );
-    } catch (requestError) {
-      setParseFeedback(getErrorMessage(requestError));
-    } finally {
-      setGenerationBusy(false);
-    }
-  }
-
-  function updateGeneratedTask(index: number, patch: Partial<GeneratedTaskDraft>) {
-    setGeneratedTasks((current) =>
-      current.map((task, taskIndex) => (taskIndex === index ? { ...task, ...patch } : task)),
-    );
-  }
-
-  async function createGeneratedTasks() {
-    if (!generationPreview) return;
-    if (generatedTasks.some((task) => !task.title.trim())) {
-      setParseFeedback('Every task needs a title.');
-      return;
-    }
-    setGenerationBusy(true);
-    try {
-      await confirmGeneratedTasks(generationPreview, generatedTasks);
-      onClose();
-    } catch (requestError) {
-      setParseFeedback(getErrorMessage(requestError));
-    } finally {
-      setGenerationBusy(false);
-    }
-  }
-
-  async function createDecomposedTask() {
-    if (!decompositionPreview || !decomposedTask) return;
-    const selectedSubtasks = decomposedSubtasks
-      .filter((subtask) => subtask.selected)
-      .map(({ client_id, title }) => ({ client_id, title: title.trim() }))
-      .filter((subtask) => subtask.title);
-    if (!decomposedTask.title.trim()) {
-      setParseFeedback('The main task needs a title.');
-      return;
-    }
-    if (selectedSubtasks.length === 0) {
-      setParseFeedback('Select at least one subtask to create.');
-      return;
-    }
-    setGenerationBusy(true);
-    setParseFeedback(null);
-    try {
-      await confirmTaskDecomposition(decompositionPreview, {
-        ...decomposedTask,
-        title: decomposedTask.title.trim(),
-        subtasks: selectedSubtasks,
-      });
-      onClose();
-    } catch (requestError) {
-      setParseFeedback(getErrorMessage(requestError));
-    } finally {
-      setGenerationBusy(false);
-    }
-  }
 
   function addSubtask() {
     const titleValue = subtaskDraft.trim();
@@ -521,7 +395,7 @@ function TaskFormModal({
     <div
       aria-labelledby="task-form-title"
       aria-modal="true"
-      className="fixed inset-0 z-[300] grid place-items-center overflow-y-auto bg-[#000306]/80 p-4 backdrop-blur-[5px]"
+      className="fixed inset-0 z-[300] grid grid-cols-[minmax(0,1fr)] place-items-center overflow-y-auto bg-dashboard-overlay p-4 backdrop-blur-[5px]"
       onMouseDown={(event) => {
         if (event.currentTarget === event.target) closeForm();
       }}
@@ -529,8 +403,8 @@ function TaskFormModal({
     >
       <form
         className={cn(
-          'my-6 w-full rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] shadow-[0_32px_100px_rgba(0,0,0,.6)]',
-          isAiOnlyView ? 'max-w-[680px] p-6' : 'max-w-[680px] p-7 sm:p-9',
+          'my-6 w-full min-w-0 max-w-[680px] rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] font-sans shadow-modal',
+          isAiOnlyView ? 'p-6' : 'p-5 sm:p-9',
         )}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
@@ -543,7 +417,7 @@ function TaskFormModal({
           {isAiOnlyView ? (
             <div className="relative flex h-10 items-center justify-center">
               <h2
-                className="flex items-center gap-2 font-poppins text-3xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text"
+                className="flex items-center gap-2 font-sans text-3xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text"
                 id="task-form-title"
               >
                 Describe your task
@@ -558,10 +432,10 @@ function TaskFormModal({
               </button>
             </div>
           ) : (
-            <div className="flex items-start justify-between gap-6">
-              <div>
+            <div className="flex items-start justify-between gap-4 sm:gap-6">
+              <div className="min-w-0 flex-1">
                 <h2
-                  className="font-poppins text-3xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text"
+                  className="break-words font-sans text-2xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text sm:text-3xl"
                   id="task-form-title"
                 >
                   {title}
@@ -570,7 +444,7 @@ function TaskFormModal({
               </div>
               <button
                 aria-label="Close task dialog"
-                className="grid h-10 w-10 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-text"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-text"
                 onClick={closeForm}
                 type="button"
               >
@@ -631,7 +505,7 @@ function TaskFormModal({
                       onClick={() => selectAiEntryMode('decompose')}
                       type="button"
                     >
-                      Break into subtasks
+                      Break down
                     </button>
                   </div>
                   <div className="relative">
@@ -670,7 +544,7 @@ function TaskFormModal({
                         className={cn(
                           'flex h-11 items-center gap-2 rounded-full border px-5 font-sans text-base font-medium transition',
                           hasNaturalLanguageInput
-                            ? 'border-dashboard-accent bg-gradient-to-br from-dashboard-accent via-dashboard-accent/85 to-dashboard-accent-strong text-[#04110d] shadow-[0_8px_24px_rgba(53,227,181,0.22),inset_0_1px_0_rgba(255,255,255,0.28)] hover:brightness-110'
+                            ? 'border-dashboard-accent bg-gradient-to-br from-dashboard-accent via-dashboard-accent/85 to-dashboard-accent-strong text-dashboard-on-accent shadow-[0_8px_24px_rgba(53,227,181,0.22),inset_0_1px_0_rgba(255,255,255,0.28)] hover:brightness-110'
                             : 'border-dashboard-border bg-gradient-to-br from-white/[0.08] via-white/[0.035] to-transparent text-dashboard-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md',
                         )}
                         disabled={isSubmitting || generationBusy || !hasNaturalLanguageInput}
@@ -763,7 +637,7 @@ function TaskFormModal({
                                 : 'Gemini was unavailable · parser fallback used'}
                         </span>
                         <button
-                          className="h-11 rounded-[var(--radius-sm)] bg-dashboard-accent px-5 font-semibold text-[#04110d] disabled:opacity-50"
+                          className="h-11 rounded-[var(--radius-sm)] bg-dashboard-accent px-5 font-semibold text-dashboard-on-accent disabled:opacity-50"
                           disabled={generationBusy || generatedTasks.length === 0}
                           onClick={() => void createGeneratedTasks()}
                           type="button"
@@ -850,7 +724,7 @@ function TaskFormModal({
                               className={cn(
                                 'grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition',
                                 subtask.selected
-                                  ? 'border-dashboard-accent bg-dashboard-accent text-[#04110d]'
+                                  ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
                                   : 'border-dashboard-border text-dashboard-muted',
                               )}
                               onClick={() =>
@@ -900,7 +774,7 @@ function TaskFormModal({
                           Generated with Gemini · nothing is saved until you confirm
                         </span>
                         <button
-                          className="h-11 rounded-[var(--radius-sm)] bg-dashboard-accent px-5 font-semibold text-[#04110d] disabled:opacity-50"
+                          className="h-11 rounded-[var(--radius-sm)] bg-dashboard-accent px-5 font-semibold text-dashboard-on-accent disabled:opacity-50"
                           disabled={
                             generationBusy ||
                             !decomposedTask.title.trim() ||
@@ -924,7 +798,7 @@ function TaskFormModal({
                         <span className="h-px flex-1 bg-dashboard-border" />
                       </div>
                       <button
-                        className="font-poppins h-12 w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-base font-medium text-dashboard-muted transition hover:border-dashboard-accent hover:text-dashboard-accent"
+                        className="h-12 w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 font-sans text-base font-medium text-dashboard-muted transition hover:border-dashboard-accent hover:text-dashboard-accent"
                         onClick={() => {
                           setIsManualFormVisible(true);
                           setIsNaturalLanguageExpanded(false);
@@ -940,7 +814,7 @@ function TaskFormModal({
               ) : null
             ) : null}
 
-            <div className={cn('space-y-5', !isManualFormVisible && 'hidden')}>
+            <div className={cn('min-w-0 space-y-5', !isManualFormVisible && 'hidden')}>
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <label className="text-base font-medium text-dashboard-text" htmlFor="task-title">
@@ -996,7 +870,7 @@ function TaskFormModal({
                     <ChevronDownIcon className="h-4 w-4 shrink-0 text-dashboard-muted transition group-open:rotate-180" />
                   </summary>
 
-                  <div className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-40 overflow-hidden rounded-[var(--radius-sm)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-2 shadow-[0_18px_50px_rgba(0,0,0,.5)]">
+                  <div className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-40 overflow-hidden rounded-[var(--radius-sm)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-2 shadow-popover">
                     <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
                       <button
                         aria-pressed={!projectId}
@@ -1097,7 +971,7 @@ function TaskFormModal({
                             'h-2.5 w-2.5 rounded-full',
                             option === 'No priority' && 'bg-dashboard-muted',
                             option === 'Low' && 'bg-[var(--blue)]',
-                            option === 'Medium' && 'bg-[var(--yellow)]',
+                            option === 'Medium' && 'bg-[var(--yellow-fill)]',
                             option === 'High' && 'bg-[var(--red)]',
                           )}
                         />
@@ -1113,7 +987,7 @@ function TaskFormModal({
                   <label className="relative block">
                     <CalendarIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-dashboard-muted" />
                     <input
-                      className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] pl-12 pr-4 text-base text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
+                      className="h-[var(--input-height-desktop)] w-full min-w-0 max-w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] pl-12 pr-4 text-base text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
                       name="dueDate"
                       onChange={(event) => setDueDateValue(event.target.value)}
                       type="date"
@@ -1124,7 +998,7 @@ function TaskFormModal({
 
                 <Field label="Time" optional>
                   <input
-                    className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-base text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
+                    className="h-[var(--input-height-desktop)] w-full min-w-0 max-w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-base text-dashboard-muted outline-none [color-scheme:dark] focus:border-dashboard-accent"
                     name="dueTime"
                     onChange={(event) => setDueTimeValue(event.target.value)}
                     type="time"
@@ -1239,7 +1113,7 @@ function TaskFormModal({
                         className={cn(
                           'grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] border transition',
                           subtask.isCompleted
-                            ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                            ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
                             : 'border-dashboard-border bg-[var(--bg-input)] text-dashboard-muted hover:border-dashboard-accent/70',
                         )}
                         onClick={() =>
@@ -1307,7 +1181,7 @@ function TaskFormModal({
           ) : null}
 
           {isManualFormVisible ? (
-            <div className="mt-7 flex items-center justify-between gap-4">
+            <div className="mt-7 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <button
                 className={cn(
                   'h-12 rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-5 text-base font-medium transition disabled:opacity-50',
@@ -1339,7 +1213,7 @@ function TaskFormModal({
                 {onDelete ? 'Delete' : 'Cancel'}
               </button>
               <button
-                className="flex h-12 items-center rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-6 text-base font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
+                className="flex h-12 items-center justify-center rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-6 text-base font-semibold text-dashboard-on-accent shadow-glow transition hover:brightness-110"
                 disabled={isSubmitting}
                 type="submit"
               >
@@ -1371,7 +1245,7 @@ function Field({
   optional,
 }: Readonly<{ children: React.ReactNode; label: string; optional?: boolean }>) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="mb-2 block text-base font-medium text-dashboard-text">
         {label}{' '}
         {optional ? <span className="font-normal text-dashboard-muted">(optional)</span> : null}

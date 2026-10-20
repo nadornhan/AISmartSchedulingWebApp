@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
-from app.auth.schemas import UserRegister
+from app.auth.schemas import UserProfileUpdate, UserRegister
 from app.auth.security import hash_password, verify_password
 from app.config import get_settings
 from app.settings.models import UserSettings
@@ -78,6 +78,16 @@ def create_user(db: Session, user_data: UserRegister) -> User:
 
 def get_user_by_id(db: Session, user_id: uuid.UUID) -> User | None:
     return db.get(User, user_id)
+
+
+def update_user_profile(db: Session, user: User, payload: UserProfileUpdate) -> User:
+    if payload.first_name is not None:
+        user.first_name = payload.first_name
+    if payload.last_name is not None:
+        user.last_name = payload.last_name
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 def authenticate_user(

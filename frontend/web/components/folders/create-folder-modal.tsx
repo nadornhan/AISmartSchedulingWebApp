@@ -94,7 +94,7 @@ export function CreateFolderModal({
     <div
       aria-labelledby="create-folder-title"
       aria-modal="true"
-      className="fixed inset-0 z-[300] grid place-items-center bg-[#01070d]/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[300] grid place-items-center bg-dashboard-overlay p-4 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) resetAndClose();
       }}
@@ -209,7 +209,7 @@ export function CreateFolderModal({
             Cancel
           </button>
           <button
-            className="flex h-11 items-center gap-2 rounded-lg bg-gradient-to-r from-dashboard-accent-strong to-dashboard-accent px-5 font-semibold text-white shadow-glow transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-11 items-center gap-2 rounded-lg bg-gradient-to-r from-dashboard-accent-strong to-dashboard-accent px-5 font-semibold text-dashboard-on-accent-inverse shadow-glow transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!name.trim() || isSubmitting}
             type="submit"
           >

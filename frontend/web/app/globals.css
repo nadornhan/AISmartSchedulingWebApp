@@ -2,7 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+[data-theme='dark'] {
   color-scheme: dark;
 
   /* Canonical tokens from frontend/Theme.md. */
@@ -68,6 +69,10 @@
 
   --yellow: #ffc229;
   --yellow-soft: rgba(255, 194, 41, 0.13);
+  --red-fill: var(--red-light);
+  --blue-fill: var(--blue-light);
+  --purple-fill: var(--purple-light);
+  --yellow-fill: var(--yellow);
   --progress-track: #1b2932;
   --achievement-gold: #d4a017;
   --achievement-gold-text: #f0d37a;
@@ -77,6 +82,28 @@
   --achievement-blue-text: #93c5fd;
   --achievement-blue-soft: rgba(59, 130, 246, 0.12);
   --achievement-blue-border: rgba(59, 130, 246, 0.35);
+
+  /* Keep vivid action fills separate from readable accent text. */
+  --accent-fill-rgb: 53 227 181;
+  --accent-fill-strong-rgb: 32 201 157;
+  --text-on-accent: #04110d;
+  --text-on-accent-inverse: #ffffff;
+  --shadow-color: 0 0 0;
+  --shadow-strength: 1;
+  --shadow-panel: 0 24px 80px rgb(var(--shadow-color) / 0.34);
+  --shadow-glow: 0 0 32px rgba(34, 240, 177, 0.18);
+  --shadow-modal: 0 32px 100px rgb(var(--shadow-color) / 0.6);
+  --shadow-popover: 0 18px 50px rgb(var(--shadow-color) / 0.5);
+  --overlay: rgba(0, 3, 6, 0.8);
+  --overlay-soft: rgba(0, 3, 6, 0.6);
+  --focus-ring-glow: rgba(34, 240, 177, 0.48);
+  --avatar-background: linear-gradient(
+    to bottom right,
+    var(--dashboard-muted),
+    var(--dashboard-surface)
+  );
+  --avatar-text: var(--dashboard-bg);
+  --sidebar-artwork: url('/sidebar.png');
 
   --tracking-heading: -0.025em;
   --tracking-body: -0.01em;
@@ -133,48 +160,104 @@
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --bg-page: #f3f8f6;
+  --bg-page: #f5f7f8;
   --bg-sidebar: #ffffff;
   --bg-surface: #ffffff;
-  --bg-surface-raised: #edf4f1;
-  --bg-surface-hover: #e5efeb;
-  --bg-input: #f9fcfb;
+  --bg-surface-raised: #f0f4f5;
+  --bg-surface-hover: #e8eef0;
+  --bg-input: #f8fafb;
 
-  --border-subtle: #dce8e3;
-  --border-default: #d2e0da;
-  --border-strong: #b8cbc3;
+  --border-subtle: #dfe6e9;
+  --border-default: #cfdadd;
+  --border-strong: #b4c4ca;
   --border-active: rgba(15, 164, 125, 0.35);
 
-  --text-primary: #13231d;
-  --text-secondary: #3f574d;
-  --text-muted: #586f65;
-  --text-placeholder: #5f756b;
+  --text-primary: #172c35;
+  --text-secondary: #435b66;
+  --text-muted: #5b707a;
+  --text-placeholder: #60747d;
   --text-disabled: #a2aea9;
 
   --accent: #08795c;
   --accent-hover: #066b51;
-  --accent-pressed: #055b45;
+  --accent-pressed: #066b51;
   --accent-dark: #044b39;
-  --accent-soft: rgba(8, 121, 92, 0.12);
+  --accent-soft: rgba(8, 121, 92, 0.08);
   --accent-border: rgba(8, 121, 92, 0.34);
-  --progress-track: #dce8e3;
-  --achievement-gold: #9a6a00;
-  --achievement-gold-text: #6f4d00;
-  --achievement-gold-soft: rgba(154, 106, 0, 0.12);
-  --achievement-gold-border: rgba(154, 106, 0, 0.34);
-  --achievement-blue: #2467b2;
-  --achievement-blue-text: #174d8a;
-  --achievement-blue-soft: rgba(36, 103, 178, 0.12);
-  --achievement-blue-border: rgba(36, 103, 178, 0.34);
+  --green-300: #08795c;
+  --green-400: #08795c;
+  --green-500: #08795c;
+  --green-600: #066b51;
+  --green-700: #044b39;
+  --green-bg-soft: rgba(8, 121, 92, 0.08);
+  --green-bg-medium: rgba(8, 121, 92, 0.13);
+  --green-border: rgba(8, 121, 92, 0.28);
 
-  --dashboard-bg-rgb: 243 248 246;
+  --purple: #9254ed;
+  --purple-light: #9254ed;
+  --purple-dark: #583183;
+  --purple-soft: rgba(146, 84, 237, 0.12);
+  --purple-border: rgba(146, 84, 237, 0.28);
+  --orange: #d5a000;
+  --orange-light: #d5a000;
+  --orange-dark: #79500b;
+  --orange-soft: rgba(250, 204, 21, 0.18);
+  --orange-border: rgba(234, 179, 8, 0.35);
+  --red: #f13e48;
+  --red-light: #f13e48;
+  --red-dark: #922b3d;
+  --red-soft: rgba(255, 67, 78, 0.12);
+  --red-border: rgba(255, 67, 78, 0.28);
+  --blue: #287bfa;
+  --blue-light: #287bfa;
+  --blue-dark: #234e89;
+  --blue-soft: rgba(40, 123, 250, 0.13);
+  --blue-border: rgba(40, 123, 250, 0.28);
+  --yellow: #d5a000;
+  --yellow-soft: rgba(250, 204, 21, 0.18);
+  --red-fill: #ff434e;
+  --blue-fill: #398bff;
+  --purple-fill: #a36bfa;
+  --yellow-fill: #facc15;
+  --progress-track: #dfe6e9;
+  --achievement-gold: #d5a000;
+  --achievement-gold-text: #d5a000;
+  --achievement-gold-soft: rgba(250, 204, 21, 0.18);
+  --achievement-gold-border: rgba(234, 179, 8, 0.35);
+  --achievement-blue: #287bfa;
+  --achievement-blue-text: #287bfa;
+  --achievement-blue-soft: rgba(40, 123, 250, 0.13);
+  --achievement-blue-border: rgba(40, 123, 250, 0.28);
+
+  --accent-fill-rgb: 43 212 171;
+  --accent-fill-strong-rgb: 28 187 148;
+  --text-on-accent: #ffffff;
+  --text-on-accent-inverse: var(--text-on-accent);
+  --shadow-color: 28 54 66;
+  --shadow-strength: 0.35;
+  --shadow-panel: 0 3px 14px rgb(var(--shadow-color) / 0.045);
+  --shadow-glow: 0 3px 12px rgba(8, 121, 92, 0.1);
+  --shadow-modal: 0 20px 60px rgb(var(--shadow-color) / 0.16);
+  --shadow-popover: 0 8px 28px rgb(var(--shadow-color) / 0.12);
+  --overlay: rgba(28, 45, 55, 0.3);
+  --overlay-soft: var(--overlay);
+  --focus-ring-glow: rgba(28, 187, 148, 0.14);
+  --avatar-background: var(--accent-soft);
+  --avatar-text: var(--accent);
+  --sidebar-artwork: url('/sidebar-light.png');
+
+  --dashboard-bg-rgb: 245 247 248;
   --dashboard-surface-rgb: 255 255 255;
-  --dashboard-surface-raised-rgb: 237 244 241;
-  --dashboard-text-rgb: 19 35 29;
-  --dashboard-muted-rgb: 63 87 77;
-  --dashboard-subtle-rgb: 88 111 101;
-  --dashboard-accent-rgb: 8 121 92;
-  --dashboard-accent-strong-rgb: 5 91 69;
+  --dashboard-surface-raised-rgb: 240 244 245;
+  --dashboard-text-rgb: 23 44 53;
+  --dashboard-muted-rgb: 67 91 102;
+  --dashboard-subtle-rgb: 91 112 122;
+  --dashboard-accent-rgb: 0 137 103;
+  --dashboard-accent-strong-rgb: 6 107 81;
+  --dashboard-danger-rgb: 241 62 72;
+  --dashboard-warning-rgb: 213 160 0;
+  --dashboard-info-rgb: 40 123 250;
+  --dashboard-accent-soft: rgba(0, 164, 123, 0.12);
 }
 
 * {
@@ -201,13 +284,13 @@ body {
 
 :root[data-theme='light'] body {
   background:
-    radial-gradient(circle at 65% 15%, rgba(15, 164, 125, 0.08), transparent 34%), var(--bg-page);
+    radial-gradient(circle at 65% 15%, rgba(28, 187, 148, 0.025), transparent 34%), var(--bg-page);
 }
 
-:root[data-theme='light'] input,
-:root[data-theme='light'] select,
-:root[data-theme='light'] textarea {
-  color-scheme: light !important;
+input,
+select,
+textarea {
+  color-scheme: inherit;
 }
 
 a {
@@ -313,8 +396,9 @@ button {
 .focus-timer-stage {
   position: relative;
   display: grid;
-  width: min(360px, 42vh);
-  min-width: 280px;
+  width: min(100%, 420px);
+  min-width: 0;
+  container-type: inline-size;
   aspect-ratio: 1 / 1;
   margin: 32px auto 0;
   place-items: center;
@@ -346,63 +430,96 @@ button {
   width: 100%;
   height: 100%;
   transform: rotate(-90deg);
-  filter: drop-shadow(0 0 14px rgba(34, 240, 177, 0.48));
+  filter: drop-shadow(0 0 14px var(--focus-ring-glow));
 }
 
 .focus-timer-ring circle:last-child {
   transition: stroke-dasharray 250ms linear;
 }
 
+.focus-timer-content {
+  --focus-safe-diameter: calc(94cqi - 3cm - 2px);
+  --focus-control-size: clamp(28px, 11.5cqi, 48px);
+  --focus-time-size: clamp(16px, calc(var(--focus-safe-diameter) * 0.33), 96px);
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  transform: translateY(clamp(-18px, -4cqi, -8px));
+  text-align: center;
+}
+
+.focus-timer-clock {
+  position: absolute;
+  top: calc(8% + clamp(8px, 4cqi, 18px));
+  left: 50%;
+  width: clamp(14px, 5cqi, 22px);
+  height: clamp(14px, 5cqi, 22px);
+  transform: translateX(-50%);
+}
+
 .focus-timer-time {
-  font-size: clamp(48px, 6vw, 68px);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max-content;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  font-size: var(--focus-time-size);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .focus-timer-action {
-  min-width: 136px;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  height: var(--focus-control-size);
+  padding: 0 clamp(6px, 3.2cqi, 16px);
+  place-items: center;
+  font-size: clamp(12px, calc(var(--focus-safe-diameter) * 0.065), 18px);
+  line-height: 1;
+}
+
+.focus-timer-action-icon {
+  display: none;
 }
 
 .focus-timer-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 22px;
-}
-
-.focus-reset-action {
+  position: absolute;
+  top: calc(50% + var(--focus-time-size) / 2 + clamp(20px, 5cqi, 28px));
+  left: 50%;
   display: grid;
-  min-width: 76px;
-  height: 48px;
-  place-items: center;
-  border: 1px solid rgba(34, 240, 177, 0.3);
-  border-radius: 9999px;
-  background: rgba(34, 240, 177, 0.1);
-  color: var(--dashboard-accent);
-  font-size: 14px;
-  font-weight: 600;
-  transition:
-    background-color 160ms ease,
-    border-color 160ms ease;
+  width: calc(var(--focus-safe-diameter) * 0.78);
+  transform: translateX(-50%);
+  grid-template-columns: minmax(0, 1fr) var(--focus-control-size);
+  align-items: center;
+  justify-items: center;
+  gap: clamp(8px, 3cqi, 14px);
 }
 
-.focus-reset-action:hover:not(:disabled) {
-  border-color: rgba(34, 240, 177, 0.68);
-  background: rgba(34, 240, 177, 0.18);
+.focus-timer-controls--with-stop {
+  grid-template-columns: minmax(0, 1fr) repeat(2, var(--focus-control-size));
 }
 
-.focus-reset-action:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
+.focus-timer-controls svg {
+  width: clamp(16px, 5.5cqi, 24px);
+  height: clamp(16px, 5.5cqi, 24px);
+}
+
+.focus-timer-controls button:focus-visible {
+  outline: 2px solid var(--dashboard-accent);
+  outline-offset: 3px;
 }
 
 .focus-skip-action {
   display: grid;
-  width: 48px;
-  height: 48px;
-  flex: 0 0 48px;
+  width: var(--focus-control-size);
+  height: var(--focus-control-size);
   place-items: center;
-  border: 1px solid rgba(34, 240, 177, 0.3);
+  border: 1px solid var(--accent-border);
   border-radius: 9999px;
-  background: rgba(34, 240, 177, 0.1);
+  background: var(--accent-soft);
   color: var(--dashboard-accent);
   transition:
     background-color 160ms ease,
@@ -412,14 +529,13 @@ button {
 
 .focus-stop-action {
   display: grid;
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+  width: var(--focus-control-size);
+  height: var(--focus-control-size);
   place-items: center;
-  border: 1px solid rgba(248, 113, 113, 0.42);
+  border: 1px solid var(--red-border);
   border-radius: 9999px;
-  background: rgba(248, 113, 113, 0.1);
-  color: rgb(248, 113, 113);
+  background: var(--red-soft);
+  color: var(--red-light);
   transition:
     border-color 160ms ease,
     background 160ms ease,
@@ -427,8 +543,8 @@ button {
 }
 
 .focus-stop-action:hover:not(:disabled) {
-  border-color: rgba(248, 113, 113, 0.82);
-  background: rgba(248, 113, 113, 0.18);
+  border-color: var(--red);
+  background: var(--red-soft);
   transform: scale(1.04);
 }
 
@@ -438,9 +554,59 @@ button {
 }
 
 .focus-skip-action:hover {
-  border-color: rgba(34, 240, 177, 0.68);
-  background: rgba(34, 240, 177, 0.18);
+  border-color: var(--accent);
+  background: var(--green-bg-medium);
   transform: translateX(2px);
+}
+
+@container (min-width: 300px) and (max-width: 359px) {
+  .focus-timer-content {
+    --focus-control-size: clamp(24px, 8cqi, 28px);
+  }
+
+  .focus-timer-controls {
+    top: calc(50% + var(--focus-time-size) / 2 + 4px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(6px, 2cqi, 10px);
+  }
+
+  .focus-timer-action {
+    width: 100%;
+    grid-column: 1 / -1;
+  }
+
+  .focus-timer-controls:not(.focus-timer-controls--with-stop) .focus-skip-action {
+    grid-column: 1 / -1;
+  }
+}
+
+@container (max-width: 299px) {
+  .focus-timer-content {
+    --focus-control-size: clamp(20px, 8cqi, 28px);
+  }
+
+  .focus-timer-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px;
+  }
+
+  .focus-timer-controls--with-stop {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .focus-timer-action {
+    width: var(--focus-control-size);
+    padding: 0;
+  }
+
+  .focus-timer-action-label {
+    display: none;
+  }
+
+  .focus-timer-action-icon {
+    display: grid;
+    place-items: center;
+  }
 }
 
 @media (max-width: 640px) {
@@ -449,8 +615,6 @@ button {
   }
 
   .focus-timer-stage {
-    width: min(76vw, 320px);
-    min-width: 0;
     margin-top: 20px;
   }
 
@@ -460,30 +624,6 @@ button {
 
   .focus-timer-stage::after {
     inset: -60px;
-  }
-
-  .focus-timer-time {
-    font-size: clamp(40px, 14vw, 58px);
-  }
-
-  .focus-timer-action {
-    min-width: 100px;
-  }
-
-  .focus-timer-controls {
-    gap: 8px;
-    margin-top: 18px;
-  }
-
-  .focus-reset-action {
-    min-width: 64px;
-    height: 42px;
-  }
-
-  .focus-skip-action {
-    width: 42px;
-    height: 42px;
-    flex-basis: 42px;
   }
 }
 

@@ -8,18 +8,20 @@ type AuthFieldProps = {
 
 export function AuthField({ id, label, icon, ...inputProps }: AuthFieldProps) {
   return (
-    <label className="relative block h-[72px] w-full" htmlFor={id}>
-      <span className="absolute left-0 top-2.5 text-sm text-[#65737a]">{label}</span>
-      <input
-        className="chrono-autofill chrono-autofill-auth absolute inset-x-0 bottom-0 h-12 w-full border-0 border-b border-[#ececf2] bg-transparent pr-8 text-sm font-bold text-[#f4f7f6] outline-none placeholder:font-semibold placeholder:text-[#65737a] focus:border-[var(--accent)]"
-        id={id}
-        {...inputProps}
-      />
-      {icon ? (
-        <span className="pointer-events-none absolute right-0 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center text-[#f4f7f6] opacity-80">
-          {icon}
-        </span>
-      ) : null}
+    <label className="grid w-full gap-2 text-xs font-semibold text-dashboard-muted" htmlFor={id}>
+      <span>{label}</span>
+      <span className="relative flex h-12 items-center rounded-xl border border-dashboard-border bg-[var(--bg-input)] transition focus-within:border-dashboard-accent focus-within:ring-2 focus-within:ring-dashboard-accent/15">
+        {icon ? (
+          <span className="pointer-events-none absolute left-4 flex size-5 items-center justify-center text-dashboard-muted">
+            {icon}
+          </span>
+        ) : null}
+        <input
+          className={`chrono-autofill chrono-autofill-auth h-full w-full rounded-xl border-0 bg-transparent pr-4 text-sm font-medium text-dashboard-text outline-none placeholder:font-normal placeholder:text-dashboard-muted ${icon ? 'pl-11' : 'pl-4'}`}
+          id={id}
+          {...inputProps}
+        />
+      </span>
     </label>
   );
 }

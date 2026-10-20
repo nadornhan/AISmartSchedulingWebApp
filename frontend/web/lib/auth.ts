@@ -31,6 +31,12 @@ export type TokenResponse = {
 
 const CURRENT_USER_KEY = 'chrono.auth.currentUser';
 
+function cacheCurrentUser(user: UserResponse, token: string | null, signal?: AbortSignal) {
+  if (typeof window !== 'undefined' && token && !signal?.aborted && getAccessToken() === token) {
+    window.localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+  }
+}
+
 /**
  * Register a user with their complete profile information.
  */
@@ -70,7 +76,9 @@ export async function loginUser(email: string, password: string): Promise<TokenR
 /**
  * Retrieve the signed-in user's profile.
  */
-export async function getCurrentUser(): Promise<UserResponse> {
+export async function getCurrentUser(
+  options: { signal?: AbortSignal } = {},
+): Promise<UserResponse> {
   const accessToken = getAccessToken();
 
   if (!accessToken) {
@@ -79,12 +87,28 @@ export async function getCurrentUser(): Promise<UserResponse> {
 
   const user = await apiRequest<UserResponse>('/auth/me', {
     method: 'GET',
+    signal: options.signal,
   });
 
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-  }
+  cacheCurrentUser(user, accessToken, options.signal);
 
+  return user;
+}
+
+export async function updateCurrentUserProfile(input: {
+  firstName: string;
+  lastName: string;
+}): Promise<UserResponse> {
+  const accessToken = getAccessToken();
+  const user = await apiRequest<UserResponse>('/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify({
+      first_name: input.firstName.trim(),
+      last_name: input.lastName.trim(),
+    }),
+  });
+
+  cacheCurrentUser(user, accessToken);
   return user;
 }
 
@@ -92,6 +116,7 @@ export async function getCurrentUser(): Promise<UserResponse> {
  * Upload a new avatar for the signed-in user.
  */
 export async function uploadCurrentUserAvatar(file: File): Promise<UserResponse> {
+  const accessToken = getAccessToken();
   const formData = new FormData();
   formData.set('avatar', file);
 
@@ -100,9 +125,7 @@ export async function uploadCurrentUserAvatar(file: File): Promise<UserResponse>
     body: formData,
   });
 
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-  }
+  cacheCurrentUser(user, accessToken);
 
   return user;
 }
@@ -111,13 +134,12 @@ export async function uploadCurrentUserAvatar(file: File): Promise<UserResponse>
  * Remove the signed-in user's avatar so UI falls back to initials.
  */
 export async function deleteCurrentUserAvatar(): Promise<UserResponse> {
+  const accessToken = getAccessToken();
   const user = await apiRequest<UserResponse>('/auth/me/avatar', {
     method: 'DELETE',
   });
 
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-  }
+  cacheCurrentUser(user, accessToken);
 
   return user;
 }

@@ -1,553 +1,41 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
-import {
-  finishFocusSession as saveFinishedFocusSession,
-  getActiveFocusSession,
-  startFocusSession,
-  updateFocusSession,
-} from '../../lib/focus';
-import { listTasks, type TaskResponse } from '../../lib/tasks';
-import { FocusSettingsModal, type FocusDurations } from './FocusSettingsModal';
-
-type Mode = 'Pomodoro' | 'Short Break' | 'Long Break';
-
-type FocusTask = {
-  id: string;
-  title: string;
-  status: TaskResponse['status'];
-  dueDate: string | null;
-  estimatedDurationMinutes: number | null;
-  projectName: string | null;
-};
-
-const modes: Mode[] = ['Pomodoro', 'Short Break', 'Long Break'];
-
-const defaultDurations: FocusDurations = {
-  focus: 25,
-  shortBreak: 5,
-  longBreak: 15,
-};
-
-const timerStorageKey = 'focus-timer-state-v1';
-
-type PersistedTimerState = {
-  version: 1;
-  mode: Mode;
-  durations: FocusDurations;
-  remainingByMode: Record<Mode, number>;
-  running: boolean;
-  endTime: number | null;
-  sessionId: string | null;
-  sessionStartedAt: string | null;
-  focusedMilliseconds: number;
-  activeSegmentStartedAt: number | null;
-};
-
-function modeSeconds(durations: FocusDurations): Record<Mode, number> {
-  return {
-    Pomodoro: durations.focus * 60,
-    'Short Break': durations.shortBreak * 60,
-    'Long Break': durations.longBreak * 60,
-  };
-}
-
-function readPersistedTimer(): PersistedTimerState | null {
-  if (typeof window === 'undefined') return null;
-
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(timerStorageKey) ?? 'null') as
-      | PersistedTimerState
-      | null;
-    if (!parsed || parsed.version !== 1 || !modes.includes(parsed.mode)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function getModeSeconds(mode: Mode, durations: FocusDurations) {
-  if (mode === 'Pomodoro') return durations.focus * 60;
-  if (mode === 'Short Break') return durations.shortBreak * 60;
-  return durations.longBreak * 60;
-}
+import { useState } from 'react';
+import { Clock3, LoaderCircle } from 'lucide-react';
+import { FocusSettingsModal } from './FocusSettingsModal';
+import { useFocusTasks, type FocusTask } from './use-focus-tasks';
+import { modes, useFocusTimer } from './use-focus-timer';
 
 export function FocusMode() {
   const searchParams = useSearchParams();
-  const [restoredTimer, setRestoredTimer] = useState<PersistedTimerState | null>(null);
-  const [timerHydrated, setTimerHydrated] = useState(false);
-  const [sessionHydrated, setSessionHydrated] = useState(false);
-  const [mode, setMode] = useState<Mode>('Pomodoro');
-  const [durations, setDurations] = useState<FocusDurations>(defaultDurations);
-  const [seconds, setSeconds] = useState(defaultDurations.focus * 60);
-  const [running, setRunning] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [tasks, setTasks] = useState<FocusTask[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(true);
-  const [tasksError, setTasksError] = useState<string | null>(null);
-  const [taskSearch, setTaskSearch] = useState('');
-  const [sessionMessage, setSessionMessage] = useState<string | null>(null);
-  const [sessionError, setSessionError] = useState<string | null>(null);
-  const [isSessionMutating, setIsSessionMutating] = useState(false);
-  const [sessionTaskLocked, setSessionTaskLocked] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const endTimeRef = useRef<number | null>(null);
-  const remainingRef = useRef(defaultDurations.focus * 60);
-  const remainingByModeRef = useRef<Record<Mode, number>>(modeSeconds(defaultDurations));
-  const completionSoundPlayedRef = useRef(false);
-  const sessionStartedAtRef = useRef<string | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
-  const activeSegmentStartedAtRef = useRef<number | null>(null);
-  const focusedMillisecondsRef = useRef(0);
-  const isSavingSessionRef = useRef(false);
   const selectedTaskId = searchParams.get('task_id');
   const selectedTaskTitle = searchParams.get('task_title');
   const selectedDuration = Number(searchParams.get('duration'));
-  const [selectedFocusTaskIds, setSelectedFocusTaskIds] = useState<string[]>(() =>
-    selectedTaskId && selectedTaskId.trim() ? [selectedTaskId] : [],
-  );
-
-  const totalSeconds = getModeSeconds(mode, durations);
-  const progress = totalSeconds > 0 ? Math.min(1, Math.max(0, seconds / totalSeconds)) : 0;
-  const minutes = Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, '0');
-  const remainder = (seconds % 60).toString().padStart(2, '0');
-
-  function persistTimerSnapshot() {
-    const snapshot: PersistedTimerState = {
-      version: 1,
-      mode,
-      durations,
-      remainingByMode: { ...remainingByModeRef.current },
-      running,
-      endTime: endTimeRef.current,
-      sessionId: sessionIdRef.current,
-      sessionStartedAt: sessionStartedAtRef.current,
-      focusedMilliseconds: focusedMillisecondsRef.current,
-      activeSegmentStartedAt: activeSegmentStartedAtRef.current,
-    };
-    window.localStorage.setItem(timerStorageKey, JSON.stringify(snapshot));
-  }
-
-  useEffect(() => {
-    const restored = readPersistedTimer();
-    if (restored) {
-      const restoredSeconds =
-        restored.running && restored.endTime !== null
-          ? Math.max(0, Math.ceil((restored.endTime - Date.now()) / 1000))
-          : restored.remainingByMode[restored.mode];
-      setRestoredTimer(restored);
-      setMode(restored.mode);
-      setDurations(restored.durations);
-      setSeconds(restoredSeconds);
-      setRunning(restored.running);
-      endTimeRef.current = restored.endTime;
-      remainingRef.current = restoredSeconds;
-      remainingByModeRef.current = {
-        ...restored.remainingByMode,
-        [restored.mode]: restoredSeconds,
-      };
-      completionSoundPlayedRef.current = Boolean(
-        restored.running && restored.endTime !== null && restoredSeconds === 0,
-      );
-      sessionStartedAtRef.current = restored.sessionStartedAt;
-      sessionIdRef.current = restored.sessionId;
-      activeSegmentStartedAtRef.current = restored.activeSegmentStartedAt;
-      focusedMillisecondsRef.current = restored.focusedMilliseconds;
-    }
-    setTimerHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!timerHydrated) return;
-    remainingRef.current = seconds;
-    remainingByModeRef.current[mode] = seconds;
-    persistTimerSnapshot();
-  }, [durations, mode, running, seconds, timerHydrated]);
-
-  useEffect(() => {
-    audioRef.current = new Audio('/sounds/focus-complete.wav');
-    audioRef.current.preload = 'auto';
-    audioRef.current.volume = 0.28;
-  }, []);
-
-  useEffect(() => {
-    if (!timerHydrated) return;
-    const controller = new AbortController();
-
-    void getActiveFocusSession(controller.signal)
-      .then((session) => {
-        setSessionError(null);
-        if (!session) {
-          sessionIdRef.current = null;
-          sessionStartedAtRef.current = null;
-          focusedMillisecondsRef.current = 0;
-          activeSegmentStartedAtRef.current = null;
-          setSessionTaskLocked(false);
-          if (mode === 'Pomodoro' && running) {
-            setRunning(false);
-            endTimeRef.current = null;
-          }
-          persistTimerSnapshot();
-          return;
-        }
-
-        sessionIdRef.current = session.id;
-        sessionStartedAtRef.current = session.started_at;
-        const restoredSessionMatches = restoredTimer?.sessionId === session.id;
-        focusedMillisecondsRef.current = Math.max(
-          restoredSessionMatches ? focusedMillisecondsRef.current : 0,
-          session.actual_duration_seconds * 1000,
-        );
-        setSelectedFocusTaskIds(
-          session.task_ids.length > 0 ? session.task_ids : session.task_id ? [session.task_id] : [],
-        );
-        setSessionTaskLocked(true);
-        const plannedSeconds = session.planned_duration_minutes * 60;
-        setDurations((current) => ({
-          ...current,
-          focus: session.planned_duration_minutes,
-        }));
-
-        if (restoredSessionMatches) {
-          setSessionMessage(restoredTimer.running ? 'Focus session restored' : 'Focus session restored · paused');
-          if (!restoredTimer.running || restoredTimer.mode !== 'Pomodoro') {
-            void updateFocusSession(session.id, {
-              actual_duration_seconds: Math.round(focusedMillisecondsRef.current / 1000),
-              status: 'paused',
-            });
-          }
-          return;
-        }
-
-        setMode('Pomodoro');
-        setSeconds(Math.max(0, plannedSeconds - session.actual_duration_seconds));
-        remainingByModeRef.current.Pomodoro = Math.max(
-          0,
-          plannedSeconds - session.actual_duration_seconds,
-        );
-        setRunning(false);
-        endTimeRef.current = null;
-        activeSegmentStartedAtRef.current = null;
-        setSessionMessage('Previous focus session restored · paused');
-
-        if (session.status === 'active') {
-          void updateFocusSession(session.id, {
-            actual_duration_seconds: session.actual_duration_seconds,
-            status: 'paused',
-          });
-        }
-      })
-      .catch(() => {
-        if (controller.signal.aborted) return;
-        setSessionError('Unable to restore the active focus session.');
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setSessionHydrated(true);
-      });
-
-    return () => controller.abort();
-  }, [timerHydrated]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    setTasksLoading(true);
-    setTasksError(null);
-    void listTasks(
-      {
-        page: 1,
-        pageSize: 100,
-        sortBy: 'due_date',
-        sortOrder: 'asc',
-      },
-      { signal: controller.signal },
-    )
-      .then((response) => {
-        const availableTasks = response.items
-          .filter((task) => (task.workflow_status ?? task.status) !== 'done')
-          .map((task) => ({
-            id: task.id,
-            title: task.title,
-            status: task.status,
-            dueDate: task.due_date,
-            estimatedDurationMinutes: task.estimated_duration_minutes,
-            projectName: task.project?.name ?? null,
-          }));
-
-        if (
-          selectedTaskId &&
-          selectedTaskTitle &&
-          !availableTasks.some((task) => task.id === selectedTaskId)
-        ) {
-          availableTasks.unshift({
-            id: selectedTaskId,
-            title: selectedTaskTitle,
-            status: 'pending',
-            dueDate: null,
-            estimatedDurationMinutes: null,
-            projectName: null,
-          });
-        }
-
-        setTasks(availableTasks);
-      })
-      .catch(() => {
-        if (controller.signal.aborted) return;
-        setTasksError('Unable to load your tasks. Please try again.');
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setTasksLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [selectedTaskId, selectedTaskTitle]);
-
-  useEffect(() => {
-    if (!timerHydrated) return;
-    if (restoredTimer) return;
-    if (!Number.isInteger(selectedDuration) || selectedDuration <= 0) return;
-
-    setDurations((current) => ({
-      ...current,
-      focus: selectedDuration,
-    }));
-    setMode('Pomodoro');
-    setSeconds(selectedDuration * 60);
-    remainingRef.current = selectedDuration * 60;
-    setRunning(false);
-    endTimeRef.current = null;
-    completionSoundPlayedRef.current = false;
-  }, [restoredTimer, selectedDuration, timerHydrated]);
-
-  useEffect(() => {
-    if (!timerHydrated || !sessionHydrated || !running) return;
-
-    function tick() {
-      if (endTimeRef.current === null) return;
-
-      const nextSeconds = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000));
-
-      setSeconds((current) => {
-        if (nextSeconds === 0 && current > 0 && !completionSoundPlayedRef.current) {
-          completionSoundPlayedRef.current = true;
-          audioRef.current?.play().catch(() => {});
-        }
-
-        return nextSeconds;
-      });
-
-      if (nextSeconds === 0) {
-        if (mode === 'Pomodoro') {
-          captureActiveSegment(endTimeRef.current ?? Date.now());
-        }
-        setRunning(false);
-        endTimeRef.current = null;
-        if (mode === 'Pomodoro' && completionSoundPlayedRef.current) {
-          void finishFocusSession(true);
-        }
-      }
-    }
-
-    tick();
-    const timer = window.setInterval(tick, 250);
-
-    return () => window.clearInterval(timer);
-  }, [mode, running, sessionHydrated, timerHydrated]);
-
-  function captureActiveSegment(segmentEndedAt = Date.now()) {
-    if (activeSegmentStartedAtRef.current === null) return;
-
-    focusedMillisecondsRef.current += Math.max(
-      0,
-      segmentEndedAt - activeSegmentStartedAtRef.current,
-    );
-    activeSegmentStartedAtRef.current = null;
-  }
-
-  async function finishFocusSession(completed: boolean): Promise<boolean> {
-    if (!sessionIdRef.current) return true;
-    if (isSavingSessionRef.current) return false;
-
-    captureActiveSegment();
-    const sessionId = sessionIdRef.current;
-    const actualSeconds = Math.max(0, Math.round(focusedMillisecondsRef.current / 1000));
-    const actualMinutes = Math.ceil(actualSeconds / 60);
-
-    isSavingSessionRef.current = true;
-    setIsSessionMutating(true);
-    setSessionError(null);
-    setSessionMessage('Saving focus session...');
-
-    try {
-      await saveFinishedFocusSession(sessionId, actualSeconds, completed);
-      sessionIdRef.current = null;
-      sessionStartedAtRef.current = null;
-      focusedMillisecondsRef.current = 0;
-      activeSegmentStartedAtRef.current = null;
-      setSessionTaskLocked(false);
-      setSessionMessage(
-        completed
-          ? `Focus session completed · ${actualMinutes} min recorded`
-          : `Focus session stopped · ${actualMinutes} min recorded`,
-      );
-      persistTimerSnapshot();
-      return true;
-    } catch (requestError) {
-      setSessionMessage(null);
-      setSessionTaskLocked(true);
-      setSessionError(
-        requestError instanceof Error ? requestError.message : 'Unable to save this focus session.',
-      );
-      return false;
-    } finally {
-      isSavingSessionRef.current = false;
-      setIsSessionMutating(false);
-    }
-  }
-
-  async function selectMode(nextMode: Mode) {
-    if (nextMode === mode) return;
-
-    remainingByModeRef.current[mode] = remainingRef.current;
-    if (running) {
-      if (mode === 'Pomodoro') captureActiveSegment();
-      setRunning(false);
-      endTimeRef.current = null;
-
-      if (mode === 'Pomodoro' && sessionIdRef.current) {
-        try {
-          await updateFocusSession(sessionIdRef.current, {
-            actual_duration_seconds: Math.round(focusedMillisecondsRef.current / 1000),
-            status: 'paused',
-          });
-        } catch {
-          setSessionError('Timer switched modes, but focus progress could not be synced.');
-        }
-      }
-    }
-
-    const nextSeconds = remainingByModeRef.current[nextMode];
-    setMode(nextMode);
-    setSeconds(nextSeconds);
-    remainingRef.current = nextSeconds;
-    completionSoundPlayedRef.current = false;
-  }
-
-  async function saveDurations(nextDurations: FocusDurations) {
-    if (mode === 'Pomodoro' && sessionStartedAtRef.current) {
-      const stopped = await finishFocusSession(false);
-      if (!stopped) return;
-    }
-    setDurations(nextDurations);
-    remainingByModeRef.current = modeSeconds(nextDurations);
-    setSeconds(remainingByModeRef.current[mode]);
-    remainingRef.current = remainingByModeRef.current[mode];
-    setRunning(false);
-    endTimeRef.current = null;
-    completionSoundPlayedRef.current = false;
-    setSettingsOpen(false);
-  }
-
-  async function toggleTimer() {
-    if (seconds === 0) {
-      setSeconds(totalSeconds);
-      remainingRef.current = totalSeconds;
-      remainingByModeRef.current[mode] = totalSeconds;
-      endTimeRef.current = null;
-      completionSoundPlayedRef.current = false;
-      return;
-    }
-
-    if (running) {
-      captureActiveSegment();
-      endTimeRef.current = null;
-      setRunning(false);
-      if (mode === 'Pomodoro' && sessionIdRef.current) {
-        const actualSeconds = Math.round(focusedMillisecondsRef.current / 1000);
-        void updateFocusSession(sessionIdRef.current, {
-          actual_duration_seconds: actualSeconds,
-          status: 'paused',
-        }).catch(() => setSessionError('Timer paused, but progress could not be synced.'));
-      }
-      return;
-    }
-
-    setSessionError(null);
-    setIsSessionMutating(true);
-    try {
-      if (mode === 'Pomodoro' && !sessionIdRef.current) {
-        const session = await startFocusSession({
-          task_ids: selectedFocusTaskIds,
-          planned_duration_minutes: Math.max(1, Math.round(totalSeconds / 60)),
-        });
-        sessionIdRef.current = session.id;
-        sessionStartedAtRef.current = session.started_at;
-        focusedMillisecondsRef.current = session.actual_duration_seconds * 1000;
-        setSessionTaskLocked(true);
-        setSessionMessage(null);
-      } else if (mode === 'Pomodoro' && sessionIdRef.current) {
-        await updateFocusSession(sessionIdRef.current, {
-          actual_duration_seconds: Math.round(focusedMillisecondsRef.current / 1000),
-          status: 'active',
-        });
-      }
-
-      completionSoundPlayedRef.current = false;
-      endTimeRef.current = Date.now() + remainingRef.current * 1000;
-      if (mode === 'Pomodoro') activeSegmentStartedAtRef.current = Date.now();
-      audioRef.current?.load();
-      setRunning(true);
-    } catch (requestError) {
-      setSessionError(
-        requestError instanceof Error ? requestError.message : 'Unable to start focus session.',
-      );
-    } finally {
-      setIsSessionMutating(false);
-    }
-  }
-
-  function skipSession() {
-    void selectMode(mode === 'Pomodoro' ? 'Short Break' : 'Pomodoro');
-  }
-
-  function resetTimer() {
-    if (sessionTaskLocked || isSessionMutating) return;
-
-    setRunning(false);
-    setSeconds(totalSeconds);
-    remainingRef.current = totalSeconds;
-    remainingByModeRef.current[mode] = totalSeconds;
-    endTimeRef.current = null;
-    completionSoundPlayedRef.current = false;
-    setSessionMessage(null);
-    setSessionError(null);
-  }
-
-  function stopFocusSession() {
-    if (!sessionIdRef.current || isSavingSessionRef.current) return;
-
-    captureActiveSegment();
-    setRunning(false);
-    setSeconds(totalSeconds);
-    remainingRef.current = totalSeconds;
-    remainingByModeRef.current[mode] = totalSeconds;
-    endTimeRef.current = null;
-    completionSoundPlayedRef.current = false;
-    void finishFocusSession(false);
-  }
-
-  function toggleFocusTask(taskId: string) {
-    setSelectedFocusTaskIds((current) =>
-      current.includes(taskId)
-        ? current.filter((selectedId) => selectedId !== taskId)
-        : current.length < 20
-          ? [...current, taskId]
-          : current,
-    );
-  }
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [taskSearch, setTaskSearch] = useState('');
+  const { tasks, tasksLoading, tasksError } = useFocusTasks({ selectedTaskId, selectedTaskTitle });
+  const {
+    mode,
+    durations,
+    running,
+    progress,
+    minutes,
+    remainder,
+    sessionMessage,
+    sessionError,
+    isSessionMutating,
+    sessionTaskLocked,
+    selectedFocusTaskIds,
+    setSelectedFocusTaskIds,
+    timerActionLabel,
+    selectMode,
+    saveDurations,
+    toggleTimer,
+    skipSession,
+    stopFocusSession,
+    toggleFocusTask,
+  } = useFocusTimer({ selectedTaskId, selectedDuration, setSettingsOpen });
 
   const selectedFocusTasks = tasks.filter((task) => selectedFocusTaskIds.includes(task.id));
   const selectedFocusTaskTitles = selectedFocusTasks.map((task) => task.title);
@@ -572,7 +60,6 @@ export function FocusMode() {
           .some((value) => value?.toLocaleLowerCase().includes(normalizedTaskSearch)),
       )
     : tasks;
-
   return (
     <div className="mx-auto max-w-[1450px] space-y-5 sm:space-y-7">
       <section className="focus-mode-panel relative overflow-hidden rounded-2xl border border-dashboard-border">
@@ -594,6 +81,7 @@ export function FocusMode() {
                   : 'text-dashboard-muted hover:text-dashboard-text'
               }`}
               key={item}
+              disabled={isSessionMutating}
               onClick={() => void selectMode(item)}
               type="button"
             >
@@ -618,41 +106,39 @@ export function FocusMode() {
               fill="none"
               pathLength="100"
               r="96"
-              stroke="var(--dashboard-accent)"
+              stroke="rgb(var(--accent-fill-strong-rgb))"
               strokeDasharray={`${progress * 100} 100`}
               strokeLinecap="round"
               strokeWidth="2.6"
             />
           </svg>
 
-          <div className="relative z-10 flex flex-col items-center">
-            <div className="mb-3 flex items-center gap-2 text-dashboard-accent sm:mb-5">
-              <ClockIcon />
-              <span className="text-sm font-medium sm:text-lg">
-                {mode === 'Pomodoro' ? 'Focus Time' : mode}
-              </span>
-            </div>
-
+          <div className="focus-timer-content">
+            <Clock3 aria-hidden="true" className="focus-timer-clock text-dashboard-accent" />
             <p className="focus-timer-time font-poppins font-medium leading-none tracking-tight text-dashboard-text">
               {minutes}:{remainder}
             </p>
 
-            <div className="focus-timer-controls">
+            <div
+              className={`focus-timer-controls${mode === 'Pomodoro' && sessionTaskLocked ? ' focus-timer-controls--with-stop' : ''}`}
+            >
               <button
-                className="focus-timer-action rounded-full bg-gradient-to-r from-dashboard-accent-strong to-dashboard-accent px-6 py-2.5 text-base font-semibold text-white shadow-glow transition hover:brightness-110"
+                aria-label={timerActionLabel}
+                className="focus-timer-action rounded-full bg-gradient-to-r from-dashboard-accent-strong to-dashboard-accent font-semibold text-dashboard-on-accent-inverse shadow-glow transition hover:brightness-110"
                 disabled={isSessionMutating}
                 onClick={() => void toggleTimer()}
                 type="button"
               >
-                {isSessionMutating
-                  ? isSavingSessionRef.current
-                    ? 'Saving...'
-                    : 'Starting...'
-                  : seconds === 0
-                    ? 'Reset'
-                    : running
-                      ? 'Pause'
-                      : 'Start'}
+                <span className="focus-timer-action-label">{timerActionLabel}</span>
+                <span aria-hidden="true" className="focus-timer-action-icon">
+                  {isSessionMutating ? (
+                    <LoaderCircle className="animate-spin motion-reduce:animate-none" />
+                  ) : running ? (
+                    <PauseIcon />
+                  ) : (
+                    <PlayIcon />
+                  )}
+                </span>
               </button>
 
               {mode === 'Pomodoro' && sessionTaskLocked ? (
@@ -668,21 +154,11 @@ export function FocusMode() {
                 </button>
               ) : null}
 
-              {!sessionTaskLocked ? (
-                <button
-                  className="focus-reset-action"
-                  disabled={isSessionMutating}
-                  onClick={resetTimer}
-                  type="button"
-                >
-                  Reset
-                </button>
-              ) : null}
-
               <button
                 aria-label={mode === 'Pomodoro' ? 'Skip to short break' : 'Skip to focus session'}
                 className="focus-skip-action"
-                onClick={skipSession}
+                disabled={isSessionMutating}
+                onClick={() => void skipSession()}
                 title={mode === 'Pomodoro' ? 'Skip to break' : 'Skip to focus'}
                 type="button"
               >
@@ -787,7 +263,7 @@ export function FocusMode() {
                 <button
                   aria-pressed={selected}
                   className={`flex w-full items-center gap-4 border-b border-dashboard-border px-5 py-4 text-left transition last:border-0 disabled:cursor-not-allowed disabled:opacity-55 ${
-                    selected ? 'bg-dashboard-accent/[0.1]' : 'hover:bg-white/[0.025]'
+                    selected ? 'bg-dashboard-accent/[0.1]' : 'hover:bg-dashboard-raised/60'
                   }`}
                   disabled={sessionTaskLocked || selectionLimitReached}
                   key={task.id}
@@ -797,7 +273,7 @@ export function FocusMode() {
                   <span
                     className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border transition ${
                       selected
-                        ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-bg'
+                        ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
                         : 'border-dashboard-muted/60 text-transparent'
                     }`}
                   >
@@ -844,21 +320,6 @@ export function FocusMode() {
         open={settingsOpen}
       />
     </div>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg
-      className="h-5 w-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      viewBox="0 0 24 24"
-    >
-      <circle cx="12" cy="12" r="8" />
-      <path d="M12 7v5l3 2M8 2h8" />
-    </svg>
   );
 }
 
@@ -909,6 +370,22 @@ function formatTaskDueDate(value: string) {
     month: 'short',
     day: 'numeric',
   }).format(date)}`;
+}
+
+function PlayIcon() {
+  return (
+    <svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+      <path d="m8 5 11 7-11 7V5Z" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M6 5h4v14H6V5Zm8 0h4v14h-4V5Z" />
+    </svg>
+  );
 }
 
 function SkipIcon() {

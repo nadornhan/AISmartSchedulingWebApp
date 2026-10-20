@@ -108,7 +108,7 @@ export function VoiceTaskButton({ disabled, onTranscript }: {
         aria-pressed={listening}
         disabled={disabled}
         onClick={toggle}
-        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-dashboard-accent/30 bg-dashboard-accent/10 text-dashboard-accent transition duration-200 hover:border-dashboard-accent/70 hover:bg-dashboard-accent/20 hover:shadow-[0_0_18px_rgba(36,211,138,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dashboard-accent focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-surface-raised)] aria-pressed:border-red-400/50 aria-pressed:bg-red-400/10 aria-pressed:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-dashboard-accent/30 bg-dashboard-accent/10 text-dashboard-accent transition duration-200 hover:border-dashboard-accent/70 hover:bg-dashboard-accent/20 hover:shadow-[0_0_18px_rgba(36,211,138,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dashboard-accent focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-surface-raised)] aria-pressed:border-dashboard-danger/50 aria-pressed:bg-dashboard-danger/10 aria-pressed:text-dashboard-danger disabled:cursor-not-allowed disabled:opacity-50"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
           <rect x="9" y="2" width="6" height="12" rx="3" />
@@ -116,7 +116,7 @@ export function VoiceTaskButton({ disabled, onTranscript }: {
         </svg>
       </button>
       {message ? (
-        <div role="status" className="col-span-3 flex min-w-0 items-start gap-2.5 rounded-xl border border-red-400/20 bg-red-400/5 px-3 py-2.5 text-xs font-normal leading-5 text-red-400 [contain:inline-size]">
+        <div role="status" className="col-span-3 flex min-w-0 items-start gap-2.5 rounded-xl border border-dashboard-danger/20 bg-dashboard-danger/5 px-3 py-2.5 text-xs font-normal leading-5 text-dashboard-danger [contain:inline-size]">
           <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
           <p className="min-w-0 break-words">{message}</p>
         </div>

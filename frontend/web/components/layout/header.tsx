@@ -2,8 +2,9 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Moon, Sun, Zap } from 'lucide-react';
 import { HeaderDropdown } from './header-dropdown';
-import { BellIcon, FilterIcon, SearchIcon } from './icons';
+import { BellIcon, CalendarIcon, FilterIcon, SearchIcon } from './icons';
 import { NotificationDropdown, type NotificationDropdownItem } from './notification-dropdown';
 import type { UserResponse } from '../../lib/auth';
 import { onTaskDataChanged } from '../../lib/data-events';
@@ -16,11 +17,12 @@ import {
   type NotificationResponse,
 } from '../../lib/notifications';
 import { UserAvatar } from '../shared/user-avatar';
+import { useDashboardHeading } from './dashboard-heading-context';
+import { useUiPreferences } from './ui-preferences-provider';
 
 type HeaderProps = {
-  title: string;
-  subtitle?: string;
   className?: string;
+  totalXp?: number | null;
   user?: UserResponse | null;
 };
 
@@ -28,37 +30,63 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }
 
-export function Header({ title, subtitle, className, user }: HeaderProps) {
+export function Header({ className, totalXp, user }: HeaderProps) {
   return (
     <header
       className={cn(
-        'sticky top-0 z-[180] hidden min-h-28 flex-col gap-6 border-b border-dashboard-border bg-dashboard-bg/90 px-10 py-6 backdrop-blur-xl lg:flex xl:px-12',
+        'sticky top-0 z-[180] hidden h-24 items-center border-b border-dashboard-border bg-dashboard-bg/90 px-10 backdrop-blur-xl lg:flex xl:px-12',
         className,
       )}
     >
-      <div className="flex items-start justify-between gap-6">
-        <div className="min-w-0">
-          <h1 className="truncate font-poppins text-4xl font-medium leading-tight tracking-normal text-dashboard-text">
-            {title}
-          </h1>
-          {subtitle ? (
-            <p className="mt-2 text-base leading-6 text-dashboard-muted">{subtitle}</p>
-          ) : null}
-        </div>
-
-        <div className="flex shrink-0 items-center gap-6">
+      <div className="flex w-full items-center justify-between gap-6">
+        <div className="min-w-0 flex-1">
           <SearchBox />
-          <HeaderActions user={user} />
         </div>
+        <HeaderActions totalXp={totalXp} user={user} />
       </div>
     </header>
   );
 }
 
+export function HeaderDate({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
+  const { heading } = useDashboardHeading();
+  const [today, setToday] = useState('');
+
+  useEffect(() => {
+    setToday(
+      new Intl.DateTimeFormat('en-AU', {
+        weekday: compact ? 'short' : 'long',
+        day: 'numeric',
+        month: compact ? 'short' : 'long',
+      }).format(new Date()),
+    );
+  }, [compact]);
+
+  return (
+    <p
+      className={cn(
+        'inline-flex items-center gap-2 text-sm font-medium text-dashboard-muted',
+        className,
+      )}
+    >
+      <CalendarIcon className="h-4 w-4 shrink-0 text-dashboard-accent" />
+      {heading?.date ?? today}
+    </p>
+  );
+}
+
 export function SearchBox({
+  autoFocus = false,
   compact = false,
   showFilterButton = false,
 }: Readonly<{
+  autoFocus?: boolean;
   compact?: boolean;
   showFilterButton?: boolean;
 }>) {
@@ -74,8 +102,10 @@ export function SearchBox({
   return (
     <form
       className={cn(
-        'flex h-14 items-center border border-dashboard-border bg-dashboard-surface/55 text-dashboard-muted shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition focus-within:border-dashboard-accent/60',
-        compact ? 'w-full rounded-2xl px-4' : 'w-[420px] rounded-lg px-5',
+        'flex items-center border border-dashboard-border bg-dashboard-surface/55 text-dashboard-muted shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition focus-within:border-dashboard-accent/60',
+        compact
+          ? 'h-12 w-full rounded-xl px-4'
+          : 'h-12 min-w-0 w-full max-w-[400px] rounded-lg px-5',
       )}
       onSubmit={handleSubmit}
       role="search"
@@ -85,6 +115,7 @@ export function SearchBox({
         Search tasks
       </label>
       <input
+        autoFocus={autoFocus}
         className="chrono-autofill chrono-autofill-search min-w-0 flex-1 self-stretch rounded-[inherit] border-0 bg-transparent pl-4 text-base font-medium text-dashboard-text outline-none placeholder:text-dashboard-muted"
         id={compact ? 'mobile-task-search' : 'desktop-task-search'}
         onChange={(event) => setSearch(event.target.value)}
@@ -108,13 +139,19 @@ export function SearchBox({
 
 export function HeaderActions({
   compact = false,
+  showXp = true,
+  totalXp,
   user,
 }: Readonly<{
   compact?: boolean;
+  showXp?: boolean;
+  totalXp?: number | null;
   user?: UserResponse | null;
 }>) {
   const router = useRouter();
   const pathname = usePathname();
+  const { theme, setTheme } = useUiPreferences();
+  const themeAction = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
   const [openMenu, setOpenMenu] = useState<'notifications' | null>(null);
   const [notifications, setNotifications] = useState<NotificationListResponse>({
     items: [],
@@ -260,14 +297,57 @@ export function HeaderActions({
   }));
 
   return (
-    <div className={cn('relative flex items-center', compact ? 'gap-1' : 'gap-6')}>
+    <div
+      className={cn(
+        'relative shrink-0 items-center',
+        compact ? 'flex gap-2' : 'flex gap-3 xl:gap-4',
+      )}
+    >
+      {!compact ? (
+        <HeaderDate className="mr-2 whitespace-nowrap border-r border-dashboard-border py-1 pr-5" />
+      ) : null}
+      {showXp && user ? (
+        <span
+          aria-label={
+            totalXp == null
+              ? 'Accumulated XP unavailable'
+              : `${totalXp.toLocaleString('en-AU')} accumulated XP`
+          }
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--achievement-gold-border)] bg-[var(--achievement-gold-soft)] font-semibold tabular-nums text-[var(--achievement-gold-text)]',
+            compact ? 'px-2 py-1.5 text-xs' : 'px-3 py-2 text-sm',
+          )}
+          title="Total accumulated XP (Growth Points)"
+        >
+          <Zap aria-hidden="true" className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+          {totalXp == null ? '—' : totalXp.toLocaleString('en-AU')} XP
+        </span>
+      ) : null}
+      {!compact ? (
+        <button
+          aria-label={themeAction}
+          className={cn(
+            'grid shrink-0 place-items-center rounded-full text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent',
+            'h-11 w-11',
+          )}
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          title={themeAction}
+          type="button"
+        >
+          {theme === 'dark' ? (
+            <Sun aria-hidden="true" size={22} />
+          ) : (
+            <Moon aria-hidden="true" size={22} />
+          )}
+        </button>
+      ) : null}
       <button
         aria-expanded={compact ? undefined : openMenu === 'notifications'}
         aria-haspopup={compact ? undefined : 'dialog'}
         aria-label="Notifications"
         className={cn(
           'relative grid place-items-center rounded-full text-dashboard-text transition hover:bg-dashboard-surface hover:text-dashboard-accent',
-          compact ? 'h-11 w-11' : 'h-12 w-12',
+          'h-11 w-11',
         )}
         onClick={() => {
           if (compact) {
@@ -279,7 +359,7 @@ export function HeaderActions({
         ref={notificationButtonRef}
         type="button"
       >
-        <BellIcon className="h-6 w-6" />
+        <BellIcon className="h-5 w-5" />
         {notifications.unread_count > 0 ? (
           compact ? (
             <span
@@ -294,20 +374,22 @@ export function HeaderActions({
         ) : null}
       </button>
 
-      <button
-        aria-label="Open profile"
-        className="flex items-center gap-3 rounded-full text-dashboard-muted transition hover:text-dashboard-text"
-        onClick={() => router.push('/profile')}
-        type="button"
-      >
-        <UserAvatar
-          avatarUrl={user?.avatar_url}
-          className={compact ? 'h-11 w-11' : 'h-12 w-12'}
-          email={user?.email}
-          firstName={user?.first_name}
-          lastName={user?.last_name}
-        />
-      </button>
+      {!compact ? (
+        <button
+          aria-label="Open profile"
+          className="flex items-center gap-3 rounded-full text-dashboard-muted transition hover:text-dashboard-text"
+          onClick={() => router.push('/profile')}
+          type="button"
+        >
+          <UserAvatar
+            avatarUrl={user?.avatar_url}
+            className="h-11 w-11"
+            email={user?.email}
+            firstName={user?.first_name}
+            lastName={user?.last_name}
+          />
+        </button>
+      ) : null}
 
       {openMenu === 'notifications' ? (
         <HeaderDropdown
@@ -326,7 +408,6 @@ export function HeaderActions({
           />
         </HeaderDropdown>
       ) : null}
-
     </div>
   );
 }

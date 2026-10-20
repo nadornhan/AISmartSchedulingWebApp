@@ -44,7 +44,7 @@ export function NextBestTaskCard({
             ))}
           </div>
           <button
-            className="mt-2 h-11 w-full rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-[#04110d] shadow-glow transition hover:brightness-110"
+            className="mt-2 h-11 w-full rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-dashboard-on-accent shadow-glow transition hover:brightness-110"
             onClick={startFocus}
             type="button"
           >

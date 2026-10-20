@@ -2,6 +2,14 @@
 
 This document defines the visual language for the AI Smart Scheduling interface. Keep structural surfaces neutral, and reserve semantic colors for icons, badges, progress indicators, statuses, and actions.
 
+## Current interface revision
+
+The current design extends the A4 dark navy and teal prototype through a less is more approach. Mobile Tasks and Calendar use compact cards whose height follows their content, readable titles, short dates, one completion checkbox and an edit action. Repeated status dropdowns, descriptions and individual overdue pills are omitted from these mobile cards. Desktop retains denser task controls where space permits.
+
+The authenticated workspace supports dark and light themes through `UiPreferencesProvider` and `web/app/globals.css`. The light theme uses `#f5f7f8` page backgrounds, white surfaces, `#172c35` primary text and a darker green accent (`#08795c`). Dark-theme examples below are not universal light-theme values: consume the shared variables instead of copying fixed colours. Authentication artwork remains dark. Theme choice persists in browser storage; work and notification settings persist through the backend.
+
+Mobile navigation contains Home, Tasks, create task, Calendar and Account. Account Settings hosts Notifications, Theme, Work preferences and Scheduling priorities. Desktop uses two columns for settings navigation and selected content; mobile uses horizontal section controls. The Profile page places photo/name editing in the left desktop column and account information in the right. Green accent scrollbars also apply to notification lists.
+
 ## Table of contents
 
 1. [Typography](#1-typography)
@@ -30,7 +38,7 @@ This document defines the visual language for the AI Smart Scheduling interface.
 font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 ```
 
-Use Geist throughout the interface. Avoid mixing it with another font because the dashboard already contains many data points and labels.
+Use Geist for body content and form controls. The implementation also uses Poppins for page headings and authentication branding; keep that distinction consistent rather than introducing additional typefaces.
 
 ### Desktop typography
 
@@ -407,8 +415,10 @@ Use for quick wins, small alerts, recommendations, and study labels.
 | Medium | `#ffb648` | `rgba(245, 160, 25, 0.13)` |
 | Low | `#78aaff` | `rgba(78, 142, 255, 0.13)` |
 | Completed | `#35e3b5` | `rgba(53, 227, 181, 0.13)` |
-| Pending | `#ffc229` | `rgba(255, 194, 41, 0.12)` |
-| In progress | `#78aaff` | `rgba(78, 142, 255, 0.13)` |
+| Pending | `var(--red-light)` | `var(--red-soft)` |
+| In progress | `var(--yellow)` | `var(--orange-soft)` |
+
+Done uses green. Keep status labels visible wherever status badges are shown, and distinguish workflow status from task priority and project colour. The mobile card omits the status dropdown and expresses completion through its checkbox.
 
 ## 10. Navigation
 

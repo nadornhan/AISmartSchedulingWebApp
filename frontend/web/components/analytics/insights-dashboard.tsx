@@ -1,6 +1,19 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import {
+  ArrowRight,
+  CircleCheck,
+  CircleQuestionMark,
+  Flame,
+  Hourglass,
+  ListTodo,
+  Timer,
+  Trophy,
+  type LucideIcon,
+} from 'lucide-react';
+import { PageHeadingActions } from '../layout/page-heading';
 
 import {
   getInsightsSummary,
@@ -44,9 +57,8 @@ function formatWeeklySummary(summary: InsightsSummary) {
       <strong>
         {completedTaskCount} {taskLabel}
       </strong>{' '}
-      this week, that&apos;s{' '}
-      <span className="font-semibold text-[var(--accent)]">{absolute}%</span> {direction} than last
-      week!
+      this week, that&apos;s <span className="font-semibold text-[var(--accent)]">{absolute}%</span>{' '}
+      {direction} than last week!
     </>
   );
 }
@@ -120,7 +132,7 @@ function TrendChart({
         {coordinates.map((point, index) => (
           <g key={`${point.label}-${index}`}>
             <line
-              stroke="var(--border)"
+              stroke="var(--border-subtle)"
               strokeDasharray="4 6"
               strokeWidth="1"
               x1={point.x}
@@ -128,13 +140,7 @@ function TrendChart({
               y1={chartTop}
               y2={chartBottom}
             />
-            <text
-              fill="var(--text-muted)"
-              fontSize="13"
-              textAnchor="middle"
-              x={point.x}
-              y="162"
-            >
+            <text fill="var(--text-muted)" fontSize="13" textAnchor="middle" x={point.x} y="162">
               {point.label}
             </text>
           </g>
@@ -149,13 +155,7 @@ function TrendChart({
           strokeWidth="3"
         />
         {coordinates.map((point, index) => (
-          <circle
-            cx={point.x}
-            cy={point.y}
-            fill="var(--accent)"
-            key={`point-${index}`}
-            r="3.5"
-          />
+          <circle cx={point.x} cy={point.y} fill="var(--accent)" key={`point-${index}`} r="3.5" />
         ))}
         {last ? (
           <>
@@ -177,6 +177,7 @@ function TrendChart({
 }
 
 export function InsightsDashboard() {
+  const [selectedWeek, setSelectedWeek] = useState<'this-week' | 'last-week'>('this-week');
   const [summary, setSummary] = useState<InsightsSummary | null>(null);
   const [weekly, setWeekly] = useState<WeeklyInsight | null>(null);
   const [weeklyError, setWeeklyError] = useState<string | null>(null);
@@ -231,26 +232,55 @@ export function InsightsDashboard() {
     };
   }, []);
 
-  if (isLoading && !summary) {
-    return (
-      <div className="space-y-6">
+  return (
+    <div className="space-y-6">
+      <PageHeadingActions>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <span className="sr-only" id="review-week-label">
+            Review week
+          </span>
+          <div
+            aria-labelledby="review-week-label"
+            className="inline-flex rounded-xl border border-dashboard-border bg-dashboard-surface p-1"
+            role="group"
+          >
+            {(['this-week', 'last-week'] as const).map((week) => (
+              <button
+                aria-pressed={selectedWeek === week}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dashboard-accent ${
+                  selectedWeek === week
+                    ? 'bg-dashboard-accent-soft text-dashboard-accent'
+                    : 'text-dashboard-muted hover:bg-[var(--bg-surface-raised)] hover:text-dashboard-text'
+                }`}
+                key={week}
+                onClick={() => setSelectedWeek(week)}
+                type="button"
+              >
+                {week === 'this-week' ? 'This week' : 'Last week'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </PageHeadingActions>
+
+      {selectedWeek === 'last-week' ? (
         <WeeklyInsightCard insight={weekly} error={weeklyError} />
-        <p className="text-sm text-dashboard-muted">Loading current activity…</p>
-      </div>
-    );
-  }
+      ) : summary ? (
+        <CurrentWeekReview summary={summary} />
+      ) : error ? (
+        <p className="text-sm text-[var(--red-light)]" role="alert">
+          {error}
+        </p>
+      ) : isLoading ? (
+        <p className="text-sm text-dashboard-muted" role="status">
+          Loading current activity…
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
-  if (error && !summary) {
-    return (
-      <div className="space-y-6">
-        <WeeklyInsightCard insight={weekly} error={weeklyError} />
-        <p className="text-sm text-[var(--red-light)]">{error}</p>
-      </div>
-    );
-  }
-
-  if (!summary) return null;
-
+function CurrentWeekReview({ summary }: { summary: InsightsSummary }) {
   const currentWeekDateFormat = new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
     timeZone: summary.timezone,
@@ -262,44 +292,58 @@ export function InsightsDashboard() {
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-[20px] border border-dashboard-border bg-dashboard-surface shadow-panel">
+      <section
+        aria-label="This week's review"
+        className="overflow-hidden rounded-[20px] border border-dashboard-border bg-dashboard-surface shadow-panel"
+      >
         <header className="border-b border-dashboard-border px-6 py-5 sm:px-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-dashboard-accent">
-            Current week snapshot
-          </p>
-          <h2 className="mt-1 text-2xl font-semibold text-dashboard-text">This Week So Far</h2>
-          <p className="mt-2 flex items-center gap-2 text-sm font-medium text-dashboard-muted">
+          <p className="flex items-center gap-2 text-sm font-medium text-dashboard-muted">
             <span aria-hidden className="text-dashboard-accent">
               ◷
             </span>
-            {currentWeekStart} - {currentWeekEnd} · {summary.timezone} · Updates as your activity
-            changes
+            {currentWeekStart} - {currentWeekEnd} · {summary.timezone}
           </p>
         </header>
 
         <div className="space-y-8 px-6 py-6 sm:px-8 sm:py-8">
-          <section aria-labelledby="current-week-progress">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-full bg-dashboard-accent-soft text-dashboard-accent">
-                🌱
-              </span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-accent">
-                  Current activity
-                </p>
-                <h3
-                  className="text-lg font-semibold text-dashboard-text"
-                  id="current-week-progress"
-                >
-                  Progress so far
-                </h3>
-              </div>
-            </div>
+          <section aria-label="Weekly summary">
             <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-              <div className="flex items-center rounded-[16px] border border-dashboard-accent/30 bg-dashboard-accent-soft/40 px-5 py-5">
+              <div className="relative isolate flex flex-col items-start justify-center gap-5 overflow-hidden rounded-[16px] border border-dashboard-accent/25 bg-dashboard-bg/40 p-6">
+                <svg
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 -z-10 size-full text-dashboard-accent"
+                  focusable="false"
+                  preserveAspectRatio="none"
+                  viewBox="0 0 480 360"
+                >
+                  <path
+                    d="M55 360 180 310 235 276 255 276 300 242 320 252 331 252 370 218 380 216 410 190 432 209 444 213 480 240V360Z"
+                    fill="currentColor"
+                    opacity="0.08"
+                  />
+                  <path
+                    d="M125 360 236 319 281 301 305 310 347 287 358 289 395 267 480 302V360Z"
+                    fill="currentColor"
+                    opacity="0.05"
+                  />
+                </svg>
+                <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-dashboard-accent-soft text-dashboard-accent">
+                  {summary.tasks_completed_this_week === 0 ? (
+                    <CircleQuestionMark aria-hidden="true" className="size-7" strokeWidth={1.75} />
+                  ) : (
+                    <ListTodo aria-hidden="true" className="size-6" strokeWidth={1.75} />
+                  )}
+                </span>
                 <p className="text-base leading-7 text-dashboard-text sm:text-lg sm:leading-8">
                   {formatWeeklySummary(summary)}
                 </p>
+                <Link
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-dashboard-accent px-4 py-2 text-sm font-semibold text-dashboard-on-accent transition hover:bg-dashboard-accent-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-dashboard-accent"
+                  href="/tasks"
+                >
+                  View tasks
+                  <ArrowRight aria-hidden="true" className="size-4" />
+                </Link>
               </div>
               <div className="rounded-[16px] border border-dashboard-border bg-[var(--bg-surface-raised)] px-4 pb-3 pt-4">
                 <TrendChart points={summary.trend} />
@@ -310,45 +354,34 @@ export function InsightsDashboard() {
             </div>
           </section>
 
-          <section aria-labelledby="current-week-metrics">
-            <div className="mb-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-muted">
-                Live measurements
-              </p>
-              <h3
-                className="mt-1 text-lg font-semibold text-dashboard-text"
-                id="current-week-metrics"
-              >
-                Key metrics
-              </h3>
-            </div>
+          <section aria-label="Key metrics">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <StatCard
-                icon="🏆"
+                icon={Trophy}
                 iconClass="bg-[var(--accent-soft)] text-[var(--accent)]"
                 label="Completion Rate"
                 value={`${Math.round((summary.completion_rate_this_week ?? 0) * 100)}%`}
               />
               <StatCard
-                icon="✓"
+                icon={CircleCheck}
                 iconClass="bg-[var(--accent-soft)] text-[var(--accent)]"
                 label="Completed Tasks"
                 value={String(summary.tasks_completed_this_week)}
               />
               <StatCard
-                icon="⏱️"
+                icon={Timer}
                 iconClass="bg-[var(--blue-soft)] text-[var(--blue-light)]"
                 label="Focus Duration"
                 value={`${summary.focus_duration_minutes_this_week ?? 0} min`}
               />
               <StatCard
-                icon="⌛"
+                icon={Hourglass}
                 iconClass="bg-[var(--purple-soft)] text-[var(--purple-light)]"
                 label="Unfinished Workload"
                 value={`${summary.unfinished_workload_minutes_this_week ?? 0} min`}
               />
               <StatCard
-                icon="🔥"
+                icon={Flame}
                 iconClass="bg-[var(--orange-soft)] text-[var(--orange)]"
                 label="Streak"
                 value={`${summary.current_streak_days} days`}
@@ -357,8 +390,6 @@ export function InsightsDashboard() {
           </section>
         </div>
       </section>
-
-      <WeeklyInsightCard insight={weekly} error={weeklyError} />
 
       <section className="flex flex-col gap-4 rounded-[18px] border border-dashboard-border bg-dashboard-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex items-start gap-3">
@@ -374,34 +405,32 @@ export function InsightsDashboard() {
   );
 }
 
+function MetricIcon({ icon: Icon, iconClass }: { icon: LucideIcon; iconClass: string }) {
+  return (
+    <span className={`mb-3 grid size-10 place-items-center rounded-xl ${iconClass}`}>
+      <Icon aria-hidden="true" className="size-5" strokeWidth={1.75} />
+    </span>
+  );
+}
+
 function StatCard({
   icon,
   iconClass,
   label,
   value,
 }: {
-  icon: string;
+  icon: LucideIcon;
   iconClass: string;
   label: string;
   value: string;
 }) {
   return (
-    <div className="flex min-h-[108px] items-center rounded-[14px] border border-dashboard-border bg-[var(--bg-surface-raised)] p-4">
-      <div className="flex items-center gap-3">
-        <div
-          className={`grid size-10 shrink-0 place-items-center rounded-full text-sm font-bold ${iconClass}`}
-        >
-          {icon}
-        </div>
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.08em] text-dashboard-muted">
-            {label}
-          </p>
-          <p className="mt-2 text-xl font-semibold text-dashboard-text">
-            {value}
-          </p>
-        </div>
-      </div>
+    <div className="min-h-[108px] rounded-[14px] border border-dashboard-border bg-[var(--bg-surface-raised)] p-4">
+      <MetricIcon icon={icon} iconClass={iconClass} />
+      <p className="text-xs font-medium uppercase tracking-[0.08em] text-dashboard-muted">
+        {label}
+      </p>
+      <p className="mt-2 text-xl font-semibold text-dashboard-text">{value}</p>
     </div>
   );
 }
@@ -419,8 +448,7 @@ function WeeklyInsightCard({
         aria-live="polite"
         className="rounded-[20px] border border-dashboard-border bg-dashboard-surface p-6"
       >
-        <h3 className="text-2xl font-semibold text-dashboard-text">Last week’s review</h3>
-        <p className="mt-2 text-dashboard-muted">{error || 'Loading last week’s review…'}</p>
+        <p className="text-dashboard-muted">{error || 'Loading last week’s review…'}</p>
       </section>
     );
   const metrics = insight.metrics;
@@ -431,20 +459,44 @@ function WeeklyInsightCard({
   const start = dateFormat.format(new Date(insight.period_start));
   const end = dateFormat.format(new Date(new Date(insight.period_end).getTime() - 1));
   const stats = [
-    ['Completion rate', `${Math.round(metrics.completion_rate * 100)}%`],
-    ['Completed tasks', String(metrics.completed_task_count)],
-    ['Focus duration', `${metrics.focus_duration_minutes} min`],
-    ['Unfinished workload', `${metrics.workload_minutes} min`],
-    ['Streak', `${metrics.current_streak_days} days`],
+    {
+      label: 'Completion rate',
+      value: `${Math.round(metrics.completion_rate * 100)}%`,
+      icon: Trophy,
+      iconClass: 'bg-[var(--accent-soft)] text-[var(--accent)]',
+    },
+    {
+      label: 'Completed tasks',
+      value: String(metrics.completed_task_count),
+      icon: CircleCheck,
+      iconClass: 'bg-[var(--accent-soft)] text-[var(--accent)]',
+    },
+    {
+      label: 'Focus duration',
+      value: `${metrics.focus_duration_minutes} min`,
+      icon: Timer,
+      iconClass: 'bg-[var(--blue-soft)] text-[var(--blue-light)]',
+    },
+    {
+      label: 'Unfinished workload',
+      value: `${metrics.workload_minutes} min`,
+      icon: Hourglass,
+      iconClass: 'bg-[var(--purple-soft)] text-[var(--purple-light)]',
+    },
+    {
+      label: 'Streak',
+      value: `${metrics.current_streak_days} days`,
+      icon: Flame,
+      iconClass: 'bg-[var(--orange-soft)] text-[var(--orange)]',
+    },
   ];
   return (
-    <section className="overflow-hidden rounded-[20px] border border-dashboard-border bg-dashboard-surface shadow-panel">
+    <section
+      aria-label="Last week's review"
+      className="overflow-hidden rounded-[20px] border border-dashboard-border bg-dashboard-surface shadow-panel"
+    >
       <header className="border-b border-dashboard-border px-6 py-5 sm:px-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-dashboard-accent">
-          Previous week snapshot
-        </p>
-        <h3 className="mt-1 text-2xl font-semibold text-dashboard-text">Last Week's Review</h3>
-        <p className="mt-2 flex items-center gap-2 text-sm font-medium text-dashboard-muted">
+        <p className="flex items-center gap-2 text-sm font-medium text-dashboard-muted">
           <span aria-hidden className="text-dashboard-accent">
             ◷
           </span>
@@ -453,45 +505,24 @@ function WeeklyInsightCard({
       </header>
 
       <div className="space-y-8 px-6 py-6 sm:px-8 sm:py-8">
-        <section aria-labelledby="weekly-ai-insight">
-          <div className="mb-3 flex items-center gap-3">
-            <span className="grid size-9 place-items-center rounded-full bg-dashboard-accent-soft text-dashboard-accent">
-              ✦
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-accent">
-                Personalized summary
+        {metrics.completed_task_count > 0 || metrics.focus_duration_minutes > 0 ? (
+          <section aria-label="Weekly summary">
+            <div className="rounded-[16px] border border-dashboard-accent/30 bg-dashboard-accent-soft/40 px-5 py-4">
+              <p className="text-base leading-7 text-dashboard-text sm:text-lg sm:leading-8">
+                {insight.narrative}
               </p>
-              <h4
-                className="text-lg font-semibold text-dashboard-text"
-                id="weekly-ai-insight"
-              >
-                AI insight
-              </h4>
             </div>
-          </div>
-          <div className="rounded-[16px] border border-dashboard-accent/30 bg-dashboard-accent-soft/40 px-5 py-4">
-            <p className="text-base leading-7 text-dashboard-text sm:text-lg sm:leading-8">
-              {insight.narrative}
-            </p>
-          </div>
-        </section>
+          </section>
+        ) : null}
 
-        <section aria-labelledby="weekly-key-metrics">
-          <div className="mb-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-muted">
-              Numbers behind the insight
-            </p>
-            <h4 className="mt-1 text-lg font-semibold text-dashboard-text" id="weekly-key-metrics">
-              Key metrics
-            </h4>
-          </div>
+        <section aria-label="Key metrics">
           <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {stats.map(([label, value]) => (
+            {stats.map(({ label, value, icon, iconClass }) => (
               <div
                 className="rounded-[14px] border border-dashboard-border bg-[var(--bg-surface-raised)] px-4 py-4"
                 key={label}
               >
+                <MetricIcon icon={icon} iconClass={iconClass} />
                 <dt className="text-xs font-medium uppercase tracking-[0.08em] text-dashboard-muted">
                   {label}
                 </dt>
@@ -501,21 +532,10 @@ function WeeklyInsightCard({
           </dl>
         </section>
 
-        <section aria-labelledby="weekly-activity-patterns">
-          <div className="mb-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-muted">
-              When work happened
-            </p>
-            <h4
-              className="mt-1 text-lg font-semibold text-dashboard-text"
-              id="weekly-activity-patterns"
-            >
-              Activity patterns
-            </h4>
-          </div>
+        <section aria-label="Activity patterns">
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-[16px] border border-dashboard-border bg-[var(--bg-surface-raised)] p-5">
-              <h5 className="font-semibold text-dashboard-text">Daily productivity</h5>
+              <h3 className="font-semibold text-dashboard-text">Daily productivity</h3>
               <p className="mt-1 text-sm text-dashboard-muted">Completed tasks and focused time</p>
               <div className="mt-4 rounded-[14px] border border-dashboard-border bg-dashboard-surface px-3 py-3">
                 <TrendChart
@@ -538,8 +558,10 @@ function WeeklyInsightCard({
               </ul>
             </div>
             <div className="rounded-[16px] border border-dashboard-border bg-[var(--bg-surface-raised)] p-5">
-              <h5 className="font-semibold text-dashboard-text">Productive hours</h5>
-              <p className="mt-1 text-sm text-dashboard-muted">Activity by hour · {metrics.timezone}</p>
+              <h3 className="font-semibold text-dashboard-text">Productive hours</h3>
+              <p className="mt-1 text-sm text-dashboard-muted">
+                Activity by hour · {metrics.timezone}
+              </p>
               <ul className="mt-4 divide-y divide-dashboard-border text-sm">
                 {metrics.productive_hours.map((point) => (
                   <li className="flex items-center justify-between gap-4 py-2.5" key={point.hour}>

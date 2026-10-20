@@ -26,7 +26,7 @@ export function QuickWinsCard({
             <div className="flex items-start gap-3" key={task.id}>
               <button
                 aria-label={`Complete ${task.title}`}
-                className="mt-4 grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border border-dashboard-border-strong bg-[var(--bg-input)] text-transparent transition hover:border-dashboard-accent hover:bg-dashboard-accent hover:text-dashboard-bg disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-4 grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border border-dashboard-border-strong bg-[var(--bg-input)] text-transparent transition hover:border-dashboard-accent hover:bg-dashboard-accent hover:text-dashboard-on-accent disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={completingTaskId === task.id}
                 onClick={() => onComplete(task.id)}
                 type="button"
