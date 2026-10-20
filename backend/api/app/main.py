@@ -16,6 +16,7 @@ from app.dashboard.router import router as dashboard_router
 from app.focus.router import router as focus_router
 from app.folders.router import router as folders_router
 from app.gamification.router import router as gamification_router
+from app.health.router import router as health_router
 from app.notifications.router import router as notifications_router
 from app.projects.router import router as projects_router
 from app.scheduling.router import router as scheduling_router
@@ -31,17 +32,14 @@ app.add_exception_handler(AIError, ai_error_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
-    # Next.js may fall back to 3001+ when 3000 is busy.
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origins=settings.cors_origin_list,
+    allow_origin_regex=settings.cors_allow_origin_regex or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(projects_router)
 app.include_router(folders_router)
