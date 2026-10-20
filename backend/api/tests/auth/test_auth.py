@@ -167,6 +167,65 @@ def test_login_returns_bearer_token_and_me_returns_current_user(
     assert current_user["avatar_url"] is None
 
 
+def test_update_me_trims_and_persists_profile_names(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    email, password, registered_user = register_user(client)
+    headers = auth_headers_for(email, password, client)
+
+    response = client.patch(
+        "/auth/me",
+        headers=headers,
+        json={"first_name": "  Minh  ", "last_name": "  Tran  "},
+    )
+
+    assert response.status_code == 200
+    updated_user = response.json()
+    stored_user = db_session.get(User, uuid.UUID(registered_user["id"]))
+
+    assert updated_user["first_name"] == "Minh"
+    assert updated_user["last_name"] == "Tran"
+    assert updated_user["email"] == email.lower()
+    assert updated_user["role"] == "student"
+    assert stored_user is not None
+    assert stored_user.first_name == "Minh"
+    assert stored_user.last_name == "Tran"
+
+
+def test_update_me_supports_partial_updates(client: TestClient) -> None:
+    email, password, _ = register_user(client)
+    headers = auth_headers_for(email, password, client)
+
+    response = client.patch(
+        "/auth/me",
+        headers=headers,
+        json={"first_name": "Jamie"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["first_name"] == "Jamie"
+    assert response.json()["last_name"] == "Nguyen"
+
+
+def test_update_me_rejects_blank_names_and_missing_auth(client: TestClient) -> None:
+    email, password, _ = register_user(client)
+    headers = auth_headers_for(email, password, client)
+
+    blank_response = client.patch(
+        "/auth/me",
+        headers=headers,
+        json={"last_name": "   "},
+    )
+    missing_auth_response = client.patch(
+        "/auth/me",
+        json={"first_name": "Jamie"},
+    )
+
+    assert blank_response.status_code == 422
+    assert missing_auth_response.status_code == 401
+
+
 def test_upload_avatar_accepts_valid_png(
     client: TestClient,
     db_session: Session,

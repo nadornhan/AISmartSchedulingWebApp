@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
+import { URL } from 'node:url';
 import vm from 'node:vm';
 import ts from 'typescript';
 
@@ -73,7 +74,7 @@ function mobileHeader(title) {
   return { render: () => MobileTopHeader({ title }), SearchBox, HeaderActions };
 }
 
-for (const title of ['All Tasks', 'Calendar', 'Focus Mode', 'Personal Forest', 'AI Insights']) {
+for (const title of ['All Tasks', 'Calendar', 'Focus Mode']) {
   test(`${title} mobile header has a left title and only a search button on the right`, () => {
     const h = mobileHeader(title);
     const tree = h.render();
@@ -93,6 +94,28 @@ for (const title of ['All Tasks', 'Calendar', 'Focus Mode', 'Personal Forest', '
     assert.deepEqual(
       items.filter((node) => node.type === 'button').map((node) => node.props['aria-label']),
       ['Search tasks'],
+    );
+  });
+}
+
+for (const title of ['Personal Forest', 'AI Insights']) {
+  test(`${title} mobile header returns to Account without task search controls`, () => {
+    const h = mobileHeader(title);
+    const items = nodes(h.render());
+    const heading = items.find((node) => node.type === 'h1');
+    const backLink = items.find((node) => node.props?.['aria-label'] === 'Back to account');
+
+    assert.equal(heading.props.children, title);
+    assert.match(heading.props.className, /\btext-2xl\b/);
+    assert.match(heading.props.className, /font-semibold/);
+    assert.equal(backLink.props.href, '/account');
+    assert.equal(
+      items.some((node) => node.type === h.HeaderActions || node.type === h.SearchBox),
+      false,
+    );
+    assert.equal(
+      items.some((node) => node.props?.['aria-label'] === 'Search tasks'),
+      false,
     );
   });
 }
