@@ -17,6 +17,39 @@ The committed `docker-compose.yml` remains the local development stack. Use
 Managed hosting may deploy the web, API and PostgreSQL as separate services
 using the same environment variables.
 
+## Recommended managed staging
+
+The repository includes deployment definitions for the recommended staging
+topology:
+
+- `render.yaml` provisions the FastAPI service and a managed PostgreSQL
+  database in Render's Singapore region.
+- `vercel.json` builds the Next.js app from the monorepo root on Vercel.
+
+Create staging in this order:
+
+1. In Render, create a Blueprint from this repository and select `render.yaml`.
+2. Supply a newly rotated `GEMINI_API_KEY`. For the initial API deploy, set
+   `CORS_ORIGINS` to a temporary HTTPS placeholder such as
+   `https://staging.invalid`; replace it as soon as Vercel assigns the frontend
+   URL.
+3. Wait for `/health/live` and `/health/ready` to return HTTP 200, then copy the
+   Render API URL.
+4. In Vercel, import this repository with the repository root as the project
+   root and set `NEXT_PUBLIC_API_URL` to the Render API URL before deploying.
+5. Copy the stable Vercel project URL into Render's `CORS_ORIGINS`, without a
+   trailing slash, and redeploy the API.
+6. Redeploy Vercel if the API URL changed after the first build. Values prefixed
+   with `NEXT_PUBLIC_` are embedded into the browser bundle at build time.
+
+Do not enable a wildcard production CORS origin. Add additional Vercel preview
+origins explicitly only when a preview needs to call the shared staging API.
+
+The free staging API filesystem is ephemeral. Avatar uploads can be used for a
+short smoke test but can disappear after a deploy or restart. Before production,
+attach persistent storage or move uploads to object storage. Do not store
+database files on the API filesystem.
+
 ## 1. Rotate credentials before the first deployment
 
 - Revoke any Gemini key that has been pasted into chat, source code, screenshots

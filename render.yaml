@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: chrono-api-staging
+    runtime: docker
+    branch: develop
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/api/Dockerfile
+    dockerContext: .
+    dockerCommand: "sh -c 'python -m alembic upgrade head && exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'"
+    healthCheckPath: /health/ready
+    envVars:
+      - key: APP_ENVIRONMENT
+        value: staging
+      - key: DATABASE_URL
+        fromDatabase:
+          name: chrono-postgres-staging
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: '30'
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CORS_ALLOW_ORIGIN_REGEX
+        value: ''
+      - key: UPLOAD_DIR
+        value: /app/uploads
+      - key: AI_ENABLED
+        value: 'true'
+      - key: AI_REQUESTS_PER_USER_PER_MINUTE
+        value: '10'
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
+      - key: GEMINI_TIMEOUT_SECONDS
+        value: '10'
+      - key: GEMINI_MAX_OUTPUT_TOKENS
+        value: '1024'
+      - key: GEMINI_MAX_RETRIES
+        value: '1'
+
+databases:
+  - name: chrono-postgres-staging
+    databaseName: chrono_staging
+    user: chrono_staging
+    plan: free
+    region: singapore
