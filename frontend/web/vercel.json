@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "corepack enable && pnpm install --frozen-lockfile",
-  "buildCommand": "corepack pnpm --filter @ai-smart-scheduling/web build",
-  "outputDirectory": "frontend/web/.next"
+  "buildCommand": "corepack pnpm build",
+  "outputDirectory": ".next"
 }
