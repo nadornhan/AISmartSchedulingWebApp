@@ -344,6 +344,83 @@ function elements(element) {
   return [element, ...elements(element.props?.children)];
 }
 
+function taskModalHarness() {
+  const slots = [];
+  let cursor = 0;
+  const placeholder = () => null;
+  const taskModal = load(read('components/tasks/create-task-modal.tsx'), {
+    react: {
+      useState(initial) {
+        const index = cursor++;
+        if (!(index in slots)) slots[index] = initial;
+        return [
+          slots[index],
+          (value) => {
+            slots[index] = typeof value === 'function' ? value(slots[index]) : value;
+          },
+        ];
+      },
+      useMemo: (callback) => callback(),
+      useRef: () => ({ current: null }),
+    },
+    'react/jsx-runtime': jsxRuntime,
+    'lucide-react': { ArrowDown: placeholder, Sparkles: placeholder },
+    './use-task-ai-entry': {
+      getErrorMessage: (error) => error.message,
+      useTaskAiEntry: () => ({
+        naturalLanguageInput: '',
+        aiEntryMode: 'generate',
+        setParseFeedback: () => {},
+      }),
+    },
+    './priority-suggestion': { PrioritySuggestion: placeholder },
+    '../../lib/duration': duration,
+    '../folders/create-folder-modal': { CreateFolderModal: placeholder },
+    './duration-estimate-panel': { DurationEstimatePanel: placeholder },
+    '../layout/icons': icons,
+  });
+  return {
+    render() {
+      cursor = 0;
+      const entry = taskModal.CreateTaskModal({
+        isSubmitting: false,
+        onClose: () => {},
+        onCreate: async () => {},
+        projects: [],
+      });
+      return elements(entry.type(entry.props));
+    },
+  };
+}
+
+test('AI task dialog uses the app heading font and inherited control typography', () => {
+  const nodes = taskModalHarness().render();
+  const heading = nodes.find((node) => node.props?.id === 'task-form-title');
+  assert.equal(heading.props.children, 'Describe your task');
+  assert.match(heading.props.className, /font-poppins/);
+  assert.match(heading.props.className, /tracking-normal/);
+  const form = nodes.find((node) => node.type === 'form');
+  const generate = nodes.find((node) => node.props?.['aria-label'] === 'Automatically fill task');
+  const input = nodes.find((node) => node.type === 'textarea');
+  const manual = nodes.find((node) => node.props?.children === 'Enter task manually');
+  for (const element of [form, generate, input, manual]) {
+    assert.ok(element);
+    assert.doesNotMatch(element.props.className, /font-(sans|poppins)|font-\[/);
+  }
+});
+
+test('manual task entry keeps the same heading typography after switching from AI', () => {
+  const h = taskModalHarness();
+  h.render()
+    .find((node) => node.props?.children === 'Enter task manually')
+    .props.onClick();
+  const nodes = h.render();
+  const heading = nodes.find((node) => node.props?.id === 'task-form-title');
+  assert.equal(heading.props.children, 'Create New Task');
+  assert.match(heading.props.className, /font-poppins/);
+  assert.match(heading.props.className, /tracking-normal/);
+});
+
 test('desktop table retains its responsive wrapper, column headers and loading/empty states', () => {
   const empty = renderToStaticMarkup(React.createElement(TaskDesktopTable, desktopProps()));
   assert.match(empty, /shadow-panel lg:block/);
@@ -616,7 +693,10 @@ test('mobile explicit edit retains source and omits the status dropdown', () => 
     ),
   );
   nodes.find((node) => node.props?.['aria-label'] === 'Edit Demo task').props.onClick();
-  assert.equal(nodes.some((node) => node.type === controls.StatusDropdown), false);
+  assert.equal(
+    nodes.some((node) => node.type === controls.StatusDropdown),
+    false,
+  );
 });
 
 test('mobile expanded subtasks retain mutation disabling and completion arguments', () => {
@@ -635,7 +715,10 @@ test('mobile expanded subtasks retain mutation disabling and completion argument
     nodes.find((node) => node.props?.['aria-label'] === 'Complete Demo task').props.disabled,
     true,
   );
-  assert.equal(nodes.some((node) => node.type === controls.StatusDropdown), false);
+  assert.equal(
+    nodes.some((node) => node.type === controls.StatusDropdown),
+    false,
+  );
   const accordion = nodes.find((node) => node.type === controls.SubtaskAccordion);
   assert.equal(accordion.props.disabled, true);
   accordion.props.onToggle('sub-a', true);

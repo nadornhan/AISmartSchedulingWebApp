@@ -507,7 +507,7 @@ export function TaskPage() {
         className="mb-5 hidden flex-nowrap items-center gap-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex"
         tabIndex={0}
       >
-        <div className="flex max-w-full shrink-0 gap-2 overflow-x-auto rounded-[var(--radius-xl)] border border-dashboard-border bg-dashboard-surface/70 p-2">
+        <div className="flex max-w-full shrink-0 gap-2 overflow-x-auto">
           {filterOrder.map((filter) => (
             <button
               aria-pressed={activeFilter === filter}
