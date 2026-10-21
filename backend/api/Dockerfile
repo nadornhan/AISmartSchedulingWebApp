@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir .
 COPY backend/api/alembic.ini ./
 COPY backend/api/alembic ./alembic
 COPY backend/api/app ./app
+COPY backend/api/scripts/start_render.sh ./start_render.sh
 
 EXPOSE 8000
 
