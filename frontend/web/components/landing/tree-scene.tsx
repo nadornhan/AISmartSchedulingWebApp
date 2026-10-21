@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, useGLTF } from '@react-three/drei';
 import { Box3, Vector3 } from 'three';
@@ -29,9 +29,19 @@ export default function TreeScene({
   onReady: () => void;
   onUnavailable: () => void;
 }) {
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updatePreference = () => setReduceMotion(preference.matches);
+    updatePreference();
+    preference.addEventListener('change', updatePreference);
+    return () => preference.removeEventListener('change', updatePreference);
+  }, []);
+
   return (
     <Canvas
-      frameloop="demand"
+      frameloop="always"
       dpr={[1, 1.5]}
       camera={{ position: [6, 3.7, 8], fov: 35 }}
       gl={{ alpha: true, antialias: true }}
@@ -54,6 +64,8 @@ export default function TreeScene({
       </mesh>
       <OrbitControls
         target={[0, 1.9, 0]}
+        autoRotate={!reduceMotion}
+        autoRotateSpeed={0.35}
         enableZoom={false}
         enablePan={false}
         enableDamping={false}

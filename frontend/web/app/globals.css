@@ -885,6 +885,20 @@ h6 {
   background-size: cover;
 }
 
+.calendar-agenda-empty {
+  background-image:
+    linear-gradient(rgba(4, 12, 20, 0.22), rgba(4, 12, 20, 0.22)),
+    url('/images/calendar/daily-agenda-empty-mountains.webp');
+  background-position: center;
+  background-size: cover;
+}
+
+:root[data-theme='light'] .calendar-agenda-empty {
+  background-image:
+    linear-gradient(rgba(245, 247, 248, 0.76), rgba(245, 247, 248, 0.76)),
+    url('/images/calendar/daily-agenda-empty-mountains.webp');
+}
+
 :root[data-theme='light'] .task-create-modal {
   background-color: var(--bg-surface-raised);
   background-image:

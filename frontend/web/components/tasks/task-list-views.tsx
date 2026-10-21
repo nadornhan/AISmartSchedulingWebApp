@@ -2,7 +2,7 @@
 
 import type { Dispatch, SetStateAction } from 'react';
 import type { TaskResponse } from '../../lib/tasks';
-import { CalendarIcon, CheckIcon, ChevronDownIcon, ClockIcon, EditIcon, MoreIcon } from '../layout/icons';
+import { CalendarIcon, CheckIcon, ChevronDownIcon, ClockIcon, EditIcon, MoreIcon, TasksIcon } from '../layout/icons';
 import { CheckBox, StatusDropdown, SubtaskAccordion } from './task-page-controls';
 import {
   cn,
@@ -34,6 +34,22 @@ type TaskDesktopTableProps = {
   handleDeleteOne: (taskId: string) => Promise<void>;
   toggleSubtask: (task: Task, subtaskId: string, isCompleted: boolean) => Promise<void>;
 };
+
+function TaskEmptyState() {
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <span className="grid h-12 w-12 place-items-center rounded-xl border border-dashboard-accent/45 bg-dashboard-bg/90 text-dashboard-accent">
+        <TasksIcon aria-hidden="true" className="h-5 w-5" />
+      </span>
+      <div>
+        <p className="text-base font-semibold text-dashboard-text">No tasks found</p>
+        <p className="mt-2 text-sm text-dashboard-muted">
+          Try another filter or create a new task.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export function TaskDesktopTable({
   visibleTasks,
@@ -313,12 +329,7 @@ export function TaskDesktopTable({
           ))
         ) : (
           <div className="grid min-h-64 place-items-center rounded-b-[var(--radius-lg)] px-6 text-center">
-            <div>
-              <p className="text-base font-semibold text-dashboard-text">No tasks found</p>
-              <p className="mt-2 text-sm text-dashboard-muted">
-                Try another filter or create a new task.
-              </p>
-            </div>
+            <TaskEmptyState />
           </div>
         )}
       </div>
@@ -467,12 +478,7 @@ export function TaskMobileList({
         })
       ) : (
         <div className="grid min-h-56 place-items-center rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 px-6 text-center">
-          <div>
-            <p className="text-base font-semibold text-dashboard-text">No tasks found</p>
-            <p className="mt-2 text-sm text-dashboard-muted">
-              Try another filter or create a new task.
-            </p>
-          </div>
+          <TaskEmptyState />
         </div>
       )}
     </section>

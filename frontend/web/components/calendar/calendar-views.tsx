@@ -662,8 +662,11 @@ export function DayAgenda({
             </div>
           </>
         ) : (
-          <div className="grid min-h-[420px] place-items-center rounded-lg border border-dashed border-dashboard-border bg-dashboard-bg/20 px-6 text-center">
-            <div>
+          <div className="calendar-agenda-empty grid min-h-[420px] place-items-center overflow-hidden rounded-lg border border-dashed border-dashboard-border bg-dashboard-bg/20 px-6 text-center">
+            <div className="flex flex-col items-center">
+              <span className="mb-3 grid h-12 w-12 place-items-center rounded-xl border border-dashboard-accent/20 bg-dashboard-bg/55 text-dashboard-accent shadow-sm">
+                <CalendarIcon aria-hidden="true" className="h-5 w-5" />
+              </span>
               <p className="text-sm font-semibold text-dashboard-text">No tasks scheduled</p>
             </div>
           </div>
