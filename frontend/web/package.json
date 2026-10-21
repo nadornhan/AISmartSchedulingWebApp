@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:auth": "node --test tests/auth/auth-session.test.mjs tests/auth/user-avatar.test.mjs tests/auth/dashboard-shell.test.mjs",
+    "test:auth": "node --test tests/auth/auth-session.test.mjs tests/auth/api-proxy.test.mjs tests/auth/user-avatar.test.mjs tests/auth/dashboard-shell.test.mjs",
     "test:tasks": "node --test tests/tasks/task-page.test.mjs tests/tasks/task-page-data.test.mjs tests/tasks/task-actions.test.mjs tests/tasks/task-read-cache.test.mjs",
     "test:calendar": "node --test tests/calendar/calendar.test.mjs",
     "test:focus": "node --test tests/focus/focus-session.test.mjs",

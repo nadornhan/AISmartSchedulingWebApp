@@ -36,11 +36,11 @@ Create staging in this order:
 3. Wait for `/health/live` and `/health/ready` to return HTTP 200, then copy the
    Render API URL.
 4. In Vercel, import this repository with the repository root as the project
-   root and set `NEXT_PUBLIC_API_URL` to the Render API URL before deploying.
+   root and set server-side `API_URL` to the Render API URL before deploying.
 5. Copy the stable Vercel project URL into Render's `CORS_ORIGINS`, without a
    trailing slash, and redeploy the API.
-6. Redeploy Vercel if the API URL changed after the first build. Values prefixed
-   with `NEXT_PUBLIC_` are embedded into the browser bundle at build time.
+6. Redeploy Vercel if the API URL changes. Existing `NEXT_PUBLIC_API_URL` values
+   remain supported as a fallback; prefer `API_URL` for new deployments.
 
 Do not enable a wildcard production CORS origin. Add additional Vercel preview
 origins explicitly only when a preview needs to call the shared staging API.
@@ -69,7 +69,8 @@ production Compose stack locally. Required values are:
 | `APP_ENVIRONMENT`     | Set to `staging` or `production`.                                   |
 | `DATABASE_URL`        | PostgreSQL SQLAlchemy URL.                                          |
 | `JWT_SECRET_KEY`      | Private JWT signing secret, at least 32 characters.                 |
-| `NEXT_PUBLIC_API_URL` | Public HTTPS URL of the API. This is embedded during the web build. |
+| `API_URL`            | Server-side API URL used by Next.js. Use the Render HTTPS URL on Vercel; Compose defaults to `http://api:8000` on its internal network. |
+| `NEXT_PUBLIC_API_URL` | Legacy fallback API URL, retained for existing deployments/builds. |
 | `CORS_ORIGINS`        | Comma-separated exact frontend origins, without paths.              |
 | `GEMINI_API_KEY`      | New server-side Gemini key. Never expose it to Next.js.             |
 | `UPLOAD_DIR`          | Persistent avatar directory; `/app/uploads` in production Compose.  |
@@ -129,7 +130,13 @@ Then complete this smoke-test checklist:
 - Confirm Growth Points, achievements, plant progression and the 3D forest.
 - Upload an avatar, restart/redeploy the API and confirm the avatar remains.
 - Check dashboard, task, Focus, gamification and settings pages on desktop and mobile widths.
-- Confirm browser requests use the HTTPS API URL and have no CORS or mixed-content errors.
+- Confirm browser requests use the frontend's HTTPS `/api/*` routes.
+- Confirm login returns only `{ "authenticated": true }`, and its session cookie
+  is HttpOnly, Secure, SameSite=Lax, host-only and expires with the JWT.
+- Confirm logout removes the cookie, refresh requires login, and unsafe requests
+  with a missing or different Origin / CSRF header receive HTTP 403.
+- Confirm no access token is stored in localStorage or sessionStorage. Existing
+  users must sign in again after this cookie-authentication upgrade.
 
 ## 7. Release and connect the domain
 
@@ -138,8 +145,8 @@ After staging and CI are green:
 1. Open a reviewed PR from `develop` to `main`.
 2. Deploy the immutable `main` commit.
 3. Connect the custom domain and enable HTTPS.
-4. Update `NEXT_PUBLIC_API_URL` and `CORS_ORIGINS` with the final domains.
-5. Rebuild the Next.js image because `NEXT_PUBLIC_API_URL` is a build-time value.
+4. Update server-side `API_URL` and `CORS_ORIGINS` with the final domains.
+5. Redeploy Next.js with the updated runtime API configuration.
 6. Repeat the smoke tests and record the deployed commit SHA.
 
 ## Rollback

@@ -1,4 +1,4 @@
-import { apiRequest, getAccessToken } from './api';
+import { apiRequest, getSessionKey } from './api';
 import { cachedRead, peekReadCache } from './read-cache';
 import { emitTaskDataChanged } from './data-events';
 import { emitGrowthReward, type RewardFeedback } from './gamification';
@@ -80,15 +80,15 @@ export type TaskListResponse = {
 export type TaskCounts = { total: number; pending: number; in_progress: number; done: number; overdue: number };
 
 export function getCachedTaskList(params: TaskListParams) {
-  return peekReadCache<TaskListResponse>(getAccessToken(), 'tasks', `list${taskQuery(params)}`);
+  return peekReadCache<TaskListResponse>(getSessionKey(), 'tasks', `list${taskQuery(params)}`);
 }
 
 export function getCachedTaskCounts(params: Pick<TaskListParams, 'projectId' | 'search'>) {
-  return peekReadCache<TaskCounts>(getAccessToken(), 'tasks', `counts${taskQuery(params)}`);
+  return peekReadCache<TaskCounts>(getSessionKey(), 'tasks', `counts${taskQuery(params)}`);
 }
 
 export function getTaskCounts(params: Pick<TaskListParams, 'projectId' | 'search'> = {}) {
-  return cachedRead(getAccessToken(), 'tasks', `counts${taskQuery(params)}`, () =>
+  return cachedRead(getSessionKey(), 'tasks', `counts${taskQuery(params)}`, () =>
     apiRequest<TaskCounts>(`/tasks/counts${taskQuery(params)}`));
 }
 
@@ -291,7 +291,7 @@ export function listTasks(
 ): Promise<TaskListResponse> {
   // Abortable callers own their request; sharing their signal could cancel another view.
   if (options.signal) return fetchTaskList(params, options);
-  return cachedRead(getAccessToken(), 'tasks', `list${taskQuery(params)}`, () => fetchTaskList(params));
+  return cachedRead(getSessionKey(), 'tasks', `list${taskQuery(params)}`, () => fetchTaskList(params));
 }
 
 async function fetchTaskList(params: TaskListParams, options: RequestOptions = {}): Promise<TaskListResponse> {

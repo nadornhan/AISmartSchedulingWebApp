@@ -25,7 +25,7 @@ function harness() {
   const cache = load('read-cache', {}, { Date: { now: () => now } });
   const events = load('data-events', { './read-cache': cache });
   const api = {
-    getAccessToken: () => token,
+    getSessionKey: () => token,
     apiRequest: async (url) => {
       calls.push(url);
       if (url.startsWith('/projects')) return [{ id: 'folder', task_count: ++sequence }];

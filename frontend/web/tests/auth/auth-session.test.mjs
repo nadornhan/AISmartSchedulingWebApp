@@ -39,6 +39,57 @@ const { createCurrentUserSession } = loadSource('lib/auth-session.ts', {
 });
 const user = { id: 'user-a', first_name: 'Test', email: 'test@example.com' };
 
+for (const { name, status = 422, detail, message } of [
+  {
+    name: 'invalid email', detail: [{ type: 'value_error', loc: ['body', 'email'], msg: 'value is not a valid email address', input: 'bad-email' }],
+    message: 'Please enter a valid email address.',
+  },
+  {
+    name: 'missing email', detail: [{ type: 'missing', loc: ['body', 'email'], msg: 'Field required' }],
+    message: 'Email is required.',
+  },
+  {
+    name: 'short password', detail: [{ type: 'string_too_short', loc: ['body', 'password'], msg: 'String should have at least 8 characters', input: 'private-password', ctx: { min_length: 8 } }],
+    message: 'Password must be at least 8 characters.',
+  },
+  {
+    name: 'long password', detail: [{ type: 'string_too_long', loc: ['body', 'password'], input: 'private-password', ctx: { max_length: 128 } }],
+    message: 'Password must be at most 128 characters.',
+  },
+  {
+    name: 'invalid time zone with a valid email', detail: [{ type: 'value_error', loc: ['body', 'timezone'], msg: 'Value error, Unknown timezone', input: 'unknown' }],
+    message: 'Your device’s time zone could not be validated. Please check its time zone settings.',
+  },
+  {
+    name: 'multiple fields', detail: [
+      { type: 'value_error', loc: ['body', 'email'] },
+      { type: 'value_error', loc: ['body', 'email'] },
+      { type: 'missing', loc: ['body', 'last_name'] },
+    ], message: 'Please enter a valid email address. Last name is required.',
+  },
+  { name: 'malformed validation response', detail: [{ input: 'private-password' }, null], message: 'Please check your details and try again.' },
+  { name: 'empty validation response', detail: [], message: 'Please check your details and try again.' },
+  { name: 'duplicate account', status: 409, detail: 'An account with this email already exists', message: 'An account with this email already exists' },
+  { name: 'incorrect credentials', status: 401, detail: 'Invalid email or password', message: 'Invalid email or password' },
+  { name: 'structured conflict', status: 409, detail: { code: 'schedule_conflict', message: 'The schedule has changed.' }, message: 'The schedule has changed.' },
+]) {
+  test(`API displays a specific safe message for ${name}`, async () => {
+    const payload = { detail };
+    const api = loadSource('lib/api.ts', {}, {
+      Headers: globalThis.Headers,
+      fetch: async () => new globalThis.Response(JSON.stringify(payload), { status }),
+    });
+    await assert.rejects(api.apiRequest('/auth/register', { auth: false, method: 'POST', body: '{}' }), (error) => {
+      assert.ok(error instanceof api.ApiError);
+      assert.equal(error.status, status);
+      assert.equal(error.message, message);
+      assert.equal(error.message.includes('private-password'), false);
+      assert.equal(JSON.stringify(error.details), JSON.stringify(payload));
+      return true;
+    });
+  });
+}
+
 function apiSessionHarness(fetchPage) {
   const values = new Map([
     ['chrono_access_token', 'token-a'],
@@ -65,7 +116,7 @@ function apiSessionHarness(fetchPage) {
   });
   let redirects = 0;
   const session = createSession({
-    getAccessToken: api.getAccessToken,
+    getSessionKey: api.getSessionKey,
     getCurrentUser: auth.getCurrentUser,
     clearSession: auth.clearSession,
     subscribeToUnauthorized: api.onUnauthorized,
@@ -107,7 +158,7 @@ for (const status of [403, 500, 503, 'network']) {
     await h.session.start();
     await assert.rejects(h.api.apiRequest('/tasks'));
     assert.equal(h.session.getSnapshot().status, 'authenticated');
-    assert.equal(h.values.get('chrono_access_token'), 'token-a');
+    assert.equal(h.values.has('chrono_access_token'), false);
     assert.equal(h.redirects(), 0);
     h.session.dispose();
   });
@@ -123,13 +174,13 @@ for (const scenario of ['public login', 'new token', 'aborted request', 'dispose
       auth: scenario !== 'public login',
       signal: controller.signal,
     });
-    if (scenario === 'new token') h.values.set('chrono_access_token', 'token-b');
+    if (scenario === 'new token') h.api.rotateSessionKey();
     if (scenario === 'aborted request') controller.abort();
     if (scenario === 'disposed provider') h.session.dispose();
     response.resolve(new globalThis.Response('{}', { status: 401 }));
     await assert.rejects(pending);
     assert.equal(h.redirects(), 0);
-    assert.ok(h.values.has('chrono_access_token'));
+    assert.equal(h.values.has('chrono_access_token'), false);
     h.session.dispose();
   });
 }
@@ -154,12 +205,12 @@ function deferred() {
   });
   return { promise, resolve, reject };
 }
-function harness(getCurrentUser = async () => user, onVerified) {
+function harness(getCurrentUser = async () => user, onVerified, endSession) {
   let token = 'token-a';
   let clears = 0;
   let redirects = 0;
   const session = createCurrentUserSession({
-    getAccessToken: () => token,
+    getSessionKey: () => token,
     getCurrentUser,
     clearSession: () => {
       token = null;
@@ -169,6 +220,7 @@ function harness(getCurrentUser = async () => user, onVerified) {
       redirects += 1;
     },
     onVerified,
+    endSession,
   });
   return {
     session,
@@ -180,6 +232,81 @@ function harness(getCurrentUser = async () => user, onVerified) {
     redirects: () => redirects,
   };
 }
+
+test('sign-out waits for server cookie deletion before redirecting', async () => {
+  const ended = deferred();
+  const h = harness(async () => user, undefined, () => ended.promise);
+  await h.session.start();
+  const pending = h.session.signOut();
+  assert.equal(h.session.getSnapshot().status, 'checking');
+  assert.equal(h.redirects(), 0);
+  ended.resolve();
+  await pending;
+  assert.equal(h.session.getSnapshot().status, 'unauthenticated');
+  assert.equal(h.redirects(), 1);
+});
+
+test('failed cookie deletion reports a retryable failure instead of claiming logout succeeded', async () => {
+  const h = harness(async () => user, undefined, async () => { throw new Error('Offline'); });
+  await h.session.start();
+  await h.session.signOut();
+  assert.equal(h.session.getSnapshot().status, 'unavailable');
+  assert.match(h.session.getSnapshot().error, /Unable to sign out/);
+  assert.equal(h.redirects(), 0);
+  assert.equal(h.clears(), 0);
+});
+
+test('browser login uses the same-origin proxy and stores no credentials or profile data', async () => {
+  const values = new Map([
+    ['chrono_access_token', 'legacy-secret'], ['access_token', 'older-secret'],
+    ['chrono.auth.currentUser', JSON.stringify(user)],
+  ]);
+  const localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+  const calls = [];
+  const globals = {
+    window: { localStorage }, Headers: globalThis.Headers,
+    fetch: async (url, init) => {
+      calls.push({ url, ...init });
+      if (url.endsWith('/auth/logout')) return new globalThis.Response(null, { status: 204 });
+      return new globalThis.Response(JSON.stringify(url.endsWith('/auth/login') ? { authenticated: true } : user));
+    },
+  };
+  const api = loadSource('lib/api.ts', {}, globals);
+  const auth = loadSource('lib/auth.ts', { './api': api, './settings': {} }, globals);
+  await auth.loginUser('test@example.com', 'password');
+  await auth.getCurrentUser();
+  await api.apiRequest('/tasks', { method: 'PATCH', headers: { Authorization: 'Bearer legacy-secret' }, body: '{}' });
+  assert.deepEqual(calls.map((call) => call.url), ['/api/auth/login', '/api/auth/me', '/api/tasks']);
+  for (const call of calls) {
+    assert.equal(call.headers.has('authorization'), false);
+    assert.equal(call.credentials, 'same-origin');
+    assert.equal(call.cache, 'no-store');
+    assert.equal(call.headers.has('x-chrono-csrf'), call.method !== 'GET');
+  }
+  assert.deepEqual([...values.keys()], ['chrono_session_version']);
+  assert.equal(auth.getCachedCurrentUser().id, user.id);
+  await auth.logout();
+  assert.equal(calls.at(-1).url, '/api/auth/logout');
+  assert.equal(auth.getCachedCurrentUser(), null);
+});
+
+test('cookie session verification works when localStorage is blocked and no visible token exists', async () => {
+  const globals = {
+    window: { get localStorage() { throw new Error('Storage disabled'); } },
+    Headers: globalThis.Headers,
+    fetch: async (url) => {
+      assert.equal(url, '/api/auth/me');
+      return new globalThis.Response(JSON.stringify(user));
+    },
+  };
+  const api = loadSource('lib/api.ts', {}, globals);
+  const auth = loadSource('lib/auth.ts', { './api': api, './settings': {} }, globals);
+  assert.equal((await auth.getCurrentUser()).id, user.id);
+});
 
 for (const status of [0, 403, 500, 503]) {
   for (const phase of ['initial check', 'refresh']) {
@@ -384,10 +511,11 @@ for (const action of ['none', 'signOut', 'abort', 'token change']) {
     const pending = auth.getCurrentUser({ signal: controller.signal });
     if (action === 'signOut') auth.clearSession();
     if (action === 'abort') controller.abort();
-    if (action === 'token change') values.set('chrono_access_token', 'token-b');
+    if (action === 'token change') api.rotateSessionKey();
     response.resolve(new globalThis.Response(JSON.stringify(user)));
     await pending;
-    assert.equal(values.has('chrono.auth.currentUser'), action === 'none');
+    assert.equal(auth.getCachedCurrentUser()?.id === user.id, action === 'none');
+    assert.equal(values.has('chrono.auth.currentUser'), false);
   });
 }
 
@@ -412,10 +540,11 @@ for (const operation of ['uploadCurrentUserAvatar', 'deleteCurrentUserAvatar']) 
       const auth = loadSource('lib/auth.ts', { './api': api, './settings': {} }, globals);
       const pending = auth[operation](new globalThis.Blob(['synthetic avatar']));
       if (action === 'signOut') auth.clearSession();
-      if (action === 'token change') values.set('chrono_access_token', 'token-b');
+      if (action === 'token change') api.rotateSessionKey();
       response.resolve(new globalThis.Response(JSON.stringify(user)));
       await pending;
-      assert.equal(values.has('chrono.auth.currentUser'), action === 'none');
+      assert.equal(auth.getCachedCurrentUser()?.id === user.id, action === 'none');
+      assert.equal(values.has('chrono.auth.currentUser'), false);
     });
   }
 }

@@ -10,8 +10,8 @@ import {
   type ReactNode,
 } from 'react';
 
-import { clearSession, getCurrentUser, type UserResponse } from '../../lib/auth';
-import { getAccessToken, onUnauthorized } from '../../lib/api';
+import { clearSession, getCurrentUser, logout, type UserResponse } from '../../lib/auth';
+import { getSessionKey, onUnauthorized } from '../../lib/api';
 import { createCurrentUserSession, type SessionStatus } from '../../lib/auth-session';
 import { detectBrowserTimezone } from '../../lib/settings';
 
@@ -52,13 +52,14 @@ export function CurrentUserProvider({
   const session = useMemo(
     () =>
       createCurrentUserSession({
-        getAccessToken: () =>
-          process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true' ? 'local-bypass' : getAccessToken(),
+        getSessionKey: () =>
+          process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true' ? 'local-bypass' : getSessionKey(),
         getCurrentUser: (signal) =>
           process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true'
             ? Promise.resolve(localBypassUser())
             : getCurrentUser({ signal }),
         clearSession,
+        endSession: logout,
         onUnauthenticated: () => router.replace('/login'),
         subscribeToUnauthorized: onUnauthorized,
         onVerified: async (signal) => {
@@ -80,7 +81,14 @@ export function CurrentUserProvider({
     // Next.js does not prefetch routes in development.
     router.prefetch('/login');
     void session.start();
-    return () => session.dispose();
+    const onSessionChanged = (event: StorageEvent) => {
+      if (event.key === 'chrono_session_version') void session.refresh();
+    };
+    window.addEventListener('storage', onSessionChanged);
+    return () => {
+      window.removeEventListener('storage', onSessionChanged);
+      session.dispose();
+    };
   }, [router, session]);
 
   const value = useMemo<CurrentUserContextValue>(

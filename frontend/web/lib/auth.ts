@@ -1,4 +1,4 @@
-import { apiRequest, clearAccessToken, getAccessToken, setAccessToken } from './api';
+import { apiRequest, clearClientSession, getSessionKey, rotateSessionKey } from './api';
 import { getBrowserTimezone } from './settings';
 
 export type UserRole = 'student' | 'teacher' | 'other' | 'admin';
@@ -24,16 +24,11 @@ export type UserResponse = {
   updated_at: string;
 };
 
-export type TokenResponse = {
-  access_token: string;
-  token_type: 'bearer';
-};
+let cachedUser: { user: UserResponse; sessionKey: string } | null = null;
 
-const CURRENT_USER_KEY = 'chrono.auth.currentUser';
-
-function cacheCurrentUser(user: UserResponse, token: string | null, signal?: AbortSignal) {
-  if (typeof window !== 'undefined' && token && !signal?.aborted && getAccessToken() === token) {
-    window.localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+function cacheCurrentUser(user: UserResponse, sessionKey: string, signal?: AbortSignal) {
+  if (!signal?.aborted && getSessionKey() === sessionKey) {
+    cachedUser = { user, sessionKey };
   }
 }
 
@@ -56,10 +51,10 @@ export async function registerUser(input: RegisterUserInput): Promise<UserRespon
 }
 
 /**
- * Sign in and save the access token using the shared token manager.
+ * Sign in through the server route, which sets an HttpOnly session cookie.
  */
-export async function loginUser(email: string, password: string): Promise<TokenResponse> {
-  const token = await apiRequest<TokenResponse>('/auth/login', {
+export async function loginUser(email: string, password: string): Promise<void> {
+  await apiRequest<{ authenticated: boolean }>('/auth/login', {
     auth: false,
     method: 'POST',
     body: JSON.stringify({
@@ -68,9 +63,8 @@ export async function loginUser(email: string, password: string): Promise<TokenR
     }),
   });
 
-  setAccessToken(token.access_token);
-
-  return token;
+  cachedUser = null;
+  rotateSessionKey();
 }
 
 /**
@@ -79,18 +73,14 @@ export async function loginUser(email: string, password: string): Promise<TokenR
 export async function getCurrentUser(
   options: { signal?: AbortSignal } = {},
 ): Promise<UserResponse> {
-  const accessToken = getAccessToken();
-
-  if (!accessToken) {
-    throw new Error('No active session.');
-  }
+  const sessionKey = getSessionKey();
 
   const user = await apiRequest<UserResponse>('/auth/me', {
     method: 'GET',
     signal: options.signal,
   });
 
-  cacheCurrentUser(user, accessToken, options.signal);
+  cacheCurrentUser(user, sessionKey, options.signal);
 
   return user;
 }
@@ -99,7 +89,7 @@ export async function updateCurrentUserProfile(input: {
   firstName: string;
   lastName: string;
 }): Promise<UserResponse> {
-  const accessToken = getAccessToken();
+  const sessionKey = getSessionKey();
   const user = await apiRequest<UserResponse>('/auth/me', {
     method: 'PATCH',
     body: JSON.stringify({
@@ -108,7 +98,7 @@ export async function updateCurrentUserProfile(input: {
     }),
   });
 
-  cacheCurrentUser(user, accessToken);
+  cacheCurrentUser(user, sessionKey);
   return user;
 }
 
@@ -116,7 +106,7 @@ export async function updateCurrentUserProfile(input: {
  * Upload a new avatar for the signed-in user.
  */
 export async function uploadCurrentUserAvatar(file: File): Promise<UserResponse> {
-  const accessToken = getAccessToken();
+  const sessionKey = getSessionKey();
   const formData = new FormData();
   formData.set('avatar', file);
 
@@ -125,7 +115,7 @@ export async function uploadCurrentUserAvatar(file: File): Promise<UserResponse>
     body: formData,
   });
 
-  cacheCurrentUser(user, accessToken);
+  cacheCurrentUser(user, sessionKey);
 
   return user;
 }
@@ -134,12 +124,12 @@ export async function uploadCurrentUserAvatar(file: File): Promise<UserResponse>
  * Remove the signed-in user's avatar so UI falls back to initials.
  */
 export async function deleteCurrentUserAvatar(): Promise<UserResponse> {
-  const accessToken = getAccessToken();
+  const sessionKey = getSessionKey();
   const user = await apiRequest<UserResponse>('/auth/me/avatar', {
     method: 'DELETE',
   });
 
-  cacheCurrentUser(user, accessToken);
+  cacheCurrentUser(user, sessionKey);
 
   return user;
 }
@@ -148,33 +138,15 @@ export async function deleteCurrentUserAvatar(): Promise<UserResponse> {
  * Read the last cached user without making an API request.
  */
 export function getCachedCurrentUser(): UserResponse | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  const storedUser = window.localStorage.getItem(CURRENT_USER_KEY);
-
-  if (!storedUser) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(storedUser) as UserResponse;
-  } catch {
-    window.localStorage.removeItem(CURRENT_USER_KEY);
-    return null;
-  }
+  return cachedUser?.sessionKey === getSessionKey() ? cachedUser.user : null;
 }
 
 /**
- * Clear the access token and cached user.
+ * Clear client state; only the server can remove the HttpOnly cookie.
  */
 export function clearSession(): void {
-  clearAccessToken();
-
-  if (typeof window !== 'undefined') {
-    window.localStorage.removeItem(CURRENT_USER_KEY);
-  }
+  clearClientSession();
+  cachedUser = null;
 }
 
 /**
@@ -190,6 +162,8 @@ export async function registerAndSignIn(input: RegisterUserInput): Promise<UserR
 /**
  * Sign out and clear all locally stored session information.
  */
-export function logout(): void {
+export async function logout(): Promise<void> {
+  await apiRequest<void>('/auth/logout', { method: 'POST', auth: false });
+  rotateSessionKey();
   clearSession();
 }

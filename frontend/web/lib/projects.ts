@@ -1,4 +1,4 @@
-import { apiRequest, getAccessToken } from './api';
+import { apiRequest, getSessionKey } from './api';
 import { cachedRead, peekReadCache } from './read-cache';
 import { emitProjectDataChanged } from './data-events';
 
@@ -19,11 +19,11 @@ export type CreateProjectInput = {
 };
 
 export function listProjects() {
-  return cachedRead(getAccessToken(), 'projects', 'list', () => apiRequest<Project[]>('/projects'), 60_000);
+  return cachedRead(getSessionKey(), 'projects', 'list', () => apiRequest<Project[]>('/projects'), 60_000);
 }
 
 export function getCachedProjects() {
-  return peekReadCache<Project[]>(getAccessToken(), 'projects', 'list');
+  return peekReadCache<Project[]>(getSessionKey(), 'projects', 'list');
 }
 
 export async function createProject(input: CreateProjectInput) {

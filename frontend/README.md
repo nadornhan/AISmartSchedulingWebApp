@@ -12,7 +12,7 @@ corepack pnpm install --frozen-lockfile
 corepack pnpm --filter @ai-smart-scheduling/web dev --port 3002
 ```
 
-Port 3002 avoids conflicts if another checkout occupies port 3001. Use any free port. Set `NEXT_PUBLIC_API_URL` in `frontend/web/.env.local` to the running FastAPI server, using `.env.example` as a reference. Run the backend against its configured PostgreSQL database and existing Alembic migrations for authenticated feature demonstrations; starting the frontend alone does not start the API.
+Port 3002 avoids conflicts if another checkout occupies port 3001. Use any free port. Set the server-side `API_URL` in `frontend/web/.env.local` to the running FastAPI server, using `.env.example` as a reference. Existing `NEXT_PUBLIC_API_URL` values remain supported as a fallback. Run the backend against its configured PostgreSQL database and existing Alembic migrations for authenticated feature demonstrations; starting the frontend alone does not start the API.
 
 `NEXT_PUBLIC_BYPASS_AUTH=true` supplies a UI-only fake user. It does not grant backend access and is not an integration test.
 
@@ -30,12 +30,22 @@ corepack pnpm --filter @ai-smart-scheduling/web build
 corepack pnpm --filter @ai-smart-scheduling/web start --port 3002
 ```
 
-Build and start must use the same public API configuration. Authentication still
-requires the API. The session gate now withholds sidebar, header/notification,
+The Next.js server must be able to reach `API_URL` at runtime. Authentication still
+requires the API. The session gate withholds sidebar, header/notification,
 XP and protected feature loaders until the session is verified; the production
 router also prefetches `/login` without blocking verification. This does not
-turn local-storage tokens into server-side authentication or eliminate a cold
-development route compile.
+eliminate a cold development route compile.
+
+Browser requests use `/api/*` on the frontend origin. The Next.js route stores
+the backend JWT in a host-only HttpOnly cookie (`Secure` in production,
+`SameSite=Lax`, with the JWT expiry), and forwards bearer credentials only on the
+server. Login responses expose no token. POST/PATCH/PUT/DELETE require the exact
+frontend Origin and `X-Chrono-CSRF: 1`; responses containing user data use
+`Cache-Control: no-store`. Sign-out waits for server cookie deletion. Legacy
+local-storage credentials and profile data are removed on the next API call;
+existing users must sign in again. Profile and task caches remain memory-only,
+and a non-secret storage generation invalidates sessions across tabs. The
+backend's bearer-token API remains available for native/server clients.
 
 ## Code map
 
@@ -45,7 +55,8 @@ development route compile.
 | Dashboard and feature route entries           | `web/app/(dashboard)`                                      |
 | Shared authenticated shell and UI preferences | `web/components/layout`                                    |
 | Feature UI                                    | `web/components/<feature>`                                 |
-| Shared requests, errors and JWT storage       | `web/lib/api.ts`                                           |
+| Browser requests, errors and cache generation | `web/lib/api.ts`                                           |
+| HttpOnly cookies, CSRF and backend forwarding | `web/app/api/[...path]/route.ts`, `web/lib/server/api-proxy.ts` |
 | Feature API contracts and helpers             | `web/lib/*.ts`                                             |
 | Runtime images, models and sounds             | `web/public`                                               |
 

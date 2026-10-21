@@ -621,18 +621,18 @@
   background: #040c14;
 }
 .desktopScreen {
-  top: 4.88%;
-  left: 11.8%;
+  top: 4.65%;
+  left: 11.55%;
   z-index: 2;
-  width: 77.18%;
-  height: 75.59%;
+  width: 76.8%;
+  height: 75.8%;
 }
 .mobileScreen {
-  top: 4.2%;
-  left: 8.9%;
+  top: 4%;
+  left: 8.5%;
   z-index: 2;
-  width: 82.2%;
-  height: 90.4%;
+  width: 83%;
+  height: 90.8%;
   border-radius: 9% 9% 11% 11% / 4% 4% 6% 6%;
 }
 .mobileScreen::before {
@@ -657,12 +657,12 @@
   object-fit: contain;
   object-position: center top;
 }
-.desktopScreen img,
 .desktopScreen img {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
 }
 .laptop figcaption {
   text-align: center;

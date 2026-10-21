@@ -10,11 +10,12 @@ export type SessionSnapshot = {
 };
 
 type SessionDependencies = {
-  getAccessToken: () => string | null;
+  getSessionKey: () => string | null;
   getCurrentUser: (signal: AbortSignal) => Promise<UserResponse>;
   clearSession: () => void;
+  endSession?: () => Promise<void>;
   onUnauthenticated: () => void;
-  subscribeToUnauthorized?: (listener: (token: string, message: string) => void) => () => void;
+  subscribeToUnauthorized?: (listener: (sessionKey: string, message: string) => void) => () => void;
   onVerified?: (signal: AbortSignal) => Promise<unknown>;
 };
 
@@ -24,7 +25,7 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
   let active = false;
   let revision = 0;
   let controller: AbortController | null = null;
-  let verifiedToken: string | null = null;
+  let verifiedSessionKey: string | null = null;
   let unsubscribeUnauthorized: (() => void) | undefined;
   const listeners = new Set<() => void>();
 
@@ -41,7 +42,7 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
 
   function unauthenticate(error: string | null) {
     invalidate();
-    verifiedToken = null;
+    verifiedSessionKey = null;
     dependencies.clearSession();
     publish({ user: null, status: 'unauthenticated', error });
     dependencies.onUnauthenticated();
@@ -51,8 +52,8 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
     if (!active) return null;
     invalidate();
     const requestRevision = revision;
-    const token = dependencies.getAccessToken();
-    if (!token) {
+    const sessionKey = dependencies.getSessionKey();
+    if (!sessionKey) {
       unauthenticate('No active session.');
       return null;
     }
@@ -63,13 +64,13 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
       active &&
       revision === requestRevision &&
       !requestController.signal.aborted &&
-      dependencies.getAccessToken() === token;
+      dependencies.getSessionKey() === sessionKey;
     publish({ ...snapshot, status: 'checking', error: null });
 
     try {
       const user = await dependencies.getCurrentUser(requestController.signal);
       if (!isCurrent()) return null;
-      verifiedToken = token;
+      verifiedSessionKey = sessionKey;
       publish({ user, status: 'authenticated', error: null });
       // Timezone synchronization is best-effort, not an authentication check.
       void dependencies.onVerified?.(requestController.signal).catch(() => undefined);
@@ -98,11 +99,11 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
     start() {
       active = true;
       unsubscribeUnauthorized?.();
-      unsubscribeUnauthorized = dependencies.subscribeToUnauthorized?.((token, message) => {
+      unsubscribeUnauthorized = dependencies.subscribeToUnauthorized?.((sessionKey, message) => {
         if (
           active &&
           snapshot.status !== 'unauthenticated' &&
-          dependencies.getAccessToken() === token
+          dependencies.getSessionKey() === sessionKey
         ) {
           unauthenticate(message);
         }
@@ -116,8 +117,18 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
       unsubscribeUnauthorized = undefined;
       invalidate();
     },
-    signOut() {
-      unauthenticate(null);
+    async signOut() {
+      invalidate();
+      const requestRevision = revision;
+      publish({ ...snapshot, status: 'checking', error: null });
+      try {
+        if (dependencies.endSession) await dependencies.endSession();
+        if (active && revision === requestRevision) unauthenticate(null);
+      } catch {
+        if (active && revision === requestRevision) {
+          publish({ ...snapshot, status: 'unavailable', error: 'Unable to sign out. Please try again.' });
+        }
+      }
     },
     setUser(user: UserResponse | null) {
       if (!active || snapshot.status !== 'authenticated') return;
@@ -125,7 +136,7 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
         unauthenticate(null);
         return;
       }
-      if (dependencies.getAccessToken() !== verifiedToken || user.id !== snapshot.user?.id) return;
+      if (dependencies.getSessionKey() !== verifiedSessionKey || user.id !== snapshot.user?.id) return;
       invalidate();
       publish({ user, status: 'authenticated', error: null });
     },
