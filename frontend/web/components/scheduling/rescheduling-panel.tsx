@@ -1,7 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CalendarClock, CircleCheck, RotateCcw } from 'lucide-react';
+import Link from 'next/link';
+import {
+  CalendarDays,
+  CalendarClock,
+  CircleCheck,
+  ClipboardList,
+  RotateCcw,
+  ShieldCheck,
+  TriangleAlert,
+  X,
+} from 'lucide-react';
 
 import { onSettingsDataChanged, onTaskDataChanged } from '../../lib/data-events';
 import {
@@ -60,6 +70,28 @@ function requestError(error: unknown) {
 function hasReschedulingNeed(proposal: RescheduleProposal) {
   return (
     proposal.context.changes.length > 0 || proposal.options.length > 0 || proposal.issues.length > 0
+  );
+}
+
+function ScheduleStatusMark() {
+  return (
+    <svg aria-hidden="true" className="size-7" viewBox="0 0 32 32" fill="none">
+      <rect x="4" y="6" width="24" height="22" rx="6" fill="currentColor" opacity="0.2" />
+      <path
+        d="M10 4v5M22 4v5M5 12h22M10 17h3M17 17h3M10 22h3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle cx="23" cy="23" r="5" fill="currentColor" />
+      <path
+        d="M23 20.5v2.8l1.8 1.1"
+        stroke="#07120f"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -179,13 +211,13 @@ export function ReschedulingPanel() {
         className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-5 shadow-panel"
         role="status"
       >
+        <h2 className="mb-4 text-xl font-semibold text-dashboard-text">Scheduling changes</h2>
         <div className="flex items-start gap-4">
           <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-[var(--orange-soft)] text-[var(--orange-light)]">
-            <CalendarClock aria-hidden="true" className="size-7" strokeWidth={1.75} />
+            <ScheduleStatusMark />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-dashboard-muted">Scheduling changes</p>
-            <h3 className="mt-1 text-xl font-semibold text-dashboard-text">
+            <h3 className="text-base font-semibold text-dashboard-text">
               Schedule check unavailable
             </h3>
             <p className="mt-1 text-sm text-dashboard-muted">{error}</p>
@@ -212,19 +244,13 @@ export function ReschedulingPanel() {
     conflictCode === 'INVALID_OPTION' ||
     proposal.status === 'expired' ||
     proposal.status === 'superseded';
-  const StatusIcon =
-    proposal.status === 'applied'
-      ? CircleCheck
-      : proposal.status === 'undone'
-        ? RotateCcw
-        : CalendarClock;
-
   return (
     <>
       <section
         className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-5 shadow-panel"
         role="status"
       >
+        <h2 className="mb-4 text-xl font-semibold text-dashboard-text">Scheduling changes</h2>
         <div className="flex items-start gap-4">
           <span
             className={`grid size-14 shrink-0 place-items-center rounded-2xl ${
@@ -235,33 +261,44 @@ export function ReschedulingPanel() {
                   : 'bg-[var(--orange-soft)] text-[var(--orange-light)]'
             }`}
           >
-            <StatusIcon aria-hidden="true" className="size-7" strokeWidth={1.75} />
+            <ScheduleStatusMark />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-dashboard-muted">Scheduling changes</p>
-            <h3 className="mt-1 text-xl font-semibold text-dashboard-text">
+            <h3 className="text-base font-semibold text-dashboard-text">
               {proposal.status === 'applied'
                 ? 'Schedule updated'
                 : proposal.status === 'undone'
                   ? 'Schedule changes undone'
                   : 'Your schedule needs attention'}
             </h3>
-            <p className="mt-1 text-sm text-dashboard-muted">
-              {proposal.status === 'applied'
-                ? `${proposal.options.find((option) => option.id === proposal.selected_option_id)?.moved_task_count ?? 0} task schedules were safely updated.${proposal.issues.length ? ` ${proposal.issues.length} still need manual attention.` : ''}`
-                : proposal.status === 'undone'
-                  ? 'The original task times were restored.'
-                  : `${proposal.context.changes.length} scheduling ${proposal.context.changes.length === 1 ? 'change was' : 'changes were'} detected.`}
-            </p>
+            {proposal.status !== 'preview' ? (
+              <p className="mt-1 text-sm text-dashboard-muted">
+                {proposal.status === 'applied'
+                  ? `${proposal.options.find((option) => option.id === proposal.selected_option_id)?.moved_task_count ?? 0} task schedules were safely updated.${proposal.issues.length ? ` ${proposal.issues.length} still need manual attention.` : ''}`
+                  : 'The original task times were restored.'}
+              </p>
+            ) : null}
             {proposal.status === 'preview' && proposal.context.affected_task_ids.length > 0 ? (
-              <p className="mt-2 text-xs text-dashboard-muted">
-                {proposal.context.affected_task_ids.length}{' '}
-                {proposal.context.affected_task_ids.length === 1
-                  ? 'task affected'
-                  : 'tasks affected'}
-                {proposal.issues.length > 0
-                  ? ` · ${proposal.issues.length} need manual attention`
-                  : ''}
+              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-dashboard-muted">
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className="size-1.5 rounded-full bg-dashboard-accent"
+                  />
+                  {proposal.context.affected_task_ids.length}{' '}
+                  {proposal.context.affected_task_ids.length === 1
+                    ? 'task affected'
+                    : 'tasks affected'}
+                </span>
+                {proposal.issues.length > 0 ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      aria-hidden="true"
+                      className="size-1.5 rounded-full bg-[var(--orange-light)]"
+                    />
+                    {proposal.issues.length} need manual attention
+                  </span>
+                ) : null}
               </p>
             ) : null}
             {error ? <p className="mt-2 text-sm text-[var(--red-light)]">{error}</p> : null}
@@ -315,29 +352,38 @@ export function ReschedulingPanel() {
         >
           <div className="my-6 w-full max-w-4xl rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] p-5 shadow-modal sm:p-6">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-dashboard-accent">
-                  Intelligent rescheduling
-                </p>
-                <h2
-                  className="mt-2 text-2xl font-semibold text-dashboard-text"
-                  id="reschedule-review-title"
-                >
-                  Review schedule options
-                </h2>
-                <p className="mt-2 text-sm text-dashboard-muted">
-                  Times are validated against working hours, deadlines, and locked tasks.
-                </p>
+              <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-dashboard-accent-soft text-dashboard-accent sm:size-12">
+                  <CalendarClock aria-hidden="true" className="size-6" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-dashboard-accent">
+                    Intelligent rescheduling
+                  </p>
+                  <h2
+                    className="mt-2 text-xl font-semibold text-dashboard-text sm:text-2xl"
+                    id="reschedule-review-title"
+                  >
+                    Review schedule options
+                  </h2>
+                </div>
               </div>
               <button
                 aria-label="Close rescheduling options"
-                className="grid h-9 w-9 place-items-center rounded-lg border border-dashboard-border text-lg text-dashboard-muted transition hover:text-dashboard-text"
+                className="grid size-9 shrink-0 place-items-center rounded-lg border border-dashboard-border text-dashboard-muted transition hover:text-dashboard-text"
                 disabled={busyAction !== null}
                 onClick={() => setIsReviewOpen(false)}
                 type="button"
               >
-                ×
+                <X aria-hidden="true" className="size-4" />
               </button>
+            </div>
+
+            <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-dashboard-border bg-dashboard-bg/35 px-4 py-3">
+              <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-dashboard-accent" />
+              <p className="text-sm leading-6 text-dashboard-muted">
+                Times are validated against working hours, deadlines, and locked tasks.
+              </p>
             </div>
 
             {busyAction === 'review' ? (
@@ -352,7 +398,8 @@ export function ReschedulingPanel() {
             ) : (
               <div className="mt-6 space-y-5">
                 {proposal.context.changes.length ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--orange-border)] bg-[var(--orange-soft)] p-3">
+                    <TriangleAlert aria-hidden="true" className="mr-1 size-4 shrink-0 text-[var(--orange-light)]" />
                     {Array.from(new Set(proposal.context.changes.map((change) => change.code))).map(
                       (code) => (
                         <span
@@ -536,41 +583,85 @@ function NoSolution({
   proposal,
 }: Readonly<{ onRetry: () => void; proposal: RescheduleProposal }>) {
   return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--red-border)] bg-[var(--red-soft)] p-5">
-      <h3 className="font-semibold text-dashboard-text">No safe automatic option found</h3>
-      <p className="mt-1 text-sm text-dashboard-muted">
-        Review locked tasks, deadlines, or working hours before trying again.
-      </p>
-      {proposal.issues.length ? <IssueList issues={proposal.issues} /> : null}
-      <button
-        className="mt-4 h-10 rounded-[var(--radius-sm)] border border-dashboard-border-strong px-4 text-sm font-semibold text-dashboard-text transition hover:border-dashboard-accent/60"
-        onClick={onRetry}
-        type="button"
-      >
-        Check again
-      </button>
+    <div className="overflow-hidden rounded-[var(--radius-md)] border border-dashboard-border bg-dashboard-bg/25">
+      <div className="border-b border-[var(--red-border)] bg-[var(--red-soft)] p-4 sm:p-5">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-dashboard-text">No safe automatic option found</h3>
+          <p className="mt-1 text-sm leading-6 text-dashboard-muted">
+            Review locked tasks, deadlines, or working hours before trying again.
+          </p>
+        </div>
+      </div>
+      {proposal.issues.length ? (
+        <div className="p-4 sm:p-5">
+          <IssueList issues={proposal.issues} />
+        </div>
+      ) : null}
+      <div className="border-t border-dashboard-border px-4 py-4 sm:px-5">
+        <button
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-dashboard-border-strong bg-dashboard-surface/70 px-4 text-sm font-semibold text-dashboard-text transition hover:border-dashboard-accent/60"
+          onClick={onRetry}
+          type="button"
+        >
+          <RotateCcw aria-hidden="true" className="size-4 text-dashboard-accent" />
+          Check again
+        </button>
+      </div>
     </div>
   );
 }
 
 function UnresolvedIssues({ issues }: Readonly<{ issues: RescheduleProposal['issues'] }>) {
   return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--orange-border)] bg-[var(--orange-soft)] p-4">
-      <h3 className="font-semibold text-dashboard-text">Some tasks need manual attention</h3>
-      <p className="mt-1 text-sm text-dashboard-muted">
-        The options below safely update the feasible tasks without hiding these issues.
-      </p>
-      <IssueList issues={issues} />
+    <div className="overflow-hidden rounded-[var(--radius-md)] border border-dashboard-border bg-dashboard-bg/25">
+      <div className="flex items-start gap-3 border-b border-[var(--orange-border)] bg-[var(--orange-soft)] p-4">
+        <TriangleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-[var(--orange-light)]" />
+        <div className="min-w-0">
+          <h3 className="font-semibold text-dashboard-text">Some tasks need manual attention</h3>
+          <p className="mt-1 text-sm leading-6 text-dashboard-muted">
+            The options below safely update the feasible tasks without hiding these issues.
+          </p>
+        </div>
+      </div>
+      <div className="p-4">
+        <IssueList issues={issues} />
+      </div>
     </div>
   );
 }
 
 function IssueList({ issues }: Readonly<{ issues: RescheduleProposal['issues'] }>) {
   return (
-    <ul className="mt-4 space-y-2">
+    <ul className="space-y-3">
       {issues.map((issue) => (
-        <li className="text-sm text-[var(--red-light)]" key={`${issue.task_id}-${issue.code}`}>
-          <span className="font-semibold">{issue.task_title}:</span> {issue.reason}
+        <li
+          className="rounded-lg border border-dashboard-border border-l-2 border-l-[var(--red-border)] bg-dashboard-surface/80 p-4"
+          key={`${issue.task_id}-${issue.code}`}
+        >
+          <div className="flex items-start gap-3">
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--red-soft)] text-[var(--red-light)]">
+              <ClipboardList aria-hidden="true" className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="break-words text-sm font-semibold text-dashboard-text">{issue.task_title}</p>
+              <p className="mt-1.5 break-words text-sm leading-6 text-dashboard-muted [overflow-wrap:anywhere]">
+                {issue.reason}
+              </p>
+              <Link
+                className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg border border-dashboard-border-strong bg-dashboard-bg/60 px-3 text-sm font-semibold text-dashboard-text transition hover:border-dashboard-accent/60 hover:text-dashboard-accent"
+                href={
+                  `/calendar?taskId=${encodeURIComponent(issue.task_id)}${
+                    issue.metadata.due_date
+                      ? `&date=${encodeURIComponent(issue.metadata.due_date)}`
+                      : ''
+                  }`
+                }
+              >
+                <CalendarDays aria-hidden="true" className="size-4 text-dashboard-accent" />
+                View in calendar
+              </Link>
+            </div>
+          </div>
         </li>
       ))}
     </ul>
