@@ -212,6 +212,9 @@ test('timer controls never render reset, including restored and running states',
           'next/navigation': { useSearchParams: () => ({ get: () => null }) },
           'lucide-react': { Clock3: 'clock', LoaderCircle: 'loading' },
           './FocusSettingsModal': { FocusSettingsModal: 'settings' },
+          './use-focus-fullscreen': {
+            useFocusFullscreen: () => ({ panelRef: { current: null }, isFullscreen: false }),
+          },
           './use-focus-tasks': { useFocusTasks: () => ({ tasks: [] }) },
           './use-focus-timer': {
             modes: ['Pomodoro', 'Short Break', 'Long Break'],
@@ -243,6 +246,119 @@ test('timer controls never render reset, including restored and running states',
       h.unmount();
     }
   }
+});
+
+function fullscreenHarness({ supported = true, requestError = false } = {}) {
+  const listeners = new Map();
+  const calls = [];
+  const document = {
+    fullscreenEnabled: supported,
+    fullscreenElement: null,
+    body: { style: { overflow: 'auto' } },
+    addEventListener(name, callback) {
+      if (!listeners.has(name)) listeners.set(name, new Set());
+      listeners.get(name).add(callback);
+    },
+    removeEventListener(name, callback) {
+      listeners.get(name)?.delete(callback);
+    },
+    async exitFullscreen() {
+      calls.push('exit');
+      document.fullscreenElement = null;
+      emit('fullscreenchange');
+    },
+  };
+  function emit(name, event = {}) {
+    listeners.get(name)?.forEach((callback) => callback(event));
+  }
+  const panel = {
+    async requestFullscreen() {
+      calls.push('enter');
+      if (requestError) throw new Error('Fullscreen denied');
+      document.fullscreenElement = panel;
+      emit('fullscreenchange');
+    },
+  };
+  const h = runner(
+    'components/focus/use-focus-fullscreen.ts',
+    'useFocusFullscreen',
+    {},
+    {},
+    { document },
+  );
+  h.render().panelRef.current = panel;
+  return { ...h, calls, document, emit, listeners };
+}
+
+test('fullscreen enters and exits the timer panel and restores body scrolling', async () => {
+  const h = fullscreenHarness();
+  await h.render().toggleFullscreen();
+  await h.settle();
+  assert.equal(h.render().isFullscreen, true);
+  assert.equal(h.document.fullscreenElement, h.render().panelRef.current);
+  assert.equal(h.document.body.style.overflow, 'hidden');
+  await h.render().toggleFullscreen();
+  await h.settle();
+  assert.equal(h.render().isFullscreen, false);
+  assert.equal(h.document.body.style.overflow, 'auto');
+  assert.deepEqual(h.calls, ['enter', 'exit']);
+  h.unmount();
+  assert.ok([...h.listeners.values()].every((callbacks) => callbacks.size === 0));
+});
+
+test('browser fullscreen exit updates the toggle after Escape', async () => {
+  const h = fullscreenHarness();
+  await h.render().toggleFullscreen();
+  await h.settle();
+  h.document.fullscreenElement = null;
+  h.emit('fullscreenchange');
+  await h.settle();
+  assert.equal(h.render().isFullscreen, false);
+  assert.equal(h.document.body.style.overflow, 'auto');
+  h.unmount();
+});
+
+test('unsupported browsers can expand the timer and exit using Escape or the toggle', async () => {
+  const h = fullscreenHarness({ supported: false });
+  await h.render().toggleFullscreen();
+  await h.settle();
+  assert.equal(h.render().isFullscreen, true);
+  h.emit('keydown', { key: 'Escape' });
+  await h.settle();
+  assert.equal(h.render().isFullscreen, false);
+  assert.equal(h.document.body.style.overflow, 'auto');
+  await h.render().toggleFullscreen();
+  await h.settle();
+  await h.render().toggleFullscreen();
+  await h.settle();
+  assert.equal(h.render().isFullscreen, false);
+  assert.deepEqual(h.calls, []);
+  await h.render().toggleFullscreen();
+  await h.settle();
+  h.unmount();
+  assert.equal(h.document.body.style.overflow, 'auto');
+});
+
+test('Escape exits native fullscreen in embedded browsers that forward it to the page', async () => {
+  const h = fullscreenHarness();
+  await h.render().toggleFullscreen();
+  await h.settle();
+  h.emit('keydown', { key: 'Escape' });
+  await h.settle();
+  assert.equal(h.render().isFullscreen, false);
+  assert.equal(h.document.body.style.overflow, 'auto');
+  assert.deepEqual(h.calls, ['enter', 'exit']);
+  h.unmount();
+});
+
+test('a rejected fullscreen request leaves the timer in its normal layout with an error', async () => {
+  const h = fullscreenHarness({ requestError: true });
+  await h.render().toggleFullscreen();
+  await h.settle();
+  assert.equal(h.render().isFullscreen, false);
+  assert.match(h.render().fullscreenError, /try again/);
+  assert.equal(h.document.body.style.overflow, 'auto');
+  h.unmount();
 });
 
 test('URL task and duration initialize a paused timer and keep the storage contract', async () => {

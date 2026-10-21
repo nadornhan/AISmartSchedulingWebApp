@@ -2,8 +2,9 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { Clock3, LoaderCircle } from 'lucide-react';
+import { Clock3, LoaderCircle, Maximize, Minimize } from 'lucide-react';
 import { FocusSettingsModal } from './FocusSettingsModal';
+import { useFocusFullscreen } from './use-focus-fullscreen';
 import { useFocusTasks, type FocusTask } from './use-focus-tasks';
 import { modes, useFocusTimer } from './use-focus-timer';
 
@@ -14,6 +15,7 @@ export function FocusMode() {
   const selectedDuration = Number(searchParams.get('duration'));
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [taskSearch, setTaskSearch] = useState('');
+  const { panelRef, isFullscreen, fullscreenError, toggleFullscreen } = useFocusFullscreen();
   const { tasks, tasksLoading, tasksError } = useFocusTasks({ selectedTaskId, selectedTaskTitle });
   const {
     mode,
@@ -62,25 +64,47 @@ export function FocusMode() {
     : tasks;
   return (
     <div className="mx-auto max-w-[1450px] space-y-5 sm:space-y-7">
-      <section className="focus-mode-panel relative overflow-hidden rounded-2xl border border-dashboard-border">
-        <button
-          aria-label="Focus settings"
-          className="absolute right-3 top-3 z-20 grid h-10 w-10 place-items-center rounded-xl border border-dashboard-border bg-dashboard-surface text-dashboard-text hover:border-dashboard-accent/50 sm:right-6 sm:top-6 sm:h-11 sm:w-11"
-          onClick={() => setSettingsOpen(true)}
-          type="button"
-        >
-          <GearIcon />
-        </button>
+      <section
+        ref={panelRef}
+        aria-label="Focus timer"
+        className={`focus-mode-panel relative overflow-hidden rounded-2xl border border-dashboard-border${isFullscreen ? ' is-fullscreen' : ''}`}
+        data-phase={mode === 'Pomodoro' ? 'focus' : 'break'}
+      >
+        <div className="focus-panel-toolbar absolute right-3 top-3 z-20 flex gap-2 sm:right-6 sm:top-6">
+          <button
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            aria-pressed={isFullscreen}
+            className="focus-panel-tool"
+            onClick={() => void toggleFullscreen()}
+            title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Enter fullscreen'}
+            type="button"
+          >
+            {isFullscreen ? (
+              <Minimize aria-hidden="true" className="h-5 w-5" />
+            ) : (
+              <Maximize aria-hidden="true" className="h-5 w-5" />
+            )}
+          </button>
+          <button
+            aria-label="Focus settings"
+            className="focus-panel-tool"
+            onClick={() => setSettingsOpen(true)}
+            type="button"
+          >
+            <GearIcon />
+          </button>
+        </div>
 
-        <div className="mx-auto flex w-full overflow-hidden rounded-xl border border-dashboard-border bg-dashboard-bg/70 p-1 sm:w-fit">
+        <div className="focus-mode-tabs relative z-10 mx-auto flex w-full shrink-0 overflow-hidden rounded-xl border border-dashboard-border bg-dashboard-bg/70 p-1 sm:w-fit">
           {modes.map((item) => (
             <button
               className={`min-w-0 flex-1 rounded-lg px-2 py-2.5 text-sm transition sm:min-w-28 sm:flex-none sm:px-5 ${
                 mode === item
-                  ? 'bg-dashboard-accent/15 font-semibold text-dashboard-accent'
+                  ? 'focus-mode-tab--active bg-dashboard-accent/15 font-semibold text-dashboard-accent'
                   : 'text-dashboard-muted hover:text-dashboard-text'
               }`}
               key={item}
+              aria-pressed={mode === item}
               disabled={isSessionMutating}
               onClick={() => void selectMode(item)}
               type="button"
@@ -97,7 +121,7 @@ export function FocusMode() {
               cy="100"
               fill="none"
               r="96"
-              stroke="rgba(34,240,177,.16)"
+              stroke="var(--focus-ring-track, rgba(34,240,177,.16))"
               strokeWidth="2"
             />
             <circle
@@ -106,7 +130,7 @@ export function FocusMode() {
               fill="none"
               pathLength="100"
               r="96"
-              stroke="rgb(var(--accent-fill-strong-rgb))"
+              stroke="var(--focus-ring-progress, rgb(var(--accent-fill-strong-rgb)))"
               strokeDasharray={`${progress * 100} 100`}
               strokeLinecap="round"
               strokeWidth="2.6"
@@ -168,9 +192,9 @@ export function FocusMode() {
           </div>
         </div>
 
-        <div className="relative z-10 mt-4 text-center sm:mt-7">
-          <p className="text-sm text-dashboard-muted sm:text-lg">#1</p>
-          <p className="mt-1 text-sm font-medium text-dashboard-text sm:text-lg">
+        <div className="focus-timer-caption relative z-10 mt-4 text-center sm:mt-7">
+          <p className="focus-timer-session-count text-sm text-dashboard-muted sm:text-lg">#1</p>
+          <p className="focus-timer-session-title mt-1 text-sm font-medium text-dashboard-text sm:text-lg">
             {mode === 'Pomodoro' ? 'Time to focus!' : 'Take a breather'}
           </p>
           {sessionMessage ? (
@@ -183,12 +207,23 @@ export function FocusMode() {
               {sessionError}
             </p>
           ) : null}
+          {fullscreenError ? (
+            <p className="mt-3 text-sm text-dashboard-danger" role="alert">
+              {fullscreenError}
+            </p>
+          ) : null}
           {mode === 'Pomodoro' && selectedFocusTaskSummary ? (
             <p className="mt-2 text-sm text-dashboard-muted">
               Focusing on: <span className="text-dashboard-text">{selectedFocusTaskSummary}</span>
             </p>
           ) : null}
         </div>
+        <FocusSettingsModal
+          durations={durations}
+          onClose={() => setSettingsOpen(false)}
+          onSave={saveDurations}
+          open={settingsOpen}
+        />
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-dashboard-border bg-dashboard-surface/55">
@@ -312,13 +347,6 @@ export function FocusMode() {
           </p>
         ) : null}
       </section>
-
-      <FocusSettingsModal
-        durations={durations}
-        onClose={() => setSettingsOpen(false)}
-        onSave={saveDurations}
-        open={settingsOpen}
-      />
     </div>
   );
 }
