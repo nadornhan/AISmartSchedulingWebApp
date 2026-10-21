@@ -76,9 +76,12 @@ export function CurrentUserProvider({
   );
 
   useEffect(() => {
+    // Warm the public destination in production; never wait for it to verify auth.
+    // Next.js does not prefetch routes in development.
+    router.prefetch('/login');
     void session.start();
     return () => session.dispose();
-  }, [session]);
+  }, [router, session]);
 
   const value = useMemo<CurrentUserContextValue>(
     () => ({

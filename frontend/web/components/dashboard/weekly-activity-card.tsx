@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Sparkles } from 'lucide-react';
 
 import type { DashboardWeeklyActivityPoint } from '../../lib/dashboard';
 
@@ -21,10 +22,10 @@ export function WeeklyActivityCard({
 
   return (
     <section className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-6 shadow-panel">
+      <h2 className="mb-3 text-xl font-semibold text-dashboard-text">This week</h2>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-dashboard-text">Weekly Activity</h2>
-          <p className="mt-2 text-sm text-dashboard-muted">
+          <p className="text-sm text-dashboard-muted">
             You&apos;re more productive on {insightDays}
           </p>
         </div>
@@ -96,10 +97,16 @@ export function WeeklyActivityCard({
       </div>
 
       <div className="mt-6 flex flex-col gap-3 rounded-[var(--radius-sm)] bg-dashboard-accent-soft px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-dashboard-muted">
-          <span className="font-semibold text-dashboard-accent">Insight:</span> You complete most
-          tasks on {insightDays}. Try scheduling deep work on these days.
-        </p>
+        <div className="flex min-w-0 items-start gap-2">
+          <Sparkles
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0 text-dashboard-accent"
+          />
+          <p className="text-sm text-dashboard-muted">
+            <span className="font-semibold text-dashboard-accent">Insight:</span> You complete most
+            tasks on {insightDays}. Try scheduling deep work on these days.
+          </p>
+        </div>
         <Link
           className="text-sm font-semibold text-dashboard-text transition hover:text-dashboard-accent"
           href="/analytics"

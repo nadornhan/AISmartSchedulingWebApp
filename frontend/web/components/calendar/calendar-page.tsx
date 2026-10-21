@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronRightIcon, PlusIcon } from '../layout/icons';
 import { CreateTaskModal } from '../tasks/create-task-modal';
 
@@ -18,6 +18,7 @@ import {
   weekdayLabels,
   type CalendarView,
 } from './calendar-model';
+import { getTask } from '../../lib/tasks';
 import {
   CalendarMainView,
   DayAgenda,
@@ -37,6 +38,43 @@ export function CalendarPage() {
   });
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [showCompleted, setShowCompleted] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const dateValue = params.get('date');
+    const taskId = params.get('taskId');
+
+    if (dateValue) {
+      const date = new Date(dateValue);
+      if (!Number.isNaN(date.getTime())) {
+        setCalendarView('day');
+        setSelectedDate(date);
+        setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+      }
+    }
+
+    if (!taskId) return;
+
+    const controller = new AbortController();
+    void getTask(taskId, { signal: controller.signal })
+      .then((task) => {
+        const calendarDate = task.scheduled_start ?? task.due_date;
+        if (!calendarDate) return;
+
+        const date = new Date(calendarDate);
+        if (Number.isNaN(date.getTime())) return;
+
+        setCalendarView('day');
+        setSelectedDate(date);
+        setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+      })
+      .catch(() => {
+        // The due-date fallback still opens the relevant calendar day.
+      });
+
+    return () => controller.abort();
+  }, []);
+
   const days = useMemo(() => {
     if (calendarView === 'week') return buildWeekDays(selectedDate);
     if (calendarView === 'day') return buildDay(selectedDate);

@@ -1,3 +1,5 @@
+import { clearReadCache } from './read-cache';
+
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 
 const ACCESS_TOKEN_KEY = 'chrono_access_token';
@@ -33,10 +35,12 @@ export function getAccessToken() {
 }
 
 export function setAccessToken(token: string) {
+  clearReadCache();
   localStorage.setItem(ACCESS_TOKEN_KEY, token);
 }
 
 export function clearAccessToken() {
+  clearReadCache();
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem('access_token');
 }

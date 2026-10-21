@@ -19,6 +19,7 @@ function loadSource(file, dependencies = {}, globals = {}) {
       module,
       exports: module.exports,
       require: (name) => {
+        if (name === './read-cache') return loadSource('lib/read-cache.ts');
         assert.ok(name in dependencies, `Unexpected dependency: ${name}`);
         return dependencies[name];
       },

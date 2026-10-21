@@ -56,13 +56,18 @@ function harness(overrides = {}, initialOptions = {}) {
       const index = cursor++;
       if (!slots[index]) {
         slots[index] = {
-          value: initial,
+          value: typeof initial === 'function' ? initial() : initial,
           setter: (value) => {
             slots[index].value = typeof value === 'function' ? value(slots[index].value) : value;
           },
         };
       }
       return [slots[index].value, slots[index].setter];
+    },
+    useRef(initial) {
+      const index = cursor++;
+      if (!slots[index]) slots[index] = { current: initial };
+      return slots[index];
     },
     useCallback(callback, deps) {
       const index = cursor++;
@@ -89,12 +94,20 @@ function harness(overrides = {}, initialOptions = {}) {
       onProjectDataChanged: subscribe('projects'),
     },
     '../../lib/projects': {
+      getCachedProjects: () => overrides.cachedProjects,
       listProjects: async () => {
         projectLoads++;
         return overrides.listProjects ? overrides.listProjects() : [{ id: 'project-a' }];
       },
     },
     '../../lib/tasks': {
+      getCachedTaskList: () => overrides.cachedTasks,
+      getCachedTaskCounts: () => overrides.cachedCounts,
+      getTaskCounts: async (params) => {
+        calls.push({ ...plain(params), counts: true });
+        return overrides.getTaskCounts ? overrides.getTaskCounts(params) :
+          { total: 14, pending: 2, in_progress: 3, done: 4, overdue: 5 };
+      },
       listTasks: async (params) => {
         calls.push(plain(params));
         return overrides.listTasks
@@ -160,12 +173,42 @@ function harness(overrides = {}, initialOptions = {}) {
   };
 }
 
+test('cached task content is visible immediately and retained when background refresh fails', async () => {
+  const h = harness({
+    cachedTasks: { items: [{ id: 'cached' }], total: 1, total_pages: 1 },
+    cachedProjects: [{ id: 'cached-project' }],
+    listTasks: async () => { throw new Error('Offline'); },
+  });
+  const initial = h.render();
+  assert.equal(initial.isLoading, false);
+  assert.equal(initial.tasks[0].id, 'cached');
+  assert.equal(initial.projects[0].id, 'cached-project');
+  const after = await h.settle();
+  assert.equal(after.tasks[0].id, 'cached');
+  assert.equal(after.totalTasks, 1);
+  assert.equal(h.state().error, 'Offline');
+});
+
+test('a slower previous filter response cannot replace the current results', async () => {
+  let finishOld;
+  const h = harness({ listTasks: async (params) => {
+    if (!params.search) return new Promise((resolve) => { finishOld = resolve; });
+    return { items: [{ id: 'new-query' }], total: 1, total_pages: 1 };
+  } });
+  h.render();
+  await h.settle();
+  h.render({ searchQuery: 'new query' });
+  await h.settle();
+  finishOld({ items: [{ id: 'old-query' }], total: 1, total_pages: 1 });
+  assert.equal((await h.settle()).tasks[0].id, 'new-query');
+});
+
 test('initial load retains query defaults, counts, projects and selection/menu reset', async () => {
   const h = harness();
   assert.equal(h.render().isLoading, true);
   const data = await h.settle();
   assert.deepEqual(h.calls[0], { sortBy: 'due_date', sortOrder: 'asc', page: 1, pageSize: 8 });
-  assert.equal(h.calls.length, 6);
+  assert.equal(h.calls.length, 2);
   assert.equal(data.tasks[0].id, 'task-a');
   assert.equal(data.totalPages, 3);
   assert.equal(data.totalTasks, 14);
@@ -215,8 +258,7 @@ test('filtered loading retains exact pagination, sort and API filters; counts re
         (params) =>
           params.projectId === 'project-a' &&
           params.search === 'exam' &&
-          params.page === 1 &&
-          params.pageSize === 1 &&
+          params.counts === true &&
           !('priority' in params),
       ),
   );
@@ -230,7 +272,7 @@ test('targeted task loading bypasses list filters and retains one-page result', 
   assert.equal(data.tasks[0].id, 'target-a');
   assert.equal(data.totalPages, 1);
   assert.equal(data.totalTasks, 1);
-  assert.equal(h.calls.length, 6);
+  assert.equal(h.calls.length, 2);
 });
 
 test('main request failure clears tasks/pages and exposes error without clearing selection/menu', async () => {
@@ -268,6 +310,7 @@ test('targeted task failures use the same error/loading path', async () => {
 
 test('count and folder failures remain non-blocking when tasks load successfully', async () => {
   const h = harness({
+    getTaskCounts: async () => { throw new Error('Count unavailable'); },
     listTasks: async (params) => {
       if (params.pageSize === 1) throw new Error('Count unavailable');
       return { items: [{ id: 'task-a' }], total_pages: 1 };
@@ -291,12 +334,12 @@ test('task changes refresh tasks/counts; project changes refresh projects/counts
   h.calls.length = 0;
   h.emit('tasks');
   await h.settle();
-  assert.equal(h.calls.length, 6);
+  assert.equal(h.calls.length, 2);
   assert.equal(h.state().projectLoads, 1);
   h.calls.length = 0;
   h.emit('projects');
   await h.settle();
-  assert.equal(h.calls.length, 5);
+  assert.equal(h.calls.length, 2);
   assert.equal(h.state().projectLoads, 2);
   h.dispose();
   assert.equal(h.subscriptions.tasks.size, 0);
@@ -308,10 +351,11 @@ test('query changes replace refresh subscriptions; stable query rerenders do not
   const first = h.render();
   const data = await h.settle();
   assert.equal(data.refreshTasks, first.refreshTasks);
-  assert.equal(h.calls.length, 6);
+  assert.equal(h.calls.length, 2);
   h.render({ searchQuery: 'new query' });
   await h.settle();
-  assert.equal(h.calls.length, 12);
+  assert.equal(h.calls.length, 4);
+  assert.equal(h.state().projectLoads, 1, 'searching must not reload folder choices');
   assert.equal(h.subscriptions.tasks.size, 1);
   assert.equal(h.subscriptions.projects.size, 1);
   h.calls.length = 0;
@@ -330,7 +374,7 @@ test('mutation handlers can update task state and explicitly refresh without rem
   h.calls.length = 0;
   await Promise.all([data.refreshTasks(), data.refreshCounts()]);
   assert.equal(h.render().tasks[0].id, 'task-a');
-  assert.equal(h.calls.length, 6);
+  assert.equal(h.calls.length, 2);
 });
 
 test('loading stays active until the main task request resolves', async () => {

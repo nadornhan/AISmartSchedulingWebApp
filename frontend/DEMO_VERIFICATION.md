@@ -1,5 +1,74 @@
 # Demo verification and documentation consistency
 
+## Mobile account layout follow-up (18 October 2026)
+
+The visual refinement centers the mobile avatar/name/email and replaces nested
+mobile cards with flat grouped rows and subtle section-label bands. Chrono theme
+colors, 56-pixel minimum row targets, row padding and 24-pixel section gaps remain;
+desktop keeps its horizontal profile summary and bordered cards. The supplied
+reference is used for layout, not its blue palette, oversized spacing or extra
+unimplemented settings. A fifth JSX regression checks these responsive classes.
+
+Mobile Account Settings now keeps profile/private information/progress above an
+inline Preferences list for Notifications, Theme, Work preferences and Scheduling
+priorities. The horizontal mobile tabs were removed; each list row expands at its
+own position with a green open indicator, a slide transition and reduced-motion
+support. Collapsed content is inert, panels mount only after their first opening,
+and mobile Log out follows the entire list. Desktop retains its left tabs,
+selected right-hand panel and left-column logout. Scheduling sliders use unique
+per-instance IDs when responsive panels coexist.
+
+Four source/JSX regressions cover mobile order and logout, accordion transitions,
+desktop tab preservation and resize layout, and sign-out dispatch. They do not
+constitute a browser visual or persistence check. Browser verification was not
+available because local browser use is disabled in Work settings. Existing API
+and preference-save handlers remain unchanged.
+
+## Compilation and sign-in transition follow-up (18 October 2026)
+
+The default web development command now uses Turbopack, with `dev:webpack`
+retained as an explicit fallback. A running Webpack process must be restarted
+to pick up the command change. Production `build`/`start` remains the preferred
+way to demonstrate navigation without on-demand development compilation.
+
+The dashboard session gate now prevents the sidebar, desktop/mobile headers,
+notification loaders, reward UI and protected feature content from mounting
+during checking, unavailable or unauthenticated states. XP reads/subscriptions
+also require authenticated status. Previously the shell mounted even while its
+feature-content gate was closed. A public sign-in link accompanies the redirect
+message; `router.replace('/login')` remains the automatic redirect. The provider
+prefetches the login route without awaiting it; Next.js prefetching applies in
+production, not development. No token, database or API contract changed.
+
+Verification: all 50 auth/avatar/shell regressions passed, including four new
+render checks for the shell gate. Web TypeScript and scoped ESLint passed.
+An isolated source copy using the installed Next.js 16.2.6 Turbopack server
+returned HTTP 200 for `/login` and `/account`; repeat HTTP requests took about
+84 ms and 97 ms respectively. These are local server smoke checks, not a cold
+Webpack/Turbopack comparison or an authenticated browser-redirect benchmark.
+No real API, credentials or database were used, and the user's dev server was
+not restarted or stopped. Browser hydration was not verified in this check.
+
+## Task loading optimisation on 18 October 2026
+
+Tasks now uses one `GET /tasks/counts` aggregate request instead of five list
+requests for its status badges. A cold feature load uses three reads (tasks,
+counts and projects), excluding shared shell requests. A bounded memory cache
+shares in-flight task/count/project reads, reuses recent results and supplies
+cached task snapshots on return visits. Task and project mutation events
+invalidate affected entries, and authentication changes clear the cache.
+
+Verification: 121 frontend regressions passed across task presentation, loading,
+actions, read-cache behaviour and auth sessions. TypeScript and scoped ESLint
+passed. Five backend regressions passed using an isolated in-memory SQLite
+database: status totals match existing list filters, search/project/Inbox and
+ownership scopes hold, empty results are zero, the aggregate uses one SQL query,
+and `/tasks/counts` precedes the task-ID route. No demonstration records were
+accessed. These are functional checks, not a live PostgreSQL integration test or
+a measured browser-navigation benchmark. Calendar range loading and development
+compilation remain separate performance considerations. Deploy the updated API
+alongside the frontend; the endpoint requires no schema migration.
+
 Date: 2026-10-12 (Australia/Sydney). Source baseline: `54fdf02`, the three local cleanup commits on GitHub develop `3fb1d1d`.
 
 This batch verifies the integrated web app and corrects outdated documentation. It does not refactor active feature code, change schema/infrastructure, implement React Native or configure mobile simulation tooling.

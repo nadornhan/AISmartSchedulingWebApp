@@ -403,7 +403,7 @@ function TaskFormModal({
     >
       <form
         className={cn(
-          'my-6 w-full min-w-0 max-w-[680px] rounded-[var(--radius-lg)] border border-dashboard-border-strong bg-[var(--bg-surface-raised)] font-sans shadow-modal',
+          'task-create-modal my-6 w-full min-w-0 max-w-[680px] rounded-[var(--radius-lg)] border border-dashboard-border-strong shadow-modal',
           isAiOnlyView ? 'p-6' : 'p-5 sm:p-9',
         )}
         onKeyDown={(event) => {
@@ -415,9 +415,9 @@ function TaskFormModal({
       >
         <fieldset disabled={durationBusy} className="contents">
           {isAiOnlyView ? (
-            <div className="relative flex h-10 items-center justify-center">
+            <div className="relative flex min-h-10 items-center justify-center">
               <h2
-                className="flex items-center gap-2 font-sans text-3xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text"
+                className="max-w-[calc(100%_-_3rem)] font-poppins text-center text-2xl font-semibold leading-tight tracking-normal text-dashboard-text sm:text-3xl"
                 id="task-form-title"
               >
                 Describe your task
@@ -435,7 +435,7 @@ function TaskFormModal({
             <div className="flex items-start justify-between gap-4 sm:gap-6">
               <div className="min-w-0 flex-1">
                 <h2
-                  className="break-words font-sans text-2xl font-semibold tracking-[var(--tracking-heading)] text-dashboard-text sm:text-3xl"
+                  className="break-words font-poppins text-2xl font-semibold leading-tight tracking-normal text-dashboard-text sm:text-3xl"
                   id="task-form-title"
                 >
                   {title}
@@ -464,7 +464,7 @@ function TaskFormModal({
                 >
                   {!isAiOnlyView ? (
                     <div className="mb-2 flex items-center gap-2">
-                      <h3 className="text-base font-semibold text-dashboard-text">
+                      <h3 className="font-poppins text-base font-semibold text-dashboard-text">
                         Describe your task
                       </h3>
                       <Sparkles
@@ -487,7 +487,7 @@ function TaskFormModal({
                         'h-10 rounded-lg px-3 text-sm font-semibold transition',
                         aiEntryMode === 'generate'
                           ? 'bg-dashboard-accent-soft text-dashboard-accent'
-                          : 'text-dashboard-muted hover:text-dashboard-text',
+                          : 'text-dashboard-text/75 hover:text-dashboard-text',
                       )}
                       onClick={() => selectAiEntryMode('generate')}
                       type="button"
@@ -500,7 +500,7 @@ function TaskFormModal({
                         'h-10 rounded-lg px-3 text-sm font-semibold transition',
                         aiEntryMode === 'decompose'
                           ? 'bg-dashboard-accent-soft text-dashboard-accent'
-                          : 'text-dashboard-muted hover:text-dashboard-text',
+                          : 'text-dashboard-text/75 hover:text-dashboard-text',
                       )}
                       onClick={() => selectAiEntryMode('decompose')}
                       type="button"
@@ -542,7 +542,7 @@ function TaskFormModal({
                       <button
                         aria-label="Automatically fill task"
                         className={cn(
-                          'flex h-11 items-center gap-2 rounded-full border px-5 font-sans text-base font-medium transition',
+                          'flex h-11 items-center gap-2 rounded-full border px-5 text-base font-medium transition',
                           hasNaturalLanguageInput
                             ? 'border-dashboard-accent bg-gradient-to-br from-dashboard-accent via-dashboard-accent/85 to-dashboard-accent-strong text-dashboard-on-accent shadow-[0_8px_24px_rgba(53,227,181,0.22),inset_0_1px_0_rgba(255,255,255,0.28)] hover:brightness-110'
                             : 'border-dashboard-border bg-gradient-to-br from-white/[0.08] via-white/[0.035] to-transparent text-dashboard-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md',
@@ -798,7 +798,7 @@ function TaskFormModal({
                         <span className="h-px flex-1 bg-dashboard-border" />
                       </div>
                       <button
-                        className="h-12 w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 font-sans text-base font-medium text-dashboard-muted transition hover:border-dashboard-accent hover:text-dashboard-accent"
+                        className="h-12 w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 text-base font-medium text-dashboard-muted transition hover:border-dashboard-accent hover:text-dashboard-accent"
                         onClick={() => {
                           setIsManualFormVisible(true);
                           setIsNaturalLanguageExpanded(false);

@@ -1,4 +1,5 @@
-import { apiRequest } from './api';
+import { apiRequest, getAccessToken } from './api';
+import { cachedRead, peekReadCache } from './read-cache';
 import { emitProjectDataChanged } from './data-events';
 
 export type Project = {
@@ -18,7 +19,11 @@ export type CreateProjectInput = {
 };
 
 export function listProjects() {
-  return apiRequest<Project[]>('/projects');
+  return cachedRead(getAccessToken(), 'projects', 'list', () => apiRequest<Project[]>('/projects'), 60_000);
+}
+
+export function getCachedProjects() {
+  return peekReadCache<Project[]>(getAccessToken(), 'projects', 'list');
 }
 
 export async function createProject(input: CreateProjectInput) {

@@ -15,6 +15,14 @@ class TaskDisplayStatus(str, enum.Enum):
     OVERDUE = "overdue"
 
 
+class TaskCountsResponse(BaseModel):
+    total: int
+    pending: int
+    in_progress: int
+    done: int
+    overdue: int
+
+
 class TaskSortBy(str, enum.Enum):
     CREATED_AT = "created_at"
     UPDATED_AT = "updated_at"

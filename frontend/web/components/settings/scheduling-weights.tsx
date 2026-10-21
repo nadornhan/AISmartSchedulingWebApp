@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { SettingsSection } from './settings-section';
 
 export type SchedulingWeightsValue = {
@@ -26,6 +27,7 @@ const weights = [
 ] satisfies Array<{ description: string; label: string; key: keyof SchedulingWeightsValue }>;
 
 export function SchedulingWeights({ isDisabled = false, value, onChange }: SchedulingWeightsProps) {
+  const controlId = useId();
   function updateWeight(key: keyof SchedulingWeightsValue, nextValue: number) {
     onChange({ ...value, [key]: nextValue });
   }
@@ -74,7 +76,10 @@ export function SchedulingWeights({ isDisabled = false, value, onChange }: Sched
           <div className="grid gap-2" key={weight.label}>
             <div className="flex items-center justify-between gap-4 text-sm">
               <div className="min-w-0">
-                <label className="font-medium text-dashboard-text" htmlFor={weight.key}>
+                <label
+                  className="font-medium text-dashboard-text"
+                  htmlFor={`${controlId}-${weight.key}`}
+                >
                   {weight.label}
                 </label>
                 <p className="mt-0.5 text-xs text-dashboard-muted">{weight.description}</p>
@@ -85,7 +90,7 @@ export function SchedulingWeights({ isDisabled = false, value, onChange }: Sched
               aria-valuetext={`${value[weight.key]} percent`}
               className="accent-dashboard-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
               disabled={isDisabled}
-              id={weight.key}
+              id={`${controlId}-${weight.key}`}
               max="100"
               min="0"
               onChange={(event) => updateWeight(weight.key, Number(event.target.value))}

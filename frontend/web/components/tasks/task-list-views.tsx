@@ -65,10 +65,10 @@ export function TaskDesktopTable({
           onChange={toggleAllVisible}
         />
         <span className="col-span-2 2xl:col-span-1">Task</span>
-        <span className="hidden 2xl:block">Project</span>
-        <span className="hidden 2xl:block">Due date</span>
-        <span className="hidden 2xl:block">Priority</span>
-        <span className="hidden 2xl:block">Status</span>
+        <span className="hidden 2xl:block 2xl:text-center">Project</span>
+        <span className="hidden 2xl:block 2xl:text-center">Due date</span>
+        <span className="hidden 2xl:block 2xl:text-center">Priority</span>
+        <span className="hidden 2xl:block 2xl:text-center">Status</span>
         <span className="text-right">Actions</span>
       </div>
 
@@ -152,7 +152,7 @@ export function TaskDesktopTable({
                 </div>
               </button>
 
-              <div className="col-start-2 row-start-2 min-w-0 2xl:col-start-auto 2xl:row-start-auto">
+              <div className="col-start-2 row-start-2 min-w-0 2xl:col-start-auto 2xl:row-start-auto 2xl:justify-self-center">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-dashboard-muted 2xl:hidden">
                   Project
                 </span>
@@ -176,7 +176,7 @@ export function TaskDesktopTable({
 
               <p
                 className={cn(
-                  'col-span-2 col-start-3 row-start-2 min-w-0 text-base text-dashboard-muted 2xl:col-span-1 2xl:col-start-auto 2xl:row-start-auto',
+                  'col-span-2 col-start-3 row-start-2 min-w-0 text-base text-dashboard-muted 2xl:col-span-1 2xl:col-start-auto 2xl:row-start-auto 2xl:justify-self-center 2xl:text-center',
                   task.overdue && 'font-medium text-[var(--red-light)]',
                 )}
               >
@@ -186,7 +186,7 @@ export function TaskDesktopTable({
                 {task.dueDate}
               </p>
 
-              <div className="col-start-2 row-start-3 min-w-0 2xl:col-start-auto 2xl:row-start-auto">
+              <div className="col-start-2 row-start-3 min-w-0 2xl:col-start-auto 2xl:row-start-auto 2xl:justify-self-center">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-dashboard-muted 2xl:hidden">
                   Priority
                 </span>
@@ -200,7 +200,7 @@ export function TaskDesktopTable({
                 </span>
               </div>
 
-              <div className="col-span-2 col-start-3 row-start-3 space-y-2 2xl:col-span-1 2xl:col-start-auto 2xl:row-start-auto">
+              <div className="col-span-2 col-start-3 row-start-3 space-y-2 2xl:col-span-1 2xl:col-start-auto 2xl:row-start-auto 2xl:justify-self-center">
                 <span className="block text-xs font-semibold uppercase tracking-wide text-dashboard-muted 2xl:hidden">
                   Status
                 </span>
