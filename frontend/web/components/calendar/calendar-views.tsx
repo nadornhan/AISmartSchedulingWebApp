@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckIcon, ChevronRightIcon, CloseIcon, EditIcon } from '../layout/icons';
+import { CalendarIcon, CheckIcon, ChevronRightIcon, CloseIcon } from '../layout/icons';
 import { formatDurationLabel } from '../../lib/duration';
 import {
   cn,
@@ -229,7 +229,7 @@ export function MobileCalendarView({
                       onClick={() => onReschedule(task)}
                       type="button"
                     >
-                      <EditIcon className="h-4 w-4" />
+                      <CalendarIcon className="h-4 w-4" />
                     </button>
                     <span className={cn('rounded-[var(--radius-pill)] border px-2.5 py-1 text-[10px] font-medium', mobilePriorityClasses(task.priority))}>
                       {mobilePriorityLabel(task.priority)}
@@ -421,7 +421,7 @@ function DayViewTaskCard({
             title={task.scheduleLocked ? 'Unlock this task before rescheduling' : undefined}
             type="button"
           >
-            <EditIcon className="h-[18px] w-[18px]" />
+            <CalendarIcon className="h-[18px] w-[18px]" />
           </button>
           <button
             aria-label={task.status === 'done' ? 'Reopen task' : 'Complete task'}
@@ -731,29 +731,26 @@ function AgendaTask({
       />
       <div
         className={cn(
-          'hidden rounded-xl border bg-dashboard-bg/35 p-5 shadow-[0_10px_28px_rgb(var(--shadow-color)/calc(0.12*var(--shadow-strength)))] transition hover:-translate-y-0.5 hover:bg-dashboard-raised/75 hover:shadow-[0_14px_34px_rgb(var(--shadow-color)/calc(0.2*var(--shadow-strength)))] lg:block',
-          priorityClasses(task),
+          'hidden rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-4 shadow-panel transition hover:bg-dashboard-surface lg:block',
         )}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <h3 className="min-w-0 truncate text-[17px] font-medium tracking-[-0.01em] text-dashboard-text">
-                {task.title}
-              </h3>
-              {task.status === 'overdue' ? <OverdueBadge /> : null}
-            </div>
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <h3 className="min-w-0 truncate text-sm font-semibold leading-5 text-dashboard-text">
+              {task.title}
+            </h3>
+            {task.status === 'overdue' ? <OverdueBadge /> : null}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-dashboard-border-strong bg-dashboard-bg/70 px-2.5 text-[11px] font-semibold text-dashboard-muted transition hover:border-dashboard-accent/70 hover:text-dashboard-accent"
+              aria-label={`Reschedule ${task.title}`}
+              className="grid h-9 w-9 place-items-center rounded-lg border border-dashboard-border-strong bg-dashboard-bg/70 text-dashboard-muted transition hover:border-dashboard-accent/70 hover:text-dashboard-accent"
               disabled={isMutating || task.scheduleLocked}
               onClick={() => onReschedule(task)}
-              title={task.scheduleLocked ? 'Unlock this task before rescheduling' : undefined}
+              title={task.scheduleLocked ? 'Unlock this task before rescheduling' : 'Reschedule'}
               type="button"
             >
-              <EditIcon className="h-3.5 w-3.5" />
-              Reschedule
+              <CalendarIcon className="h-4 w-4" />
             </button>
             <button
               aria-label={task.status === 'done' ? 'Reopen task' : 'Complete task'}
@@ -772,7 +769,7 @@ function AgendaTask({
             </button>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-current/10 pt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
           <span className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-dashboard-muted">
             <span
               className="h-2 w-2 shrink-0 rounded-full"
@@ -780,34 +777,14 @@ function AgendaTask({
             />
             <span className="truncate">{task.project}</span>
           </span>
-          <span className="rounded-full border border-current/20 bg-dashboard-bg/35 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-current">
+          <span
+            className={cn(
+              'inline-flex rounded-[var(--radius-pill)] border px-2.5 py-1 text-xs font-medium',
+              mobilePriorityClasses(task.priority),
+            )}
+          >
             {priorityLabel}
           </span>
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            {task.durationMinutes !== null ? (
-              <span className="text-sm font-semibold tabular-nums text-dashboard-muted">
-                {formatDurationLabel(task.durationMinutes)}
-              </span>
-            ) : null}
-            <button
-              aria-label={`Edit due date for ${task.title}`}
-              className="grid h-8 w-8 place-items-center rounded-md text-dashboard-muted transition hover:bg-dashboard-bg/70 hover:text-dashboard-accent"
-              disabled={isMutating}
-              onClick={() => onReschedule(task)}
-              title="Edit due date"
-              type="button"
-            >
-              <EditIcon className="h-4 w-4" />
-            </button>
-          </div>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-dashboard-muted">
-            {task.scheduledStart ? 'Scheduled' : 'Deadline'}
-          </span>
-          {task.durationMinutes !== null ? (
-            <span className="ml-auto text-[11px] font-semibold tabular-nums text-dashboard-muted">
-              {formatDurationLabel(task.durationMinutes)}
-            </span>
-          ) : null}
         </div>
       </div>
       <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-dashboard-border bg-dashboard-surface px-3.5 py-3.5 shadow-panel lg:hidden">
@@ -849,7 +826,7 @@ function AgendaTask({
             onClick={() => onReschedule(task)}
             type="button"
           >
-            <EditIcon className="h-4 w-4" />
+            <CalendarIcon className="h-4 w-4" />
           </button>
           <span className={cn('inline-flex rounded-[var(--radius-pill)] border px-2.5 py-1 text-[10px] font-medium', mobilePriorityClasses(task.priority))}>
             {mobilePriorityLabel(task.priority)}
