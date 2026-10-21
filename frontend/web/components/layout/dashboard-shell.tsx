@@ -24,7 +24,7 @@ type RouteMeta = {
 };
 
 const routeMeta: Record<string, RouteMeta> = {
-  '/': {
+  '/dashboard': {
     title: 'Dashboard',
     subtitle: 'Track your tasks, focus time, and progress at a glance.',
   },
@@ -82,10 +82,10 @@ function getRouteMeta(pathname: string): RouteMeta {
   }
 
   const parentPath = Object.keys(routeMeta)
-    .filter((route) => route !== '/' && pathname.startsWith(`${route}/`))
+    .filter((route) => route !== '/dashboard' && pathname.startsWith(`${route}/`))
     .sort((a, b) => b.length - a.length)[0];
 
-  return parentPath ? routeMeta[parentPath] : routeMeta['/'];
+  return parentPath ? routeMeta[parentPath] : routeMeta['/dashboard'];
 }
 
 export function DashboardShell({ children }: DashboardShellProps) {
@@ -193,13 +193,13 @@ function DashboardShellContent({
           <MobileTopHeader title={meta.title} totalXp={totalXp} user={user} />
           <Header totalXp={totalXp} user={user} />
           <main
-            className={`min-h-[calc(100dvh-7rem)] px-6 pb-32 ${pathname === '/' ? 'pt-[max(1.25rem,env(safe-area-inset-top))]' : 'pt-5'} lg:min-h-[calc(100dvh-6rem)] lg:px-10 lg:pb-8 lg:pt-5 xl:px-12`}
+            className={`min-h-[calc(100dvh-7rem)] px-6 pb-32 ${pathname === '/dashboard' ? 'pt-[max(1.25rem,env(safe-area-inset-top))]' : 'pt-5'} lg:min-h-[calc(100dvh-6rem)] lg:px-10 lg:pb-8 lg:pt-5 xl:px-12`}
           >
             {pathname !== '/gamification' ? (
               <PageHeading
-                mobileTitleInHeader={pathname !== '/'}
-                mobileSearch={pathname === '/' ? <SearchBox compact /> : undefined}
-                mobileActions={pathname === '/' ? <HeaderActions compact /> : undefined}
+                mobileTitleInHeader={pathname !== '/dashboard'}
+                mobileSearch={pathname === '/dashboard' ? <SearchBox compact /> : undefined}
+                mobileActions={pathname === '/dashboard' ? <HeaderActions compact /> : undefined}
                 title={meta.title}
                 subtitle={meta.subtitle}
               />

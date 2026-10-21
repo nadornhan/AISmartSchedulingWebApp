@@ -69,7 +69,7 @@ export default function RegisterPage() {
         role: 'student',
       });
 
-      router.push('/');
+      router.push('/dashboard');
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Could not create account.');
       setIsSubmitting(false);

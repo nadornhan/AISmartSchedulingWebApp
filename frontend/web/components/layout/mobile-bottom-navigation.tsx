@@ -32,7 +32,7 @@ function HomeIcon(props: NavIconProps) {
 }
 
 const primaryItems = [
-  { href: '/', label: 'Home', icon: HomeIcon },
+  { href: '/dashboard', label: 'Home', icon: HomeIcon },
   { href: '/tasks', label: 'Tasks', icon: TasksIcon },
   { href: '/calendar', label: 'Calendar', icon: CalendarIcon },
 ] as const;
@@ -40,7 +40,7 @@ const primaryItems = [
 const accountRoutes = ['/account', '/analytics', '/gamification', '/profile'];
 
 function routeIsActive(pathname: string, href: string) {
-  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function MobileBottomNavigation() {

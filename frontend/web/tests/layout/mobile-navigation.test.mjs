@@ -344,7 +344,7 @@ test('mobile navigation opens Account directly alongside Home, Tasks, and Calend
   const h = mobileNavigation('/tasks');
   const items = h.render();
   const links = items.filter((node) => node.type === 'a');
-  assert.deepEqual(links.map((node) => node.props.href), ['/', '/tasks', '/calendar', '/account']);
+  assert.deepEqual(links.map((node) => node.props.href), ['/dashboard', '/tasks', '/calendar', '/account']);
   assert.equal(links.find((node) => node.props.href === '/tasks').props['aria-current'], 'page');
   assert.ok(links.some((node) => nodes(node).some((child) => child.props?.children === 'Account')));
   assert.equal(items.find((node) => node.props?.['aria-label'] === 'Create task') !== undefined, true);

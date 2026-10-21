@@ -172,7 +172,7 @@ export function NotificationsPage() {
       return;
     }
 
-    router.push(notification.type.includes('focus') ? '/focus' : '/');
+    router.push(notification.type.includes('focus') ? '/focus' : '/dashboard');
   }
 
   return (

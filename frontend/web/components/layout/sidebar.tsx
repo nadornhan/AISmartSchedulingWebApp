@@ -39,7 +39,7 @@ type SidebarProps = {
 };
 
 const generalNavItems: NavItem[] = [
-  { href: '/', label: 'Dashboard', icon: DashboardIcon, exact: true },
+  { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon, exact: true },
   { href: '/tasks', label: 'All Tasks', icon: TasksIcon },
   { href: '/priority', label: 'Priority View', icon: PriorityIcon },
   { href: '/calendar', label: 'Calendar', icon: CalendarIcon },

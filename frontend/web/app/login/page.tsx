@@ -35,7 +35,7 @@ export default function LoginPage() {
       }
 
       await loginUser(email, password);
-      router.push('/');
+      router.push('/dashboard');
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Could not sign in.');
       setIsSubmitting(false);

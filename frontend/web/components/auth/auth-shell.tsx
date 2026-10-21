@@ -13,7 +13,7 @@ export function AuthShell({ children, footer }: AuthShellProps) {
   return (
     <main data-theme="dark" className={styles.page}>
       <div className={styles.shell}>
-        <Link href="/landing" className={styles.brand} aria-label="Chrono home">
+        <Link href="/" className={styles.brand} aria-label="Chrono home">
           <img alt="" width={40} height={40} src="/chrono-logo.png" />
           <span>Chrono</span>
         </Link>
@@ -29,7 +29,7 @@ export function AuthShell({ children, footer }: AuthShellProps) {
           />
           <div className={styles.imageShade} />
         </aside>
-        <Link className={styles.close} href="/landing">
+        <Link className={styles.close} href="/">
           <span>Back to website</span>
           <ArrowRight size={14} aria-hidden="true" />
         </Link>
