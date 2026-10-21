@@ -16,6 +16,27 @@ Port 3002 avoids conflicts if another checkout occupies port 3001. Use any free 
 
 `NEXT_PUBLIC_BYPASS_AUTH=true` supplies a UI-only fake user. It does not grant backend access and is not an integration test.
 
+The development command now uses Turbopack rather than forcing Webpack. Restart
+an existing dev server to pick up this command change. If a bundler-specific
+problem occurs, use `corepack pnpm --filter @ai-smart-scheduling/web dev:webpack
+--port 3002` as a fallback (on one line). Development still compiles routes on
+demand; a first visit can be slower than a repeat visit.
+
+For a demonstration without on-demand development compilation, stop the dev
+server, then run:
+
+```powershell
+corepack pnpm --filter @ai-smart-scheduling/web build
+corepack pnpm --filter @ai-smart-scheduling/web start --port 3002
+```
+
+Build and start must use the same public API configuration. Authentication still
+requires the API. The session gate now withholds sidebar, header/notification,
+XP and protected feature loaders until the session is verified; the production
+router also prefetches `/login` without blocking verification. This does not
+turn local-storage tokens into server-side authentication or eliminate a cold
+development route compile.
+
 ## Code map
 
 | Responsibility                                | Location                                                   |
@@ -42,7 +63,7 @@ settings modal. `use-focus-timer.ts` owns the countdown, local timer persistence
 active-session restoration, task selection and focus-session requests.
 `use-focus-tasks.ts` loads the active-task choices and deep-link fallback.
 
-Account Settings (`components/profile/account-page.tsx`) provides Account, Notifications, Theme, Work preferences and Scheduling priorities sections. Desktop uses navigation beside the selected content; mobile uses horizontal section controls. The Account view links to Profile, AI Insights and Personal Forest. Log out sits beneath the section navigation. Settings persistence uses `lib/settings.ts` and the backend settings API; theme choice uses `UiPreferencesProvider` and browser storage.
+Account Settings (`components/profile/account-page.tsx`) provides Account, Notifications, Theme, Work preferences and Scheduling priorities sections. Desktop uses navigation beside the selected content, with Log out beneath the left navigation. Mobile uses a centered avatar/name/email header and flat grouped rows with subtle section-label bands, while retaining compact row spacing and section gaps. Private information and progress precede the inline Preferences list; Log out is the last item below the list. Open rows use an accent indicator and slide transition, with reduced-motion support. Settings persistence uses `lib/settings.ts` and the backend settings API; theme choice uses `UiPreferencesProvider` and browser storage. The Account view links to Profile, AI Insights and Personal Forest.
 
 The Profile page uses a two-column desktop layout: photo and editable names on the left, with read-only account information and account access stacked on the right. The camera icon opens image upload and Save changes spans the name form. The columns stack on mobile. Password changes, two-step verification and account deletion are not implemented by this layout.
 
