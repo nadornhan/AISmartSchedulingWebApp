@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import styles from '../../components/auth/auth.module.css';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -10,8 +11,6 @@ import {
   AuthPrimaryButton,
   AuthShell,
   AuthSocialRow,
-  EmailIcon,
-  LockIcon,
 } from '../../components/auth';
 import { loginUser } from '../../lib/auth';
 
@@ -44,72 +43,60 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthShell>
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-[11px]">
-          <h2 className="font-poppins text-[32px] font-bold leading-[42px] text-[#f4f7f6]">
-            <span className="lg:hidden">Sign In</span>
-            <span className="hidden lg:inline">Sign in to continue to <span className="text-[var(--accent)]">Chrono.</span></span>
-          </h2>
-          <p className="text-sm leading-[21px] text-[#8181a5]">
-            Enter your details to proceed further
-          </p>
-        </div>
-
-        <form className="flex flex-col gap-8" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-4">
-              <AuthField
-                autoComplete="email"
-                icon={<EmailIcon />}
-                id="email"
-                label="Email"
-                name="email"
-                placeholder="john.doe@gmail.com"
-                type="email"
-              />
-              <AuthField
-                autoComplete="current-password"
-                icon={<LockIcon />}
-                id="password"
-                label="Password"
-                name="password"
-                placeholder="Start typing…"
-                type="password"
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <AuthCheckbox
-                checked={rememberMe}
-                id="remember"
-                label="Remember me"
-                onChange={setRememberMe}
-              />
-              <a className="text-sm font-semibold text-[var(--accent)]" href="#">
-                Recover password
-              </a>
-            </div>
+    <AuthShell
+      footer={
+        <p>
+          Don&apos;t have an account? <Link href="/register">Create an account</Link>
+        </p>
+      }
+    >
+      <div className={styles.stack}>
+        <header className={styles.heading}>
+          <h1>Sign in</h1>
+          <p>Welcome back. Find your focus.</p>
+        </header>
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <div className={styles.fields}>
+            <AuthField
+              autoComplete="email"
+              id="email"
+              label="Email"
+              name="email"
+              placeholder="you@example.com"
+              type="email"
+              required
+            />
+            <AuthField
+              autoComplete="current-password"
+              id="password"
+              label="Password"
+              name="password"
+              placeholder="Enter your password"
+              type="password"
+              required
+            />
           </div>
-
+          <div className={styles.options}>
+            <AuthCheckbox
+              checked={rememberMe}
+              id="remember"
+              label="Remember me"
+              onChange={setRememberMe}
+            />
+            <a href="#">Recover password</a>
+          </div>
           {error ? (
-            <p className="rounded-lg border border-[var(--red-border)] bg-[var(--red-soft)] px-3 py-2 text-[13px] font-medium text-[var(--red-light)]">
+            <p
+              role="alert"
+              className="rounded-lg border border-[var(--red-border)] bg-[var(--red-soft)] px-3 py-2 text-[13px] font-medium text-[var(--red-light)]"
+            >
               {error}
             </p>
           ) : null}
-
-          <div className="grid gap-3">
-            <AuthPrimaryButton disabled={isSubmitting} tone="light">
-              {isSubmitting ? 'Signing in...' : 'Sign In'}
-            </AuthPrimaryButton>
-            <p className="text-right text-sm text-dashboard-muted">
-              Don&apos;t have an account?{' '}
-              <Link className="font-semibold text-[var(--accent)] hover:underline" href="/register">
-                Create an account
-              </Link>
-            </p>
-          </div>
+          <AuthPrimaryButton disabled={isSubmitting}>
+            {isSubmitting ? 'Signing in...' : 'Sign in'}
+          </AuthPrimaryButton>
         </form>
-
         <AuthSocialRow />
       </div>
     </AuthShell>

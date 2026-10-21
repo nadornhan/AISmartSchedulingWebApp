@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { Suspense, useEffect, useState, type ReactNode } from 'react';
 import { getGamificationProfile, onGrowthReward } from '../../lib/gamification';
 import { CurrentUserProvider, useCurrentUser } from '../auth/current-user-provider';
@@ -107,7 +108,7 @@ function DashboardShellContent({
   const [xp, setXp] = useState<{ userId: string; total: number } | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
+    if (sessionStatus !== 'authenticated' || !userId) return;
     const profileUserId = userId;
     const controller = new AbortController();
     let revision = 0;
@@ -139,9 +140,47 @@ function DashboardShellContent({
       controller.abort();
       unsubscribe();
     };
-  }, [userId]);
+  }, [sessionStatus, userId]);
 
   const totalXp = xp?.userId === userId ? xp?.total : null;
+
+  // Do not mount navigation/notification loaders until the session is verified.
+  // CSS-hidden shell components still run their effects and can compete with login.
+  if (sessionStatus !== 'authenticated') {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-dashboard-bg px-6 text-dashboard-text">
+        <div
+          className="w-full max-w-md rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted"
+          role={sessionStatus === 'unavailable' ? 'alert' : 'status'}
+        >
+          {sessionStatus === 'unavailable' ? (
+            <>
+              <p>{error ?? 'Unable to check your session. Please try again.'}</p>
+              <button
+                className="mt-4 rounded-lg border border-dashboard-border px-4 py-2 text-sm font-medium text-dashboard-text transition hover:border-dashboard-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
+                onClick={() => void refreshUser()}
+                type="button"
+              >
+                Try again
+              </button>
+            </>
+          ) : sessionStatus === 'checking' ? (
+            <p>Checking your session...</p>
+          ) : (
+            <>
+              <p>Redirecting to sign in...</p>
+              <Link
+                className="mt-3 inline-block text-dashboard-accent hover:underline"
+                href="/login"
+              >
+                Go to sign in
+              </Link>
+            </>
+          )}
+        </div>
+      </main>
+    );
+  }
 
   return (
     <DashboardHeadingProvider>
@@ -160,38 +199,12 @@ function DashboardShellContent({
               <PageHeading
                 mobileTitleInHeader={pathname !== '/'}
                 mobileSearch={pathname === '/' ? <SearchBox compact /> : undefined}
-                mobileActions={
-                  pathname === '/' ? <HeaderActions compact /> : undefined
-                }
+                mobileActions={pathname === '/' ? <HeaderActions compact /> : undefined}
                 title={meta.title}
                 subtitle={meta.subtitle}
               />
             ) : null}
-            {sessionStatus === 'checking' ? (
-              <div className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted">
-                Checking your session...
-              </div>
-            ) : sessionStatus === 'unavailable' ? (
-              <div
-                className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted"
-                role="alert"
-              >
-                <p>{error ?? 'Unable to check your session. Please try again.'}</p>
-                <button
-                  className="mt-4 rounded-lg border border-dashboard-border px-4 py-2 text-sm font-medium text-dashboard-text transition hover:border-dashboard-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
-                  onClick={() => void refreshUser()}
-                  type="button"
-                >
-                  Try again
-                </button>
-              </div>
-            ) : sessionStatus === 'authenticated' ? (
-              <PageEntrance>{children}</PageEntrance>
-            ) : (
-              <div className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted">
-                Redirecting to sign in...
-              </div>
-            )}
+            <PageEntrance>{children}</PageEntrance>
           </main>
           <GrowthRewardToast />
           <MobileBottomNavigation />

@@ -4,19 +4,22 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "next dev --turbopack",
+    "dev:webpack": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:auth": "node --test tests/auth/auth-session.test.mjs tests/auth/user-avatar.test.mjs",
+    "test:auth": "node --test tests/auth/auth-session.test.mjs tests/auth/user-avatar.test.mjs tests/auth/dashboard-shell.test.mjs",
     "test:tasks": "node --test tests/tasks/task-page.test.mjs tests/tasks/task-page-data.test.mjs tests/tasks/task-actions.test.mjs tests/tasks/task-read-cache.test.mjs",
     "test:calendar": "node --test tests/calendar/calendar.test.mjs",
-    "test:focus": "node --test tests/focus/focus-session.test.mjs"
+    "test:focus": "node --test tests/focus/focus-session.test.mjs",
+    "test:profile": "node --test tests/profile/account-page.test.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "@types/three": "^0.185.4",
+    "lenis": "1.3.26",
     "lucide-react": "^1.45.0",
     "next": "^16.0.8",
     "react": "^19.2.3",

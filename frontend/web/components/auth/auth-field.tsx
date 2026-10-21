@@ -1,4 +1,8 @@
-import type { InputHTMLAttributes, ReactNode } from 'react';
+'use client';
+
+import { useState, type InputHTMLAttributes, type ReactNode } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import styles from './auth.module.css';
 
 type AuthFieldProps = {
   id: string;
@@ -7,22 +11,34 @@ type AuthFieldProps = {
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'id' | 'className'>;
 
 export function AuthField({ id, label, icon, ...inputProps }: AuthFieldProps) {
+  const [visible, setVisible] = useState(false);
+  const isPassword = inputProps.type === 'password';
   return (
-    <label className="grid w-full gap-2 text-xs font-semibold text-dashboard-muted" htmlFor={id}>
-      <span>{label}</span>
-      <span className="relative flex h-12 items-center rounded-xl border border-dashboard-border bg-[var(--bg-input)] transition focus-within:border-dashboard-accent focus-within:ring-2 focus-within:ring-dashboard-accent/15">
-        {icon ? (
-          <span className="pointer-events-none absolute left-4 flex size-5 items-center justify-center text-dashboard-muted">
-            {icon}
-          </span>
-        ) : null}
+    <div className={styles.field}>
+      <label className={styles.fieldLabel} htmlFor={id}>
+        {label}
+      </label>
+      <span className={styles.inputBar}>
+        {icon ? <span className={styles.fieldIcon}>{icon}</span> : null}
         <input
-          className={`chrono-autofill chrono-autofill-auth h-full w-full rounded-xl border-0 bg-transparent pr-4 text-sm font-medium text-dashboard-text outline-none placeholder:font-normal placeholder:text-dashboard-muted ${icon ? 'pl-11' : 'pl-4'}`}
+          className="chrono-autofill chrono-autofill-auth"
           id={id}
           {...inputProps}
+          type={isPassword && visible ? 'text' : inputProps.type}
         />
+        {isPassword ? (
+          <button
+            className={styles.passwordToggle}
+            type="button"
+            aria-label={visible ? 'Hide password' : 'Show password'}
+            aria-pressed={visible}
+            onClick={() => setVisible((current) => !current)}
+          >
+            {visible ? <EyeOff size={17} /> : <Eye size={17} />}
+          </button>
+        ) : null}
       </span>
-    </label>
+    </div>
   );
 }
 
