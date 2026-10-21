@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import type { DashboardTaskSummary } from '../../lib/dashboard';
 import { DashboardTaskCard } from './dashboard-task-card';
 
@@ -9,7 +11,13 @@ export function InProgressList({
   return (
     <section className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-5 shadow-panel">
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="text-base font-semibold text-dashboard-text">In Progress</h2>
+        <h2 className="text-xl font-semibold text-dashboard-text">In Progress</h2>
+        <Link
+          className="ml-auto text-sm font-medium text-dashboard-accent hover:underline"
+          href="/tasks"
+        >
+          View all
+        </Link>
         <span className="rounded-[var(--radius-pill)] bg-dashboard-bg/60 px-3 py-1 text-xs font-medium text-dashboard-muted">
           {tasks.length}
         </span>
@@ -18,7 +26,7 @@ export function InProgressList({
       {tasks.length ? (
         <div className="space-y-3">
           {tasks.map((task) => (
-            <DashboardTaskCard compact key={task.id} task={task} />
+            <DashboardTaskCard compact key={task.id} showOverdue={false} task={task} />
           ))}
         </div>
       ) : (

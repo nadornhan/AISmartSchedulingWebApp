@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCurrentUser } from '../auth/current-user-provider';
@@ -156,7 +155,6 @@ export function DashboardPage() {
         aria-label="Today at a glance"
         className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4"
       >
-        <h2 className="col-span-2 text-xl font-semibold text-dashboard-text lg:hidden">Overview</h2>
         <DashboardStatCard
           icon={<CheckIcon className="h-5 w-5" />}
           label="Today Progress"
@@ -200,25 +198,10 @@ export function DashboardPage() {
 
       <div className="grid items-start gap-6 lg:items-stretch lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <SuggestedTaskCard
-          forest={summary.forest}
           task={summary.ai_recommendation?.task ?? summary.next_best_task?.task ?? null}
         />
 
         <section className="flex min-w-0 flex-col">
-          <div className="mb-4 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-muted">
-                Today
-              </p>
-              <h2 className="mt-1 text-xl font-semibold text-dashboard-text">Keep things moving</h2>
-            </div>
-            <Link
-              className="text-sm font-semibold text-dashboard-accent hover:underline"
-              href="/tasks"
-            >
-              View all
-            </Link>
-          </div>
           <div className="grid flex-1 gap-5 lg:auto-rows-fr">
             <InProgressList tasks={summary.in_progress} />
             <QuickWinsCard
@@ -231,12 +214,6 @@ export function DashboardPage() {
       </div>
 
       <section>
-        <div className="mb-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dashboard-muted">
-            Progress
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-dashboard-text">This week</h2>
-        </div>
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
           <WeeklyActivityCard points={summary.weekly_activity} />
           <div className="grid min-w-0 gap-5">

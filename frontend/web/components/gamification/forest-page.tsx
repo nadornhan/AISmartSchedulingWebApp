@@ -155,17 +155,25 @@ export function ForestPage() {
 
   return (
     <div className="mx-auto max-w-[1480px] space-y-8">
-      <section className="space-y-2">
-        <p className="hidden text-sm font-medium text-dashboard-muted lg:block">Personal Forest</p>
-        <h1 className="hidden font-poppins text-3xl font-semibold tracking-normal text-dashboard-text lg:block lg:text-4xl">
-          Watch your forest grow with every effort
-        </h1>
-        <p className="max-w-2xl text-sm text-dashboard-muted">{forest.supportive_message}</p>
-        <div className="inline-flex items-center gap-3 rounded-lg border border-dashboard-accent/30 bg-dashboard-accent/10 px-4 py-3">
-          <span className="text-sm font-medium text-dashboard-muted">Available Growth Points</span>
-          <span className="text-lg font-semibold text-dashboard-accent">
-            {forest.unassigned_growth_points} GP
-          </span>
+      <section>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <p className="hidden text-sm font-medium text-dashboard-muted lg:block">
+              Personal Forest
+            </p>
+            <h1 className="hidden font-poppins text-3xl font-semibold tracking-normal text-dashboard-text lg:block lg:text-4xl">
+              Watch your forest grow with every effort
+            </h1>
+            <p className="max-w-2xl text-sm text-dashboard-muted">{forest.supportive_message}</p>
+          </div>
+          <div className="inline-flex shrink-0 items-center gap-3 self-start rounded-lg border border-dashboard-accent/30 bg-dashboard-accent/10 px-4 py-3 lg:mt-1">
+            <span className="text-sm font-medium text-dashboard-muted">
+              Available Growth Points
+            </span>
+            <span className="text-lg font-semibold text-dashboard-accent">
+              {forest.unassigned_growth_points} GP
+            </span>
+          </div>
         </div>
         {error ? <p className="text-sm text-[var(--red-light)]">{error}</p> : null}
       </section>

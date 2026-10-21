@@ -14,7 +14,7 @@ export function QuickWinsCard({
   return (
     <section className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-5 shadow-panel">
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="text-base font-semibold text-dashboard-text">Quick Wins</h2>
+        <h2 className="text-xl font-semibold text-dashboard-text">Quick Wins</h2>
         <span className="rounded-[var(--radius-pill)] bg-dashboard-bg/60 px-3 py-1 text-xs font-medium text-dashboard-muted">
           {tasks.length}/5
         </span>

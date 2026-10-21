@@ -40,9 +40,7 @@ export function DashboardStatCard({
           </div>
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-normal text-dashboard-muted lg:text-sm lg:font-medium">
-            {label}
-          </p>
+          <h2 className="font-poppins text-sm font-medium text-dashboard-muted">{label}</h2>
           <p
             className={cn(
               'mt-1 text-[28px] font-semibold leading-tight tracking-normal sm:mt-2 sm:text-3xl',

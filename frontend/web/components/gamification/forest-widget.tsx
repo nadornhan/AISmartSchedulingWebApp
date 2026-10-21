@@ -13,7 +13,7 @@ export function ForestWidget({ forest }: ForestWidgetProps) {
   if (!forest) {
     return (
       <article className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-5 shadow-panel">
-        <p className="text-sm font-medium text-dashboard-muted">Personal Forest</p>
+        <h2 className="text-xl font-semibold text-dashboard-text">Personal Forest</h2>
         <p className="mt-2 text-dashboard-text">Your forest is waiting.</p>
         <Link
           className="mt-4 inline-flex text-sm font-medium text-dashboard-accent hover:underline"
@@ -33,6 +33,7 @@ export function ForestWidget({ forest }: ForestWidgetProps) {
 
   return (
     <article className="rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-5 shadow-panel">
+      <h2 className="mb-4 text-xl font-semibold text-dashboard-text">Personal Forest</h2>
       <div className="flex items-start gap-4">
         <PlantVisual
           size={72}
@@ -41,7 +42,6 @@ export function ForestWidget({ forest }: ForestWidgetProps) {
           locked={needsSelection}
         />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-dashboard-muted">Personal Forest</p>
           <p className="mt-1 truncate text-xl font-semibold text-dashboard-text">{displayName}</p>
           <p className="mt-1 text-sm text-dashboard-muted">
             {needsSelection
