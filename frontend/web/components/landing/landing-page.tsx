@@ -106,8 +106,8 @@ export function LandingPage() {
                   <img
                     src="/images/landing/mockup-dashboard-desktop.png"
                     alt="Chrono dashboard on a desktop, with progress cards, AI task recommendations, and task lists"
-                    width={1373}
-                    height={847}
+                    width={1372}
+                    height={846}
                     loading="lazy"
                   />
                 </div>
@@ -122,45 +122,12 @@ export function LandingPage() {
                   loading="lazy"
                 />
                 <div className={styles.mobileScreen}>
-                  <div className={styles.mobileStatusBar} aria-hidden="true">
-                    <span>9:41</span>
-                    <svg className={styles.mobileStatusIcons} viewBox="0 0 44 16" fill="none">
-                      <path
-                        d="M2 13V10M6 13V8M10 13V6M14 13V3"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-                      <path
-                        d="M19 6.5a7 7 0 0 1 10 0M21.5 9a3.5 3.5 0 0 1 5 0M24 11.5h.01"
-                        stroke="currentColor"
-                        strokeWidth="1.7"
-                        strokeLinecap="round"
-                      />
-                      <rect
-                        x="33"
-                        y="3.5"
-                        width="9"
-                        height="9"
-                        rx="2"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                      />
-                      <path
-                        d="M43 6.5v3"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                      <rect x="35" y="5.5" width="5" height="5" rx="1" fill="currentColor" />
-                    </svg>
-                  </div>
                   <img
                     className={styles.mobileDashboardCapture}
                     src="/images/landing/mockup-dashboard-mobile.png"
-                    alt="Chrono dashboard on a phone, with progress cards and an AI task recommendation"
-                    width={422}
-                    height={847}
+                    alt="Chrono mobile dashboard with progress cards, an AI task recommendation, and bottom navigation"
+                    width={397}
+                    height={798}
                     loading="lazy"
                   />
                 </div>
