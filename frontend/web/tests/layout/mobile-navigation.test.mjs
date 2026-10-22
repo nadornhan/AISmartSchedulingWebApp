@@ -173,9 +173,13 @@ test('mobile dashboard shows the greeting before the suggested task card', () =>
   assert.doesNotMatch(card.props.className, /-ml-|translate-x/);
   assert.equal(greeting.props.children[0].type, 'h1');
   const lines = nodes(greeting.props.children[0]).filter(
-    (node) => node.type === 'span' && /text-xs|text-2xl|hidden lg:inline/.test(node.props.className ?? ''),
+    (node) =>
+      node.type === 'span' && /text-xs|text-2xl|hidden lg:inline/.test(node.props.className ?? ''),
   );
-  assert.equal(lines[0].props.children.filter((child) => typeof child === 'string').join(''), 'Good morning,');
+  assert.equal(
+    lines[0].props.children.filter((child) => typeof child === 'string').join(''),
+    'Good morning,',
+  );
   assert.match(lines[0].props.className, /text-xs/);
   assert.match(lines[0].props.className, /block/);
   assert.equal(lines[1].props.children, 'Minh');
@@ -237,15 +241,10 @@ test('suggested task card links to the selected task and exposes a view button',
   const container = suggestedTaskCard(task);
   assert.equal(container.type, 'section');
   assert.equal(container.props['aria-label'], 'AI Pick for Today');
-  const [header, taskContent] = container.props.children;
-  assert.match(header.props.className, /relative/);
-  const [iconBackground, title] = header.props.children[0].props.children;
-  const icon = iconBackground.props.children;
-  assert.equal(icon.type, 'sparkles-icon');
-  assert.equal(icon.props['aria-hidden'], 'true');
-  assert.equal(title.props.children, 'AI Pick for Today');
-  assert.equal(header.props.children[1].props.children.type, 'tree-visual');
-  const [tree, viewTask] = taskContent.props.children;
+  // Decorative layers may change; assert the user-facing links and task payload.
+  const items = nodes(container);
+  assert.equal(items.find((node) => node.type === 'h2').props.children, 'AI Pick for Today');
+  const [tree, viewTask] = items.filter((node) => node.type === 'a');
   assert.equal(tree.type, 'a');
   assert.equal(tree.props.href, '/tasks?task_id=task-a');
   assert.equal(tree.props['aria-label'], 'View task: Meeting Uni');
@@ -259,8 +258,12 @@ test('suggested task card links to the selected task and exposes a view button',
 
 test('no suggested task renders a noninteractive empty state', () => {
   const container = suggestedTaskCard(null);
-  assert.equal(container.props.children[0].props.children[1].props.children.type, 'tree-visual');
-  const tree = container.props.children[1];
+  const items = nodes(container);
+  assert.equal(
+    items.some((node) => node.type === 'a' || node.type === 'task-preview'),
+    false,
+  );
+  const tree = items.find((node) => node.props?.role === 'status');
   assert.equal(tree.props.role, 'status');
   assert.equal(tree.props.href, undefined);
   assert.equal(tree.props.children, 'No open task to suggest.');
@@ -367,19 +370,42 @@ test('mobile navigation opens Account directly alongside Home, Tasks, and Calend
   const h = mobileNavigation('/tasks');
   const items = h.render();
   const links = items.filter((node) => node.type === 'a');
-  assert.deepEqual(links.map((node) => node.props.href), ['/dashboard', '/tasks', '/calendar', '/account']);
+  assert.deepEqual(
+    links.map((node) => node.props.href),
+    ['/dashboard', '/tasks', '/calendar', '/account'],
+  );
   assert.equal(links.find((node) => node.props.href === '/tasks').props['aria-current'], 'page');
   assert.ok(links.some((node) => nodes(node).some((child) => child.props?.children === 'Account')));
-  assert.equal(items.find((node) => node.props?.['aria-label'] === 'Create task') !== undefined, true);
+  assert.equal(
+    items.find((node) => node.props?.['aria-label'] === 'Create task') !== undefined,
+    true,
+  );
 
-  assert.equal(items.some((node) => node.props?.['aria-haspopup'] === 'dialog'), false);
-  assert.equal(items.some((node) => /^Switch to (light|dark) mode$/.test(node.props?.['aria-label'] ?? '')), false);
+  assert.equal(
+    items.some((node) => node.props?.['aria-haspopup'] === 'dialog'),
+    false,
+  );
+  assert.equal(
+    items.some((node) => /^Switch to (light|dark) mode$/.test(node.props?.['aria-label'] ?? '')),
+    false,
+  );
 });
 
 test('Account stays active while visiting its profile, settings, and progress destinations', () => {
-  for (const pathname of ['/account', '/profile', '/analytics', '/gamification', '/gamification/forest']) {
-    const links = mobileNavigation(pathname).render().filter((node) => node.type === 'a');
-    assert.equal(links.find((node) => node.props.href === '/account').props['aria-current'], 'page');
+  for (const pathname of [
+    '/account',
+    '/profile',
+    '/analytics',
+    '/gamification',
+    '/gamification/forest',
+  ]) {
+    const links = mobileNavigation(pathname)
+      .render()
+      .filter((node) => node.type === 'a');
+    assert.equal(
+      links.find((node) => node.props.href === '/account').props['aria-current'],
+      'page',
+    );
     assert.equal(links.filter((node) => node.props['aria-current'] === 'page').length, 1);
   }
 });

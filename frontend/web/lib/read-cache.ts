@@ -1,7 +1,11 @@
+// Authors (Git history): Truong Ha Anh Minh
+// Bounded, authentication-scoped in-memory read cache. See AUTHORS.md and docs/AUTHORSHIP.json.
 // Short-lived, memory-only cache. Authentication changes discard cached data.
 type Entry = { value?: unknown; updatedAt: number; pending?: Promise<unknown> };
 const entries = new Map<string, Entry>();
 let currentScope: string | null | undefined;
+// Retained snapshots support immediate rendering; maxAgeMs separately controls
+// whether a read can skip revalidation. This cache never persists to storage.
 const RETENTION_MS = 5 * 60_000;
 
 function cacheKey(scope: string | null, group: string, key: string) {
@@ -25,7 +29,9 @@ export function invalidateReadCache(group: string) {
 
 export function peekReadCache<T>(scope: string | null, group: string, key: string): T | undefined {
   const entry = entries.get(cacheKey(scope, group, key));
-  return entry && Date.now() - entry.updatedAt < RETENTION_MS ? entry.value as T | undefined : undefined;
+  return entry && Date.now() - entry.updatedAt < RETENTION_MS
+    ? (entry.value as T | undefined)
+    : undefined;
 }
 
 export function cachedRead<T>(
@@ -47,16 +53,19 @@ export function cachedRead<T>(
     entries.set(id, entry);
   }
   const target = entry;
-  const pending = Promise.resolve().then(load).then((value) => {
-    // Discard results invalidated by mutations or an authentication change.
-    if (currentScope === scope && entries.get(id) === target) {
-      target.value = value;
-      target.updatedAt = Date.now();
-    }
-    return value;
-  }).finally(() => {
-    if (target.pending === pending) target.pending = undefined;
-  });
+  const pending = Promise.resolve()
+    .then(load)
+    .then((value) => {
+      // Discard results invalidated by mutations or an authentication change.
+      if (currentScope === scope && entries.get(id) === target) {
+        target.value = value;
+        target.updatedAt = Date.now();
+      }
+      return value;
+    })
+    .finally(() => {
+      if (target.pending === pending) target.pending = undefined;
+    });
   target.pending = pending;
   return pending;
 }

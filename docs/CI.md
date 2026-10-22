@@ -12,6 +12,7 @@ New commits cancel older runs for the same pull request or branch.
 - Install dependencies with `pnpm install --frozen-lockfile`.
 - ESLint for `frontend/web` and `packages/shared`.
 - Generate Next.js route types, then typecheck the web and shared packages.
+- Run all existing web regression suites with the Node test runner (including layout tests).
 - Build the production Next.js application.
 
 The mobile scaffold is outside this web-product CI scope. The build downloads

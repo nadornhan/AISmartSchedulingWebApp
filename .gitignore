@@ -31,3 +31,12 @@ yarn-error.log*
 
 .DS_Store
 Thumbs.db
+
+# Local verification and handover output, never application source.
+*.log
+.pnpm-store/
+.ruff_cache/
+**/uploads/
+artifacts/
+tmp/
+submission-dist/

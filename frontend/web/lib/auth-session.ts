@@ -1,3 +1,5 @@
+// Authors (Git history): Truong Ha Anh Minh
+// Session verification and stale-response isolation. See AUTHORS.md and docs/AUTHORSHIP.json.
 import { ApiError } from './api';
 import type { UserResponse } from './auth';
 
@@ -60,6 +62,7 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
 
     const requestController = new AbortController();
     controller = requestController;
+    // A response from a previous login or refresh must not replace the new session.
     const isCurrent = () =>
       active &&
       revision === requestRevision &&
@@ -126,7 +129,11 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
         if (active && revision === requestRevision) unauthenticate(null);
       } catch {
         if (active && revision === requestRevision) {
-          publish({ ...snapshot, status: 'unavailable', error: 'Unable to sign out. Please try again.' });
+          publish({
+            ...snapshot,
+            status: 'unavailable',
+            error: 'Unable to sign out. Please try again.',
+          });
         }
       }
     },
@@ -136,7 +143,8 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
         unauthenticate(null);
         return;
       }
-      if (dependencies.getSessionKey() !== verifiedSessionKey || user.id !== snapshot.user?.id) return;
+      if (dependencies.getSessionKey() !== verifiedSessionKey || user.id !== snapshot.user?.id)
+        return;
       invalidate();
       publish({ user, status: 'authenticated', error: null });
     },

@@ -13,6 +13,8 @@ def db_session() -> Generator[Session, None, None]:
     connection = engine.connect()
     transaction = connection.begin()
 
+    # API handlers may commit; savepoints keep those writes inside this test's
+    # outer transaction so the final rollback still isolates the next test.
     session = Session(
         bind=connection,
         join_transaction_mode="create_savepoint",

@@ -39,6 +39,8 @@ jobs:
         run: pnpm --filter @ai-smart-scheduling/web exec next typegen
       - name: Check TypeScript
         run: pnpm typecheck:ci
+      - name: Run frontend regression tests
+        run: pnpm --filter @ai-smart-scheduling/web test:ci
       - name: Build production web app
         run: pnpm build
       - name: Validate production Compose configuration

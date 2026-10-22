@@ -1,0 +1,746 @@
+{
+  "baseline": "3112a134f92917a3d1b9ce8776c41a62bccd405b",
+  "method": "Distinct Git authors who touched each existing source file; aliases normalised.",
+  "note": "Historical file credits, not line ownership or an effort ranking. Final AI-assisted maintenance is described in AUTHORS.md.",
+  "files": {
+    "backend/api/alembic/env.py": ["Nguyen Thanh Nhan"],
+    "backend/api/alembic/versions/1f0e9c2d7a64_extend_notifications_for_reminders.py": [
+      "Nguyen Nhat Minh"
+    ],
+    "backend/api/alembic/versions/2f8f8e6d4c9a_add_user_avatar_path.py": ["Nguyen Nhat Minh"],
+    "backend/api/alembic/versions/3d8b14894d8e_extend_task_data_model.py": ["Nguyen Thanh Nhan"],
+    "backend/api/alembic/versions/4a6d9c2f1b08_add_user_settings_timezone.py": ["Nguyen Nhat Minh"],
+    "backend/api/alembic/versions/5b3a1f77c2d4_create_notifications_table.py": ["Nguyen Nhat Minh"],
+    "backend/api/alembic/versions/5d7a1c9e4b20_create_ai_generation_events.py": [
+      "Nguyen Thanh Nhan"
+    ],
+    "backend/api/alembic/versions/6a9e0b2b0d6d_add_project_id_to_tasks.py": ["Nguyen Thanh Nhan"],
+    "backend/api/alembic/versions/7e86e1485f84_create_projects_table.py": ["Nguyen Thanh Nhan"],
+    "backend/api/alembic/versions/8c4d2f0a9b31_create_user_settings_table.py": ["Nguyen Nhat Minh"],
+    "backend/api/alembic/versions/9c2b7f1d0a43_add_user_profile_fields.py": ["Cao Minh Duy"],
+    "backend/api/alembic/versions/9f3a6c1d8e42_add_legendary_chrono_tree.py": ["Nguyen Thanh Nhan"],
+    "backend/api/alembic/versions/a374ab74f829_create_users_table.py": ["Nguyen Thanh Nhan"],
+    "backend/api/alembic/versions/a3f7c2e91b64_add_intelligent_rescheduling_foundation.py": [
+      "Nguyen Nhat Minh"
+    ],
+    "backend/api/alembic/versions/a9c3e1f7b204_create_focus_sessions_and_ai_scheduling.py": [
+      "Nguyen Thanh Nhan"
+    ],
+    "backend/api/alembic/versions/ac4e9b2d7310_create_weekly_ai_insights.py": ["Cao Minh Duy"],
+    "backend/api/alembic/versions/b42f6a9e7c18_add_user_role_constraint.py": ["Nguyen Nhat Minh"],
+    "backend/api/alembic/versions/b4e7c9a1d205_add_achievement_claim_rewards.py": [
+      "Nguyen Thanh Nhan"
+    ],
+    "backend/api/alembic/versions/b7e4c1a92f03_create_personal_forest_gamification.py": [
+      "Nguyen Thanh Nhan"
+    ],
+    "backend/api/alembic/versions/c1a8f4e92b07_add_plant_rotation_x.py": ["Nguyen Thanh Nhan"],
+    "backend/api/alembic/versions/c4d7a9f2b183_rename_task_estimated_duration_minutes.py": [
+      "Nguyen Nhat Minh"
+    ],
+    "backend/api/alembic/versions/c6a1f4e92b08_add_timezone_source.py": ["Cao Minh Duy"],
+    "backend/api/alembic/versions/c8d4e6f2a190_add_user_schedule_revision.py": ["Nguyen Nhat Minh"],
+    "backend/api/alembic/versions/d2b9e5f03c18_add_forest_name.py": ["Nguyen Thanh Nhan"],
+    "backend/api/alembic/versions/d7b2a6e14f09_add_weekly_insight_local_week_key.py": [
+      "Cao Minh Duy"
+    ],
+    "backend/api/alembic/versions/d9a7f3c6b201_add_daily_work_limit.py": ["Nguyen Nhat Minh"],
+    "backend/api/alembic/versions/da786519afce_create_tasks_table.py": ["Nguyen Thanh Nhan"],
+    "backend/api/alembic/versions/e2b8f0a6c91d_add_task_completed_at.py": ["Nguyen Nhat Minh"],
+    "backend/api/alembic/versions/e7c4a1d92b30_add_unassigned_growth_points.py": [
+      "Nguyen Thanh Nhan"
+    ],
+    "backend/api/alembic/versions/e7f4a2c91b63_extend_focus_session_lifecycle.py": [
+      "Nguyen Dinh Quang Vinh"
+    ],
+    "backend/api/alembic/versions/f2c8a4d19e73_add_focus_session_tasks.py": ["Nguyen Thanh Nhan"],
+    "backend/api/alembic/versions/f6c2d9b4a8e1_create_subtasks_table.py": ["Nguyen Nhat Minh"],
+    "backend/api/alembic/versions/f81d06a42c93_add_duration_estimation_records.py": [
+      "Nguyen Tien Phat"
+    ],
+    "backend/api/app/__init__.py": ["Truong Ha Anh Minh"],
+    "backend/api/app/ai/__init__.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/ai/contracts.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/ai/dependencies.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/ai/exceptions.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/ai/fake.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/ai/gemini.py": ["Nguyen Dinh Quang Vinh", "Nguyen Thanh Nhan"],
+    "backend/api/app/ai/http.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/ai/limiter.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/ai/models.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/ai/policies.py": ["Nguyen Dinh Quang Vinh", "Nguyen Thanh Nhan"],
+    "backend/api/app/ai/provider.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/ai/router.py": ["Cao Minh Duy"],
+    "backend/api/app/ai/routing.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/ai/schemas.py": ["Cao Minh Duy", "Nguyen Thanh Nhan"],
+    "backend/api/app/ai/service.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/ai/telemetry.py": ["Cao Minh Duy", "Nguyen Thanh Nhan"],
+    "backend/api/app/analytics/__init__.py": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "backend/api/app/analytics/metrics.py": ["Truong Ha Anh Minh"],
+    "backend/api/app/analytics/models.py": ["Cao Minh Duy"],
+    "backend/api/app/analytics/router.py": [
+      "Cao Minh Duy",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/analytics/schemas.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/analytics/service.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/auth/__init__.py": ["Truong Ha Anh Minh"],
+    "backend/api/app/auth/dependencies.py": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "backend/api/app/auth/models.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/auth/router.py": [
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/auth/schemas.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/auth/security.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/auth/service.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/config.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/dashboard/__init__.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/dashboard/router.py": ["Cao Minh Duy", "Nguyen Nhat Minh"],
+    "backend/api/app/dashboard/schemas.py": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "backend/api/app/dashboard/service.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan"
+    ],
+    "backend/api/app/database.py": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "backend/api/app/focus/__init__.py": ["Truong Ha Anh Minh"],
+    "backend/api/app/focus/models.py": [
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/focus/router.py": [
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Nguyen Tien Phat",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/focus/schemas.py": [
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/focus/service.py": [
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Nguyen Tien Phat",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/folders/__init__.py": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "backend/api/app/folders/router.py": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "backend/api/app/gamification/__init__.py": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "backend/api/app/gamification/models.py": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "backend/api/app/gamification/read_model.py": ["Truong Ha Anh Minh"],
+    "backend/api/app/gamification/router.py": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "backend/api/app/gamification/rules.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/gamification/schemas.py": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "backend/api/app/gamification/service.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/health/__init__.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/health/router.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/main.py": [
+      "Cao Minh Duy",
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/notifications/__init__.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/notifications/models.py": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "backend/api/app/notifications/router.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/notifications/schemas.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/notifications/service.py": ["Cao Minh Duy", "Nguyen Nhat Minh"],
+    "backend/api/app/projects/__init__.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/projects/models.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/projects/router.py": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "backend/api/app/projects/schemas.py": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "backend/api/app/projects/service.py": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "backend/api/app/scheduling/__init__.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/scheduling/detection.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/scheduling/engine.py": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "backend/api/app/scheduling/gemini_prompt.py": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "backend/api/app/scheduling/lifecycle.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/scheduling/models.py": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan"
+    ],
+    "backend/api/app/scheduling/plan_helpers.py": ["Truong Ha Anh Minh"],
+    "backend/api/app/scheduling/rescheduling.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/scheduling/rescheduling_ai.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/scheduling/revision.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/scheduling/router.py": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan"
+    ],
+    "backend/api/app/scheduling/schemas.py": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan"
+    ],
+    "backend/api/app/scheduling/service.py": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/scheduling/validation.py": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "backend/api/app/scheduling/windows.py": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "backend/api/app/scoring/__init__.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/scoring/constraints.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/scoring/criteria.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/scoring/engine.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/scoring/priority.py": ["Nguyen Dinh Quang Vinh"],
+    "backend/api/app/scoring/profiles.py": ["Cao Minh Duy", "Nguyen Nhat Minh"],
+    "backend/api/app/scoring/schemas.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/settings/__init__.py": ["Truong Ha Anh Minh"],
+    "backend/api/app/settings/models.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/settings/router.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/settings/schemas.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/settings/service.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/tasks/__init__.py": ["Truong Ha Anh Minh"],
+    "backend/api/app/tasks/decomposition_router.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/tasks/decomposition_schemas.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/tasks/decomposition_service.py": ["Nguyen Thanh Nhan"],
+    "backend/api/app/tasks/duration_estimation/__init__.py": ["Nguyen Tien Phat"],
+    "backend/api/app/tasks/duration_estimation/engine.py": ["Nguyen Tien Phat"],
+    "backend/api/app/tasks/duration_estimation/models.py": ["Nguyen Tien Phat"],
+    "backend/api/app/tasks/duration_estimation/prompt.py": ["Nguyen Tien Phat"],
+    "backend/api/app/tasks/duration_estimation/proposal.py": ["Nguyen Tien Phat"],
+    "backend/api/app/tasks/duration_estimation/repository.py": ["Nguyen Tien Phat"],
+    "backend/api/app/tasks/duration_estimation/router.py": ["Nguyen Tien Phat"],
+    "backend/api/app/tasks/duration_estimation/schemas.py": ["Nguyen Tien Phat"],
+    "backend/api/app/tasks/duration_estimation/service.py": ["Nguyen Tien Phat"],
+    "backend/api/app/tasks/generation_proposal.py": ["Cao Minh Duy"],
+    "backend/api/app/tasks/generation_router.py": ["Cao Minh Duy"],
+    "backend/api/app/tasks/generation_schemas.py": ["Cao Minh Duy"],
+    "backend/api/app/tasks/generation_service.py": ["Cao Minh Duy"],
+    "backend/api/app/tasks/models.py": [
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/tasks/overdue.py": ["Nguyen Nhat Minh"],
+    "backend/api/app/tasks/priority_router.py": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan"
+    ],
+    "backend/api/app/tasks/priority_schemas.py": ["Nguyen Dinh Quang Vinh"],
+    "backend/api/app/tasks/router.py": [
+      "Cao Minh Duy",
+      "Nguyen Thanh Nhan",
+      "Nguyen Tien Phat",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/tasks/schemas.py": [
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/tasks/service.py": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "backend/api/app/timezones.py": ["Cao Minh Duy", "Nguyen Nhat Minh"],
+    "backend/api/scripts/check_duration_ui.py": ["Nguyen Tien Phat"],
+    "backend/api/scripts/seed_mock_data.py": ["Nguyen Nhat Minh"],
+    "backend/api/scripts/start_render.sh": ["Nguyen Thanh Nhan"],
+    "backend/api/tests/__init__.py": ["Nguyen Thanh Nhan"],
+    "backend/api/tests/ai/test_ai_foundation.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/ai/test_ai_integration_contracts.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/ai/test_ai_operations.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/ai/test_ai_usage_router.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/ai/test_task_decomposition.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/ai/test_task_generation.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/analytics/test_analytics.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/analytics/test_dashboard.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/analytics/test_weekly_insight_cache.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/analytics/test_weekly_metrics.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/auth/test_auth.py": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "backend/api/tests/auth/test_settings.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/auth/test_timezones.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/conftest.py": ["Nguyen Thanh Nhan"],
+    "backend/api/tests/duration/test_duration_estimation_api.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/duration/test_duration_estimation_engine.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/duration/test_duration_estimation_history.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/engagement/test_focus.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/engagement/test_gamification.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/engagement/test_notifications.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/infrastructure/test_config.py": ["Nguyen Thanh Nhan"],
+    "backend/api/tests/infrastructure/test_database.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/infrastructure/test_health.py": ["Nguyen Thanh Nhan"],
+    "backend/api/tests/scheduling/test_gemini_scheduling.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/scheduling/test_rescheduling_ai.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/scheduling/test_rescheduling_api.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/scheduling/test_rescheduling_detection.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/scheduling/test_rescheduling_foundation.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/scheduling/test_rescheduling_lifecycle.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/scheduling/test_rescheduling_options.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/scheduling/test_scheduling.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/scheduling/test_scheduling_windows.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/tasks/test_folders.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/tasks/test_priority_endpoints_unittest.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/tasks/test_priority_rules.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/tasks/test_projects.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/tasks/test_scoring_profiles.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/tasks/test_subtask_completion.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/tasks/test_task_counts_unittest.py": ["Truong Ha Anh Minh"],
+    "backend/api/tests/tasks/test_tasks.py": ["Truong Ha Anh Minh"],
+    "eslint.config.js": ["Truong Ha Anh Minh"],
+    "frontend/mobile/App.tsx": ["Truong Ha Anh Minh"],
+    "frontend/mobile/src/env.d.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/app/(dashboard)/account/page.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/app/(dashboard)/analytics/page.tsx": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "frontend/web/app/(dashboard)/calendar/page.tsx": ["Nguyen Nhat Minh", "Nguyen Tien Phat"],
+    "frontend/web/app/(dashboard)/dashboard/page.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/app/(dashboard)/focus/page.tsx": ["Nguyen Nhat Minh", "Truong Ha Anh Minh"],
+    "frontend/web/app/(dashboard)/folders/page.tsx": ["Nguyen Dinh Quang Vinh", "Nguyen Nhat Minh"],
+    "frontend/web/app/(dashboard)/gamification/forest/page.tsx": ["Nguyen Thanh Nhan"],
+    "frontend/web/app/(dashboard)/gamification/page.tsx": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "frontend/web/app/(dashboard)/layout.tsx": ["Nguyen Nhat Minh"],
+    "frontend/web/app/(dashboard)/notifications/page.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/app/(dashboard)/priority/page.tsx": ["Nguyen Nhat Minh", "Truong Ha Anh Minh"],
+    "frontend/web/app/(dashboard)/profile/page.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/app/(dashboard)/tasks/page.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan"
+    ],
+    "frontend/web/app/api/[...path]/route.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/app/auth/page.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/app/landing/page.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/app/layout.tsx": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "frontend/web/app/login/page.tsx": ["Cao Minh Duy", "Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "frontend/web/app/page.tsx": ["Nguyen Nhat Minh", "Truong Ha Anh Minh"],
+    "frontend/web/app/register/page.tsx": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/analytics/insights-dashboard.tsx": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/auth/auth-actions.tsx": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "frontend/web/components/auth/auth-checkbox.tsx": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "frontend/web/components/auth/auth-field.tsx": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "frontend/web/components/auth/auth-shell.tsx": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "frontend/web/components/auth/current-user-provider.tsx": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/auth/index.ts": ["Nguyen Thanh Nhan"],
+    "frontend/web/components/calendar/calendar-model.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/components/calendar/calendar-page.tsx": [
+      "Cao Minh Duy",
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Nguyen Tien Phat",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/calendar/calendar-views.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/calendar/use-calendar-tasks.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/components/dashboard/ai-recommendation-card.tsx": [
+      "Cao Minh Duy",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/dashboard/dashboard-empty-state.tsx": ["Nguyen Nhat Minh"],
+    "frontend/web/components/dashboard/dashboard-error-state.tsx": ["Nguyen Nhat Minh"],
+    "frontend/web/components/dashboard/dashboard-loading-state.tsx": ["Nguyen Nhat Minh"],
+    "frontend/web/components/dashboard/dashboard-page.tsx": [
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/dashboard/dashboard-stat-card.tsx": [
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/dashboard/dashboard-task-card.tsx": [
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/dashboard/in-progress-list.tsx": [
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/dashboard/next-best-task-card.tsx": [
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/dashboard/quick-wins-card.tsx": [
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/dashboard/suggested-task-card.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/dashboard/weekly-activity-card.tsx": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/focus/DurationInput.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/focus/FocusMode.tsx": [
+      "Cao Minh Duy",
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/focus/FocusSettingsModal.tsx": [
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/focus/NumberStepper.tsx": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "frontend/web/components/focus/SettingToggle.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/focus/SettingsSection.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/focus/VolumeSlider.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/focus/use-focus-fullscreen.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/components/focus/use-focus-tasks.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/components/focus/use-focus-timer.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/components/folders/create-folder-modal.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/folders/delete-folder-dialog.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/folders/edit-folder-modal.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/folders/folder-card.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/folders/folder-list.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/folders/inbox-list.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/gamification/achievements-section.tsx": [
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/gamification/editable-forest-name.tsx": [
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/gamification/editable-plant-name.tsx": ["Nguyen Thanh Nhan"],
+    "frontend/web/components/gamification/forest-page.tsx": [
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/gamification/forest-scene-3d.tsx": [
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/gamification/forest-widget.tsx": [
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/gamification/forest-world-page.tsx": [
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/gamification/growth-reward-toast.tsx": ["Nguyen Thanh Nhan"],
+    "frontend/web/components/gamification/plant-visual.tsx": ["Nguyen Thanh Nhan"],
+    "frontend/web/components/landing/landing-motion.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/landing/landing-page.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/landing/landing-tree.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/landing/tree-scene.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/layout/dashboard-heading-context.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/layout/dashboard-shell.tsx": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/layout/header-dropdown.tsx": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "frontend/web/components/layout/header.tsx": [
+      "Cao Minh Duy",
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/layout/icons.tsx": [
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/layout/mobile-bottom-navigation.tsx": [
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/layout/mobile-top-header.tsx": [
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/layout/notification-dropdown.tsx": [
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/layout/page-entrance.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/layout/page-heading.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/layout/sidebar.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/layout/ui-preferences-provider.tsx": ["Nguyen Thanh Nhan"],
+    "frontend/web/components/notifications/notifications-page.tsx": [
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/priority/PriorityBoard.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/priority/PriorityColumn.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/priority/PrioritySummaryCard.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/priority/PrioritySummaryGrid.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/priority/PriorityTaskCard.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/priority/PriorityTaskPreview.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/priority/index.ts": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "frontend/web/components/priority/priority.types.ts": [
+      "Nguyen Dinh Quang Vinh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/profile/account-page.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/profile/mobile-profile.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/profile/profile-page.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/scheduling/rescheduling-panel.tsx": [
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/settings/appearance-settings.tsx": [
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/settings/notification-settings.tsx": [
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/settings/profile-settings.tsx": [
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/settings/scheduling-weights.tsx": [
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/settings/settings-section.tsx": [
+      "Nguyen Nhat Minh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/settings/work-preferences.tsx": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/shared/user-avatar.tsx": ["Nguyen Nhat Minh", "Truong Ha Anh Minh"],
+    "frontend/web/components/tasks/create-task-modal.tsx": [
+      "Cao Minh Duy",
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Nguyen Tien Phat",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/tasks/duration-estimate-panel.tsx": ["Nguyen Tien Phat"],
+    "frontend/web/components/tasks/priority-suggestion.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/tasks/task-list-views.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/tasks/task-page-controls.tsx": ["Truong Ha Anh Minh"],
+    "frontend/web/components/tasks/task-page-model.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/components/tasks/task-page.tsx": [
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Nguyen Tien Phat",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/components/tasks/use-task-ai-entry.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/components/tasks/use-task-page-actions.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/components/tasks/use-task-page-data.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/components/tasks/voice-task-button.tsx": [
+      "Nguyen Dinh Quang Vinh",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/lib/analytics.ts": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/lib/api.ts": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "frontend/web/lib/auth-session.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/lib/auth.ts": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/lib/dashboard.ts": ["Cao Minh Duy", "Nguyen Nhat Minh", "Nguyen Thanh Nhan"],
+    "frontend/web/lib/data-events.ts": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/lib/duration.ts": ["Nguyen Nhat Minh"],
+    "frontend/web/lib/focus.ts": [
+      "Cao Minh Duy",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/lib/folders.ts": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/lib/gamification.ts": ["Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "frontend/web/lib/notifications.ts": ["Nguyen Nhat Minh"],
+    "frontend/web/lib/projects.ts": ["Nguyen Nhat Minh", "Nguyen Thanh Nhan", "Truong Ha Anh Minh"],
+    "frontend/web/lib/read-cache.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/lib/scheduling.ts": [
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan"
+    ],
+    "frontend/web/lib/server/api-proxy.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/lib/settings.ts": ["Cao Minh Duy", "Nguyen Nhat Minh", "Truong Ha Anh Minh"],
+    "frontend/web/lib/tasks.ts": [
+      "Cao Minh Duy",
+      "Nguyen Dinh Quang Vinh",
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Nguyen Tien Phat",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/next-env.d.ts": ["Nguyen Nhat Minh", "Truong Ha Anh Minh"],
+    "frontend/web/next.config.ts": ["Truong Ha Anh Minh"],
+    "frontend/web/postcss.config.mjs": ["Truong Ha Anh Minh"],
+    "frontend/web/tailwind.config.ts": [
+      "Nguyen Nhat Minh",
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/tests/auth/api-proxy.test.mjs": ["Truong Ha Anh Minh"],
+    "frontend/web/tests/auth/auth-session.test.mjs": ["Truong Ha Anh Minh"],
+    "frontend/web/tests/auth/dashboard-shell.test.mjs": ["Truong Ha Anh Minh"],
+    "frontend/web/tests/auth/user-avatar.test.mjs": ["Truong Ha Anh Minh"],
+    "frontend/web/tests/calendar/calendar.test.mjs": ["Truong Ha Anh Minh"],
+    "frontend/web/tests/focus/focus-session.test.mjs": ["Truong Ha Anh Minh"],
+    "frontend/web/tests/layout/mobile-navigation.test.mjs": [
+      "Nguyen Thanh Nhan",
+      "Truong Ha Anh Minh"
+    ],
+    "frontend/web/tests/profile/account-page.test.mjs": ["Truong Ha Anh Minh"],
+    "frontend/web/tests/tasks/task-actions.test.mjs": ["Truong Ha Anh Minh"],
+    "frontend/web/tests/tasks/task-page-data.test.mjs": ["Truong Ha Anh Minh"],
+    "frontend/web/tests/tasks/task-page.test.mjs": ["Truong Ha Anh Minh"],
+    "frontend/web/tests/tasks/task-read-cache.test.mjs": ["Truong Ha Anh Minh"],
+    "packages/shared/src/index.ts": ["Truong Ha Anh Minh"],
+    "tools/blender/generate_chrono_legendary_tree.py": ["Nguyen Thanh Nhan"],
+    "tools/blender/generate_chrono_maple.py": ["Nguyen Thanh Nhan"],
+    "tools/blender/generate_chrono_plant_collection.py": ["Nguyen Thanh Nhan"],
+    "tools/blender/render_chrono_legendary_tree.py": ["Nguyen Thanh Nhan"],
+    "tools/blender/render_chrono_maple_preview.py": ["Nguyen Thanh Nhan"],
+    "tools/blender/render_chrono_plant_collection.py": ["Nguyen Thanh Nhan"],
+    "tools/blender/render_plant_thumbnails.py": ["Nguyen Thanh Nhan"]
+  }
+}
