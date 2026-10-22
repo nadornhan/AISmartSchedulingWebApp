@@ -17,8 +17,8 @@ from app.tasks.schemas import (
     TaskBulkDelete,
     TaskBulkResponse,
     TaskBulkUpdate,
-    TaskCreate,
     TaskCountsResponse,
+    TaskCreate,
     TaskDisplayStatus,
     TaskDuplicate,
     TaskListResponse,
@@ -107,6 +107,7 @@ def list_tasks(
     )
 
 
+# Register this static path before /{task_id}, so 'counts' is not parsed as a UUID.
 @router.get("/counts", response_model=TaskCountsResponse)
 def task_counts(
     db: DatabaseSession,

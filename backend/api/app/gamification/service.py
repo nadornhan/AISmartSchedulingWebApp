@@ -1,3 +1,5 @@
+# Authors (Git history): Cao Minh Duy, Nguyen Nhat Minh, Nguyen Thanh Nhan, Truong Ha Anh Minh
+# Transactional productivity rewards and forest lifecycle. See AUTHORS.md and docs/AUTHORSHIP.json.
 from __future__ import annotations
 
 import uuid

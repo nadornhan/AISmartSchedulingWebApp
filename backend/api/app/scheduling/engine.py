@@ -1,3 +1,5 @@
+# Authors (Git history): Nguyen Nhat Minh, Nguyen Thanh Nhan
+# Deterministic scheduling candidates and hard-constraint evaluation. See AUTHORS.md and docs/AUTHORSHIP.json.
 from __future__ import annotations
 
 import uuid
