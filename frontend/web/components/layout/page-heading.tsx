@@ -29,7 +29,7 @@ export function PageHeading({
     >
       <div className={`min-w-0 w-full lg:w-auto ${mobileTitleInHeader ? 'hidden lg:block' : ''}`}>
         <div className="flex items-start justify-between gap-3">
-          <h1 className="min-w-0 font-poppins text-2xl font-normal leading-tight tracking-normal text-dashboard-text sm:text-3xl lg:text-4xl lg:font-medium">
+          <h1 className="min-w-0 font-poppins text-lg font-normal leading-tight tracking-normal text-dashboard-text sm:text-3xl lg:text-4xl lg:font-medium">
             {greetingParts ? (
               <>
                 <span className="flex items-center gap-3 lg:hidden">
@@ -42,7 +42,7 @@ export function PageHeading({
                     <span className="block text-xs font-normal leading-5 text-dashboard-muted">
                       {greetingParts[1]},
                     </span>
-                    <span className="mt-0.5 block text-2xl font-medium leading-tight text-dashboard-text">
+                    <span className="mt-0.5 block text-lg font-medium leading-tight text-dashboard-text">
                       {greetingParts[2]}
                     </span>
                   </span>

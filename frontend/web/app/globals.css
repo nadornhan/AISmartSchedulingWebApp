@@ -108,6 +108,7 @@
   --tracking-heading: -0.025em;
   --tracking-body: -0.01em;
   --tracking-label: 0;
+  --font-weight-content-heading: 500;
 
   --radius-xs: 6px;
   --radius-sm: 8px;
@@ -386,21 +387,57 @@ h6 {
   font-family: var(--font-poppins), sans-serif;
 }
 
+/* Match the sign-in heading weight while preserving page-title (h1) styles. */
+:root :is(h2, h3, h4, h5, h6) {
+  font-weight: var(--font-weight-content-heading);
+}
+
 /* Focus timer geometry is kept in regular CSS so the circular layout remains
    stable during Next.js/Tailwind development hot reloads. */
 .focus-mode-panel {
+  isolation: isolate;
   padding: 28px 32px;
+  background-color: #040c14;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.focus-mode-panel::before,
+.focus-mode-panel::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  transition: opacity 700ms ease-in-out;
+}
+
+.focus-mode-panel::before {
   background:
     radial-gradient(circle at center, rgba(18, 209, 162, 0.09), transparent 44%),
     url('/images/focus/subtle-mountains.webp') center bottom / cover no-repeat,
     #040c14;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  opacity: 1;
+}
+
+.focus-mode-panel::after {
+  background: url('/images/focus/break-hills-dark.webp') center bottom / cover no-repeat, #101322;
+  opacity: 0;
+}
+
+.focus-mode-panel[data-phase='break']::before {
+  opacity: 0;
+}
+
+.focus-mode-panel[data-phase='break']::after {
+  opacity: 1;
 }
 
 :root[data-theme='light'] .focus-mode-panel {
-  background:
-    url('/images/focus/subtle-mountains-light.webp') center bottom / cover no-repeat,
-    #f5f8f7;
+  background-color: #f5f8f7;
+}
+
+:root[data-theme='light'] .focus-mode-panel::before {
+  background: url('/images/focus/subtle-mountains-light.webp') center bottom / cover no-repeat, #f5f8f7;
 }
 
 .focus-mode-panel[data-phase='break'] {
@@ -410,9 +447,6 @@ h6 {
   --focus-ring-orbit: rgba(194, 171, 249, 0.2);
   --focus-ring-orbit-soft: rgba(194, 171, 249, 0.08);
   --focus-ring-orbit-faint: rgba(194, 171, 249, 0.045);
-  background:
-    url('/images/focus/break-hills-dark.webp') center bottom / cover no-repeat,
-    #101322;
 }
 
 :root[data-theme='light'] .focus-mode-panel[data-phase='break'] {
@@ -447,18 +481,41 @@ h6 {
   color: #66548e;
 }
 
-.focus-mode-panel[data-phase='break'] .focus-mode-tabs .focus-mode-tab--active {
+.focus-mode-tab-indicator {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 3);
+  border: 1px solid rgba(18, 209, 162, 0.12);
+  border-radius: 0.5rem;
+  background: rgba(18, 209, 162, 0.15);
+  pointer-events: none;
+  transition: transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.focus-mode-panel[data-phase='break'] .focus-mode-tabs .focus-mode-tab-indicator {
   border-color: rgba(194, 171, 249, 0.16);
   background: rgba(194, 171, 249, 0.15);
+}
+
+.focus-mode-panel[data-phase='break'] .focus-mode-tabs .focus-mode-tab--active {
   color: #d6caf3;
 }
 
 :root[data-theme='light']
   .focus-mode-panel[data-phase='break']
   .focus-mode-tabs
-  .focus-mode-tab--active {
+  .focus-mode-tab-indicator {
   border-color: rgba(112, 91, 164, 0.15);
   background: rgba(125, 104, 180, 0.12);
+}
+
+:root[data-theme='light']
+  .focus-mode-panel[data-phase='break']
+  .focus-mode-tabs
+  .focus-mode-tab--active {
   color: #66548e;
 }
 
@@ -514,9 +571,11 @@ h6 {
 }
 
 :root[data-theme='light'] .focus-mode-panel[data-phase='break'] {
-  background:
-    url('/images/focus/break-hills-light.webp') center bottom / cover no-repeat,
-    #f7f6fa;
+  background-color: #f7f6fa;
+}
+
+:root[data-theme='light'] .focus-mode-panel::after {
+  background: url('/images/focus/break-hills-light.webp') center bottom / cover no-repeat, #f7f6fa;
 }
 
 .focus-panel-tool {
@@ -583,9 +642,17 @@ h6 {
   border-radius: 9999px;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .focus-mode-panel::before,
+  .focus-mode-panel::after {
+    transition: none;
+  }
+}
+
 .focus-timer-stage::before,
 .focus-timer-stage::after {
   position: absolute;
+  z-index: 0;
   content: '';
   border: 1px solid var(--focus-ring-orbit-soft, rgba(34, 240, 177, 0.06));
   border-radius: 9999px;
@@ -603,11 +670,66 @@ h6 {
 
 .focus-timer-ring {
   position: absolute;
+  z-index: 1;
   inset: 0;
   width: 100%;
   height: 100%;
   transform: rotate(-90deg);
   filter: drop-shadow(0 0 14px var(--focus-ring-glow));
+}
+
+.focus-start-waves {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  color: var(--focus-ring-progress, rgb(var(--accent-fill-strong-rgb)));
+  pointer-events: none;
+}
+
+.focus-start-waves circle {
+  fill: none;
+  opacity: 0;
+  stroke: currentColor;
+  stroke-width: 0.55;
+  transform-box: view-box;
+  transform-origin: center;
+}
+
+.focus-timer-stage[data-running='true'] .focus-start-waves circle {
+  animation: focus-start-wave 1.25s ease-out both;
+}
+
+.focus-timer-stage[data-running='true'] .focus-start-waves circle:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.focus-timer-stage[data-running='true'] .focus-start-waves circle:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+@keyframes focus-start-wave {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+
+  18% {
+    opacity: 0.34;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.48);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-timer-stage[data-running='true'] .focus-start-waves circle {
+    animation: none;
+  }
 }
 
 .focus-timer-ring circle:last-child {
@@ -860,6 +982,40 @@ h6 {
   transition: width 480ms ease;
 }
 
+.chrono-loader-icon {
+  position: relative;
+  display: block;
+  width: 56px;
+  height: 56px;
+}
+
+.chrono-loader-icon--large {
+  width: min(24vw, 88px);
+  height: min(24vw, 88px);
+}
+
+.chrono-loader-icon::before {
+  position: absolute;
+  inset: 13%;
+  display: block;
+  border: 3px solid var(--dashboard-border);
+  border-top-color: var(--dashboard-accent);
+  border-radius: 50%;
+  box-sizing: border-box;
+  content: '';
+  animation: chrono-loader-spin 1.1s linear infinite;
+}
+
+@keyframes chrono-loader-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrono-loader-icon::before {
+    animation: none;
+  }
+}
+
 @keyframes forest-stage-pop {
   0% {
     transform: scale(1);
@@ -893,6 +1049,56 @@ h6 {
   background-size: cover;
 }
 
+@keyframes calendar-agenda-slide-right {
+  from {
+    opacity: 0.7;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes calendar-agenda-slide-left {
+  from {
+    opacity: 0.7;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.calendar-agenda-slide--forward > article {
+  animation: calendar-agenda-slide-right 260ms ease-out both;
+}
+
+.calendar-agenda-slide--backward > article {
+  animation: calendar-agenda-slide-left 260ms ease-out both;
+}
+
+.calendar-agenda-slide > article:nth-child(n + 2) {
+  animation-delay: 30ms;
+}
+
+.calendar-agenda-slide > article:nth-child(n + 3) {
+  animation-delay: 60ms;
+}
+
+.calendar-agenda-slide > article:nth-child(n + 4) {
+  animation-delay: 90ms;
+}
+
+.calendar-agenda-slide > article:nth-child(n + 5) {
+  animation-delay: 120ms;
+}
+
+.calendar-agenda-slide > article:nth-child(n + 6) {
+  animation-delay: 150ms;
+}
+
 :root[data-theme='light'] .calendar-agenda-empty {
   background-image:
     linear-gradient(rgba(245, 247, 248, 0.76), rgba(245, 247, 248, 0.76)),
@@ -907,6 +1113,10 @@ h6 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .calendar-agenda-slide > article {
+    animation: none;
+  }
+
   .forest-progress-fill {
     transition: none;
   }

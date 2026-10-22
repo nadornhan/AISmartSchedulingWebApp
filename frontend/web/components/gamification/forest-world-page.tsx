@@ -14,15 +14,14 @@ import {
 import { EditableForestName } from './editable-forest-name';
 import { EditablePlantName } from './editable-plant-name';
 import { PlantVisual } from './plant-visual';
+import { BrandedLoadingScreen } from '../layout/branded-loading-screen';
 
 const ForestScene3D = dynamic(
   () => import('./forest-scene-3d').then((mod) => mod.ForestScene3D),
   {
     ssr: false,
     loading: () => (
-      <div className="grid h-[min(70vh,640px)] place-items-center rounded-xl border border-dashboard-border bg-[#87c7f5] text-dashboard-muted">
-        Loading forest world...
-      </div>
+      <BrandedLoadingScreen className="h-[min(70vh,640px)] rounded-xl border border-dashboard-border bg-[#87c7f5]" />
     ),
   },
 );

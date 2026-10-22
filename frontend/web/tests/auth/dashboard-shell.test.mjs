@@ -46,6 +46,10 @@ function renderShell(sessionStatus, error = null) {
     './dashboard-heading-context': { DashboardHeadingProvider: wrapper },
     './page-heading': { PageHeading: part('heading') },
     './page-entrance': { PageEntrance: wrapper },
+    './branded-loading-screen': {
+      BrandedLoadingScreen: ({ fullScreen }) =>
+        React.createElement('div', { role: 'status', 'data-full-screen': fullScreen }, 'Loading'),
+    },
   };
   const module = { exports: {} };
   const source = fs.readFileSync(
@@ -84,15 +88,18 @@ for (const status of ['checking', 'unavailable', 'unauthenticated']) {
   test(`${status}: no protected content or shell loaders mount`, () => {
     const { html, mounted } = renderShell(status, 'Temporary session failure');
     assert.deepEqual(mounted, []);
-    if (status === 'checking') assert.match(html, /Checking your session/);
+    if (status === 'checking') {
+      assert.match(html, /data-full-screen="true"/);
+      assert.doesNotMatch(html, /Checking your session/);
+    }
     if (status === 'unavailable') {
       assert.match(html, /Temporary session failure/);
       assert.match(html, /Try again/);
       assert.doesNotMatch(html, /href="\/login"/);
     }
     if (status === 'unauthenticated') {
-      assert.match(html, /Redirecting to sign in/);
-      assert.match(html, /href="\/login"/);
+      assert.match(html, /data-full-screen="true"/);
+      assert.doesNotMatch(html, /Redirecting to sign in/);
     }
   });
 }

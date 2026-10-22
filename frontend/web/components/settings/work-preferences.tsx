@@ -10,6 +10,7 @@ export type WorkPreferencesValue = {
   timezone: string;
   pomodoroMinutes: number;
   dailyWorkLimitMinutes: number;
+  dailyFocusGoalMinutes: number;
 };
 
 type WorkPreferencesProps = {
@@ -110,6 +111,32 @@ export function WorkPreferences({ isDisabled = false, value, onChange }: WorkPre
           </div>
           <span className="text-xs font-normal text-dashboard-subtle">
             Maximum task time the scheduler may place in one day.
+          </span>
+        </label>
+        <label className="grid min-w-0 content-start gap-2 text-sm font-medium text-dashboard-text">
+          Daily focus goal
+          <div className="relative">
+            <input
+              className="h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-border bg-[var(--bg-input)] px-4 pr-14 text-sm text-dashboard-muted outline-none focus:border-dashboard-accent focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]"
+              disabled={isDisabled}
+              max="24"
+              min="0.5"
+              onChange={(event) => {
+                const hours = event.target.valueAsNumber;
+                if (Number.isFinite(hours)) {
+                  updateField('dailyFocusGoalMinutes', Math.round(hours * 60));
+                }
+              }}
+              step="0.5"
+              type="number"
+              value={value.dailyFocusGoalMinutes / 60}
+            />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-dashboard-subtle">
+              hours
+            </span>
+          </div>
+          <span className="text-xs font-normal text-dashboard-subtle">
+            Daily target shown on your dashboard.
           </span>
         </label>
         <label className="grid min-w-0 content-start gap-2 text-sm font-medium text-dashboard-text">

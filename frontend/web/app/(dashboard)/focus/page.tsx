@@ -1,15 +1,12 @@
 import { Suspense } from 'react';
 
 import { FocusMode } from '@/components/focus/FocusMode';
+import { BrandedLoadingScreen } from '@/components/layout/branded-loading-screen';
 
 export default function FocusPage() {
   return (
     <Suspense
-      fallback={
-        <div className="rounded-lg border border-dashboard-border bg-dashboard-surface p-6 text-dashboard-muted">
-          Loading focus mode...
-        </div>
-      }
+      fallback={<BrandedLoadingScreen className="min-h-[420px]" />}
     >
       <FocusMode />
     </Suspense>

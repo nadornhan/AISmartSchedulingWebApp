@@ -1,9 +1,11 @@
 'use client';
 
 import { CalendarIcon, CheckIcon, ChevronRightIcon, CloseIcon } from '../layout/icons';
+import { BrandedLoadingScreen } from '../layout/branded-loading-screen';
 import { formatDurationLabel } from '../../lib/duration';
 import {
   cn,
+  dateKey,
   weekdayLabels,
   formatSelectedDate,
   formatTime,
@@ -174,9 +176,9 @@ export function MobileCalendarView({
         </h2>
 
         {isLoading ? (
-          <div className="grid min-h-36 place-items-center rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 text-sm text-dashboard-muted">
-            Loading tasks...
-          </div>
+            <div className="rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65">
+              <BrandedLoadingScreen className="min-h-36" />
+            </div>
         ) : selectedTasks.length ? (
           <div className="divide-y divide-dashboard-border overflow-hidden rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface shadow-panel">
             {selectedTasks.map((task) => {
@@ -580,6 +582,7 @@ export function DayAgenda({
   onToday,
   onToggleTask,
   selectedDate,
+  transitionDirection,
   showCompleted,
   tasks,
 }: Readonly<{
@@ -592,6 +595,7 @@ export function DayAgenda({
   onToday: () => void;
   onToggleTask: (task: CalendarTask) => void;
   selectedDate: Date;
+  transitionDirection: 'forward' | 'backward';
   showCompleted: boolean;
   tasks: CalendarTask[];
 }>) {
@@ -649,7 +653,10 @@ export function DayAgenda({
         {tasks.length ? (
           <>
             <div className="absolute bottom-0 left-[78px] top-0 w-px bg-gradient-to-b from-dashboard-accent/35 via-dashboard-border to-transparent" />
-            <div className="space-y-3">
+            <div
+              className={`space-y-3 calendar-agenda-slide calendar-agenda-slide--${transitionDirection}`}
+              key={dateKey(selectedDate)}
+            >
               {tasks.map((task) => (
                 <AgendaTask
                   isMutating={mutatingTaskId === task.id}

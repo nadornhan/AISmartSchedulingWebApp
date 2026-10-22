@@ -82,6 +82,10 @@ const controls = load(read('components/tasks/task-page-controls.tsx'), {
 const { TaskDesktopTable, TaskMobileList } = load(read('components/tasks/task-list-views.tsx'), {
   'react/jsx-runtime': jsxRuntime,
   '../layout/icons': icons,
+  '../layout/branded-loading-screen': {
+    BrandedLoadingScreen: ({ className }) =>
+      React.createElement('div', { role: 'status', className }, 'Loading'),
+  },
   './task-page-controls': controls,
   './task-page-model': model,
 });
@@ -431,7 +435,8 @@ test('desktop table retains its responsive wrapper, column headers and loading/e
   const loading = renderToStaticMarkup(
     React.createElement(TaskDesktopTable, desktopProps({ isLoading: true })),
   );
-  assert.match(loading, /Loading tasks\.\.\./);
+  assert.match(loading, /role="status"/);
+  assert.doesNotMatch(loading, /Loading tasks/);
   assert.ok(!loading.includes('No tasks found'));
 });
 
@@ -573,16 +578,40 @@ test('desktop expanded subtasks preserve mutation disabling and callback argumen
 function mobileProps(overrides = {}) {
   return {
     mobileTaskGroups: [],
+    selected: [],
     expandedTaskIds: [],
     isLoading: false,
     isMutating: false,
     changeStatus: async () => {},
+    toggleSelected: () => {},
     toggleTaskExpanded: () => {},
     setEditingTask: () => {},
     toggleSubtask: async () => {},
     ...overrides,
   };
 }
+
+test('mobile bulk-selection checkbox is separate from task completion', () => {
+  const task = model.toTask(response({ id: 'mobile-select', title: 'Select me' }));
+  const calls = [];
+  const statusCalls = [];
+  const nodes = elements(
+    TaskMobileList(
+      mobileProps({
+        mobileTaskGroups: [{ group: 'Today', tasks: [task] }],
+        changeStatus: async (...args) => statusCalls.push(args),
+        toggleSelected: (id) => calls.push(id),
+      }),
+    ),
+  );
+  const selection = nodes.find(
+    (node) => node.type === controls.CheckBox && node.props.label === 'Select Select me for bulk actions',
+  );
+  assert.ok(selection);
+  selection.props.onChange();
+  assert.deepEqual(calls, ['mobile-select']);
+  assert.deepEqual(statusCalls, []);
+});
 
 test('mobile list retains responsive wrapper and loading/empty states', () => {
   const empty = renderToStaticMarkup(React.createElement(TaskMobileList, mobileProps()));
@@ -593,7 +622,8 @@ test('mobile list retains responsive wrapper and loading/empty states', () => {
   const loading = renderToStaticMarkup(
     React.createElement(TaskMobileList, mobileProps({ isLoading: true })),
   );
-  assert.match(loading, /Loading tasks\.\.\./);
+  assert.match(loading, /role="status"/);
+  assert.doesNotMatch(loading, /Loading tasks/);
   assert.ok(!loading.includes('No tasks found'));
 });
 

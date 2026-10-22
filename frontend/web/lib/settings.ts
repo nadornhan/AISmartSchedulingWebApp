@@ -7,6 +7,7 @@ export type WorkPatternSettings = {
   timezone_source: 'default' | 'detected' | 'user';
   pomodoro_minutes: number;
   daily_work_limit_minutes: number;
+  daily_focus_goal_minutes: number;
 };
 
 export type AiSchedulingSettings = {
@@ -63,6 +64,7 @@ export type SettingsWorkPreferencesValue = {
   timezone: string;
   pomodoroMinutes: number;
   dailyWorkLimitMinutes: number;
+  dailyFocusGoalMinutes: number;
 };
 
 export type SettingsNotificationValue = {
@@ -147,6 +149,7 @@ export function settingsResponseToFormValue(settings: UserSettingsResponse): Set
       timezone: settings.work_pattern.timezone,
       pomodoroMinutes: settings.work_pattern.pomodoro_minutes,
       dailyWorkLimitMinutes: settings.work_pattern.daily_work_limit_minutes,
+      dailyFocusGoalMinutes: settings.work_pattern.daily_focus_goal_minutes,
     },
     notifications: {
       taskReminders: settings.notifications.notify_task_reminders,
@@ -177,6 +180,7 @@ export function settingsFormValueToUpdateInput(value: SettingsFormValue): UserSe
       timezone: value.workPreferences.timezone,
       pomodoro_minutes: value.workPreferences.pomodoroMinutes,
       daily_work_limit_minutes: value.workPreferences.dailyWorkLimitMinutes,
+      daily_focus_goal_minutes: value.workPreferences.dailyFocusGoalMinutes,
     },
     ai_scheduling: {
       ai_assistant_enabled: value.schedulingWeights.aiAssistantEnabled,

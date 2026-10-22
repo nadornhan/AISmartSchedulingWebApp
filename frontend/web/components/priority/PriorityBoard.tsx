@@ -13,6 +13,7 @@ import {
   type TaskResponse,
 } from '../../lib/tasks';
 import { CreateTaskModal, type TaskPriorityLabel } from '../tasks/create-task-modal';
+import { BrandedLoadingScreen } from '../layout/branded-loading-screen';
 import { PriorityColumn } from './PriorityColumn';
 import { PrioritySummaryGrid } from './PrioritySummaryGrid';
 import { PriorityTaskPreview } from './PriorityTaskPreview';
@@ -298,9 +299,7 @@ export function PriorityBoard() {
       ) : null}
 
       {isLoading ? (
-        <div className="grid min-h-64 place-items-center rounded-lg border border-dashboard-border bg-dashboard-surface/55 text-dashboard-muted">
-          Loading priority tasks...
-        </div>
+        <BrandedLoadingScreen className="min-h-64 rounded-lg border border-dashboard-border bg-dashboard-surface/55" />
       ) : (
         <section
           aria-label="Priority task board"

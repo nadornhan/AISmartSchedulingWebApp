@@ -17,6 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
 DEFAULT_DAILY_WORK_LIMIT_MINUTES = 8 * 60
+DEFAULT_DAILY_FOCUS_GOAL_MINUTES = 6 * 60
 
 
 def effective_daily_work_limit_minutes(settings: "UserSettings") -> int:
@@ -46,6 +47,10 @@ class UserSettings(Base):
         CheckConstraint(
             "daily_work_limit_minutes BETWEEN 30 AND 1440",
             name="ck_user_settings_daily_work_limit_range",
+        ),
+        CheckConstraint(
+            "daily_focus_goal_minutes BETWEEN 30 AND 1440",
+            name="ck_user_settings_daily_focus_goal_range",
         ),
         CheckConstraint(
             "timezone_source IN ('default', 'detected', 'user')",
@@ -96,6 +101,12 @@ class UserSettings(Base):
         Integer,
         default=DEFAULT_DAILY_WORK_LIMIT_MINUTES,
         server_default=str(DEFAULT_DAILY_WORK_LIMIT_MINUTES),
+        nullable=False,
+    )
+    daily_focus_goal_minutes: Mapped[int] = mapped_column(
+        Integer,
+        default=DEFAULT_DAILY_FOCUS_GOAL_MINUTES,
+        server_default=str(DEFAULT_DAILY_FOCUS_GOAL_MINUTES),
         nullable=False,
     )
     ai_assistant_enabled: Mapped[bool] = mapped_column(

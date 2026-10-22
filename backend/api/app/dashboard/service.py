@@ -18,6 +18,7 @@ from app.gamification import service as gamification_service
 from app.scheduling import service as scheduling_service
 from app.scoring import NextTaskProfileV1, QuickWinProfileV1
 from app.settings import service as settings_service
+from app.settings.models import DEFAULT_DAILY_FOCUS_GOAL_MINUTES, UserSettings
 from app.tasks.models import Task, TaskPriority, TaskStatus
 from app.tasks.overdue import is_task_overdue, task_overdue_condition, utc_now
 from app.tasks.schemas import TaskDisplayStatus
@@ -25,7 +26,6 @@ from app.timezones import normalize_instant, user_timezone
 
 QUICK_WINS_LIMIT = 5
 WEEKLY_ACTIVITY_DAYS = 7
-DAILY_FOCUS_GOAL_MINUTES = 360
 
 
 def _progress_percent(completed: int, total: int) -> int | None:
@@ -154,13 +154,18 @@ def _focus_goal(
         )
         or 0
     )
+    goal_minutes = db.scalar(
+        select(UserSettings.daily_focus_goal_minutes).where(
+            UserSettings.user_id == user_id
+        )
+    ) or DEFAULT_DAILY_FOCUS_GOAL_MINUTES
 
     return FocusGoalSummary(
         completed_minutes=completed_minutes,
-        goal_minutes=DAILY_FOCUS_GOAL_MINUTES,
+        goal_minutes=goal_minutes,
         percent=min(
             100,
-            _progress_percent(completed_minutes, DAILY_FOCUS_GOAL_MINUTES) or 0,
+            _progress_percent(completed_minutes, goal_minutes) or 0,
         ),
     )
 

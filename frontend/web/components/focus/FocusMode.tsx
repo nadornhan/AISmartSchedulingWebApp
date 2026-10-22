@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { Clock3, LoaderCircle, Maximize, Minimize } from 'lucide-react';
+import { BrandedLoadingScreen } from '../layout/branded-loading-screen';
 import { FocusSettingsModal } from './FocusSettingsModal';
 import { useFocusFullscreen } from './use-focus-fullscreen';
 import { useFocusTasks, type FocusTask } from './use-focus-tasks';
@@ -95,12 +96,17 @@ export function FocusMode() {
           </button>
         </div>
 
-        <div className="focus-mode-tabs relative z-10 mx-auto flex w-full shrink-0 overflow-hidden rounded-xl border border-dashboard-border bg-dashboard-bg/70 p-1 sm:w-fit">
+        <div className="focus-mode-tabs relative z-10 mx-auto grid w-full shrink-0 grid-cols-3 overflow-hidden rounded-xl border border-dashboard-border bg-dashboard-bg/70 p-1 sm:w-fit">
+          <span
+            aria-hidden="true"
+            className="focus-mode-tab-indicator"
+            style={{ transform: `translateX(${modes.indexOf(mode) * 100}%)` }}
+          />
           {modes.map((item) => (
             <button
-              className={`min-w-0 flex-1 rounded-lg px-2 py-2.5 text-sm transition sm:min-w-28 sm:flex-none sm:px-5 ${
+              className={`relative z-10 min-w-0 rounded-lg px-2 py-2.5 text-sm transition sm:min-w-28 sm:px-5 ${
                 mode === item
-                  ? 'focus-mode-tab--active bg-dashboard-accent/15 font-semibold text-dashboard-accent'
+                  ? 'focus-mode-tab--active font-semibold text-dashboard-accent'
                   : 'text-dashboard-muted hover:text-dashboard-text'
               }`}
               key={item}
@@ -114,7 +120,15 @@ export function FocusMode() {
           ))}
         </div>
 
-        <div className="focus-timer-stage">
+        <div
+          className="focus-timer-stage"
+          data-running={running}
+        >
+          <svg aria-hidden="true" className="focus-start-waves" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="96" />
+            <circle cx="100" cy="100" r="96" />
+            <circle cx="100" cy="100" r="96" />
+          </svg>
           <svg aria-hidden="true" className="focus-timer-ring" viewBox="0 0 200 200">
             <circle
               cx="100"
@@ -192,7 +206,9 @@ export function FocusMode() {
           </div>
         </div>
 
-        <div className="focus-timer-caption relative z-10 mt-4 text-center sm:mt-7">
+        <div
+          className="focus-timer-caption relative z-10 mt-4 text-center sm:mt-7"
+        >
           <p className="focus-timer-session-count text-sm text-dashboard-muted sm:text-lg">#1</p>
           <p className="focus-timer-session-title mt-1 text-sm font-medium text-dashboard-text sm:text-lg">
             {mode === 'Pomodoro' ? 'Time to focus!' : 'Take a breather'}
@@ -268,7 +284,7 @@ export function FocusMode() {
 
         <div className="accent-scrollbar max-h-80 overflow-y-auto">
           {tasksLoading ? (
-            <p className="px-5 py-8 text-center text-sm text-dashboard-muted">Loading tasks...</p>
+            <BrandedLoadingScreen className="min-h-28" />
           ) : tasksError ? (
             <p className="px-5 py-8 text-center text-sm text-dashboard-danger" role="alert">
               {tasksError}

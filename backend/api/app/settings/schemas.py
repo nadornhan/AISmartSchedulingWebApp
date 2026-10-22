@@ -13,6 +13,7 @@ class WorkPatternSettings(BaseModel):
     timezone_source: str
     pomodoro_minutes: int = Field(ge=1, le=240)
     daily_work_limit_minutes: int = Field(ge=30, le=1440)
+    daily_focus_goal_minutes: int = Field(ge=30, le=1440)
 
     @field_serializer("work_start", "work_end")
     def serialize_time(self, value: time) -> str:
@@ -32,6 +33,7 @@ class WorkPatternSettingsUpdate(BaseModel):
     timezone: str | None = None
     pomodoro_minutes: int | None = Field(default=None, ge=1, le=240)
     daily_work_limit_minutes: int | None = Field(default=None, ge=30, le=1440)
+    daily_focus_goal_minutes: int | None = Field(default=None, ge=30, le=1440)
 
     @model_validator(mode="after")
     def validate_work_pattern(self) -> "WorkPatternSettingsUpdate":

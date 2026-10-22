@@ -70,6 +70,7 @@ def test_get_settings_creates_default_settings(
         "timezone_source": "default",
         "pomodoro_minutes": 25,
         "daily_work_limit_minutes": 480,
+        "daily_focus_goal_minutes": 360,
     }
     assert data["ai_scheduling"] == {
         "ai_assistant_enabled": True,
@@ -110,6 +111,7 @@ def test_patch_settings_partially_updates_without_overwriting_other_fields(
                 "timezone": "Australia/Sydney",
                 "pomodoro_minutes": 45,
                 "daily_work_limit_minutes": 360,
+                "daily_focus_goal_minutes": 300,
             },
             "ai_scheduling": {
                 "ai_assistant_enabled": False,
@@ -135,6 +137,7 @@ def test_patch_settings_partially_updates_without_overwriting_other_fields(
         "timezone_source": "user",
         "pomodoro_minutes": 45,
         "daily_work_limit_minutes": 360,
+        "daily_focus_goal_minutes": 300,
     }
     assert data["ai_scheduling"] == {
         "ai_assistant_enabled": False,

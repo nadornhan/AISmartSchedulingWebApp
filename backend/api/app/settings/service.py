@@ -50,6 +50,7 @@ def serialize_user_settings(settings: UserSettings) -> UserSettingsResponse:
             "timezone_source": settings.timezone_source,
             "pomodoro_minutes": settings.pomodoro_minutes,
             "daily_work_limit_minutes": effective_daily_work_limit_minutes(settings),
+            "daily_focus_goal_minutes": settings.daily_focus_goal_minutes,
         },
         ai_scheduling={
             "ai_assistant_enabled": settings.ai_assistant_enabled,

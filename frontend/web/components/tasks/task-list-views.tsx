@@ -2,7 +2,16 @@
 
 import type { Dispatch, SetStateAction } from 'react';
 import type { TaskResponse } from '../../lib/tasks';
-import { CalendarIcon, CheckIcon, ChevronDownIcon, ClockIcon, EditIcon, MoreIcon, TasksIcon } from '../layout/icons';
+import { BrandedLoadingScreen } from '../layout/branded-loading-screen';
+import {
+  CalendarIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ClockIcon,
+  EditIcon,
+  MoreIcon,
+  TasksIcon,
+} from '../layout/icons';
 import { CheckBox, StatusDropdown, SubtaskAccordion } from './task-page-controls';
 import {
   cn,
@@ -90,12 +99,7 @@ export function TaskDesktopTable({
 
       <div className="divide-y divide-dashboard-border">
         {isLoading ? (
-          <div className="grid min-h-64 place-items-center rounded-b-[var(--radius-lg)] px-6 text-center">
-            <div>
-              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-dashboard-border border-t-dashboard-accent" />
-              <p className="mt-3 text-sm text-dashboard-muted">Loading tasks...</p>
-            </div>
-          </div>
+          <BrandedLoadingScreen className="min-h-64 rounded-b-[var(--radius-lg)] px-6" />
         ) : visibleTasks.length ? (
           visibleTasks.map((task, taskIndex) => (
             <article
@@ -339,10 +343,12 @@ export function TaskDesktopTable({
 
 type TaskMobileListProps = {
   mobileTaskGroups: Array<{ group: MobileTaskGroup; tasks: Task[] }>;
+  selected: string[];
   expandedTaskIds: string[];
   isLoading: boolean;
   isMutating: boolean;
   changeStatus: (id: string, status: TaskStatus) => Promise<void>;
+  toggleSelected: (id: string) => void;
   toggleTaskExpanded: (id: string) => void;
   setEditingTask: Dispatch<SetStateAction<TaskResponse | null>>;
   toggleSubtask: (task: Task, subtaskId: string, isCompleted: boolean) => Promise<void>;
@@ -350,10 +356,12 @@ type TaskMobileListProps = {
 
 export function TaskMobileList({
   mobileTaskGroups,
+  selected,
   expandedTaskIds,
   isLoading,
   isMutating,
   changeStatus,
+  toggleSelected,
   toggleTaskExpanded,
   setEditingTask,
   toggleSubtask,
@@ -361,12 +369,7 @@ export function TaskMobileList({
   return (
     <section aria-label="Tasks grouped by due date" className="space-y-7 lg:hidden">
       {isLoading ? (
-        <div className="grid min-h-56 place-items-center rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 px-6 text-center">
-          <div>
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-dashboard-border border-t-dashboard-accent" />
-            <p className="mt-3 text-sm text-dashboard-muted">Loading tasks...</p>
-          </div>
-        </div>
+        <BrandedLoadingScreen className="min-h-56 rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 px-6" />
       ) : mobileTaskGroups.length ? (
         mobileTaskGroups.map(({ group, tasks: groupTasks }) => {
           const meta = mobileGroupMeta[group];
@@ -415,7 +418,7 @@ export function TaskMobileList({
                           }
                           type="button"
                         >
-                          <span className="flex min-w-0 items-start gap-2 text-base font-semibold text-dashboard-text">
+                          <span className="flex min-w-0 items-start gap-2 text-[17px] font-semibold text-dashboard-text">
                             <span className="min-w-0 whitespace-normal break-words leading-5">
                               {task.title}
                             </span>
@@ -428,9 +431,7 @@ export function TaskMobileList({
                               />
                             ) : null}
                           </span>
-                          <span className="mt-2 flex min-w-0 items-center gap-2 text-[11px] text-dashboard-muted">
-                            <span className={cn(task.overdue && 'text-[var(--red-light)]')}>◷ {task.dueDate}</span>
-                            <span aria-hidden="true">·</span>
+                          <span className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dashboard-muted">
                             <span className="flex min-w-0 items-center gap-1.5 truncate">
                               <span
                                 className="h-1.5 w-1.5 shrink-0 rounded-full"
@@ -443,18 +444,43 @@ export function TaskMobileList({
                               />
                               <span className="truncate">{task.project}</span>
                             </span>
+                            <span aria-hidden="true">·</span>
+                            <span
+                              className={cn(
+                                'flex shrink-0 items-center gap-1.5',
+                                task.overdue && 'text-[var(--red-light)]',
+                              )}
+                            >
+                              <CalendarIcon aria-hidden="true" className="h-3.5 w-3.5" />
+                              {task.dueDate}
+                            </span>
+                            {task.subtaskProgressLabel ? (
+                              <>
+                                <span aria-hidden="true">·</span>
+                                <span className="flex shrink-0 items-center gap-1.5">
+                                  <TasksIcon aria-hidden="true" className="h-3.5 w-3.5" />
+                                  {task.subtaskProgressLabel}
+                                </span>
+                              </>
+                            ) : null}
                           </span>
                         </button>
 
                         <div className="flex shrink-0 flex-col items-end gap-2">
                           <span
                             className={cn(
-                              'inline-flex rounded-[var(--radius-pill)] border px-2.5 py-1 text-[10px] font-medium',
+                              'inline-flex rounded-[var(--radius-pill)] border px-2.5 py-1 text-[11px] font-medium',
                               priorityClass(task.priority),
                             )}
                           >
                             {task.priority}
                           </span>
+                          <CheckBox
+                            checked={selected.includes(task.id)}
+                            disabled={isMutating}
+                            label={`${selected.includes(task.id) ? 'Deselect' : 'Select'} ${task.title} for bulk actions`}
+                            onChange={() => toggleSelected(task.id)}
+                          />
                           <button aria-label={`Edit ${task.title}`} className="grid h-8 w-8 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-accent" onClick={() => setEditingTask(task.source)} type="button"><EditIcon className="h-4 w-4" /></button>
                         </div>
                       </div>

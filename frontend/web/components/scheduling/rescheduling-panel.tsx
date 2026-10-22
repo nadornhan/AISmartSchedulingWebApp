@@ -5,6 +5,8 @@ import Link from 'next/link';
 import {
   CalendarDays,
   CalendarClock,
+  ChevronLeft,
+  ChevronRight,
   CircleCheck,
   ClipboardList,
   RotateCcw,
@@ -631,39 +633,83 @@ function UnresolvedIssues({ issues }: Readonly<{ issues: RescheduleProposal['iss
 }
 
 function IssueList({ issues }: Readonly<{ issues: RescheduleProposal['issues'] }>) {
+  const pageSize = 3;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(issues.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+
   return (
-    <ul className="space-y-3">
-      {issues.map((issue) => (
-        <li
-          className="rounded-lg border border-dashboard-border border-l-2 border-l-[var(--red-border)] bg-dashboard-surface/80 p-4"
-          key={`${issue.task_id}-${issue.code}`}
-        >
-          <div className="flex items-start gap-3">
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--red-soft)] text-[var(--red-light)]">
-              <ClipboardList aria-hidden="true" className="size-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="break-words text-sm font-semibold text-dashboard-text">{issue.task_title}</p>
-              <p className="mt-1.5 break-words text-sm leading-6 text-dashboard-muted [overflow-wrap:anywhere]">
-                {issue.reason}
-              </p>
-              <Link
-                className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg border border-dashboard-border-strong bg-dashboard-bg/60 px-3 text-sm font-semibold text-dashboard-text transition hover:border-dashboard-accent/60 hover:text-dashboard-accent"
-                href={
-                  `/calendar?taskId=${encodeURIComponent(issue.task_id)}${
-                    issue.metadata.due_date
-                      ? `&date=${encodeURIComponent(issue.metadata.due_date)}`
-                      : ''
-                  }`
-                }
-              >
-                <CalendarDays aria-hidden="true" className="size-4 text-dashboard-accent" />
-                View in calendar
-              </Link>
+    <>
+      <ul className="space-y-3">
+        {issues.slice(startIndex, startIndex + pageSize).map((issue) => (
+          <li
+            className="rounded-lg border border-dashboard-border border-l-2 border-l-[var(--red-border)] bg-dashboard-surface/80 p-4"
+            key={`${issue.task_id}-${issue.code}`}
+          >
+            <div className="flex items-start gap-3">
+              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--red-soft)] text-[var(--red-light)]">
+                <ClipboardList aria-hidden="true" className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="break-words text-sm font-semibold text-dashboard-text">
+                  {issue.task_title}
+                </p>
+                <p className="mt-1.5 break-words text-sm leading-6 text-dashboard-muted [overflow-wrap:anywhere]">
+                  {issue.reason}
+                </p>
+                <Link
+                  className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg border border-dashboard-border-strong bg-dashboard-bg/60 px-3 text-sm font-semibold text-dashboard-text transition hover:border-dashboard-accent/60 hover:text-dashboard-accent"
+                  href={
+                    `/calendar?taskId=${encodeURIComponent(issue.task_id)}${
+                      issue.metadata.due_date
+                        ? `&date=${encodeURIComponent(issue.metadata.due_date)}`
+                        : ''
+                    }`
+                  }
+                >
+                  <CalendarDays aria-hidden="true" className="size-4 text-dashboard-accent" />
+                  View in calendar
+                </Link>
+              </div>
             </div>
+          </li>
+        ))}
+      </ul>
+      {totalPages > 1 ? (
+        <nav
+          aria-label="Scheduling issue pages"
+          className="mt-4 flex items-center justify-between gap-3 border-t border-dashboard-border pt-3"
+        >
+          <span aria-live="polite" className="text-xs text-dashboard-muted">
+            Showing {startIndex + 1}–{Math.min(startIndex + pageSize, issues.length)} of{' '}
+            {issues.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              aria-label="Previous issue page"
+              className="grid size-9 place-items-center rounded-lg border border-dashboard-border text-dashboard-muted transition hover:border-dashboard-accent/50 hover:text-dashboard-text disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={currentPage === 1}
+              onClick={() => setPage(currentPage - 1)}
+              type="button"
+            >
+              <ChevronLeft aria-hidden="true" className="size-4" />
+            </button>
+            <span className="min-w-16 text-center text-xs font-medium text-dashboard-muted">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              aria-label="Next issue page"
+              className="grid size-9 place-items-center rounded-lg border border-dashboard-border text-dashboard-muted transition hover:border-dashboard-accent/50 hover:text-dashboard-text disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={currentPage === totalPages}
+              onClick={() => setPage(currentPage + 1)}
+              type="button"
+            >
+              <ChevronRight aria-hidden="true" className="size-4" />
+            </button>
           </div>
-        </li>
-      ))}
-    </ul>
+        </nav>
+      ) : null}
+    </>
   );
 }

@@ -70,6 +70,11 @@ TASKS = [
         "status": TaskStatus.IN_PROGRESS,
         "due_at": (1, 11, 0),
         "estimated_duration_minutes": 90,
+        "subtasks": [
+            {"title": "Review process scheduling", "is_completed": True},
+            {"title": "Revise memory paging", "is_completed": False},
+            {"title": "Try the practice questions", "is_completed": False},
+        ],
     },
     {
         "title": "Group project retrospective",
@@ -97,6 +102,11 @@ TASKS = [
         "status": TaskStatus.IN_PROGRESS,
         "due_at": (-5, 10, 30),
         "estimated_duration_minutes": 90,
+        "subtasks": [
+            {"title": "Choose the demo tasks", "is_completed": True},
+            {"title": "Capture the updated flow", "is_completed": False},
+            {"title": "Rehearse the walkthrough", "is_completed": False},
+        ],
     },
     {
         "title": "Refactor onboarding notes",
@@ -196,6 +206,11 @@ TASKS = [
         "status": TaskStatus.IN_PROGRESS,
         "due_at": (7, 10, 0),
         "estimated_duration_minutes": 70,
+        "subtasks": [
+            {"title": "Mark timezone handling details", "is_completed": True},
+            {"title": "Note the API assumptions", "is_completed": False},
+            {"title": "Summarize useful patterns", "is_completed": False},
+        ],
     },
     {
         "title": "Draft survey questions",
@@ -324,6 +339,10 @@ TASKS = [
         "status": TaskStatus.PENDING,
         "due_at": (0, 10, 20),
         "estimated_duration_minutes": 10,
+        "subtasks": [
+            {"title": "Correct the Docker command", "is_completed": True},
+            {"title": "Check the quickstart steps", "is_completed": False},
+        ],
     },
     {
         "title": "Write database migration notes",
@@ -347,6 +366,10 @@ TASKS = [
         "status": TaskStatus.PENDING,
         "due_at": (0, 12, 15),
         "estimated_duration_minutes": 7,
+        "subtasks": [
+            {"title": "Confirm discussion topics", "is_completed": True},
+            {"title": "Add the meeting link", "is_completed": False},
+        ],
     },
     {
         "title": "Review pull request comments",
@@ -394,6 +417,10 @@ TASKS = [
         "status": TaskStatus.PENDING,
         "due_at": (0, 19, 15),
         "estimated_duration_minutes": 10,
+        "subtasks": [
+            {"title": "Do a shoulder stretch", "is_completed": False},
+            {"title": "Take a short walk", "is_completed": False},
+        ],
     },
     {
         "title": "Draft dashboard microcopy",
@@ -417,6 +444,10 @@ TASKS = [
         "status": TaskStatus.PENDING,
         "due_at": (1, 10, 30),
         "estimated_duration_minutes": 6,
+        "subtasks": [
+            {"title": "Confirm repair availability", "is_completed": False},
+            {"title": "Send the reply", "is_completed": False},
+        ],
     },
     {
         "title": "Prepare tutorial questions",
@@ -440,6 +471,10 @@ TASKS = [
         "status": TaskStatus.PENDING,
         "due_at": (1, 15, 20),
         "estimated_duration_minutes": 9,
+        "subtasks": [
+            {"title": "Merge duplicate labels", "is_completed": True},
+            {"title": "Remove stale labels", "is_completed": False},
+        ],
     },
     {
         "title": "Read paper abstract set",

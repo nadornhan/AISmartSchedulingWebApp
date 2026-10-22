@@ -87,13 +87,19 @@ export function FocusIcon(props: IconProps) {
 
 export function FlameIcon(props: IconProps) {
   return (
-    <IconBase {...props}>
-      <path d="M12 21a7 7 0 0 0 7-7c0-2.8-1.5-5.2-4-7.1.1 1.8-.6 3.1-2 3.9.3-2.9-1.1-5.4-4.1-7.8.2 3.2-1.5 4.8-2.8 6.3A7.2 7.2 0 0 0 5 14a7 7 0 0 0 7 7Z" />
-      <path d="M12 21a3 3 0 0 0 3-3c0-1.3-.7-2.4-1.9-3.3 0 .9-.4 1.6-1.1 2-.1-1.3-.8-2.4-2-3.4.1 1.5-.7 2.3-1.3 3A3.2 3.2 0 0 0 9 18a3 3 0 0 0 3 3Z" />
-    </IconBase>
+    <svg aria-hidden="true" fill="currentColor" viewBox="0 0 16 16" {...props}>
+      <path d="M8 16c3.314 0 6-2 6-5.5 0-1.5-.5-4-2.5-6 .25 1.5-1.25 2-1.25 2C11 4 9 .5 6 0c.357 2 .5 4-2 6-1.25 1-2 2.729-2 4.5C2 14 4.686 16 8 16m0-1c-1.657 0-3-1-3-2.75 0-.75.25-2 1.25-3C6.125 10 7 10.5 7 10.5c-.375-1.25.5-3.25 2-3.5-.179 1-.25 2 1 3 .625.5 1 1.364 1 2.25C11 14 9.657 15 8 15" />
+    </svg>
   );
 }
 
+export function LightningIcon(props: IconProps) {
+  return (
+    <svg aria-hidden="true" fill="currentColor" viewBox="0 0 16 16" {...props}>
+      <path d="M11.251.068a.5.5 0 0 1 .227.58L9.677 6.5H13a.5.5 0 0 1 .364.843l-8 8.5a.5.5 0 0 1-.842-.49L6.323 9.5H3a.5.5 0 0 1-.364-.843l8-8.5a.5.5 0 0 1 .615-.09zM4.157 8.5H7a.5.5 0 0 1 .478.647L6.11 13.59l5.732-6.09H9a.5.5 0 0 1-.478-.647L9.89 2.41z" />
+    </svg>
+  );
+}
 export function InsightsIcon(props: IconProps) {
   return (
     <IconBase {...props}>
@@ -173,10 +179,9 @@ export function SearchIcon(props: IconProps) {
 
 export function BellIcon(props: IconProps) {
   return (
-    <IconBase {...props}>
-      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" />
-      <path d="M10 21h4" />
-    </IconBase>
+    <svg aria-hidden="true" fill="currentColor" viewBox="0 0 16 16" {...props}>
+      <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zM8 1.918l-.797.161A4.002 4.002 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4.002 4.002 0 0 0-3.203-3.92L8 1.917zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5.002 5.002 0 0 1 13 6c0 .88.32 4.2 1.22 6z" />
+    </svg>
   );
 }
 

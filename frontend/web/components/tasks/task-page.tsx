@@ -24,7 +24,6 @@ import {
   filterOrder,
   mobileFilterOrder,
   mobileGroupForTask,
-  pageSizeOptions,
   priorityFilters,
   priorityFromApi,
   sortOptions,
@@ -39,6 +38,7 @@ export function TaskPage() {
   const activeProjectId = searchParams.get('project_id') || '';
   const searchQuery = searchParams.get('search')?.trim() || '';
   const targetTaskId = searchParams.get('task_id') || '';
+  const pageSize = 8;
   const shouldOpenCreate = searchParams.get('create') === '1';
   const createPriorityParam = searchParams.get('priority');
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('All');
@@ -52,7 +52,6 @@ export function TaskPage() {
   const [createPriority, setCreatePriority] = useState<TaskPriority>('No priority');
   const [sortBy, setSortBy] = useState<TaskSortValue>('due_date');
   const [sortAscending, setSortAscending] = useState(true);
-  const [pageSize, setPageSize] = useState(8);
   const [menuTaskId, setMenuTaskId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
@@ -214,6 +213,9 @@ export function TaskPage() {
   const visibleTotal = targetTaskId ? visibleTasks.length : totalTasks;
   const visibleStart = visibleTotal === 0 ? 0 : (page - 1) * pageSize + 1;
   const visibleEnd = targetTaskId ? visibleTasks.length : Math.min(page * pageSize, visibleTotal);
+  const pageNumbers = Array.from(
+    new Set([1, page - 1, page, page + 1, totalPages].filter((number) => number >= 1 && number <= totalPages)),
+  ).sort((first, second) => first - second);
 
   function toggleSelected(id: string) {
     setSelected((current) =>
@@ -602,10 +604,12 @@ export function TaskPage() {
 
       <TaskMobileList
         mobileTaskGroups={mobileTaskGroups}
+        selected={selected}
         expandedTaskIds={expandedTaskIds}
         isLoading={isLoading}
         isMutating={isMutating}
         changeStatus={changeStatus}
+        toggleSelected={toggleSelected}
         toggleTaskExpanded={toggleTaskExpanded}
         setEditingTask={setEditingTask}
         toggleSubtask={toggleSubtask}
@@ -657,7 +661,7 @@ export function TaskPage() {
         </footer>
       ) : null}
 
-      <footer className="mt-4 hidden flex-col gap-4 lg:flex xl:flex-row xl:items-center">
+      <footer className="mt-4 flex flex-col gap-4 xl:flex-row xl:items-center">
         <div className="flex min-h-12 flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-dashboard-border bg-dashboard-surface/70 p-2">
           <span className="px-2 text-sm text-dashboard-muted">{selected.length} selected</span>
           <button
@@ -689,7 +693,7 @@ export function TaskPage() {
           </button>
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-3 text-sm text-dashboard-muted">
+        <div className="ml-auto hidden flex-wrap items-center justify-end gap-3 text-sm text-dashboard-muted lg:flex">
           <span>
             {visibleStart}–{visibleEnd} of {visibleTotal} tasks
           </span>
@@ -703,26 +707,28 @@ export function TaskPage() {
             >
               <ChevronRightIcon className="h-4 w-4 rotate-180" />
             </button>
-            {Array.from({ length: totalPages }, (_, index) => index + 1)
-              .filter(
-                (pageNumber) =>
-                  pageNumber === 1 || pageNumber === totalPages || Math.abs(pageNumber - page) <= 1,
-              )
-              .map((pageNumber) => (
+            {pageNumbers.map((pageNumber, index) => (
+              <span className="contents" key={pageNumber}>
+                {index > 0 && pageNumber - pageNumbers[index - 1] > 1 ? (
+                  <span aria-hidden="true" className="w-6 text-center text-dashboard-subtle">
+                    …
+                  </span>
+                ) : null}
                 <button
+                  aria-current={pageNumber === page ? 'page' : undefined}
                   className={cn(
                     'grid h-10 w-10 place-items-center rounded-lg border text-sm transition',
                     pageNumber === page
                       ? 'border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent'
                       : 'border-dashboard-border bg-dashboard-surface text-dashboard-muted hover:text-dashboard-text',
                   )}
-                  key={pageNumber}
                   onClick={() => setPage(pageNumber)}
                   type="button"
                 >
                   {pageNumber}
                 </button>
-              ))}
+              </span>
+            ))}
             <button
               aria-label="Next page"
               className="grid h-10 w-10 place-items-center rounded-lg border border-dashboard-border bg-dashboard-surface disabled:cursor-not-allowed disabled:opacity-40"
@@ -733,24 +739,6 @@ export function TaskPage() {
               <ChevronRightIcon className="h-4 w-4" />
             </button>
           </div>
-          <label className="relative">
-            <span className="sr-only">Tasks per page</span>
-            <select
-              className="flex h-10 appearance-none rounded-lg border border-dashboard-border bg-dashboard-surface py-0 pl-3 pr-8 text-dashboard-muted outline-none"
-              onChange={(event) => {
-                setPageSize(Number(event.target.value));
-                setPage(1);
-              }}
-              value={pageSize}
-            >
-              {pageSizeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option} / page
-                </option>
-              ))}
-            </select>
-            <ChevronDownIcon className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2" />
-          </label>
         </div>
       </footer>
 

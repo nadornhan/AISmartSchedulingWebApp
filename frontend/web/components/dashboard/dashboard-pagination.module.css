@@ -1,0 +1,4 @@
+.divider {
+  border-top: 1px solid
+    color-mix(in srgb, var(--dashboard-border) 24%, var(--dashboard-surface));
+}

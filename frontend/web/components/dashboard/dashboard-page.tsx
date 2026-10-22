@@ -13,7 +13,6 @@ import { DashboardLoadingState } from './dashboard-loading-state';
 import { DashboardStatCard } from './dashboard-stat-card';
 import { ForestWidget } from '../gamification/forest-widget';
 import { SuggestedTaskCard } from './suggested-task-card';
-import { InProgressList } from './in-progress-list';
 import { QuickWinsCard } from './quick-wins-card';
 import { WeeklyActivityCard } from './weekly-activity-card';
 import { ReschedulingPanel } from '../scheduling/rescheduling-panel';
@@ -153,7 +152,7 @@ export function DashboardPage() {
     <div className="mx-auto max-w-[1480px] space-y-8">
       <section
         aria-label="Today at a glance"
-        className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4"
+        className="grid grid-cols-2 gap-x-[clamp(0.75rem,5vw,1.25rem)] gap-y-6 sm:gap-x-4 sm:gap-y-6 xl:grid-cols-4 xl:gap-4"
       >
         <DashboardStatCard
           icon={<CheckIcon className="h-5 w-5" />}
@@ -181,7 +180,7 @@ export function DashboardPage() {
           meta={
             summary.current_streak_days > 0
               ? 'Keep it up!'
-              : 'Complete a task today to start a streak'
+              : 'Complete a task today'
           }
           progress={summary.current_streak_days > 0 ? 100 : 0}
           value={`${summary.current_streak_days} days`}
@@ -196,25 +195,20 @@ export function DashboardPage() {
         />
       </section>
 
-      <div className="grid items-start gap-6 lg:items-stretch lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid items-start gap-6 lg:items-stretch lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <SuggestedTaskCard
           task={summary.ai_recommendation?.task ?? summary.next_best_task?.task ?? null}
         />
 
-        <section className="flex min-w-0 flex-col">
-          <div className="grid flex-1 gap-5 lg:auto-rows-fr">
-            <InProgressList tasks={summary.in_progress} />
-            <QuickWinsCard
-              completingTaskId={completingTaskId}
-              onComplete={completeQuickWin}
-              tasks={summary.quick_wins}
-            />
-          </div>
-        </section>
+        <QuickWinsCard
+          completingTaskId={completingTaskId}
+          onComplete={completeQuickWin}
+          tasks={summary.quick_wins}
+        />
       </div>
 
       <section>
-        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,2.5fr)_minmax(0,1fr)]">
           <WeeklyActivityCard points={summary.weekly_activity} />
           <div className="grid min-w-0 gap-5">
             <ReschedulingPanel />

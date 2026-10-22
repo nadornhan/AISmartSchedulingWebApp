@@ -42,7 +42,11 @@ export function ForestWidget({ forest }: ForestWidgetProps) {
           locked={needsSelection}
         />
         <div className="min-w-0 flex-1">
-          <p className="mt-1 truncate text-xl font-semibold text-dashboard-text">{displayName}</p>
+          <p
+            className={`mt-1 truncate font-semibold text-dashboard-text ${needsSelection ? 'text-[18px]' : 'text-xl'}`}
+          >
+            {displayName}
+          </p>
           <p className="mt-1 text-sm text-dashboard-muted">
             {needsSelection
               ? forest.supportive_message || 'Choose a plant to begin.'

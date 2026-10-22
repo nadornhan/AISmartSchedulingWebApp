@@ -43,11 +43,11 @@ export function SuggestedTaskCard({
       <div className="relative z-10 mb-5 min-w-0 space-y-3 sm:mb-6">
         <div className="flex items-center gap-3">
           <SparkleStarsIcon />
-          <h2 className="whitespace-nowrap font-poppins text-xl font-semibold leading-tight text-dashboard-text sm:text-2xl lg:text-3xl">
+          <h2 className="whitespace-nowrap font-poppins text-[22px] font-semibold leading-tight text-dashboard-text sm:text-2xl lg:text-[28px]">
             AI Pick for Today
           </h2>
         </div>
-        <p className="max-w-2xl text-sm leading-6 text-dashboard-muted sm:text-base lg:text-lg">
+        <p className="max-w-2xl text-sm leading-6 text-dashboard-muted lg:text-base">
           Your next step, picked from your tasks, priorities, and deadlines.
         </p>
       </div>

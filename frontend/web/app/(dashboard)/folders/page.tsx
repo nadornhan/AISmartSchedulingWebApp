@@ -8,6 +8,7 @@ import { EditFolderModal } from '../../../components/folders/edit-folder-modal';
 import { FolderList, type TasksByFolder } from '../../../components/folders/folder-list';
 import { InboxList, type InboxTask } from '../../../components/folders/inbox-list';
 import { PlusIcon } from '../../../components/layout/icons';
+import { PageHeadingActions } from '../../../components/layout/page-heading';
 import { onProjectDataChanged, onTaskDataChanged } from '../../../lib/data-events';
 import { deleteFolder, getFolders, updateFolder, type Folder } from '../../../lib/folders';
 import { deleteTask, getTasks, updateTask } from '../../../lib/tasks';
@@ -180,7 +181,7 @@ export default function FoldersPage() {
 
   return (
     <>
-      <div className="mb-6 flex items-center justify-end gap-4">
+      <PageHeadingActions>
         <button
           className="flex h-11 items-center gap-2 rounded-lg border border-dashboard-accent px-5 font-semibold text-dashboard-accent transition hover:bg-dashboard-accent-soft"
           onClick={() => setIsCreateOpenLocally(true)}
@@ -189,7 +190,7 @@ export default function FoldersPage() {
           <PlusIcon className="h-5 w-5" />
           Add Folder
         </button>
-      </div>
+      </PageHeadingActions>
 
       <FolderList
         error={loadError}

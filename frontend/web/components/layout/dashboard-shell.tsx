@@ -1,7 +1,6 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { Suspense, useEffect, useState, type ReactNode } from 'react';
 import { getGamificationProfile, onGrowthReward } from '../../lib/gamification';
 import { CurrentUserProvider, useCurrentUser } from '../auth/current-user-provider';
@@ -13,6 +12,7 @@ import { Sidebar } from './sidebar';
 import { DashboardHeadingProvider } from './dashboard-heading-context';
 import { PageHeading } from './page-heading';
 import { PageEntrance } from './page-entrance';
+import { BrandedLoadingScreen } from './branded-loading-screen';
 
 type DashboardShellProps = {
   children: ReactNode;
@@ -147,6 +147,10 @@ function DashboardShellContent({
   // Do not mount navigation/notification loaders until the session is verified.
   // CSS-hidden shell components still run their effects and can compete with login.
   if (sessionStatus !== 'authenticated') {
+    if (sessionStatus !== 'unavailable') {
+      return <BrandedLoadingScreen fullScreen />;
+    }
+
     return (
       <main className="grid min-h-dvh place-items-center bg-dashboard-bg px-6 text-dashboard-text">
         <div
@@ -164,19 +168,7 @@ function DashboardShellContent({
                 Try again
               </button>
             </>
-          ) : sessionStatus === 'checking' ? (
-            <p>Checking your session...</p>
-          ) : (
-            <>
-              <p>Redirecting to sign in...</p>
-              <Link
-                className="mt-3 inline-block text-dashboard-accent hover:underline"
-                href="/login"
-              >
-                Go to sign in
-              </Link>
-            </>
-          )}
+          ) : null}
         </div>
       </main>
     );

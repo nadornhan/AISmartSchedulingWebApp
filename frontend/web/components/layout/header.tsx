@@ -2,9 +2,9 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { Moon, Sun, Zap } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { HeaderDropdown } from './header-dropdown';
-import { BellIcon, CalendarIcon, FilterIcon, SearchIcon } from './icons';
+import { BellIcon, CalendarIcon, FilterIcon, LightningIcon, SearchIcon } from './icons';
 import { NotificationDropdown, type NotificationDropdownItem } from './notification-dropdown';
 import type { UserResponse } from '../../lib/auth';
 import { onTaskDataChanged } from '../../lib/data-events';
@@ -104,7 +104,7 @@ export function SearchBox({
       className={cn(
         'flex items-center border border-dashboard-border bg-dashboard-surface/55 text-dashboard-muted shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition focus-within:border-dashboard-accent/60',
         compact
-          ? 'h-12 w-full rounded-xl px-4'
+          ? 'h-14 w-full rounded-xl px-4'
           : 'h-12 min-w-0 w-full max-w-[400px] rounded-lg px-5',
       )}
       onSubmit={handleSubmit}
@@ -319,7 +319,7 @@ export function HeaderActions({
           )}
           title="Total accumulated XP (Growth Points)"
         >
-          <Zap aria-hidden="true" className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+          <LightningIcon className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
           {totalXp == null ? '—' : totalXp.toLocaleString('en-AU')} XP
         </span>
       ) : null}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronRightIcon, PlusIcon } from '../layout/icons';
+import { BrandedLoadingScreen } from '../layout/branded-loading-screen';
 import { CreateTaskModal } from '../tasks/create-task-modal';
 
 import {
@@ -30,8 +31,12 @@ import { useCalendarTasks } from './use-calendar-tasks';
 
 export type { CalendarTask, CalendarTaskPriority, CalendarTaskStatus } from './calendar-model';
 
+type CalendarTransitionDirection = 'forward' | 'backward';
+
 export function CalendarPage() {
   const [calendarView, setCalendarView] = useState<CalendarView>('month');
+  const [transitionDirection, setTransitionDirection] =
+    useState<CalendarTransitionDirection>('forward');
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -148,33 +153,22 @@ export function CalendarPage() {
     }
 
     const dayDelta = calendarView === 'week' ? delta * 7 : delta;
-
-    setSelectedDate((current) => {
-      const next = addDays(current, dayDelta);
-      setVisibleMonth(new Date(next.getFullYear(), next.getMonth(), 1));
-      return next;
-    });
+    updateSelectedDate(addDays(selectedDate, dayDelta));
   }
 
   function moveSelectedDate(delta: number) {
-    setSelectedDate((current) => {
-      const next = addDays(current, delta);
-      setVisibleMonth(new Date(next.getFullYear(), next.getMonth(), 1));
-      return next;
-    });
+    updateSelectedDate(addDays(selectedDate, delta));
   }
 
   function moveMobileMonth(delta: number) {
-    setVisibleMonth((current) => {
-      const next = new Date(current.getFullYear(), current.getMonth() + delta, 1);
-      setSelectedDate(next);
-      return next;
-    });
+    const next = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + delta, 1);
+    setVisibleMonth(next);
+    updateSelectedDate(next);
   }
 
   function goToToday() {
     const today = new Date();
-    setSelectedDate(today);
+    updateSelectedDate(today);
     setVisibleMonth(new Date(today.getFullYear(), today.getMonth(), 1));
   }
 
@@ -187,8 +181,16 @@ export function CalendarPage() {
   }
 
   function selectDate(date: Date) {
-    setSelectedDate(date);
+    updateSelectedDate(date);
     setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+  }
+
+  function updateSelectedDate(nextDate: Date) {
+    if (dateKey(nextDate) !== dateKey(selectedDate)) {
+      setTransitionDirection(nextDate > selectedDate ? 'forward' : 'backward');
+    }
+    setSelectedDate(nextDate);
+    setVisibleMonth(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
   }
 
   return (
@@ -294,9 +296,7 @@ export function CalendarPage() {
           ) : null}
 
           {isLoading ? (
-            <div className="grid min-h-[360px] place-items-center text-sm text-dashboard-muted">
-              Loading calendar tasks...
-            </div>
+            <BrandedLoadingScreen className="min-h-[360px]" />
           ) : (
             <CalendarMainView
               calendarView={calendarView}
@@ -322,6 +322,7 @@ export function CalendarPage() {
           onToday={goToToday}
           onToggleTask={toggleTaskStatus}
           selectedDate={selectedDate}
+          transitionDirection={transitionDirection}
           showCompleted={showCompleted}
           tasks={selectedTasks}
         />

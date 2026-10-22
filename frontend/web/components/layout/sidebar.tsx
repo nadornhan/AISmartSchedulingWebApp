@@ -191,7 +191,7 @@ function NavLink({
     <Link
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group flex h-[52px] items-center gap-4 rounded-lg px-4 text-base font-medium transition-shadow',
+        'group flex h-[52px] items-center gap-4 rounded-lg px-4 text-base font-medium transition-all duration-200 ease-out motion-reduce:transition-none',
         collapsed && 'justify-center gap-0 px-0',
         active
           ? 'border-l-4 border-l-dashboard-accent bg-dashboard-accent/20 text-dashboard-accent'
@@ -203,7 +203,7 @@ function NavLink({
     >
       <Icon
         className={cn(
-          'h-[22px] w-[22px] shrink-0 transition',
+          'h-[22px] w-[22px] shrink-0 transition-colors duration-200 ease-out motion-reduce:transition-none',
           active
             ? 'text-dashboard-accent'
             : 'text-dashboard-muted group-hover:text-dashboard-accent',
@@ -213,10 +213,10 @@ function NavLink({
       {item.badge && !collapsed ? (
         <span
           className={cn(
-            'rounded-full px-3 py-1 text-sm font-semibold leading-none',
+            'rounded-full px-3 py-1 text-sm font-semibold leading-none transition-colors duration-200 ease-out motion-reduce:transition-none',
             active
               ? 'bg-dashboard-bg/25 text-dashboard-text'
-              : 'bg-dashboard-accent-soft text-dashboard-accent',
+              : 'bg-dashboard-accent-soft text-dashboard-text',
           )}
         >
           {item.badge}
@@ -471,7 +471,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 <Link
                   aria-current={activeProjectId === folder.id ? 'page' : undefined}
                   className={cn(
-                    'group flex h-12 items-center gap-4 rounded-lg px-4 text-base font-medium transition',
+                    'group flex h-12 items-center gap-4 rounded-lg px-4 text-base font-medium transition-all duration-200 ease-out motion-reduce:transition-none',
                     sidebarCollapsed && 'justify-center gap-0 px-0',
                     activeProjectId === folder.id
                       ? 'border-l-4 border-l-dashboard-accent bg-dashboard-accent/20 text-dashboard-accent'
@@ -492,10 +492,10 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   {!sidebarCollapsed ? (
                     <span
                       className={cn(
-                        'rounded-full px-3 py-1 text-sm font-semibold leading-none',
+                        'rounded-full px-3 py-1 text-sm font-semibold leading-none transition-colors duration-200 ease-out motion-reduce:transition-none',
                         activeProjectId === folder.id
                           ? 'bg-dashboard-bg/25 text-dashboard-text'
-                          : 'bg-dashboard-accent-soft text-dashboard-accent',
+                          : 'bg-dashboard-accent-soft text-dashboard-text',
                       )}
                     >
                       {folder.task_count}

@@ -373,122 +373,124 @@ export function AccountPage() {
               </span>
             </Link>
           </section>
-          <section
-            aria-labelledby="account-private-information"
-            className={accountSectionClassName}
-          >
-            <h2 className={sectionHeadingClassName} id="account-private-information">
-              Private information
-            </h2>
-            <div className={groupClassName}>
-              <button
-                aria-expanded={isEditingName}
-                className={`${rowClassName} w-full`}
-                onClick={() => {
-                  setProfileError(null);
-                  setIsEditingName((current) => !current);
-                  setFirstName(user?.first_name ?? '');
-                  setLastName(user?.last_name ?? '');
-                }}
-                type="button"
-              >
-                <UserRound aria-hidden="true" className="h-4 w-4 shrink-0 text-dashboard-muted" />
-                <span className="min-w-0 flex-1 text-left text-sm text-dashboard-text">Name</span>
-                <span className="max-w-[56%] truncate text-right text-sm text-dashboard-muted">
-                  {name}
-                </span>
-                <span className="grid h-6 w-4 shrink-0 place-items-center text-dashboard-subtle">
-                  {isEditingName ? (
-                    <ChevronDown aria-hidden="true" className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight aria-hidden="true" className="h-4 w-4" />
-                  )}
-                </span>
-              </button>
-              <div className={`${rowClassName} cursor-default hover:bg-transparent`}>
-                <AtSign aria-hidden="true" className="h-4 w-4 shrink-0 text-dashboard-muted" />
-                <span className="min-w-0 flex-1 text-sm text-dashboard-text">Email</span>
-                <span className="max-w-[65%] truncate text-right text-sm text-dashboard-muted">
-                  {user?.email ?? '—'}
-                </span>
-              </div>
-            </div>
-            {isEditingName ? (
-              <form
-                className="mt-4 space-y-3 rounded-2xl border border-dashboard-border bg-dashboard-raised p-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void saveName();
-                }}
-              >
-                <label className="grid gap-1.5 text-sm font-medium text-dashboard-text">
-                  First name
-                  <input
-                    autoComplete="given-name"
-                    className="h-11 rounded-xl border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text outline-none focus:border-dashboard-accent"
-                    disabled={isSavingName}
-                    maxLength={100}
-                    onChange={(event) => setFirstName(event.target.value)}
-                    required
-                    value={firstName}
-                  />
-                </label>
-                <label className="grid gap-1.5 text-sm font-medium text-dashboard-text">
-                  Last name
-                  <input
-                    autoComplete="family-name"
-                    className="h-11 rounded-xl border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text outline-none focus:border-dashboard-accent"
-                    disabled={isSavingName}
-                    maxLength={100}
-                    onChange={(event) => setLastName(event.target.value)}
-                    required
-                    value={lastName}
-                  />
-                </label>
-                {profileError ? (
-                  <p className="text-sm text-[var(--red-light)]" role="alert">
-                    {profileError}
-                  </p>
-                ) : null}
-                <div className="flex gap-2">
-                  <button
-                    className="h-10 flex-1 rounded-xl border border-dashboard-border px-3 text-sm font-medium text-dashboard-muted disabled:opacity-60"
-                    disabled={isSavingName}
-                    onClick={() => setIsEditingName(false)}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="h-10 flex-1 rounded-xl bg-dashboard-accent px-3 text-sm font-semibold text-dashboard-on-accent disabled:opacity-60"
-                    disabled={isSavingName || !firstName.trim() || !lastName.trim()}
-                    type="submit"
-                  >
-                    {isSavingName ? 'Saving…' : 'Save name'}
-                  </button>
+          <div className="grid gap-6 md:grid-cols-2">
+            <section
+              aria-labelledby="account-private-information"
+              className={accountSectionClassName}
+            >
+              <h2 className={sectionHeadingClassName} id="account-private-information">
+                Private information
+              </h2>
+              <div className={groupClassName}>
+                <button
+                  aria-expanded={isEditingName}
+                  className={`${rowClassName} w-full`}
+                  onClick={() => {
+                    setProfileError(null);
+                    setIsEditingName((current) => !current);
+                    setFirstName(user?.first_name ?? '');
+                    setLastName(user?.last_name ?? '');
+                  }}
+                  type="button"
+                >
+                  <UserRound aria-hidden="true" className="h-4 w-4 shrink-0 text-dashboard-muted" />
+                  <span className="min-w-0 flex-1 text-left text-sm text-dashboard-text">Name</span>
+                  <span className="max-w-[56%] truncate text-right text-sm text-dashboard-muted">
+                    {name}
+                  </span>
+                  <span className="grid h-6 w-4 shrink-0 place-items-center text-dashboard-subtle">
+                    {isEditingName ? (
+                      <ChevronDown aria-hidden="true" className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight aria-hidden="true" className="h-4 w-4" />
+                    )}
+                  </span>
+                </button>
+                <div className={`${rowClassName} cursor-default hover:bg-transparent`}>
+                  <AtSign aria-hidden="true" className="h-4 w-4 shrink-0 text-dashboard-muted" />
+                  <span className="min-w-0 flex-1 text-sm text-dashboard-text">Email</span>
+                  <span className="max-w-[65%] truncate text-right text-sm text-dashboard-muted">
+                    {user?.email ?? '—'}
+                  </span>
                 </div>
-              </form>
-            ) : null}
-          </section>
-          <section aria-labelledby="account-progress" className={accountSectionClassName}>
-            <h2 className={sectionHeadingClassName} id="account-progress">
-              Your progress
-            </h2>
-            <div className={groupClassName}>
-              <AccountLink
-                href="/analytics"
-                icon={ChartLine}
-                label="AI Insights"
-                value="View insights"
-              />
-              <AccountLink
-                href="/gamification"
-                icon={TreePine}
-                label="Personal Forest"
-                value="View forest"
-              />
-            </div>
-          </section>
+              </div>
+              {isEditingName ? (
+                <form
+                  className="mt-4 space-y-3 rounded-2xl border border-dashboard-border bg-dashboard-raised p-4"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void saveName();
+                  }}
+                >
+                  <label className="grid gap-1.5 text-sm font-medium text-dashboard-text">
+                    First name
+                    <input
+                      autoComplete="given-name"
+                      className="h-11 rounded-xl border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text outline-none focus:border-dashboard-accent"
+                      disabled={isSavingName}
+                      maxLength={100}
+                      onChange={(event) => setFirstName(event.target.value)}
+                      required
+                      value={firstName}
+                    />
+                  </label>
+                  <label className="grid gap-1.5 text-sm font-medium text-dashboard-text">
+                    Last name
+                    <input
+                      autoComplete="family-name"
+                      className="h-11 rounded-xl border border-dashboard-border bg-[var(--bg-input)] px-3 text-sm text-dashboard-text outline-none focus:border-dashboard-accent"
+                      disabled={isSavingName}
+                      maxLength={100}
+                      onChange={(event) => setLastName(event.target.value)}
+                      required
+                      value={lastName}
+                    />
+                  </label>
+                  {profileError ? (
+                    <p className="text-sm text-[var(--red-light)]" role="alert">
+                      {profileError}
+                    </p>
+                  ) : null}
+                  <div className="flex gap-2">
+                    <button
+                      className="h-10 flex-1 rounded-xl border border-dashboard-border px-3 text-sm font-medium text-dashboard-muted disabled:opacity-60"
+                      disabled={isSavingName}
+                      onClick={() => setIsEditingName(false)}
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="h-10 flex-1 rounded-xl bg-dashboard-accent px-3 text-sm font-semibold text-dashboard-on-accent disabled:opacity-60"
+                      disabled={isSavingName || !firstName.trim() || !lastName.trim()}
+                      type="submit"
+                    >
+                      {isSavingName ? 'Saving…' : 'Save name'}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
+            </section>
+            <section aria-labelledby="account-progress" className={accountSectionClassName}>
+              <h2 className={sectionHeadingClassName} id="account-progress">
+                Your progress
+              </h2>
+              <div className={groupClassName}>
+                <AccountLink
+                  href="/analytics"
+                  icon={ChartLine}
+                  label="AI Insights"
+                  value="View insights"
+                />
+                <AccountLink
+                  href="/gamification"
+                  icon={TreePine}
+                  label="Personal Forest"
+                  value="View forest"
+                />
+              </div>
+            </section>
+          </div>
         </div>
 
         <section aria-labelledby="account-mobile-preferences" className="md:hidden">
