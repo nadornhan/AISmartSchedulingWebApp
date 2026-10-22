@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {
   CalendarDays,
   CalendarClock,
-  CircleCheck,
   ClipboardList,
   RotateCcw,
   ShieldCheck,

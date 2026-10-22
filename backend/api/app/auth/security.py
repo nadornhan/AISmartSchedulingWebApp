@@ -1,3 +1,5 @@
+# Authors (Git history): Nguyen Thanh Nhan
+# Password hashing and signed bearer-token validation. See AUTHORS.md and docs/AUTHORSHIP.json.
 from datetime import UTC, datetime, timedelta
 
 import jwt

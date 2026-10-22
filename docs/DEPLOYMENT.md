@@ -1,7 +1,8 @@
 # CHRONO deployment guide
 
-This guide covers the release path from `develop` to a production deployment.
-Deploy to a staging URL before buying or connecting a custom domain.
+This guide covers staging configuration and the controlled production release path.
+The demonstration uses https://chronow.org and https://api.chronow.org, with
+Cloudflare DNS, Vercel web hosting and Render API/PostgreSQL hosting.
 
 ## Production architecture
 
@@ -24,7 +25,8 @@ topology:
 
 - `render.yaml` provisions the FastAPI service and a managed PostgreSQL
   database in Render's Singapore region.
-- `vercel.json` builds the Next.js app from the monorepo root on Vercel.
+- `frontend/web/vercel.json` configures the web package; set the Vercel project
+  root to `frontend/web` for the current managed setup.
 
 Create staging in this order:
 
@@ -35,8 +37,8 @@ Create staging in this order:
    URL.
 3. Wait for `/health/live` and `/health/ready` to return HTTP 200, then copy the
    Render API URL.
-4. In Vercel, import this repository with the repository root as the project
-   root and set server-side `API_URL` to the Render API URL before deploying.
+4. In Vercel, import this repository with `frontend/web` as the project root
+   and set server-side `API_URL` to the Render API URL before deploying.
 5. Copy the stable Vercel project URL into Render's `CORS_ORIGINS`, without a
    trailing slash, and redeploy the API.
 6. Redeploy Vercel if the API URL changes. Existing `NEXT_PUBLIC_API_URL` values
@@ -64,16 +66,16 @@ database files on the API filesystem.
 Copy `.env.production.example` to `.env.production` only when testing the
 production Compose stack locally. Required values are:
 
-| Variable              | Purpose                                                             |
-| --------------------- | ------------------------------------------------------------------- |
-| `APP_ENVIRONMENT`     | Set to `staging` or `production`.                                   |
-| `DATABASE_URL`        | PostgreSQL SQLAlchemy URL.                                          |
-| `JWT_SECRET_KEY`      | Private JWT signing secret, at least 32 characters.                 |
-| `API_URL`            | Server-side API URL used by Next.js. Use the Render HTTPS URL on Vercel; Compose defaults to `http://api:8000` on its internal network. |
-| `NEXT_PUBLIC_API_URL` | Legacy fallback API URL, retained for existing deployments/builds. |
-| `CORS_ORIGINS`        | Comma-separated exact frontend origins, without paths.              |
-| `GEMINI_API_KEY`      | New server-side Gemini key. Never expose it to Next.js.             |
-| `UPLOAD_DIR`          | Persistent avatar directory; `/app/uploads` in production Compose.  |
+| Variable              | Purpose                                                                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `APP_ENVIRONMENT`     | Set to `staging` or `production`.                                                                                                       |
+| `DATABASE_URL`        | PostgreSQL SQLAlchemy URL.                                                                                                              |
+| `JWT_SECRET_KEY`      | Private JWT signing secret, at least 32 characters.                                                                                     |
+| `API_URL`             | Server-side API URL used by Next.js. Use the Render HTTPS URL on Vercel; Compose defaults to `http://api:8000` on its internal network. |
+| `NEXT_PUBLIC_API_URL` | Legacy fallback API URL, retained for existing deployments/builds.                                                                      |
+| `CORS_ORIGINS`        | Comma-separated exact frontend origins, without paths.                                                                                  |
+| `GEMINI_API_KEY`      | New server-side Gemini key. Never expose it to Next.js.                                                                                 |
+| `UPLOAD_DIR`          | Persistent avatar directory; `/app/uploads` in production Compose.                                                                      |
 
 Leave `CORS_ALLOW_ORIGIN_REGEX` empty outside local development. Add every
 staging/production frontend origin explicitly to `CORS_ORIGINS`.
