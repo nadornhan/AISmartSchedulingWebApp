@@ -25,6 +25,7 @@ export type UserResponse = {
 };
 
 let cachedUser: { user: UserResponse; sessionKey: string } | null = null;
+let pendingLoginUser: { user: UserResponse; sessionKey: string } | null = null;
 
 function cacheCurrentUser(user: UserResponse, sessionKey: string, signal?: AbortSignal) {
   if (!signal?.aborted && getSessionKey() === sessionKey) {
@@ -53,8 +54,8 @@ export async function registerUser(input: RegisterUserInput): Promise<UserRespon
 /**
  * Sign in through the server route, which sets an HttpOnly session cookie.
  */
-export async function loginUser(email: string, password: string): Promise<void> {
-  await apiRequest<{ authenticated: boolean }>('/auth/login', {
+export async function loginUser(email: string, password: string): Promise<UserResponse> {
+  const response = await apiRequest<{ authenticated: boolean; user: UserResponse }>('/auth/login', {
     auth: false,
     method: 'POST',
     body: JSON.stringify({
@@ -64,7 +65,19 @@ export async function loginUser(email: string, password: string): Promise<void> 
   });
 
   cachedUser = null;
+  pendingLoginUser = null;
   rotateSessionKey();
+  const sessionKey = getSessionKey();
+  cacheCurrentUser(response.user, sessionKey);
+  pendingLoginUser = { user: response.user, sessionKey };
+  return response.user;
+}
+
+/** Consume the profile returned by a successful login for the first dashboard mount. */
+export function takePendingLoginUser(): UserResponse | null {
+  const pending = pendingLoginUser;
+  pendingLoginUser = null;
+  return pending?.sessionKey === getSessionKey() ? pending.user : null;
 }
 
 /**
@@ -147,6 +160,7 @@ export function getCachedCurrentUser(): UserResponse | null {
 export function clearSession(): void {
   clearClientSession();
   cachedUser = null;
+  pendingLoginUser = null;
 }
 
 /**
@@ -154,9 +168,7 @@ export function clearSession(): void {
  */
 export async function registerAndSignIn(input: RegisterUserInput): Promise<UserResponse> {
   await registerUser(input);
-  await loginUser(input.email, input.password);
-
-  return getCurrentUser();
+  return loginUser(input.email, input.password);
 }
 
 /**

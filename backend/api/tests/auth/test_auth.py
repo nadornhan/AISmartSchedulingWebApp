@@ -153,7 +153,16 @@ def test_login_returns_bearer_token_and_me_returns_current_user(
     client: TestClient,
 ) -> None:
     email, password, registered_user = register_user(client)
-    headers = auth_headers_for(email.upper(), password, client)
+    login_response = client.post(
+        "/auth/login",
+        json={"email": email.upper(), "password": password},
+    )
+    assert login_response.status_code == 200
+    login_payload = login_response.json()
+    assert "access_token" in login_payload
+    assert login_payload["user"]["id"] == registered_user["id"]
+    assert login_payload["user"]["email"] == email.lower()
+    headers = {"Authorization": f"Bearer {login_payload['access_token']}"}
 
     response = client.get("/auth/me", headers=headers)
 

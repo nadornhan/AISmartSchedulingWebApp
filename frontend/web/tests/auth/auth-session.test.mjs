@@ -205,13 +205,14 @@ function deferred() {
   });
   return { promise, resolve, reject };
 }
-function harness(getCurrentUser = async () => user, onVerified, endSession) {
+function harness(getCurrentUser = async () => user, onVerified, endSession, takeInitialUser) {
   let token = 'token-a';
   let clears = 0;
   let redirects = 0;
   const session = createCurrentUserSession({
     getSessionKey: () => token,
     getCurrentUser,
+    takeInitialUser,
     clearSession: () => {
       token = null;
       clears += 1;
@@ -246,6 +247,34 @@ test('sign-out waits for server cookie deletion before redirecting', async () =>
   assert.equal(h.redirects(), 1);
 });
 
+test('successful login profile authenticates the first dashboard mount without another request', async () => {
+  let profileReads = 0;
+  let pendingUser = user;
+  const h = harness(
+    async () => {
+      profileReads += 1;
+      return user;
+    },
+    undefined,
+    undefined,
+    () => {
+      const initialUser = pendingUser;
+      pendingUser = null;
+      return initialUser;
+    },
+  );
+
+  await h.session.start();
+  assert.equal(h.session.getSnapshot().status, 'authenticated');
+  assert.equal(h.session.getSnapshot().user, user);
+  assert.equal(profileReads, 0);
+
+  h.session.dispose();
+  await h.session.start();
+  assert.equal(profileReads, 0);
+  h.session.dispose();
+});
+
 test('failed cookie deletion reports a retryable failure instead of claiming logout succeeded', async () => {
   const h = harness(async () => user, undefined, async () => { throw new Error('Offline'); });
   await h.session.start();
@@ -272,12 +301,14 @@ test('browser login uses the same-origin proxy and stores no credentials or prof
     fetch: async (url, init) => {
       calls.push({ url, ...init });
       if (url.endsWith('/auth/logout')) return new globalThis.Response(null, { status: 204 });
-      return new globalThis.Response(JSON.stringify(url.endsWith('/auth/login') ? { authenticated: true } : user));
+      return new globalThis.Response(JSON.stringify(url.endsWith('/auth/login') ? { authenticated: true, user } : user));
     },
   };
   const api = loadSource('lib/api.ts', {}, globals);
   const auth = loadSource('lib/auth.ts', { './api': api, './settings': {} }, globals);
   await auth.loginUser('test@example.com', 'password');
+  assert.equal(auth.takePendingLoginUser().id, user.id);
+  assert.equal(auth.takePendingLoginUser(), null);
   await auth.getCurrentUser();
   await api.apiRequest('/tasks', { method: 'PATCH', headers: { Authorization: 'Bearer legacy-secret' }, body: '{}' });
   assert.deepEqual(calls.map((call) => call.url), ['/api/auth/login', '/api/auth/me', '/api/tasks']);

@@ -146,6 +146,9 @@ export async function proxyApiRequest(request: Request, path: string[]): Promise
       if (typeof data.access_token !== 'string' || !/^[a-zA-Z0-9_.-]+$/.test(data.access_token)) {
         return jsonError('Invalid authentication response', 502);
       }
+      if (!data.user || typeof data.user !== 'object' || typeof data.user.id !== 'string') {
+        return jsonError('Invalid authentication response', 502);
+      }
       // The token came from the configured API; the API still verifies its signature
       // on every protected request. Read exp only to match the cookie's lifetime.
       const claims = JSON.parse(
@@ -155,7 +158,7 @@ export async function proxyApiRequest(request: Request, path: string[]): Promise
       if (!Number.isFinite(maxAge) || maxAge <= 0)
         return jsonError('Expired authentication response', 502);
       const response = NextResponse.json(
-        { authenticated: true },
+        { authenticated: true, user: data.user },
         { headers: { 'Cache-Control': 'no-store' } },
       );
       response.cookies.set(SESSION_COOKIE, data.access_token, {

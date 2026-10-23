@@ -8,6 +8,10 @@ import ts from 'typescript';
 const origin = 'https://chrono.example';
 const jwt = (exp = Math.floor(Date.now() / 1000) + 1800) =>
   `header.${Buffer.from(JSON.stringify({ sub: 'user-a', exp })).toString('base64url')}.signature`;
+const user = {
+  id: 'user-a', email: 'user@example.com', first_name: 'Test', last_name: 'User', role: 'student',
+  avatar_url: null, is_active: true, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+};
 
 function harness(fetchResponse, production = true) {
   const calls = [];
@@ -48,10 +52,10 @@ function harness(fetchResponse, production = true) {
 for (const production of [true, false]) {
   test(`login creates an HttpOnly cookie, never returns a token (${production ? 'production' : 'development'})`, async () => {
     const token = jwt();
-    const h = harness(() => Response.json({ access_token: token, token_type: 'bearer' }), production);
+    const h = harness(() => Response.json({ access_token: token, token_type: 'bearer', user }), production);
     const response = await h.request(['auth', 'login'], { method: 'POST', body: '{"email":"user@example.com","password":"test"}' });
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { authenticated: true });
+    assert.deepEqual(await response.json(), { authenticated: true, user });
     const cookie = response.headers.get('set-cookie');
     assert.match(cookie, /HttpOnly/i);
     assert.match(cookie, /SameSite=lax/i);
@@ -160,6 +164,13 @@ for (const token of ['malformed', jwt(1)]) {
     assert.equal((await response.text()).includes(token), false);
   });
 }
+
+test('login rejects a response without a public user profile and never sets a cookie', async () => {
+  const h = harness(() => Response.json({ access_token: jwt() }));
+  const response = await h.request(['auth', 'login'], { method: 'POST' });
+  assert.equal(response.status, 502);
+  assert.equal(response.headers.get('set-cookie'), null);
+});
 
 test('failed login preserves the current cookie; an old 401 cannot clear a newer login', async () => {
   const h = harness(() => Response.json({ detail: 'Invalid credentials' }, { status: 401 }));

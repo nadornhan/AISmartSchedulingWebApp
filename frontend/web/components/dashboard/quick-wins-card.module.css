@@ -1,3 +1,16 @@
+.emptyState {
+  background-color: var(--dashboard-bg);
+  background-image:
+    linear-gradient(180deg, rgb(4 10 17 / 28%), rgb(4 10 17 / 34%)),
+    url('/images/quick-wins-empty-bg.webp');
+  background-position: center;
+  background-size: cover;
+}
+
+:global(:root[data-theme='light']) .emptyState {
+  background-image: none;
+}
+
 .slideViewport {
   display: flex;
   min-height: 0;

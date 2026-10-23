@@ -14,6 +14,7 @@ export type SessionSnapshot = {
 type SessionDependencies = {
   getSessionKey: () => string | null;
   getCurrentUser: (signal: AbortSignal) => Promise<UserResponse>;
+  takeInitialUser?: () => UserResponse | null;
   clearSession: () => void;
   endSession?: () => Promise<void>;
   onUnauthenticated: () => void;
@@ -111,6 +112,25 @@ export function createCurrentUserSession(dependencies: SessionDependencies) {
           unauthenticate(message);
         }
       });
+      const sessionKey = dependencies.getSessionKey();
+      if (snapshot.status === 'authenticated' && verifiedSessionKey === sessionKey) {
+        if (!controller || controller.signal.aborted) {
+          const requestController = new AbortController();
+          controller = requestController;
+          void dependencies.onVerified?.(requestController.signal).catch(() => undefined);
+        }
+        return Promise.resolve(snapshot.user);
+      }
+      const initialUser = dependencies.takeInitialUser?.();
+      if (initialUser && sessionKey) {
+        invalidate();
+        const requestController = new AbortController();
+        controller = requestController;
+        verifiedSessionKey = sessionKey;
+        publish({ user: initialUser, status: 'authenticated', error: null });
+        void dependencies.onVerified?.(requestController.signal).catch(() => undefined);
+        return Promise.resolve(initialUser);
+      }
       return refresh();
     },
     refresh,

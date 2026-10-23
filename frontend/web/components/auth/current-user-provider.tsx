@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import { clearSession, getCurrentUser, logout, type UserResponse } from '../../lib/auth';
+import { clearSession, getCurrentUser, logout, takePendingLoginUser, type UserResponse } from '../../lib/auth';
 import { getSessionKey, onUnauthorized } from '../../lib/api';
 import { createCurrentUserSession, type SessionStatus } from '../../lib/auth-session';
 import { detectBrowserTimezone } from '../../lib/settings';
@@ -58,6 +58,7 @@ export function CurrentUserProvider({
           process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true'
             ? Promise.resolve(localBypassUser())
             : getCurrentUser({ signal }),
+        takeInitialUser: takePendingLoginUser,
         clearSession,
         endSession: logout,
         onUnauthenticated: () => router.replace('/login'),

@@ -77,7 +77,7 @@ def login(
 
     access_token = create_access_token(str(user.id))
 
-    return TokenResponse(access_token=access_token)
+    return TokenResponse(access_token=access_token, user=user)
 
 
 @router.get("/me", response_model=UserResponse)
