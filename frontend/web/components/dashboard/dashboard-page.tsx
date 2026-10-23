@@ -152,7 +152,7 @@ export function DashboardPage() {
     <div className="mx-auto max-w-[1480px] space-y-8">
       <section
         aria-label="Today at a glance"
-        className="grid grid-cols-2 gap-x-[clamp(0.75rem,5vw,1.25rem)] gap-y-6 sm:gap-x-4 sm:gap-y-6 xl:grid-cols-4 xl:gap-4"
+        className="grid grid-cols-2 gap-x-[clamp(0.5rem,3vw,1rem)] gap-y-4 sm:gap-x-4 sm:gap-y-5 xl:grid-cols-4 xl:gap-4"
       >
         <DashboardStatCard
           icon={<CheckIcon className="h-5 w-5" />}

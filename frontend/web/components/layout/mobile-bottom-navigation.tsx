@@ -2,38 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import type { SVGProps } from 'react';
-import { CircleUserRound } from 'lucide-react';
-import {
-  CalendarIcon,
-  PlusIcon,
-  TasksIcon,
-} from './icons';
-
-type NavIconProps = SVGProps<SVGSVGElement>;
-
-function HomeIcon(props: NavIconProps) {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.8"
-      viewBox="0 0 24 24"
-      {...props}
-    >
-      <path d="m3 11 9-8 9 8" />
-      <path d="M5 10v10h14V10" />
-      <path d="M9 20v-6h6v6" />
-    </svg>
-  );
-}
+import { CircleUserRound, House, ListTodo, Plus } from 'lucide-react';
+import { CalendarIcon } from './icons';
 
 const primaryItems = [
-  { href: '/dashboard', label: 'Home', icon: HomeIcon },
-  { href: '/tasks', label: 'Tasks', icon: TasksIcon },
+  { href: '/dashboard', label: 'Home', icon: House },
+  { href: '/tasks', label: 'Tasks', icon: ListTodo },
   { href: '/calendar', label: 'Calendar', icon: CalendarIcon },
 ] as const;
 
@@ -61,7 +35,7 @@ export function MobileBottomNavigation() {
     <>
       <nav
         aria-label="Mobile navigation"
-        className="fixed inset-x-0 bottom-0 z-[190] border-t border-dashboard-border bg-[var(--bg-sidebar)] px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgb(var(--shadow-color)/calc(0.18*var(--shadow-strength)))] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-[190] border-t border-dashboard-border bg-[var(--bg-sidebar)] px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2 lg:hidden"
       >
         <div className="mx-auto grid max-w-lg grid-cols-5 items-end">
           {primaryItems.slice(0, 2).map((item) => {
@@ -70,11 +44,11 @@ export function MobileBottomNavigation() {
             return (
               <Link
                 aria-current={active ? 'page' : undefined}
-                className={`flex min-h-16 flex-col items-center justify-center gap-1 text-xs transition ${active ? 'text-dashboard-accent' : 'text-dashboard-subtle hover:text-dashboard-text'}`}
+                className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent ${active ? 'text-dashboard-accent' : 'text-dashboard-muted hover:text-dashboard-text'}`}
                 href={item.href}
                 key={item.href}
               >
-                <Icon className="h-6 w-6" />
+                <Icon aria-hidden="true" className="h-6 w-6" strokeWidth={1.8} />
                 <span>{item.label}</span>
               </Link>
             );
@@ -82,12 +56,12 @@ export function MobileBottomNavigation() {
 
           <button
             aria-label="Create task"
-            className="group flex min-h-16 flex-col items-center justify-end"
+            className="group flex min-h-16 flex-col items-center justify-end rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
             onClick={openCreateTask}
             type="button"
           >
-            <span className="grid h-16 w-16 -translate-y-3 place-items-center rounded-full border-[5px] border-[var(--bg-sidebar)] bg-gradient-to-br from-dashboard-accent to-dashboard-accent-strong text-dashboard-on-accent shadow-[0_10px_24px_rgba(32,201,157,0.28)] transition group-active:scale-95">
-              <PlusIcon className="h-8 w-8" />
+            <span className="grid h-16 w-16 -translate-y-3 place-items-center rounded-full border-[5px] border-[var(--bg-sidebar)] bg-dashboard-accent text-dashboard-on-accent shadow-[0_8px_20px_rgba(32,201,157,0.18)] transition group-hover:bg-dashboard-accent-strong group-active:scale-95">
+              <Plus aria-hidden="true" className="h-8 w-8" strokeWidth={1.8} />
             </span>
           </button>
 
@@ -97,11 +71,11 @@ export function MobileBottomNavigation() {
             return (
               <Link
                 aria-current={active ? 'page' : undefined}
-                className={`flex min-h-16 flex-col items-center justify-center gap-1 text-xs transition ${active ? 'text-dashboard-accent' : 'text-dashboard-subtle hover:text-dashboard-text'}`}
+                className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent ${active ? 'text-dashboard-accent' : 'text-dashboard-muted hover:text-dashboard-text'}`}
                 href={item.href}
                 key={item.href}
               >
-                <Icon className="h-6 w-6" />
+                <Icon aria-hidden="true" className="h-6 w-6" strokeWidth={1.8} />
                 <span>{item.label}</span>
               </Link>
             );
@@ -109,10 +83,10 @@ export function MobileBottomNavigation() {
 
           <Link
             aria-current={accountIsActive ? 'page' : undefined}
-            className={`flex min-h-16 flex-col items-center justify-center gap-1 text-xs transition ${accountIsActive ? 'text-dashboard-accent' : 'text-dashboard-subtle hover:text-dashboard-text'}`}
+            className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent ${accountIsActive ? 'text-dashboard-accent' : 'text-dashboard-muted hover:text-dashboard-text'}`}
             href="/account"
           >
-            <CircleUserRound aria-hidden="true" className="h-6 w-6" />
+            <CircleUserRound aria-hidden="true" className="h-6 w-6" strokeWidth={1.8} />
             <span>Account</span>
           </Link>
         </div>

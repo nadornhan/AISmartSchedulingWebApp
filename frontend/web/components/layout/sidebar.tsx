@@ -213,7 +213,7 @@ function NavLink({
       {item.badge && !collapsed ? (
         <span
           className={cn(
-            'rounded-full px-3 py-1 text-sm font-semibold leading-none transition-colors duration-200 ease-out motion-reduce:transition-none',
+            'rounded-full px-3 py-1 text-sm font-medium leading-none transition-colors duration-200 ease-out motion-reduce:transition-none',
             active
               ? 'bg-dashboard-bg/25 text-dashboard-text'
               : 'bg-dashboard-accent-soft text-dashboard-text',
@@ -492,7 +492,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   {!sidebarCollapsed ? (
                     <span
                       className={cn(
-                        'rounded-full px-3 py-1 text-sm font-semibold leading-none transition-colors duration-200 ease-out motion-reduce:transition-none',
+                        'rounded-full px-3 py-1 text-sm font-medium leading-none transition-colors duration-200 ease-out motion-reduce:transition-none',
                         activeProjectId === folder.id
                           ? 'bg-dashboard-bg/25 text-dashboard-text'
                           : 'bg-dashboard-accent-soft text-dashboard-text',

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 import type { DashboardTaskSummary } from '../../lib/dashboard';
-import { CalendarIcon, CheckIcon } from '../layout/icons';
+import { CheckIcon, LightningIcon } from '../layout/icons';
 import { DashboardTaskCard } from './dashboard-task-card';
 import { DashboardPagination } from './dashboard-pagination';
 import styles from './quick-wins-card.module.css';
@@ -82,12 +82,9 @@ export function QuickWinsCard({
         >
           <div className="flex flex-col items-center">
             <span className="mb-3 grid h-12 w-12 place-items-center rounded-xl border border-dashboard-accent/20 bg-dashboard-bg/70 text-dashboard-accent shadow-panel">
-              <CalendarIcon aria-hidden="true" className="h-5 w-5" />
+              <LightningIcon aria-hidden="true" className="h-5 w-5" />
             </span>
-            <p className="text-sm font-semibold text-dashboard-text">No quick wins yet</p>
-            <p className="mt-1 max-w-64 text-xs leading-relaxed text-dashboard-muted">
-              Tasks estimated at 10 minutes or less will show up here.
-            </p>
+            <p className="text-sm font-medium text-dashboard-text">No quick wins yet</p>
           </div>
         </div>
       )}

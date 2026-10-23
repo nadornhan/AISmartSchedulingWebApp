@@ -251,7 +251,7 @@ export function FocusMode() {
             </p>
           </div>
 
-          <label className="flex h-10 w-full items-center gap-2 rounded-xl border border-dashboard-border bg-dashboard-bg/60 px-3 transition focus-within:border-dashboard-accent/60 sm:w-72">
+          <label className="flex h-12 w-full items-center gap-2 rounded-xl border border-dashboard-border bg-dashboard-bg/60 px-3 transition focus-within:border-dashboard-accent/60 sm:w-72">
             <SearchIcon />
             <input
               className="min-w-0 flex-1 bg-transparent text-sm text-dashboard-text outline-none placeholder:text-dashboard-muted"

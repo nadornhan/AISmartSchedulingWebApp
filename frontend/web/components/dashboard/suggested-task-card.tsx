@@ -30,7 +30,7 @@ export function SuggestedTaskCard({
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 z-0 h-56 bg-[url('/images/dashboard/ai-suggestion-mountains-v2.webp')] bg-cover bg-[position:right_42%]"
+        className="suggested-task-card-background pointer-events-none absolute inset-x-0 top-0 z-0 h-56 bg-[url('/images/dashboard/ai-suggestion-mountains-v2.webp')] bg-cover bg-[position:right_42%]"
       />
       <div
         aria-hidden="true"
