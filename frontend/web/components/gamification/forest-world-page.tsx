@@ -13,18 +13,16 @@ import {
 } from '../../lib/gamification';
 import { EditableForestName } from './editable-forest-name';
 import { EditablePlantName } from './editable-plant-name';
+import { ForestAmbientAudio } from './forest-ambient-audio';
 import { PlantVisual } from './plant-visual';
 import { BrandedLoadingScreen } from '../layout/branded-loading-screen';
 
-const ForestScene3D = dynamic(
-  () => import('./forest-scene-3d').then((mod) => mod.ForestScene3D),
-  {
-    ssr: false,
-    loading: () => (
-      <BrandedLoadingScreen className="h-[min(70vh,640px)] rounded-xl border border-dashboard-border bg-[#87c7f5]" />
-    ),
-  },
-);
+const ForestScene3D = dynamic(() => import('./forest-scene-3d').then((mod) => mod.ForestScene3D), {
+  ssr: false,
+  loading: () => (
+    <BrandedLoadingScreen className="h-[min(70vh,640px)] rounded-xl border border-dashboard-border bg-[#87c7f5]" />
+  ),
+});
 
 export function ForestWorldPage() {
   const [scene, setScene] = useState<ForestSceneResponse | null>(null);
@@ -112,9 +110,7 @@ export function ForestWorldPage() {
       setPlacingPlantId(null);
       setRotationDraft(updated.position?.rotation_y ?? 0);
     } catch (requestError) {
-      setError(
-        requestError instanceof Error ? requestError.message : 'Unable to place that tree.',
-      );
+      setError(requestError instanceof Error ? requestError.message : 'Unable to place that tree.');
     } finally {
       setBusy(false);
     }
@@ -190,6 +186,7 @@ export function ForestWorldPage() {
           {error ? <p className="mt-2 text-sm text-[var(--red-light)]">{error}</p> : null}
         </div>
         <div className="flex flex-wrap gap-3">
+          <ForestAmbientAudio />
           <button
             className="rounded-lg border border-dashboard-border bg-dashboard-surface px-4 py-2 text-sm font-medium text-dashboard-text transition hover:border-dashboard-accent/50"
             onClick={() => setCameraResetKey((value) => value + 1)}

@@ -14,6 +14,14 @@ The web layout uses Geist and Poppins via Next.js Google Fonts integration. Upst
 
 Runtime graphics/models are under frontend/web/public. Editable plant assets and generation scripts are under assets/3d and tools/blender; existing asset READMEs are preserved. Some graphics were created with AI-assisted design as reflected in project documentation. Asset inclusion does not assert ownership of external brand marks.
 
+### Forest Ambience
+
+- **Title:** Forest Ambience
+- **Author:** TinyWorlds
+- **Source:** https://opengameart.org/content/forest-ambience
+- **License:** Creative Commons Zero (CC0 1.0)
+- **Use in CHRONO:** A 90-second seamless loop is used as the optional background ambience in the 3D Forest.
+
 ## Original implementation
 
 No general open-source licence is declared for team-owned code. This package is supplied for academic assessment. Obtain relevant owners' permission for redistribution outside that purpose and preserve upstream notices.
