@@ -203,6 +203,24 @@ test('a slower previous filter response cannot replace the current results', asy
   assert.equal((await h.settle()).tasks[0].id, 'new-query');
 });
 
+test('task loading waits for the viewport and switches between the complete mobile list and desktop page', async () => {
+  const h = harness({}, { enabled: false, page: 3 });
+  h.render();
+  await h.settle();
+  assert.equal(h.calls.filter((call) => !call.counts).length, 0);
+  h.render({ enabled: true, allTasks: true });
+  await h.settle();
+  assert.deepEqual(h.calls.filter((call) => !call.counts).at(-1), {
+    sortBy: 'due_date', sortOrder: 'asc', page: 1, pageSize: 8, all: true,
+  });
+  h.render({ allTasks: false });
+  await h.settle();
+  assert.deepEqual(h.calls.filter((call) => !call.counts).at(-1), {
+    sortBy: 'due_date', sortOrder: 'asc', page: 3, pageSize: 8,
+  });
+  h.dispose();
+});
+
 test('initial load retains query defaults, counts, projects and selection/menu reset', async () => {
   const h = harness();
   assert.equal(h.render().isLoading, true);

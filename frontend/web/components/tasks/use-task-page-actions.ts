@@ -12,6 +12,7 @@ import {
   updateTask,
   type TaskCreateInput,
   type TaskResponse,
+  type TaskPriorityValue,
   type TaskUpdateInput,
 } from '../../lib/tasks';
 import {
@@ -112,6 +113,20 @@ export function useTaskPageActions({
     setError(null);
     try {
       await bulkUpdateTasks({ task_ids: selected, status: 'done' });
+      await Promise.all([refreshTasks(), refreshCounts()]);
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function changeSelectedPriority(priority: TaskPriorityValue) {
+    if (!selected.length || isMutating) return;
+    setIsMutating(true);
+    setError(null);
+    try {
+      await bulkUpdateTasks({ task_ids: selected, priority });
       await Promise.all([refreshTasks(), refreshCounts()]);
     } catch (requestError) {
       setError(getErrorMessage(requestError));
@@ -286,6 +301,7 @@ export function useTaskPageActions({
     toggleSubtask,
     changeStatus,
     completeSelected,
+    changeSelectedPriority,
     deleteSelected,
     moveSelected,
     handleDuplicate,

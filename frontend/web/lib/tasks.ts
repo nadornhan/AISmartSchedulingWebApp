@@ -80,7 +80,7 @@ export type TaskListResponse = {
 export type TaskCounts = { total: number; pending: number; in_progress: number; done: number; overdue: number };
 
 export function getCachedTaskList(params: TaskListParams) {
-  return peekReadCache<TaskListResponse>(getSessionKey(), 'tasks', `list${taskQuery(params)}`);
+  return peekReadCache<TaskListResponse>(getSessionKey(), 'tasks', taskListCacheKey(params));
 }
 
 export function getCachedTaskCounts(params: Pick<TaskListParams, 'projectId' | 'search'>) {
@@ -106,6 +106,7 @@ export type TaskListParams = {
   sortOrder?: SortOrder;
   page?: number;
   pageSize?: number;
+  all?: boolean;
 };
 
 export type TaskQuery = TaskListParams & {
@@ -290,8 +291,26 @@ export function listTasks(
   options: RequestOptions = {},
 ): Promise<TaskListResponse> {
   // Abortable callers own their request; sharing their signal could cancel another view.
-  if (options.signal) return fetchTaskList(params, options);
-  return cachedRead(getSessionKey(), 'tasks', `list${taskQuery(params)}`, () => fetchTaskList(params));
+  const load = () => params.all ? fetchAllTasks(params, options) : fetchTaskList(params, options);
+  if (options.signal) return load();
+  return cachedRead(getSessionKey(), 'tasks', taskListCacheKey(params), load);
+}
+
+function taskListCacheKey(params: TaskListParams) {
+  return params.all
+    ? `all${taskQuery({ ...params, page: 1, pageSize: 100 })}`
+    : `list${taskQuery(params)}`;
+}
+
+async function fetchAllTasks(params: TaskListParams, options: RequestOptions): Promise<TaskListResponse> {
+  // The API caps each request at 100; mobile presents every batch as one list.
+  let response = await fetchTaskList({ ...params, page: 1, pageSize: 100 }, options);
+  const items = [...response.items];
+  for (let page = 2; page <= response.total_pages; page++) {
+    response = await fetchTaskList({ ...params, page, pageSize: 100 }, options);
+    items.push(...response.items);
+  }
+  return { ...response, items, page: 1, page_size: items.length, total_pages: items.length ? 1 : 0 };
 }
 
 async function fetchTaskList(params: TaskListParams, options: RequestOptions = {}): Promise<TaskListResponse> {

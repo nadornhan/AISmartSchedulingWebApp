@@ -30,6 +30,18 @@ counts endpoint uses one aggregate SQL query and retains project/search scoping
 and the existing computed-overdue rules. Count badges remain independent of the
 priority filter, while pagination uses the filtered list response.
 
+Below the desktop breakpoint (1024px), Tasks shows five tasks per due-date group.
+Each group's "View more" button reveals five more until every matching task is
+visible, without page controls. Changing filters or sorting resets these limits.
+It fetches all API pages in batches of 100
+and caches the combined result separately from desktop pages. Filters, sorting,
+grouping and selection apply across the complete mobile list. Desktop keeps its
+eight-task pages.
+
+Long-pressing a mobile task enters selection mode: the left completion control
+becomes a selection checkbox, and the bottom bar offers bulk priority changes
+and deletion. Cancel leaves selection mode and restores completion controls.
+
 `lib/read-cache.ts` shares in-flight requests and reuses task lists/counts for
 15 seconds and projects for 60 seconds. Recent snapshots remain available for up
 to five minutes so a returning Tasks page can show content while revalidating.

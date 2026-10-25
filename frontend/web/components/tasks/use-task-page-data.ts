@@ -24,6 +24,8 @@ type TaskPageDataOptions = {
   sortAscending: boolean;
   page: number;
   pageSize: number;
+  allTasks?: boolean;
+  enabled?: boolean;
   setError: Dispatch<SetStateAction<string | null>>;
   setSelected: Dispatch<SetStateAction<string[]>>;
   setMenuTaskId: Dispatch<SetStateAction<string | null>>;
@@ -39,6 +41,8 @@ export function useTaskPageData({
   sortAscending,
   page,
   pageSize,
+  allTasks = false,
+  enabled = true,
   setError,
   setSelected,
   setMenuTaskId,
@@ -50,8 +54,9 @@ export function useTaskPageData({
     priority: priorityFilterToApi[priorityFilter],
     sortBy,
     sortOrder: sortAscending ? 'asc' as const : 'desc' as const,
-    page,
+    page: allTasks ? 1 : page,
     pageSize,
+    ...(allTasks ? { all: true } : {}),
   };
   const cached = targetTaskId ? undefined : getCachedTaskList(taskParams);
   const countParams = { projectId: activeProjectId || undefined, search: searchQuery || undefined };
@@ -118,6 +123,7 @@ export function useTaskPageData({
     activeProjectId,
     page,
     pageSize,
+    allTasks,
     priorityFilter,
     searchQuery,
     sortAscending,
@@ -149,9 +155,10 @@ export function useTaskPageData({
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     void refreshTasks();
     return () => { taskRevision.current++; };
-  }, [refreshTasks]);
+  }, [enabled, refreshTasks]);
 
   useEffect(() => {
     void refreshCounts();

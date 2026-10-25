@@ -1,9 +1,10 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { type TaskPriorityValue, type TaskResponse, type TaskSortValue } from '../../lib/tasks';
+import { SearchBox } from '../layout/header';
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -32,8 +33,22 @@ import {
   type TaskPriority,
 } from './task-page-model';
 
+const mobileTaskQuery = '(max-width: 1023px)';
+function subscribeToTaskViewport(listener: () => void) {
+  const media = window.matchMedia(mobileTaskQuery);
+  media.addEventListener('change', listener);
+  return () => media.removeEventListener('change', listener);
+}
+const getMobileTaskViewport = () => window.matchMedia(mobileTaskQuery).matches;
+const getServerTaskViewport = () => null;
+
 export function TaskPage() {
   const router = useRouter();
+  const isMobile = useSyncExternalStore(
+    subscribeToTaskViewport,
+    getMobileTaskViewport,
+    getServerTaskViewport,
+  );
   const searchParams = useSearchParams();
   const activeProjectId = searchParams.get('project_id') || '';
   const searchQuery = searchParams.get('search')?.trim() || '';
@@ -44,6 +59,8 @@ export function TaskPage() {
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('All');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('All');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showMobileStatusMenu, setShowMobileStatusMenu] = useState(false);
+  const mobileStatusMenuRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [expandedTaskIds, setExpandedTaskIds] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -65,8 +82,42 @@ export function TaskPage() {
   }, [activeProjectId, searchQuery, targetTaskId]);
 
   useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('mobile-task-selection-change', { detail: selected.length > 0 }),
+    );
+  }, [selected.length]);
+
+  useEffect(
+    () => () => {
+      window.dispatchEvent(new CustomEvent('mobile-task-selection-change', { detail: false }));
+    },
+    [],
+  );
+
+  useEffect(() => {
     setCreateProjectId(activeProjectId);
   }, [activeProjectId]);
+
+  useEffect(() => {
+    if (!showMobileStatusMenu) return;
+
+    function closeOnOutsideClick(event: PointerEvent) {
+      if (!mobileStatusMenuRef.current?.contains(event.target as Node)) {
+        setShowMobileStatusMenu(false);
+      }
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setShowMobileStatusMenu(false);
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [showMobileStatusMenu]);
 
   useEffect(() => {
     function toggleMobileFilters() {
@@ -158,6 +209,8 @@ export function TaskPage() {
     sortAscending,
     page,
     pageSize,
+    allTasks: isMobile === true,
+    enabled: isMobile !== null,
     setError,
     setSelected,
     setMenuTaskId,
@@ -188,7 +241,7 @@ export function TaskPage() {
     tasks,
     setTasks,
     selected,
-    page,
+    page: isMobile ? 1 : page,
     editingTask,
     setEditingTask,
     setPage,
@@ -263,8 +316,57 @@ export function TaskPage() {
     router.push(query ? `/tasks?${query}` : '/tasks');
   }
 
+  const mobileStatusFilter = (
+    <div className="relative" ref={mobileStatusMenuRef}>
+      <button
+        aria-controls="mobile-task-status-options"
+        aria-expanded={showMobileStatusMenu}
+        aria-haspopup="menu"
+        className="flex h-10 min-w-20 items-center justify-between gap-3 rounded-[var(--radius-sm)] px-2 text-sm font-medium text-slate-500 transition-colors hover:text-dashboard-text"
+        onClick={() => setShowMobileStatusMenu((open) => !open)}
+        type="button"
+      >
+        {activeFilter === 'All' ? 'All tasks' : activeFilter}
+        <ChevronDownIcon
+          aria-hidden="true"
+          className={cn('h-4 w-4 transition-transform', showMobileStatusMenu && 'rotate-180')}
+        />
+      </button>
+      {showMobileStatusMenu ? (
+        <div
+          aria-label="Filter tasks by status"
+          className="absolute right-0 top-full z-50 mt-2 min-w-44 overflow-hidden rounded-[var(--radius-md)] border border-dashboard-border-strong bg-dashboard-raised p-1.5 shadow-panel"
+          id="mobile-task-status-options"
+          role="menu"
+        >
+          {mobileFilterOrder.map((filter) => (
+            <button
+              aria-checked={activeFilter === filter}
+              className={cn(
+                'flex h-10 w-full items-center rounded-[var(--radius-sm)] px-3 text-left text-sm font-medium transition',
+                activeFilter === filter
+                  ? 'bg-dashboard-accent-soft text-dashboard-accent'
+                  : 'text-dashboard-muted hover:bg-dashboard-surface-hover hover:text-dashboard-text',
+              )}
+              key={filter}
+              onClick={() => {
+                setActiveFilter(filter);
+                setPage(1);
+                setShowMobileStatusMenu(false);
+              }}
+              role="menuitemradio"
+              type="button"
+            >
+              {filter === 'All' ? 'All tasks' : filter}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
-    <>
+    <div className={selected.length ? 'pb-20 lg:pb-0' : undefined}>
       {targetTaskId ? (
         <section
           aria-label="Selected task"
@@ -333,28 +435,27 @@ export function TaskPage() {
       ) : null}
 
       <section aria-label="Mobile task controls" className="mb-6 lg:hidden">
-        <div className="accent-scrollbar -mx-6 flex gap-2 overflow-x-auto px-6 pb-2">
-          {mobileFilterOrder.map((filter) => (
-            <button
-              aria-pressed={activeFilter === filter}
-              className={cn(
-                'h-10 shrink-0 rounded-[var(--radius-sm)] border px-5 text-sm font-medium transition',
-                activeFilter === filter
-                  ? 'border-dashboard-accent bg-dashboard-accent-soft text-dashboard-accent'
-                  : 'border-transparent bg-dashboard-raised text-dashboard-muted',
-              )}
-              key={filter}
-              onClick={() => {
-                setActiveFilter(filter);
-                setPage(1);
-              }}
-              type="button"
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
+        <SearchBox compact showFilterButton />
       </section>
+
+      {selected.length ? (
+        <div
+          aria-live="polite"
+          className="mb-4 flex items-center justify-between border-b border-dashboard-border py-2 lg:hidden"
+        >
+          <span className="text-sm font-medium text-dashboard-text">
+            {selected.length} selected
+          </span>
+          <button
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-dashboard-muted transition-colors hover:text-dashboard-text"
+            disabled={isMutating}
+            onClick={() => setSelected([])}
+            type="button"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : null}
 
       {showMobileFilters ? (
         <div
@@ -603,7 +704,9 @@ export function TaskPage() {
       ) : null}
 
       <TaskMobileList
+        key={JSON.stringify([activeProjectId, searchQuery, targetTaskId, activeFilter, priorityFilter, sortBy, sortAscending])}
         mobileTaskGroups={mobileTaskGroups}
+        mobileStatusFilter={mobileStatusFilter}
         selected={selected}
         expandedTaskIds={expandedTaskIds}
         isLoading={isLoading}
@@ -637,32 +740,9 @@ export function TaskPage() {
         toggleSubtask={toggleSubtask}
       />
 
-      {totalPages > 1 ? (
-        <footer className="mt-6 flex items-center justify-between gap-3 text-sm text-dashboard-muted lg:hidden">
-          <button
-            className="h-10 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface px-4 disabled:opacity-40"
-            disabled={page <= 1 || isLoading}
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
-            type="button"
-          >
-            Previous
-          </button>
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <button
-            className="h-10 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface px-4 disabled:opacity-40"
-            disabled={page >= totalPages || isLoading}
-            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-            type="button"
-          >
-            Next
-          </button>
-        </footer>
-      ) : null}
-
       <footer className="mt-4 flex flex-col gap-4 xl:flex-row xl:items-center">
-        <div className="flex min-h-12 flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-dashboard-border bg-dashboard-surface/70 p-2">
+        {selected.length ? (
+        <div className="hidden min-h-12 flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-dashboard-border bg-dashboard-surface/70 p-2 lg:flex">
           <span className="px-2 text-sm text-dashboard-muted">{selected.length} selected</span>
           <button
             className="flex h-9 items-center gap-2 rounded-lg border border-dashboard-border px-3 text-sm text-dashboard-muted transition enabled:hover:border-dashboard-accent/50 enabled:hover:text-dashboard-accent disabled:cursor-not-allowed disabled:opacity-40"
@@ -691,7 +771,16 @@ export function TaskPage() {
             <TrashIcon className="h-4 w-4" />
             Delete
           </button>
+          <button
+            className="h-9 rounded-lg px-3 text-sm text-dashboard-muted transition hover:text-dashboard-text disabled:opacity-40"
+            disabled={isMutating}
+            onClick={() => setSelected([])}
+            type="button"
+          >
+            Cancel
+          </button>
         </div>
+        ) : null}
 
         <div className="ml-auto hidden flex-wrap items-center justify-end gap-3 text-sm text-dashboard-muted lg:flex">
           <span>
@@ -862,7 +951,28 @@ export function TaskPage() {
           </div>
         </div>
       ) : null}
-    </>
+      <div
+        aria-hidden={selected.length === 0}
+        className={`fixed inset-x-0 bottom-[calc(0.7rem+env(safe-area-inset-bottom))] z-[195] px-6 transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none lg:hidden ${selected.length ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-6 opacity-0'}`}
+        inert={selected.length === 0}
+      >
+          <div
+            aria-label="Actions for selected tasks"
+            className="flex items-center rounded-2xl border border-dashboard-border-strong bg-dashboard-raised p-2 shadow-panel"
+          >
+            <button
+              aria-label="Delete selected tasks"
+              className="flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--red)] px-4 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isMutating}
+              onClick={() => void deleteSelected()}
+              type="button"
+            >
+              <TrashIcon className="h-4 w-4" />
+              Delete
+            </button>
+          </div>
+      </div>
+    </div>
   );
 }
 

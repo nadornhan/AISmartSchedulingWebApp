@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { CircleUserRound, House, ListTodo, Plus } from 'lucide-react';
 import { CalendarIcon } from './icons';
 
@@ -20,6 +21,16 @@ function routeIsActive(pathname: string, href: string) {
 export function MobileBottomNavigation() {
   const pathname = usePathname();
   const router = useRouter();
+  const [taskSelectionActive, setTaskSelectionActive] = useState(false);
+
+  useEffect(() => {
+    function handleTaskSelectionChange(event: Event) {
+      setTaskSelectionActive((event as CustomEvent<boolean>).detail);
+    }
+
+    window.addEventListener('mobile-task-selection-change', handleTaskSelectionChange);
+    return () => window.removeEventListener('mobile-task-selection-change', handleTaskSelectionChange);
+  }, []);
 
   function openCreateTask() {
     if (pathname === '/tasks') {
@@ -34,8 +45,10 @@ export function MobileBottomNavigation() {
   return (
     <>
       <nav
+        aria-hidden={taskSelectionActive}
         aria-label="Mobile navigation"
-        className="fixed inset-x-0 bottom-0 z-[190] border-t border-dashboard-border bg-[var(--bg-sidebar)] px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2 lg:hidden"
+        className={`fixed inset-x-0 bottom-0 z-[190] border-t border-dashboard-border bg-[var(--bg-sidebar)] px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-2 transition-transform duration-300 ease-in-out motion-reduce:transition-none lg:hidden ${taskSelectionActive ? 'pointer-events-none translate-y-full' : 'translate-y-0'}`}
+        inert={taskSelectionActive}
       >
         <div className="mx-auto grid max-w-lg grid-cols-5 items-end">
           {primaryItems.slice(0, 2).map((item) => {

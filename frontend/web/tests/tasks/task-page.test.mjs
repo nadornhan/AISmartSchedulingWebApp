@@ -38,6 +38,8 @@ function load(code, dependencies = {}) {
       Error,
       Date: FixedDate,
       Intl,
+      setTimeout,
+      clearTimeout,
       require: (name) => {
         assert.ok(name in dependencies, `Unexpected dependency: ${name}`);
         return dependencies[name];
@@ -79,16 +81,24 @@ const controls = load(read('components/tasks/task-page-controls.tsx'), {
   '../layout/icons': icons,
   './task-page-model': model,
 });
-const { TaskDesktopTable, TaskMobileList } = load(read('components/tasks/task-list-views.tsx'), {
-  'react/jsx-runtime': jsxRuntime,
-  '../layout/icons': icons,
-  '../layout/branded-loading-screen': {
-    BrandedLoadingScreen: ({ className }) =>
-      React.createElement('div', { role: 'status', className }, 'Loading'),
-  },
-  './task-page-controls': controls,
-  './task-page-model': model,
-});
+function loadTaskListViews(reactOverrides = {}) {
+  return load(read('components/tasks/task-list-views.tsx'), {
+    react: {
+      useRef: () => ({ current: null }),
+      useState: (initial) => [initial, () => {}],
+      ...reactOverrides,
+    },
+    'react/jsx-runtime': jsxRuntime,
+    '../layout/icons': icons,
+    '../layout/branded-loading-screen': {
+      BrandedLoadingScreen: ({ className }) =>
+        React.createElement('div', { role: 'status', className }, 'Loading'),
+    },
+    './task-page-controls': controls,
+    './task-page-model': model,
+  });
+}
+const { TaskDesktopTable, TaskMobileList } = loadTaskListViews();
 
 function response(overrides = {}) {
   return {
@@ -403,6 +413,7 @@ test('AI task dialog uses the app heading font and inherited control typography'
   assert.equal(heading.props.children, 'Describe your task');
   assert.match(heading.props.className, /font-poppins/);
   assert.match(heading.props.className, /tracking-normal/);
+  assert.match(heading.props.className, /whitespace-nowrap/);
   const form = nodes.find((node) => node.type === 'form');
   const generate = nodes.find((node) => node.props?.['aria-label'] === 'Automatically fill task');
   const input = nodes.find((node) => node.type === 'textarea');
@@ -591,26 +602,127 @@ function mobileProps(overrides = {}) {
   };
 }
 
-test('mobile bulk-selection checkbox is separate from task completion', () => {
+test('mobile groups reveal five more tasks independently until each group is complete', () => {
+  let visibleCounts = {};
+  const { TaskMobileList: MobileList } = loadTaskListViews({
+    useState: () => [visibleCounts, (update) => { visibleCounts = update(visibleCounts); }],
+  });
+  const mobileTaskGroups = [['Today', 12], ['Upcoming', 7], ['Other', 3]].map(([group, count]) => ({
+    group,
+    tasks: Array.from({ length: count }, (_, index) =>
+      model.toTask(response({ id: `${group}-${index}`, title: `${group} ${index}` }))),
+  }));
+  const render = () => elements(MobileList(mobileProps({ mobileTaskGroups })));
+  const articles = (nodes, group) => nodes.filter((node) =>
+    node.type === 'article' && node.key.startsWith(`${group}-`));
+  const more = (nodes, label) => nodes.find((node) =>
+    node.props?.['aria-label'] === `View more tasks in ${label}`);
+  let nodes = render();
+  assert.equal(articles(nodes, 'Today').length, 5);
+  assert.equal(articles(nodes, 'Upcoming').length, 5);
+  assert.equal(articles(nodes, 'Other').length, 3);
+  assert.equal(more(nodes, 'Other tasks'), undefined);
+  assert.deepEqual(nodes.filter((node) => node.props?.className?.includes('min-w-5'))
+    .map((node) => node.props.children), [12, 7, 3]);
+
+  more(nodes, 'Today').props.onClick();
+  nodes = render();
+  assert.equal(articles(nodes, 'Today').length, 10);
+  assert.equal(articles(nodes, 'Upcoming').length, 5);
+  more(nodes, 'Today').props.onClick();
+  nodes = render();
+  assert.equal(articles(nodes, 'Today').length, 12);
+  assert.equal(more(nodes, 'Today'), undefined);
+  more(nodes, 'Upcoming').props.onClick();
+  nodes = render();
+  assert.equal(articles(nodes, 'Upcoming').length, 7);
+  assert.equal(more(nodes, 'Upcoming'), undefined);
+});
+
+test('mobile task card keeps its completion checkbox without a duplicate bulk-selection checkbox', () => {
   const task = model.toTask(response({ id: 'mobile-select', title: 'Select me' }));
-  const calls = [];
   const statusCalls = [];
   const nodes = elements(
     TaskMobileList(
       mobileProps({
         mobileTaskGroups: [{ group: 'Today', tasks: [task] }],
         changeStatus: async (...args) => statusCalls.push(args),
-        toggleSelected: (id) => calls.push(id),
       }),
     ),
   );
-  const selection = nodes.find(
-    (node) => node.type === controls.CheckBox && node.props.label === 'Select Select me for bulk actions',
-  );
-  assert.ok(selection);
-  selection.props.onChange();
-  assert.deepEqual(calls, ['mobile-select']);
+  assert.equal(nodes.filter((node) => node.type === controls.CheckBox).length, 0);
+  const completion = nodes.find((node) => node.props?.['aria-label'] === 'Complete Select me');
+  assert.ok(completion);
+  completion.props.onClick();
+  assert.equal(statusCalls[0][0], 'mobile-select');
+  assert.equal(statusCalls[0][1], 'Done');
+});
+
+test('mobile selection uses the completion checkbox spot without changing completion', () => {
+  const selected = model.toTask(response({ id: 'selected', title: 'Selected task' }));
+  const completed = model.toTask(response({ id: 'completed', title: 'Completed task', status: 'done' }));
+  const selectionCalls = [];
+  const statusCalls = [];
+  const nodes = elements(TaskMobileList(mobileProps({
+    mobileTaskGroups: [{ group: 'Today', tasks: [selected, completed] }],
+    selected: ['selected'],
+    toggleSelected: (id) => selectionCalls.push(id),
+    changeStatus: async (...args) => statusCalls.push(args),
+  })));
+  const rows = nodes.filter((node) => node.props?.className === 'flex items-center gap-3');
+  const checkboxes = rows.map((row) => row.props.children[0]);
+  assert.equal(checkboxes.length, 2);
+  assert.equal(checkboxes[0].props.role, 'checkbox');
+  assert.equal(checkboxes[0].props['aria-label'], 'Deselect Selected task');
+  assert.equal(checkboxes[0].props['aria-checked'], true);
+  assert.equal(checkboxes[1].props['aria-label'], 'Select Completed task');
+  assert.equal(checkboxes[1].props['aria-checked'], false);
+  checkboxes.forEach((checkbox) => checkbox.props.onClick());
+  assert.deepEqual(selectionCalls, ['selected', 'completed']);
   assert.deepEqual(statusCalls, []);
+  assert.equal(nodes.some((node) => /^Complete |^Reopen /.test(node.props?.['aria-label'] ?? '')), false);
+});
+
+test('mobile long press selects a card, while selection mode lets taps add other tasks', async () => {
+  const first = model.toTask(response({ id: 'first', title: 'First task' }));
+  const second = model.toTask(response({ id: 'second', title: 'Second task' }));
+  const selectedIds = [];
+  const toggleSelected = (id) => {
+    const index = selectedIds.indexOf(id);
+    if (index >= 0) selectedIds.splice(index, 1);
+    else selectedIds.push(id);
+  };
+  const card = (task, selected = []) =>
+    elements(
+      TaskMobileList(
+        mobileProps({
+          mobileTaskGroups: [{ group: 'Today', tasks: [first, second] }],
+          selected,
+          toggleSelected,
+        }),
+      ),
+    ).find((node) => node.type === 'article' && node.key === task.id);
+
+  const firstCard = card(first);
+  firstCard.props.onPointerDown({
+    button: 0,
+    clientX: 100,
+    clientY: 100,
+    pointerType: 'touch',
+    target: { closest: () => null },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 525));
+  assert.deepEqual(selectedIds, ['first']);
+  firstCard.props.onPointerUp();
+
+  const secondCard = card(second, selectedIds);
+  const clickEvent = {
+    target: { closest: () => null },
+    preventDefault() {},
+    stopPropagation() {},
+  };
+  secondCard.props.onClickCapture(clickEvent);
+  assert.deepEqual(selectedIds, ['first', 'second']);
 });
 
 test('mobile list retains responsive wrapper and loading/empty states', () => {
@@ -712,7 +824,7 @@ test('mobile title edits without subtasks and toggles expansion with subtasks', 
   }
 });
 
-test('mobile explicit edit retains source and omits the status dropdown', () => {
+test('mobile card omits the pencil icon and title still opens edit without subtasks', () => {
   const task = model.toTask(response({ status: 'overdue', workflow_status: 'in_progress' }));
   const nodes = elements(
     TaskMobileList(
@@ -722,11 +834,38 @@ test('mobile explicit edit retains source and omits the status dropdown', () => 
       }),
     ),
   );
-  nodes.find((node) => node.props?.['aria-label'] === 'Edit Demo task').props.onClick();
+  assert.equal(nodes.some((node) => node.props?.['aria-label'] === 'Edit Demo task'), false);
+  nodes.find((node) => node.type === 'button' && node.props.className === 'min-w-0 flex-1 text-left')
+    .props.onClick();
+  assert.equal(nodes.some((node) => node.props?.['aria-label'] === 'Edit Demo task'), false);
   assert.equal(
     nodes.some((node) => node.type === controls.StatusDropdown),
     false,
   );
+});
+
+test('mobile subtasks dropdown sits in the old pencil spot and points down until expanded', () => {
+  const task = model.toTask(response({ subtasks: [{ id: 'sub-a', title: 'First' }] }));
+  const render = (expandedTaskIds = []) => elements(TaskMobileList(mobileProps({
+    mobileTaskGroups: [{ group: 'Today', tasks: [task] }],
+    expandedTaskIds,
+  })));
+  const collapsed = render();
+  const expandButton = collapsed.find((node) =>
+    node.props?.['aria-label'] === 'Expand subtasks for Demo task');
+  assert.ok(expandButton);
+  assert.equal(expandButton.props['aria-expanded'], false);
+  const collapsedArrow = collapsed.find((node) =>
+    node.type?.displayName === 'ChevronDownIcon' || node.type?.name === 'ChevronDownIcon');
+  assert.ok(collapsedArrow);
+  assert.doesNotMatch(collapsedArrow.props.className, /rotate-180/);
+
+  const expanded = render([task.id]);
+  const collapseButton = expanded.find((node) =>
+    node.props?.['aria-label'] === 'Collapse subtasks for Demo task');
+  assert.ok(collapseButton);
+  assert.equal(collapseButton.props['aria-expanded'], true);
+  assert.match(collapseButton.props.children.props.className, /rotate-180/);
 });
 
 test('mobile expanded subtasks retain mutation disabling and completion arguments', () => {

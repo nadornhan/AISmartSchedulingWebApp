@@ -1077,6 +1077,29 @@ h6 {
   }
 }
 
+@keyframes mobile-task-card-slide-open {
+  from {
+    clip-path: inset(0 0 100% 0);
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    clip-path: inset(0);
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mobile-task-slide-open {
+  animation: mobile-task-card-slide-open 280ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-task-slide-open {
+    animation: none;
+  }
+}
+
 .calendar-agenda-slide--forward > article {
   animation: calendar-agenda-slide-right 260ms ease-out both;
 }

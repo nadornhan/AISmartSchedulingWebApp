@@ -1,6 +1,7 @@
 'use client';
 
-import type { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, MouseEvent, PointerEvent, ReactNode, SetStateAction } from 'react';
+import { useRef, useState } from 'react';
 import type { TaskResponse } from '../../lib/tasks';
 import { BrandedLoadingScreen } from '../layout/branded-loading-screen';
 import {
@@ -343,6 +344,7 @@ export function TaskDesktopTable({
 
 type TaskMobileListProps = {
   mobileTaskGroups: Array<{ group: MobileTaskGroup; tasks: Task[] }>;
+  mobileStatusFilter: ReactNode;
   selected: string[];
   expandedTaskIds: string[];
   isLoading: boolean;
@@ -354,8 +356,11 @@ type TaskMobileListProps = {
   toggleSubtask: (task: Task, subtaskId: string, isCompleted: boolean) => Promise<void>;
 };
 
+const mobileGroupBatchSize = 5;
+
 export function TaskMobileList({
   mobileTaskGroups,
+  mobileStatusFilter,
   selected,
   expandedTaskIds,
   isLoading,
@@ -366,42 +371,121 @@ export function TaskMobileList({
   setEditingTask,
   toggleSubtask,
 }: Readonly<TaskMobileListProps>) {
+  const [visibleCounts, setVisibleCounts] = useState<Partial<Record<MobileTaskGroup, number>>>({});
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const longPressTriggered = useRef(false);
+  const selectionMode = selected.length > 0;
+
+  function cancelLongPress() {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+    pointerStart.current = null;
+  }
+
+  function startLongPress(event: PointerEvent<HTMLElement>, taskId: string) {
+    if (selectionMode || event.button !== 0) return;
+    const target = event.target as Element;
+    if (target.closest('[data-task-selection-control]')) return;
+    cancelLongPress();
+    longPressTriggered.current = false;
+    pointerStart.current = { x: event.clientX, y: event.clientY };
+    longPressTimer.current = setTimeout(() => {
+      longPressTimer.current = null;
+      pointerStart.current = null;
+      longPressTriggered.current = true;
+      toggleSelected(taskId);
+    }, 500);
+  }
+
+  function moveLongPress(event: PointerEvent<HTMLElement>) {
+    const start = pointerStart.current;
+    if (!start) return;
+    if (Math.abs(event.clientX - start.x) > 10 || Math.abs(event.clientY - start.y) > 10) {
+      cancelLongPress();
+    }
+  }
+
+  function handleCardClick(event: MouseEvent<HTMLElement>, taskId: string) {
+    if (longPressTriggered.current) {
+      longPressTriggered.current = false;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (!selectionMode) return;
+    const target = event.target as Element;
+    if (target.closest('[data-task-selection-control]')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    toggleSelected(taskId);
+  }
+
   return (
     <section aria-label="Tasks grouped by due date" className="space-y-7 lg:hidden">
       {isLoading ? (
         <BrandedLoadingScreen className="min-h-56 rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 px-6" />
       ) : mobileTaskGroups.length ? (
-        mobileTaskGroups.map(({ group, tasks: groupTasks }) => {
+        mobileTaskGroups.map(({ group, tasks: groupTasks }, index) => {
           const meta = mobileGroupMeta[group];
+          const visibleCount = visibleCounts[group] ?? mobileGroupBatchSize;
           return (
             <div key={group}>
-              <div className={cn('mb-3 flex items-center gap-2', meta.color)}>
+              <div className={cn('mb-2 flex items-center gap-2', meta.color)}>
                 <CalendarIcon className="h-5 w-5" />
                 <h2 className="text-sm font-medium text-dashboard-text">{meta.label}</h2>
                 <span className="grid min-w-5 place-items-center rounded-full bg-current/10 px-1.5 text-xs font-semibold">
                   {groupTasks.length}
                 </span>
+                {index === 0 ? (
+                  <div className="ml-auto shrink-0 text-dashboard-accent">{mobileStatusFilter}</div>
+                ) : null}
               </div>
 
               <div className="divide-y divide-dashboard-border rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface shadow-panel">
-                {groupTasks.map((task) => {
+                {groupTasks.slice(0, visibleCount).map((task, taskIndex) => {
                   const completed = task.workflowStatus === 'Done';
+                  const isSelected = selected.includes(task.id);
                   return (
-                    <article className="px-4 py-3" key={task.id}>
+                    <article
+                      className={cn(
+                        'px-4 py-3 transition-colors',
+                        taskIndex >= mobileGroupBatchSize && 'mobile-task-slide-open',
+                        isSelected && 'bg-dashboard-accent-soft/25',
+                      )}
+                      key={task.id}
+                      onClickCapture={(event) => handleCardClick(event, task.id)}
+                      onContextMenu={(event) => {
+                        if (longPressTriggered.current) event.preventDefault();
+                      }}
+                      onPointerCancel={cancelLongPress}
+                      onPointerDown={(event) => startLongPress(event, task.id)}
+                      onPointerLeave={cancelLongPress}
+                      onPointerMove={moveLongPress}
+                      onPointerUp={cancelLongPress}
+                    >
                       <div className="flex items-center gap-3">
                         <button
-                          aria-label={completed ? `Reopen ${task.title}` : `Complete ${task.title}`}
+                          aria-checked={selectionMode ? isSelected : undefined}
+                          aria-label={selectionMode
+                            ? `${isSelected ? 'Deselect' : 'Select'} ${task.title}`
+                            : completed ? `Reopen ${task.title}` : `Complete ${task.title}`}
                           className={cn(
-                            'grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border transition',
-                            completed
+                            'grid h-5 w-5 shrink-0 place-items-center border transition',
+                            selectionMode ? 'rounded-full' : 'rounded-[5px]',
+                            (selectionMode ? isSelected : completed)
                               ? 'border-dashboard-accent bg-dashboard-accent text-dashboard-on-accent'
                               : 'border-dashboard-border-strong bg-transparent hover:border-dashboard-accent',
                           )}
                           disabled={isMutating}
-                          onClick={() => void changeStatus(task.id, completed ? 'Pending' : 'Done')}
+                          data-task-selection-control={selectionMode || undefined}
+                          onClick={() => selectionMode
+                            ? toggleSelected(task.id)
+                            : void changeStatus(task.id, completed ? 'Pending' : 'Done')}
+                          role={selectionMode ? 'checkbox' : undefined}
                           type="button"
                         >
-                          {completed ? <CheckIcon className="h-3.5 w-3.5" /> : null}
+                          {(selectionMode ? isSelected : completed) ? <CheckIcon className="h-3.5 w-3.5" /> : null}
                         </button>
 
                         <button
@@ -418,17 +502,17 @@ export function TaskMobileList({
                           }
                           type="button"
                         >
-                          <span className="flex min-w-0 items-start gap-2 text-[17px] font-semibold text-dashboard-text">
+                          <span className="flex min-w-0 items-start gap-2 text-[17px] font-medium text-dashboard-text">
                             <span className="min-w-0 whitespace-normal break-words leading-5">
                               {task.title}
                             </span>
                             {task.source.subtasks.length > 0 ? (
-                              <ChevronDownIcon
-                                className={cn(
-                                  'h-4 w-4 shrink-0 text-dashboard-accent transition',
-                                  !expandedTaskIds.includes(task.id) && '-rotate-90',
-                                )}
-                              />
+                              <span
+                                aria-label={`${task.source.subtask_progress.percent ?? 0}% of subtasks complete`}
+                                className="mt-0.5 shrink-0 rounded-full border border-dashboard-border bg-dashboard-surface px-2 py-0.5 text-[10px] font-medium leading-4 text-dashboard-muted"
+                              >
+                                {task.source.subtask_progress.percent ?? 0}%
+                              </span>
                             ) : null}
                           </span>
                           <span className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dashboard-muted">
@@ -454,19 +538,10 @@ export function TaskMobileList({
                               <CalendarIcon aria-hidden="true" className="h-3.5 w-3.5" />
                               {task.dueDate}
                             </span>
-                            {task.subtaskProgressLabel ? (
-                              <>
-                                <span aria-hidden="true">·</span>
-                                <span className="flex shrink-0 items-center gap-1.5">
-                                  <TasksIcon aria-hidden="true" className="h-3.5 w-3.5" />
-                                  {task.subtaskProgressLabel}
-                                </span>
-                              </>
-                            ) : null}
                           </span>
                         </button>
 
-                        <div className="flex shrink-0 flex-col items-end gap-2">
+                        <div className="flex shrink-0 flex-col items-end gap-2 self-start">
                           <span
                             className={cn(
                               'inline-flex rounded-[var(--radius-pill)] border px-2.5 py-1 text-[11px] font-medium',
@@ -475,13 +550,23 @@ export function TaskMobileList({
                           >
                             {task.priority}
                           </span>
-                          <CheckBox
-                            checked={selected.includes(task.id)}
-                            disabled={isMutating}
-                            label={`${selected.includes(task.id) ? 'Deselect' : 'Select'} ${task.title} for bulk actions`}
-                            onChange={() => toggleSelected(task.id)}
-                          />
-                          <button aria-label={`Edit ${task.title}`} className="grid h-8 w-8 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-accent" onClick={() => setEditingTask(task.source)} type="button"><EditIcon className="h-4 w-4" /></button>
+                          {!selectionMode && task.source.subtasks.length > 0 ? (
+                            <button
+                              aria-expanded={expandedTaskIds.includes(task.id)}
+                              aria-label={`${expandedTaskIds.includes(task.id) ? 'Collapse' : 'Expand'} subtasks for ${task.title}`}
+                              className="grid h-8 w-8 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-accent"
+                              onClick={() => toggleTaskExpanded(task.id)}
+                              type="button"
+                            >
+                              <ChevronDownIcon
+                                aria-hidden="true"
+                                className={cn(
+                                  'h-4 w-4 transition-transform',
+                                  expandedTaskIds.includes(task.id) && 'rotate-180',
+                                )}
+                              />
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                       {expandedTaskIds.includes(task.id) && task.source.subtasks.length > 0 ? (
@@ -498,6 +583,20 @@ export function TaskMobileList({
                     </article>
                   );
                 })}
+                {groupTasks.length > visibleCount ? (
+                  <button
+                    aria-label={`View more tasks in ${meta.label}`}
+                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-b-[var(--radius-lg)] px-4 py-3 text-sm font-medium text-dashboard-muted transition-colors hover:bg-dashboard-surface-hover hover:text-dashboard-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-dashboard-muted"
+                    onClick={() => setVisibleCounts((current) => ({
+                      ...current,
+                      [group]: (current[group] ?? mobileGroupBatchSize) + mobileGroupBatchSize,
+                    }))}
+                    type="button"
+                  >
+                    View more
+                    <ChevronDownIcon aria-hidden="true" className="h-4 w-4" />
+                  </button>
+                ) : null}
               </div>
             </div>
           );

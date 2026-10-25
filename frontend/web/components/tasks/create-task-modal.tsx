@@ -404,7 +404,7 @@ function TaskFormModal({
       <form
         className={cn(
           'task-create-modal my-6 w-full min-w-0 max-w-[680px] rounded-[var(--radius-lg)] border border-dashboard-border-strong shadow-modal',
-          isAiOnlyView ? 'p-6' : 'p-5 sm:p-9',
+          isAiOnlyView ? 'p-4 min-[360px]:p-5 sm:p-6' : 'p-5 sm:p-9',
         )}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
@@ -415,16 +415,17 @@ function TaskFormModal({
       >
         <fieldset disabled={durationBusy} className="contents">
           {isAiOnlyView ? (
-            <div className="relative flex min-h-10 items-center justify-center">
+            <div className="grid min-h-10 grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center">
+              <span aria-hidden="true" className="h-10 w-10" />
               <h2
-                className="max-w-[calc(100%_-_3rem)] font-poppins text-center text-2xl font-semibold leading-tight tracking-normal text-dashboard-text sm:text-3xl"
+                className="whitespace-nowrap font-poppins text-center text-[clamp(0.875rem,5vw,1.5rem)] font-semibold leading-tight tracking-normal text-dashboard-text sm:text-3xl"
                 id="task-form-title"
               >
                 Describe your task
               </h2>
               <button
                 aria-label="Close task dialog"
-                className="absolute right-0 grid h-10 w-10 place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-text"
+                className="grid h-10 w-10 justify-self-end place-items-center rounded-lg text-dashboard-muted transition hover:bg-dashboard-surface-hover hover:text-dashboard-text"
                 onClick={closeForm}
                 type="button"
               >

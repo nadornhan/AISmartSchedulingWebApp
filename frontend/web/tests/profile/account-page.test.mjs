@@ -151,6 +151,26 @@ test('mobile reference layout keeps compact spacing and desktop card styling', (
   assert.ok(visible.some((node) => node.props.className === 'min-w-0 space-y-6 md:-mt-7'));
 });
 
+test('name editor opens between the Name and Email rows', () => {
+  const h = harness();
+  let visible = nodes(h.render());
+  const nameRow = visible.find(
+    (node) => node.type === 'button' && text(node).trim().startsWith('Name'),
+  );
+  nameRow.props.onClick();
+
+  visible = nodes(h.render());
+  const nameIndex = visible.findIndex(
+    (node) => node.type === 'button' && text(node).trim().startsWith('Name'),
+  );
+  const editorIndex = visible.findIndex((node) => node.type === 'form');
+  const emailIndex = visible.findIndex(
+    (node) => node.type === 'div' && node.props.className.includes('cursor-default'),
+  );
+  assert.ok(editorIndex > nameIndex);
+  assert.ok(emailIndex > editorIndex);
+});
+
 test('mobile: accordion opens at its row, switches sections, and collapses again', () => {
   const h = harness();
   function trigger(section) {

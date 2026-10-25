@@ -149,10 +149,10 @@ export function DashboardPage() {
   const focusMeta = `of ${formatFocusMinutes(focusGoal.goal_minutes)} daily goal`;
 
   return (
-    <div className="mx-auto max-w-[1480px] space-y-8">
+    <div className="mx-auto flex max-w-[1480px] flex-col gap-8">
       <section
         aria-label="Today at a glance"
-        className="grid grid-cols-2 gap-x-[clamp(0.5rem,3vw,1rem)] gap-y-4 sm:gap-x-4 sm:gap-y-5 xl:grid-cols-4 xl:gap-4"
+        className="order-2 grid grid-cols-2 gap-x-[clamp(0.5rem,3vw,1rem)] gap-y-4 sm:gap-x-4 sm:gap-y-5 lg:order-1 xl:grid-cols-4 xl:gap-4"
       >
         <DashboardStatCard
           icon={<CheckIcon className="h-5 w-5" />}
@@ -195,19 +195,22 @@ export function DashboardPage() {
         />
       </section>
 
-      <div className="grid items-start gap-6 lg:items-stretch lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <SuggestedTaskCard
-          task={summary.ai_recommendation?.task ?? summary.next_best_task?.task ?? null}
-        />
-
-        <QuickWinsCard
-          completingTaskId={completingTaskId}
-          onComplete={completeQuickWin}
-          tasks={summary.quick_wins}
-        />
+      <div className="contents lg:order-2 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-stretch lg:gap-6">
+        <div className="order-1 lg:order-none">
+          <SuggestedTaskCard
+            task={summary.ai_recommendation?.task ?? summary.next_best_task?.task ?? null}
+          />
+        </div>
+        <div className="order-3 lg:order-none">
+          <QuickWinsCard
+            completingTaskId={completingTaskId}
+            onComplete={completeQuickWin}
+            tasks={summary.quick_wins}
+          />
+        </div>
       </div>
 
-      <section>
+      <section className="order-4 lg:order-3">
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,2.5fr)_minmax(0,1fr)]">
           <WeeklyActivityCard points={summary.weekly_activity} />
           <div className="grid min-w-0 gap-5">

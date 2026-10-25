@@ -23,7 +23,7 @@ export function DashboardStatCard({
     progress === null || progress === undefined ? null : Math.max(0, Math.min(100, progress));
 
   return (
-    <article className="dashboard-stat-card relative flex min-w-0 flex-col rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-[clamp(0.75rem,3.6vw,1rem)] shadow-panel [container-type:inline-size] sm:p-5">
+    <article className="dashboard-stat-card relative flex min-h-[170px] min-w-0 flex-col rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 px-5 py-[clamp(0.75rem,3.6vw,1rem)] shadow-panel [container-type:inline-size] sm:p-5">
       <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:gap-[13px]">
         {icon ? (
           <div

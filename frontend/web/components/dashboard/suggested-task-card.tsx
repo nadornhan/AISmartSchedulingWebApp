@@ -26,7 +26,7 @@ export function SuggestedTaskCard({
   return (
     <section
       aria-label="AI Pick for Today"
-      className="relative isolate flex min-w-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-dashboard-accent/20 bg-dashboard-surface p-4 shadow-panel lg:p-6"
+      className="relative isolate flex min-w-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-dashboard-accent/20 bg-dashboard-surface px-5 pb-4 pt-6 shadow-panel lg:p-6"
     >
       <div
         aria-hidden="true"
@@ -43,7 +43,7 @@ export function SuggestedTaskCard({
       <div className="relative z-10 mb-5 min-w-0 space-y-3 sm:mb-6">
         <div className="flex items-center gap-3">
           <SparkleStarsIcon />
-          <h2 className="whitespace-nowrap font-poppins text-[22px] font-semibold leading-tight text-dashboard-text sm:text-2xl lg:text-[28px]">
+          <h2 className="whitespace-nowrap font-poppins text-[21px] font-semibold leading-tight text-dashboard-text sm:text-2xl lg:text-[28px]">
             AI Pick for Today
           </h2>
         </div>

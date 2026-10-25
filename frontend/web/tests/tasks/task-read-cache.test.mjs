@@ -17,7 +17,7 @@ function load(file, dependencies = {}, globals = {}) {
   return module.exports;
 }
 
-function harness() {
+function harness(taskResponse) {
   let now = 1_000_000;
   let token = 'user-a';
   let sequence = 0;
@@ -30,6 +30,7 @@ function harness() {
       calls.push(url);
       if (url.startsWith('/projects')) return [{ id: 'folder', task_count: ++sequence }];
       if (url.startsWith('/tasks/counts')) return { total: ++sequence, pending: 1, in_progress: 0, done: 0, overdue: 0 };
+      if (taskResponse) return taskResponse(url);
       return { items: [{ id: `${token}-${++sequence}` }], total: 1, total_pages: 1 };
     },
   };
@@ -51,6 +52,52 @@ test('concurrent and repeated task/count/project reads share requests', async ()
   await h.projects.listProjects();
   assert.deepEqual(h.calls, ['/tasks', '/tasks/counts', '/projects']);
   assert.equal(h.tasks.getCachedTaskList({}), first);
+});
+
+test('mobile all-tasks loading combines every API page and keeps filters and sorting', async () => {
+  const h = harness((url) => {
+    const query = new URL(url, 'https://chrono.example').searchParams;
+    assert.equal(query.get('page_size'), '100');
+    assert.equal(query.get('status'), 'pending');
+    assert.equal(query.get('priority'), 'high');
+    assert.equal(query.get('project_id'), 'folder');
+    assert.equal(query.get('search'), 'exam');
+    assert.equal(query.get('sort_by'), 'title');
+    assert.equal(query.get('sort_order'), 'desc');
+    const page = Number(query.get('page'));
+    return {
+      items: Array.from({ length: page === 3 ? 35 : 100 }, (_, index) => ({ id: `${page}-${index}` })),
+      page, page_size: 100, total: 235, total_pages: 3,
+    };
+  });
+  const params = {
+    all: true, page: 4, pageSize: 8, status: 'pending', priority: 'high',
+    projectId: 'folder', search: 'exam', sortBy: 'title', sortOrder: 'desc',
+  };
+  const [first, second] = await Promise.all([h.tasks.listTasks(params), h.tasks.listTasks(params)]);
+  assert.equal(first, second);
+  assert.equal(first.items.length, 235);
+  assert.equal(first.items.at(-1).id, '3-34');
+  assert.equal(first.total_pages, 1);
+  assert.equal(h.calls.length, 3);
+  assert.equal(h.tasks.getCachedTaskList({ ...params, page: 1 }), first);
+  assert.equal(h.tasks.getCachedTaskList({ ...params, all: false }), undefined);
+  h.events.emitTaskDataChanged();
+  assert.equal(h.tasks.getCachedTaskList(params), undefined);
+});
+
+test('a failed later mobile batch never caches a truncated list', async () => {
+  let fail = true;
+  const h = harness((url) => {
+    const page = Number(new URL(url, 'https://chrono.example').searchParams.get('page'));
+    if (page === 2 && fail) throw new Error('Offline');
+    return { items: [{ id: `page-${page}` }], page, page_size: 100, total: 2, total_pages: 2 };
+  });
+  await assert.rejects(h.tasks.listTasks({ all: true }), /Offline/);
+  assert.equal(h.tasks.getCachedTaskList({ all: true }), undefined);
+  fail = false;
+  const result = await h.tasks.listTasks({ all: true });
+  assert.deepEqual(Array.from(result.items, (task) => task.id), ['page-1', 'page-2']);
 });
 
 test('task and folder changes invalidate caches even while their pages are unmounted', async () => {

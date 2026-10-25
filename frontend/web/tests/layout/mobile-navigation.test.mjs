@@ -241,9 +241,13 @@ test('suggested task card links to the selected task and exposes a view button',
   const container = suggestedTaskCard(task);
   assert.equal(container.type, 'section');
   assert.equal(container.props['aria-label'], 'AI Pick for Today');
+  assert.match(container.props.className, /px-5/);
+  assert.match(container.props.className, /pt-6/);
   // Decorative layers may change; assert the user-facing links and task payload.
   const items = nodes(container);
-  assert.equal(items.find((node) => node.type === 'h2').props.children, 'AI Pick for Today');
+  const title = items.find((node) => node.type === 'h2');
+  assert.equal(title.props.children, 'AI Pick for Today');
+  assert.match(title.props.className, /text-\[21px\]/);
   const [tree, viewTask] = items.filter((node) => node.type === 'a');
   assert.equal(tree.type, 'a');
   assert.equal(tree.props.href, '/tasks?task_id=task-a');

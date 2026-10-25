@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
-import { HeaderActions, SearchBox } from './header';
-import { SearchIcon } from './icons';
+import { HeaderActions } from './header';
+import { BellIcon } from './icons';
 import type { UserResponse } from '../../lib/auth';
 
 export function MobileTopHeader({
@@ -17,11 +16,6 @@ export function MobileTopHeader({
   totalXp?: number | null;
   user?: UserResponse | null;
 }>) {
-  const [searchOpen, setSearchOpen] = useState(false);
-  const isTaskPage = title === 'All Tasks';
-
-  useEffect(() => setSearchOpen(false), [title]);
-
   if (title === 'Account') {
     return (
       <header className="bg-dashboard-bg px-6 pb-2 pt-[max(1.25rem,env(safe-area-inset-top))] lg:hidden">
@@ -79,28 +73,14 @@ export function MobileTopHeader({
           <h1 className="min-w-0 font-poppins text-2xl font-semibold leading-tight tracking-normal text-dashboard-text">
             {title}
           </h1>
-          <button
-            aria-controls="mobile-page-search"
-            aria-expanded={searchOpen}
-            aria-label="Search tasks"
+          <Link
+            aria-label="Notifications"
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-dashboard-border bg-dashboard-surface text-dashboard-text transition hover:bg-dashboard-accent-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
-            onClick={() => setSearchOpen((open) => !open)}
-            type="button"
+            href="/notifications"
           >
-            <SearchIcon className="h-5 w-5" />
-          </button>
+            <BellIcon className="h-5 w-5" />
+          </Link>
         </div>
-        {searchOpen ? (
-          <div
-            className="mt-4"
-            id="mobile-page-search"
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') setSearchOpen(false);
-            }}
-          >
-            <SearchBox autoFocus compact showFilterButton={isTaskPage} />
-          </div>
-        ) : null}
       </header>
     );
   }

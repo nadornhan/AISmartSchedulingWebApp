@@ -159,6 +159,34 @@ test('successful status changes refresh rows and status counts', async () => {
   ]);
 });
 
+for (const priority of ['no_priority', 'low', 'medium', 'high']) {
+  test(`selected tasks can be assigned ${priority} priority without changing status`, async () => {
+    const h = pageHarness({}, { selected: ['task-a', 'task-b'] });
+    await h.render().changeSelectedPriority(priority);
+    assert.deepEqual(h.calls, [
+      ['bulkUpdateTasks', { task_ids: ['task-a', 'task-b'], priority }],
+      ['refreshTasks'],
+      ['refreshCounts'],
+    ]);
+    assert.equal(h.render().isMutating, false);
+  });
+}
+
+test('failed priority updates keep the selection and allow retry', async () => {
+  let rejectUpdate;
+  const h = pageHarness({
+    bulkUpdateTasks: () => new Promise((_resolve, reject) => { rejectUpdate = reject; }),
+  });
+  const pending = h.render().changeSelectedPriority('high');
+  assert.equal(h.render().isMutating, true);
+  rejectUpdate(new Error('Priority update failed'));
+  await pending;
+  assert.equal(h.state.error, 'Priority update failed');
+  assert.deepEqual(h.state.selected, ['task-a']);
+  assert.equal(h.render().isMutating, false);
+  assert.equal(h.calls.length, 1);
+});
+
 for (const page of [1, 2]) {
   test(`deleting the last visible row on page ${page} keeps pagination usable`, async () => {
     const h = pageHarness({}, { page });
