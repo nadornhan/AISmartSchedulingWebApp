@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
+  CalendarDays,
+  Check,
+  ChevronDown,
   CircleCheck,
   CircleQuestionMark,
   Flame,
@@ -60,6 +63,81 @@ function formatWeeklySummary(summary: InsightsSummary) {
       this week, that&apos;s <span className="font-semibold text-[var(--accent)]">{absolute}%</span>{' '}
       {direction} than last week!
     </>
+  );
+}
+
+function ReviewWeekDropdown({
+  onChange,
+  value,
+}: {
+  onChange: (week: 'this-week' | 'last-week') => void;
+  value: 'this-week' | 'last-week';
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const selectedLabel = value === 'this-week' ? 'This week' : 'Last week';
+
+  return (
+    <div
+      className={`relative ${isOpen ? 'z-50' : ''}`}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setIsOpen(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          setIsOpen(false);
+          triggerRef.current?.focus();
+        }
+      }}
+    >
+      <button
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        aria-label={`Review week: ${selectedLabel}`}
+        className="flex h-11 shrink-0 items-center gap-3 rounded-[var(--radius-sm)] bg-transparent px-4 text-sm font-medium text-dashboard-muted outline-none transition hover:bg-dashboard-surface-hover hover:text-dashboard-text focus-visible:ring-2 focus-visible:ring-dashboard-accent/20"
+        onClick={() => setIsOpen((open) => !open)}
+        ref={triggerRef}
+        type="button"
+      >
+        <CalendarDays aria-hidden="true" className="size-4 shrink-0" />
+        <span>{selectedLabel}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className={`size-4 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {isOpen ? (
+        <div
+          aria-label="Choose review week"
+          className="absolute right-0 top-full z-50 mt-2 grid min-w-44 gap-1.5 rounded-xl bg-dashboard-raised p-2 shadow-panel"
+          role="menu"
+        >
+          {(['this-week', 'last-week'] as const).map((week) => {
+            const selected = value === week;
+            return (
+              <button
+                aria-checked={selected}
+                className={`flex h-10 w-full items-center justify-between rounded-lg px-3 text-left text-sm font-medium transition ${
+                  selected
+                    ? 'bg-dashboard-accent-soft text-dashboard-accent'
+                    : 'text-dashboard-muted hover:bg-dashboard-surface-hover hover:text-dashboard-text'
+                }`}
+                key={week}
+                onClick={() => {
+                  onChange(week);
+                  setIsOpen(false);
+                }}
+                role="menuitemradio"
+                type="button"
+              >
+                {week === 'this-week' ? 'This week' : 'Last week'}
+                {selected ? <Check aria-hidden="true" className="size-4" /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -236,30 +314,7 @@ export function InsightsDashboard() {
     <div className="space-y-6">
       <PageHeadingActions>
         <div className="flex flex-wrap items-center justify-end gap-3">
-          <span className="sr-only" id="review-week-label">
-            Review week
-          </span>
-          <div
-            aria-labelledby="review-week-label"
-            className="inline-flex rounded-xl border border-dashboard-border bg-dashboard-surface p-1"
-            role="group"
-          >
-            {(['this-week', 'last-week'] as const).map((week) => (
-              <button
-                aria-pressed={selectedWeek === week}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dashboard-accent ${
-                  selectedWeek === week
-                    ? 'bg-dashboard-accent-soft text-dashboard-accent'
-                    : 'text-dashboard-muted hover:bg-[var(--bg-surface-raised)] hover:text-dashboard-text'
-                }`}
-                key={week}
-                onClick={() => setSelectedWeek(week)}
-                type="button"
-              >
-                {week === 'this-week' ? 'This week' : 'Last week'}
-              </button>
-            ))}
-          </div>
+          <ReviewWeekDropdown onChange={setSelectedWeek} value={selectedWeek} />
         </div>
       </PageHeadingActions>
 
@@ -355,32 +410,37 @@ function CurrentWeekReview({ summary }: { summary: InsightsSummary }) {
           </section>
 
           <section aria-label="Key metrics">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
               <StatCard
+                className="order-5 col-span-2 sm:order-1 sm:col-span-1"
                 icon={Trophy}
                 iconClass="bg-[var(--accent-soft)] text-[var(--accent)]"
                 label="Completion Rate"
                 value={`${Math.round((summary.completion_rate_this_week ?? 0) * 100)}%`}
               />
               <StatCard
+                className="order-1 sm:order-2"
                 icon={CircleCheck}
                 iconClass="bg-[var(--accent-soft)] text-[var(--accent)]"
                 label="Completed Tasks"
                 value={String(summary.tasks_completed_this_week)}
               />
               <StatCard
+                className="order-2 sm:order-3"
                 icon={Timer}
                 iconClass="bg-[var(--blue-soft)] text-[var(--blue-light)]"
                 label="Focus Duration"
                 value={`${summary.focus_duration_minutes_this_week ?? 0} min`}
               />
               <StatCard
+                className="order-3 sm:order-4"
                 icon={Hourglass}
                 iconClass="bg-[var(--purple-soft)] text-[var(--purple-light)]"
                 label="Unfinished Workload"
                 value={`${summary.unfinished_workload_minutes_this_week ?? 0} min`}
               />
               <StatCard
+                className="order-4 sm:order-5"
                 icon={Flame}
                 iconClass="bg-[var(--orange-soft)] text-[var(--orange)]"
                 label="Streak"
@@ -414,20 +474,24 @@ function MetricIcon({ icon: Icon, iconClass }: { icon: LucideIcon; iconClass: st
 }
 
 function StatCard({
+  className = '',
   icon,
   iconClass,
   label,
   value,
 }: {
+  className?: string;
   icon: LucideIcon;
   iconClass: string;
   label: string;
   value: string;
 }) {
   return (
-    <div className="min-h-[108px] rounded-[14px] border border-dashboard-border bg-[var(--bg-surface-raised)] p-4">
+    <div
+      className={`${className} min-h-[108px] rounded-[14px] border border-dashboard-border bg-[var(--bg-surface-raised)] p-4`}
+    >
       <MetricIcon icon={icon} iconClass={iconClass} />
-      <p className="text-xs font-medium uppercase tracking-[0.08em] text-dashboard-muted">
+      <p className="min-h-8 text-xs font-medium uppercase leading-4 tracking-[0.08em] text-dashboard-muted sm:min-h-0">
         {label}
       </p>
       <p className="mt-2 text-xl font-semibold text-dashboard-text">{value}</p>
@@ -464,30 +528,35 @@ function WeeklyInsightCard({
       value: `${Math.round(metrics.completion_rate * 100)}%`,
       icon: Trophy,
       iconClass: 'bg-[var(--accent-soft)] text-[var(--accent)]',
+      className: 'order-5 col-span-2 sm:order-1 sm:col-span-1',
     },
     {
       label: 'Completed tasks',
       value: String(metrics.completed_task_count),
       icon: CircleCheck,
       iconClass: 'bg-[var(--accent-soft)] text-[var(--accent)]',
+      className: 'order-1 sm:order-2',
     },
     {
       label: 'Focus duration',
       value: `${metrics.focus_duration_minutes} min`,
       icon: Timer,
       iconClass: 'bg-[var(--blue-soft)] text-[var(--blue-light)]',
+      className: 'order-2 sm:order-3',
     },
     {
       label: 'Unfinished workload',
       value: `${metrics.workload_minutes} min`,
       icon: Hourglass,
       iconClass: 'bg-[var(--purple-soft)] text-[var(--purple-light)]',
+      className: 'order-3 sm:order-4',
     },
     {
       label: 'Streak',
       value: `${metrics.current_streak_days} days`,
       icon: Flame,
       iconClass: 'bg-[var(--orange-soft)] text-[var(--orange)]',
+      className: 'order-4 sm:order-5',
     },
   ];
   return (
@@ -516,14 +585,14 @@ function WeeklyInsightCard({
         ) : null}
 
         <section aria-label="Key metrics">
-          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {stats.map(({ label, value, icon, iconClass }) => (
+          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            {stats.map(({ label, value, icon, iconClass, className }) => (
               <div
-                className="rounded-[14px] border border-dashboard-border bg-[var(--bg-surface-raised)] px-4 py-4"
+                className={`${className} rounded-[14px] border border-dashboard-border bg-[var(--bg-surface-raised)] px-4 py-4`}
                 key={label}
               >
                 <MetricIcon icon={icon} iconClass={iconClass} />
-                <dt className="text-xs font-medium uppercase tracking-[0.08em] text-dashboard-muted">
+                <dt className="min-h-8 text-xs font-medium uppercase leading-4 tracking-[0.08em] text-dashboard-muted sm:min-h-0">
                   {label}
                 </dt>
                 <dd className="mt-2 text-xl font-semibold text-dashboard-text">{value}</dd>

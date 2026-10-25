@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
@@ -186,14 +187,6 @@ export function ForestWorldPage() {
           {error ? <p className="mt-2 text-sm text-[var(--red-light)]">{error}</p> : null}
         </div>
         <div className="flex flex-wrap gap-3">
-          <ForestAmbientAudio />
-          <button
-            className="rounded-lg border border-dashboard-border bg-dashboard-surface px-4 py-2 text-sm font-medium text-dashboard-text transition hover:border-dashboard-accent/50"
-            onClick={() => setCameraResetKey((value) => value + 1)}
-            type="button"
-          >
-            Reset camera
-          </button>
           <Link
             className="rounded-lg bg-dashboard-accent px-4 py-2 text-sm font-medium text-dashboard-on-accent"
             href="/gamification"
@@ -231,6 +224,18 @@ export function ForestWorldPage() {
               selectedId={selectedId}
               trees={scene.trees}
             />
+            <div className="absolute right-3 top-3 z-10 flex gap-2">
+              <ForestAmbientAudio iconOnly />
+              <button
+                aria-label="Reset camera"
+                className="grid size-10 place-items-center rounded-lg border border-white/20 bg-black/45 text-white shadow-sm backdrop-blur transition hover:border-dashboard-accent hover:bg-black/65"
+                onClick={() => setCameraResetKey((value) => value + 1)}
+                title="Reset camera"
+                type="button"
+              >
+                <RotateCcw aria-hidden="true" className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <aside className="space-y-4">

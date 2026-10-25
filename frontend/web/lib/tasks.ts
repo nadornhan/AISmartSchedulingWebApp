@@ -6,7 +6,7 @@ import { emitGrowthReward, type RewardFeedback } from './gamification';
 export type TaskStatusValue = 'pending' | 'in_progress' | 'done';
 export type TaskDisplayStatusValue = TaskStatusValue | 'overdue';
 export type TaskPriorityValue = 'no_priority' | 'low' | 'medium' | 'high';
-export type TaskSortValue = 'created_at' | 'updated_at' | 'title' | 'due_date' | 'priority';
+export type TaskSortValue = 'created_at' | 'updated_at' | 'title' | 'due_date' | 'priority' | 'project' | 'status';
 
 // Compatibility aliases used by the folders/inbox feature.
 export type TaskStatus = TaskDisplayStatusValue;

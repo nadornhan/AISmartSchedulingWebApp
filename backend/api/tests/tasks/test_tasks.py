@@ -1026,6 +1026,69 @@ def test_sort_tasks_by_priority(
     ]
 
 
+@pytest.mark.parametrize("sort_order", ["asc", "desc"])
+def test_sort_tasks_by_project_across_pages(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    sort_order: str,
+) -> None:
+    for name in ["zulu", "Alpha", "bravo"]:
+        project = create_project(client, auth_headers, name)
+        create_task(client, auth_headers, f"Task in {name}", project["id"])
+    create_task(client, auth_headers, "Unassigned task")
+
+    ordered_projects = []
+    for page in [1, 2]:
+        response = client.get(
+            "/tasks",
+            headers=auth_headers,
+            params={"sort_by": "project", "sort_order": sort_order, "page": page, "page_size": 2},
+        )
+        assert response.status_code == 200
+        assert response.json()["total"] == 4
+        ordered_projects.extend(
+            task["project"]["name"] if task["project"] else None
+            for task in response.json()["items"]
+        )
+
+    expected = ["Alpha", "bravo", "zulu"]
+    if sort_order == "desc":
+        expected.reverse()
+    assert ordered_projects == [*expected, None]
+
+
+@pytest.mark.parametrize("sort_order", ["asc", "desc"])
+def test_sort_tasks_by_display_status(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    sort_order: str,
+) -> None:
+    for title, status, due_date in [
+        ("Pending task", "pending", None),
+        ("Active task", "in_progress", None),
+        ("Overdue task", "pending", "2000-01-01T00:00:00Z"),
+        ("Completed task", "done", "2000-01-01T00:00:00Z"),
+    ]:
+        response = client.post(
+            "/tasks", headers=auth_headers, json={"title": title, "due_date": due_date},
+        )
+        assert response.status_code == 201
+        if status != "pending":
+            update = client.patch(
+                f"/tasks/{response.json()['id']}", headers=auth_headers, json={"status": status},
+            )
+            assert update.status_code == 200
+
+    response = client.get(
+        "/tasks", headers=auth_headers, params={"sort_by": "status", "sort_order": sort_order},
+    )
+    assert response.status_code == 200
+    expected = ["overdue", "pending", "in_progress", "done"]
+    if sort_order == "desc":
+        expected.reverse()
+    assert [task["status"] for task in response.json()["items"]] == expected
+
+
 def test_paginate_tasks(
     client: TestClient,
     auth_headers: dict[str, str],

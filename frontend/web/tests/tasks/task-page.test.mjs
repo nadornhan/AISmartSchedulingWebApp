@@ -231,7 +231,7 @@ test('filter order, pagination options and unfiltered API parameters are unchang
   assert.equal(model.filterToApi.Overdue, 'overdue');
   assert.equal(
     model.sortOptions.map((option) => option.value).join(','),
-    'due_date,priority,title,created_at,updated_at',
+    'due_date,priority,title,project,status,created_at,updated_at',
   );
 });
 
@@ -436,6 +436,122 @@ test('manual task entry keeps the same heading typography after switching from A
   assert.match(heading.props.className, /tracking-normal/);
 });
 
+function taskFilterFieldsHarness(value) {
+  const source = ts.createSourceFile(
+    'task-filter-menu.tsx', read('components/tasks/task-filter-menu.tsx'),
+    ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX,
+  );
+  const declarations = source.statements.filter((statement) =>
+    (ts.isFunctionDeclaration(statement) && ['TaskFilterFields', 'FilterSelect'].includes(statement.name?.text)) ||
+    (ts.isVariableStatement(statement) && statement.declarationList.declarations.some(
+      (declaration) => ['emptyFilters', 'fieldClass'].includes(declaration.name.getText(source)),
+    )),
+  );
+  const slots = [];
+  let cursor = 0;
+  const applied = [];
+  const fields = load(
+    `import { useState, useEffect, useId, useRef } from 'react';
+import { filterOrder, priorityFilters, priorityClass, statusClass } from './task-page-model';
+import { CalendarIcon, CheckIcon, ChevronDownIcon, FolderIcon, PriorityIcon, ResetIcon, TasksIcon } from '../layout/icons';
+${declarations.map((node) => node.getText(source)).join('\n')}
+export { TaskFilterFields, FilterSelect };`,
+    {
+      react: {
+        useState: (initial) => {
+          const index = cursor++;
+          if (!(index in slots)) slots[index] = initial;
+          return [slots[index], (next) => { slots[index] = next; }];
+        },
+        useEffect: () => {},
+        useRef: () => ({ current: null }),
+        useId: () => 'filter-select-test',
+      },
+      'react/jsx-runtime': jsxRuntime,
+      './task-page-model': model,
+      '../layout/icons': icons,
+    },
+  );
+  const props = {
+    projects: [{ id: 'project-a', name: 'Research', color: '#5da9ff' }], value,
+    onApply: (filters) => applied.push(JSON.parse(JSON.stringify(filters))),
+  };
+  const render = () => {
+    cursor = 0;
+    return elements(fields.TaskFilterFields(props));
+  };
+  return { render, applied, renderSelect: (props) => elements(fields.FilterSelect(props)) };
+}
+
+test('the combined filter popup applies project, dates, status and priority together', () => {
+  const h = taskFilterFieldsHarness({
+    projectId: '', status: 'All', priority: 'All', dueDate: { from: '', to: '' },
+  });
+  const changeSelect = (index, value) => h.render().filter((node) => node.type?.name === 'FilterSelect')[index]
+    .props.onChange(value);
+  changeSelect(0, 'project-a');
+  changeSelect(1, 'In Progress');
+  changeSelect(2, 'High');
+  h.render().find((node) => node.type === 'input').props.onChange({ target: { value: '2026-10-25' } });
+  h.render().filter((node) => node.type === 'input')[1].props.onChange({ target: { value: '2026-10-31' } });
+  assert.deepEqual(h.applied, []);
+  h.render().find((node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
+  assert.deepEqual(h.applied, [{
+    projectId: 'project-a', status: 'In Progress', priority: 'High',
+    dueDate: { from: '2026-10-25', to: '2026-10-31' },
+  }]);
+});
+
+test('the combined filter popup rejects reversed date ranges and can reset every filter', () => {
+  const h = taskFilterFieldsHarness({
+    projectId: 'project-a', status: 'Done', priority: 'Medium',
+    dueDate: { from: '2026-10-31', to: '2026-10-25' },
+  });
+  const nodes = h.render();
+  assert.equal(nodes.find((node) => node.type === 'button' && node.props.type === 'submit').props.disabled, true);
+  nodes.find((node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
+  assert.deepEqual(h.applied, []);
+  nodes.find((node) => node.type === 'button' && elements(node).some((child) => child.props?.children === 'Reset all')).props.onClick();
+  assert.deepEqual(h.applied, [{
+    projectId: '', status: 'All', priority: 'All', dueDate: { from: '', to: '' },
+  }]);
+});
+
+test('styled filter dropdowns support keyboard navigation, selection and Escape', () => {
+  const h = taskFilterFieldsHarness({
+    projectId: '', status: 'All', priority: 'All', dueDate: { from: '', to: '' },
+  });
+  const openChanges = [];
+  const selections = [];
+  let triggerFocus = 0;
+  const nodes = h.renderSelect({
+    label: 'Status', value: 'All', isOpen: true, icon: null,
+    options: [{ value: 'All', label: 'All statuses' }, { value: 'Done', label: 'Done' }],
+    onOpenChange: (open) => openChanges.push(open),
+    onChange: (value) => selections.push(value),
+  });
+  const trigger = nodes.find((node) => node.props?.['aria-haspopup'] === 'listbox');
+  trigger.props.ref.current = { focus: () => triggerFocus++ };
+  const options = nodes.filter((node) => node.props?.role === 'option');
+  assert.equal(options[0].props['aria-selected'], true);
+  assert.equal(options[1].props['aria-selected'], false);
+  const focused = [];
+  const items = options.map((_, index) => ({ focus: () => focused.push(index) }));
+  const menu = nodes.find((node) => node.props?.role === 'listbox');
+  for (const [key, target] of [['ArrowDown', items[0]], ['ArrowDown', items[1]], ['End', items[0]], ['Home', items[1]]]) {
+    menu.props.onKeyDown({ key, target, preventDefault() {}, currentTarget: { querySelectorAll: () => items } });
+  }
+  assert.deepEqual(focused, [1, 0, 1, 0]);
+  let stopped = false;
+  nodes[0].props.onKeyDown({ key: 'Escape', preventDefault() {}, stopPropagation() { stopped = true; } });
+  assert.equal(stopped, true);
+  assert.equal(openChanges.at(-1), false);
+  options[1].props.onClick();
+  assert.deepEqual(selections, ['Done']);
+  assert.equal(openChanges.at(-1), false);
+  assert.equal(triggerFocus, 2);
+});
+
 test('desktop table retains its responsive wrapper, column headers and loading/empty states', () => {
   const empty = renderToStaticMarkup(React.createElement(TaskDesktopTable, desktopProps()));
   assert.match(empty, /shadow-panel lg:block/);
@@ -449,6 +565,37 @@ test('desktop table retains its responsive wrapper, column headers and loading/e
   assert.match(loading, /role="status"/);
   assert.doesNotMatch(loading, /Loading tasks/);
   assert.ok(!loading.includes('No tasks found'));
+});
+
+test('each desktop column sorts ascending on selection and reverses on a repeated click', () => {
+  let state = { sortBy: 'created_at', sortAscending: false };
+  for (const [label, column] of [
+    ['task', 'title'], ['project', 'project'], ['due date', 'due_date'],
+    ['priority', 'priority'], ['status', 'status'],
+  ]) {
+    const renderHeader = () => buttons(TaskDesktopTable(desktopProps({
+      ...state,
+      onSort: (nextColumn) => {
+        state = model.nextTaskSort(state.sortBy, state.sortAscending, nextColumn);
+      },
+    }))).find((button) => button.props['aria-label']?.startsWith(`Sort by ${label}`));
+
+    renderHeader().props.onClick();
+    assert.equal(state.sortBy, column);
+    assert.equal(state.sortAscending, true);
+    assert.match(renderHeader().props['aria-label'], /currently ascending/);
+    renderHeader().props.onClick();
+    assert.equal(state.sortAscending, false);
+    assert.match(renderHeader().props['aria-label'], /currently descending/);
+  }
+});
+
+test('desktop column headings expose sorting without filter buttons', () => {
+  const nodes = buttons(TaskDesktopTable(desktopProps({
+    onSort: () => {},
+  })));
+  assert.equal(nodes.length, 5);
+  assert.ok(nodes.every((button) => button.props['aria-label'].startsWith('Sort by ')));
 });
 
 test('desktop completion checkbox updates status while bulk selection stays separate', () => {

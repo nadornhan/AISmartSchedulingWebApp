@@ -29,6 +29,8 @@ class TaskSortBy(str, enum.Enum):
     TITLE = "title"
     DUE_DATE = "due_date"
     PRIORITY = "priority"
+    PROJECT = "project"
+    STATUS = "status"
 
 
 class SortOrder(str, enum.Enum):

@@ -5,6 +5,7 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.notifications import service as notification_service
+from app.projects.models import Project
 from app.scheduling.revision import bump_schedule_revision
 from app.tasks.models import Subtask, Task, TaskPriority, TaskStatus
 from app.tasks.overdue import task_overdue_condition, utc_now
@@ -148,12 +149,28 @@ def list_tasks(
         else_=5,
     )
 
+    project_order = (
+        select(func.lower(Project.name))
+        .where(Project.id == Task.project_id)
+        .correlate(Task)
+        .scalar_subquery()
+    )
+    status_order = case(
+        (overdue, 0),
+        (Task.status == TaskStatus.PENDING, 1),
+        (Task.status == TaskStatus.IN_PROGRESS, 2),
+        (Task.status == TaskStatus.DONE, 3),
+        else_=4,
+    )
+
     sort_columns = {
         TaskSortBy.CREATED_AT: Task.created_at,
         TaskSortBy.UPDATED_AT: Task.updated_at,
-        TaskSortBy.TITLE: Task.title,
+        TaskSortBy.TITLE: func.lower(Task.title),
         TaskSortBy.DUE_DATE: Task.due_date,
         TaskSortBy.PRIORITY: priority_order,
+        TaskSortBy.PROJECT: project_order,
+        TaskSortBy.STATUS: status_order,
     }
     sort_column = sort_columns[sort_by]
 

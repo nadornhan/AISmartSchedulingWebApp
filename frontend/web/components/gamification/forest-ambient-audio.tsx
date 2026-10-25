@@ -36,7 +36,7 @@ function SpeakerIcon({ muted }: { muted: boolean }) {
   );
 }
 
-export function ForestAmbientAudio() {
+export function ForestAmbientAudio({ iconOnly = false }: { iconOnly?: boolean }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeTimerRef = useRef<number | null>(null);
   const enabledRef = useRef(true);
@@ -183,13 +183,19 @@ export function ForestAmbientAudio() {
     <button
       aria-label={label}
       aria-pressed={enabled && isPlaying}
-      className="inline-flex items-center gap-2 rounded-lg border border-dashboard-border bg-dashboard-surface px-4 py-2 text-sm font-medium text-dashboard-text transition hover:border-dashboard-accent/50"
+      className={
+        iconOnly
+          ? 'grid size-10 place-items-center rounded-lg border border-white/20 bg-black/45 text-white shadow-sm backdrop-blur transition hover:border-dashboard-accent hover:bg-black/65'
+          : 'inline-flex items-center gap-2 rounded-lg border border-dashboard-border bg-dashboard-surface px-4 py-2 text-sm font-medium text-dashboard-text transition hover:border-dashboard-accent/50'
+      }
       onClick={handleToggle}
       title={label}
       type="button"
     >
       <SpeakerIcon muted={!enabled || !isPlaying} />
-      <span>{needsInteraction ? 'Play ambience' : enabled ? 'Sound on' : 'Sound off'}</span>
+      {iconOnly ? null : (
+        <span>{needsInteraction ? 'Play ambience' : enabled ? 'Sound on' : 'Sound off'}</span>
+      )}
     </button>
   );
 }

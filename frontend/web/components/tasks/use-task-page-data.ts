@@ -20,6 +20,8 @@ type TaskPageDataOptions = {
   targetTaskId: string;
   activeFilter: TaskFilter;
   priorityFilter: PriorityFilter;
+  dueFrom?: string;
+  dueTo?: string;
   sortBy: TaskSortValue;
   sortAscending: boolean;
   page: number;
@@ -37,6 +39,8 @@ export function useTaskPageData({
   targetTaskId,
   activeFilter,
   priorityFilter,
+  dueFrom,
+  dueTo,
   sortBy,
   sortAscending,
   page,
@@ -52,6 +56,8 @@ export function useTaskPageData({
     search: searchQuery || undefined,
     status: filterToApi[activeFilter],
     priority: priorityFilterToApi[priorityFilter],
+    dueFrom,
+    dueTo,
     sortBy,
     sortOrder: sortAscending ? 'asc' as const : 'desc' as const,
     page: allTasks ? 1 : page,
@@ -125,6 +131,8 @@ export function useTaskPageData({
     pageSize,
     allTasks,
     priorityFilter,
+    dueFrom,
+    dueTo,
     searchQuery,
     sortAscending,
     sortBy,

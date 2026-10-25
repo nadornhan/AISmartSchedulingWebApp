@@ -2,9 +2,9 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { Filter, Moon, Sun } from 'lucide-react';
 import { HeaderDropdown } from './header-dropdown';
-import { BellIcon, CalendarIcon, FilterIcon, LightningIcon, SearchIcon } from './icons';
+import { BellIcon, CalendarIcon, LightningIcon, SearchIcon } from './icons';
 import { NotificationDropdown, type NotificationDropdownItem } from './notification-dropdown';
 import type { UserResponse } from '../../lib/auth';
 import { onTaskDataChanged } from '../../lib/data-events';
@@ -130,7 +130,7 @@ export function SearchBox({
           onClick={() => window.dispatchEvent(new Event('toggle-mobile-task-filters'))}
           type="button"
         >
-          <FilterIcon className="h-5 w-5" />
+          <Filter className="h-5 w-5" />
         </button>
       ) : null}
     </form>

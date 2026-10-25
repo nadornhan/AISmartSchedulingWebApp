@@ -293,6 +293,49 @@ test('targeted task loading bypasses list filters and retains one-page result', 
   assert.equal(h.calls.length, 2);
 });
 
+test('date ranges combine with project and status filters and refetch paginated results when changed or cleared', async () => {
+  const dueFrom = '2026-10-24T13:00:00.000Z';
+  const dueTo = '2026-10-31T12:59:59.999Z';
+  const h = harness({}, { activeProjectId: 'project-a', activeFilter: 'Pending', dueFrom, dueTo });
+  h.render();
+  await h.settle();
+  assert.deepEqual(h.calls.find((call) => !call.counts), {
+    projectId: 'project-a', status: 'pending', dueFrom, dueTo,
+    sortBy: 'due_date', sortOrder: 'asc', page: 1, pageSize: 8,
+  });
+
+  const nextDueTo = '2026-11-07T12:59:59.999Z';
+  h.render({ dueTo: nextDueTo, page: 2 });
+  await h.settle();
+  assert.deepEqual(h.calls.filter((call) => !call.counts).at(-1), {
+    projectId: 'project-a', status: 'pending', dueFrom, dueTo: nextDueTo,
+    sortBy: 'due_date', sortOrder: 'asc', page: 2, pageSize: 8,
+  });
+
+  h.render({ dueFrom: undefined, dueTo: undefined, page: 1 });
+  await h.settle();
+  assert.deepEqual(h.calls.filter((call) => !call.counts).at(-1), {
+    projectId: 'project-a', status: 'pending',
+    sortBy: 'due_date', sortOrder: 'asc', page: 1, pageSize: 8,
+  });
+  h.dispose();
+});
+
+test('project and status sorts request the whole filtered list in both directions', async () => {
+  const h = harness({}, { activeProjectId: 'project-a', page: 1 });
+  for (const sortBy of ['project', 'status']) {
+    for (const sortAscending of [true, false]) {
+      h.render({ sortBy, sortAscending });
+      await h.settle();
+      assert.deepEqual(h.calls.filter((call) => !call.counts).at(-1), {
+        projectId: 'project-a', sortBy,
+        sortOrder: sortAscending ? 'asc' : 'desc', page: 1, pageSize: 8,
+      });
+    }
+  }
+  h.dispose();
+});
+
 test('main request failure clears tasks/pages and exposes error without clearing selection/menu', async () => {
   const h = harness({
     listTasks: async () => {

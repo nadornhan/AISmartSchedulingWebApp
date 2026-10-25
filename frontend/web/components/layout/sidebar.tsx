@@ -314,17 +314,17 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       ref={sidebarRef}
       className={cn(
         'accent-scrollbar z-[170] flex h-dvh flex-col overflow-y-auto border-r border-dashboard-border bg-[var(--bg-sidebar)]/95 py-5 text-dashboard-text shadow-panel backdrop-blur-xl transition-[width,padding] duration-200 lg:sticky lg:top-0',
-        sidebarCollapsed ? 'w-28 px-3' : 'w-80 px-6',
+        sidebarCollapsed ? 'w-20 px-2' : 'w-80 px-6',
         className,
       )}
     >
       <div
         className={cn(
           'mb-8 flex items-center',
-          sidebarCollapsed ? 'justify-between gap-2' : 'gap-3',
+          sidebarCollapsed ? 'justify-center' : 'gap-3',
         )}
       >
-        <BrandMark />
+        {!sidebarCollapsed ? <BrandMark /> : null}
         <span
           className={cn(
             'font-poppins mt-2 flex-1 text-[28px] font-medium leading-none tracking-normal',

@@ -26,7 +26,7 @@ export function SuggestedTaskCard({
   return (
     <section
       aria-label="AI Pick for Today"
-      className="relative isolate flex min-w-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-dashboard-accent/20 bg-dashboard-surface px-5 pb-4 pt-6 shadow-panel lg:p-6"
+      className="relative isolate flex min-w-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-dashboard-accent/20 bg-dashboard-surface px-5 pb-4 pt-6 shadow-panel lg:h-[25rem] lg:p-6"
     >
       <div
         aria-hidden="true"

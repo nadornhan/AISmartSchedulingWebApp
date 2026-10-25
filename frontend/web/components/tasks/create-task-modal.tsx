@@ -395,7 +395,7 @@ function TaskFormModal({
     <div
       aria-labelledby="task-form-title"
       aria-modal="true"
-      className="fixed inset-0 z-[300] grid grid-cols-[minmax(0,1fr)] place-items-center overflow-y-auto bg-dashboard-overlay p-4 backdrop-blur-[5px]"
+      className="task-create-modal-backdrop fixed inset-0 z-[300] grid grid-cols-[minmax(0,1fr)] place-items-center overflow-y-auto bg-dashboard-overlay p-4 backdrop-blur-[5px]"
       onMouseDown={(event) => {
         if (event.currentTarget === event.target) closeForm();
       }}
@@ -403,7 +403,7 @@ function TaskFormModal({
     >
       <form
         className={cn(
-          'task-create-modal my-6 w-full min-w-0 max-w-[680px] rounded-[var(--radius-lg)] border border-dashboard-border-strong shadow-modal',
+          'task-create-modal task-create-modal-panel my-6 w-full min-w-0 max-w-[680px] rounded-[var(--radius-lg)] border border-dashboard-border-strong shadow-modal',
           isAiOnlyView ? 'p-4 min-[360px]:p-5 sm:p-6' : 'p-5 sm:p-9',
         )}
         onKeyDown={(event) => {

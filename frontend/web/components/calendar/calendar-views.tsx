@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarIcon, CheckIcon, ChevronRightIcon, CloseIcon } from '../layout/icons';
+import { CalendarIcon, CheckIcon, ChevronRightIcon, ClockIcon, CloseIcon } from '../layout/icons';
 import { BrandedLoadingScreen } from '../layout/branded-loading-screen';
 import { formatDurationLabel } from '../../lib/duration';
 import {
@@ -93,7 +93,7 @@ export function MobileCalendarView({
           >
             <ChevronRightIcon className="h-4 w-4 rotate-180" />
           </button>
-          <h2 className="text-center text-lg font-semibold tracking-wide text-dashboard-text">
+          <h2 className="text-center text-lg font-bold tracking-wide text-dashboard-text">
             {monthLabel}
           </h2>
           <button
@@ -378,8 +378,7 @@ function DayViewTaskCard({
   return (
     <article
       className={cn(
-        'group rounded-xl border p-4 shadow-[0_12px_32px_rgb(var(--shadow-color)/calc(0.14*var(--shadow-strength)))] transition hover:-translate-y-0.5 hover:shadow-[0_16px_38px_rgb(var(--shadow-color)/calc(0.22*var(--shadow-strength)))] sm:p-5',
-        priorityClasses(task),
+        'group rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface/70 p-4 text-dashboard-text shadow-panel transition hover:bg-dashboard-surface sm:p-5',
         task.scheduleLocked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
         isMutating && 'cursor-wait opacity-60',
       )}
@@ -395,17 +394,17 @@ function DayViewTaskCard({
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-4">
-          <time className="shrink-0 rounded-lg border border-current/20 bg-dashboard-bg/45 px-3 py-2 text-sm font-semibold text-current">
+          <time className="shrink-0 rounded-lg border border-dashboard-border bg-dashboard-bg/45 px-3 py-2 text-sm font-medium tabular-nums text-dashboard-muted">
             {formatTime(task.calendarDate)}
           </time>
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <h4 className="min-w-0 truncate text-lg font-semibold text-dashboard-text">
+              <h4 className="min-w-0 truncate text-sm font-semibold leading-5 text-dashboard-text">
                 {task.title}
               </h4>
               {task.status === 'overdue' ? <OverdueBadge /> : null}
             </div>
-            <p className="mt-2 flex items-center gap-2 text-base text-dashboard-muted">
+            <p className="mt-2 flex items-center gap-2 text-sm text-dashboard-muted">
               <span
                 className="h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: task.projectColor }}
@@ -445,12 +444,18 @@ function DayViewTaskCard({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-current/10 pt-3">
-        <span className="rounded-full border border-current/20 bg-dashboard-bg/35 px-3 py-1.5 text-sm font-semibold text-current">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span
+          className={cn(
+            'inline-flex rounded-[var(--radius-pill)] border px-2.5 py-1 text-xs font-medium',
+            mobilePriorityClasses(task.priority),
+          )}
+        >
           {priorityLabel}
         </span>
         {task.durationMinutes !== null ? (
-          <span className="rounded-full border border-dashboard-border bg-dashboard-bg/35 px-3 py-1.5 text-sm font-medium text-dashboard-muted">
+          <span className="inline-flex items-center gap-1.5 text-xs text-dashboard-muted">
+            <ClockIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
             {formatDurationLabel(task.durationMinutes)} estimated
           </span>
         ) : null}

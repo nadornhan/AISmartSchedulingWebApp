@@ -282,6 +282,24 @@ export function FilterIcon(props: IconProps) {
   );
 }
 
+export function ResetIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M3 10a9 9 0 1 1 2.6 8.4" />
+      <path d="M3 4v6h6" />
+    </IconBase>
+  );
+}
+
+export function ArrowUpIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 20V4" />
+      <path d="m6 10 6-6 6 6" />
+    </IconBase>
+  );
+}
+
 export function SortIcon(props: IconProps) {
   return (
     <IconBase {...props}>

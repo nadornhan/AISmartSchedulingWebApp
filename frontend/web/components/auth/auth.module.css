@@ -302,19 +302,36 @@
 }
 @media (max-width: 760px) {
   .page {
-    padding: 12px;
+    padding: 0;
   }
   .shell {
     grid-template-columns: 1fr;
-    border-radius: 26px;
-    padding: 8px;
-    min-height: calc(100svh - 24px);
+    width: 100%;
+    min-height: 100svh;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
   }
   .artwork {
+    position: relative;
     grid-row: 1;
     min-height: 0;
-    height: clamp(180px, 27svh, 260px);
-    border-radius: 18px;
+    height: clamp(180px, 33svh, 280px);
+    border-radius: 0;
+    pointer-events: none;
+  }
+  .imageShade {
+    background: linear-gradient(
+      180deg,
+      #00030600 52%,
+      #00030618 66%,
+      #00030666 82%,
+      #000306d9 96%,
+      #000306 100%
+    );
+  }
+  .formColumn {
+    z-index: 1;
   }
   .mountain {
     object-position: center 79%;
@@ -341,12 +358,18 @@
     margin-bottom: 8px;
   }
   .formColumn {
-    padding: 30px 18px 24px;
+    padding: 30px 24px 24px;
     flex-direction: column;
     gap: 30px;
   }
   .heading h1 {
     font-size: 28px;
+  }
+  .inputBar {
+    height: 56px;
+  }
+  .primary {
+    min-height: 56px;
   }
   .footer {
     position: static;

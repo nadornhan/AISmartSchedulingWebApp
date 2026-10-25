@@ -2,7 +2,8 @@
 
 import type { Dispatch, MouseEvent, PointerEvent, ReactNode, SetStateAction } from 'react';
 import { useRef, useState } from 'react';
-import type { TaskResponse } from '../../lib/tasks';
+import { ArrowDown, ArrowUp } from 'lucide-react';
+import type { TaskResponse, TaskSortValue } from '../../lib/tasks';
 import { BrandedLoadingScreen } from '../layout/branded-loading-screen';
 import {
   CalendarIcon,
@@ -11,6 +12,7 @@ import {
   ClockIcon,
   EditIcon,
   MoreIcon,
+  SortIcon,
   TasksIcon,
 } from '../layout/icons';
 import { CheckBox, StatusDropdown, SubtaskAccordion } from './task-page-controls';
@@ -24,6 +26,9 @@ import {
 } from './task-page-model';
 
 type TaskDesktopTableProps = {
+  sortBy?: TaskSortValue;
+  sortAscending?: boolean;
+  onSort?: (column: TaskSortValue) => void;
   visibleTasks: Task[];
   selected: string[];
   expandedTaskIds: string[];
@@ -61,7 +66,26 @@ function TaskEmptyState() {
   );
 }
 
+function AlphabetSortIcon({ descending }: Readonly<{ descending: boolean }>) {
+  const Arrow = descending ? ArrowDown : ArrowUp;
+  const firstLetter = descending ? 'Z' : 'A';
+  const secondLetter = descending ? 'A' : 'Z';
+
+  return (
+    <span aria-hidden="true" className="inline-flex shrink-0 items-center gap-0.5 text-dashboard-muted">
+      <Arrow className="h-4 w-4" />
+      <span className="flex flex-col text-[8px] font-bold leading-[0.7]">
+        <span>{firstLetter}</span>
+        <span>{secondLetter}</span>
+      </span>
+    </span>
+  );
+}
+
 export function TaskDesktopTable({
+  sortBy,
+  sortAscending = true,
+  onSort,
   visibleTasks,
   selected,
   expandedTaskIds,
@@ -82,6 +106,40 @@ export function TaskDesktopTable({
   handleDeleteOne,
   toggleSubtask,
 }: Readonly<TaskDesktopTableProps>) {
+  function columnHeader(label: string, column: TaskSortValue) {
+    const active = sortBy === column;
+    const descending = active && !sortAscending;
+    const currentDirection = sortAscending ? 'ascending' : 'descending';
+    const nextDirection = active && sortAscending ? 'descending' : 'ascending';
+
+    return (
+      <div
+        className={cn(
+          'min-w-0 items-center gap-1',
+          column === 'title'
+            ? 'col-span-2 flex justify-start 2xl:col-span-1'
+            : 'hidden justify-center 2xl:flex',
+        )}
+      >
+        <button
+          aria-label={`Sort by ${label.toLowerCase()}${active ? `, currently ${currentDirection}` : ''}`}
+          className="inline-flex min-h-10 min-w-0 items-center gap-1 rounded-lg text-left text-sm font-semibold uppercase tracking-wide text-dashboard-muted transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-dashboard-accent"
+          disabled={!onSort}
+          onClick={() => onSort?.(column)}
+          title={`Sort by ${label.toLowerCase()} ${nextDirection}`}
+          type="button"
+        >
+          <span>{label}</span>
+          {column === 'title' ? (
+            <AlphabetSortIcon descending={descending} />
+          ) : (
+            <SortIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-dashboard-muted" />
+          )}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <section className="hidden rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 shadow-panel lg:block">
       <div className="hidden min-h-16 grid-cols-[24px_minmax(0,1fr)_minmax(0,1fr)_88px] items-center gap-3 rounded-t-[var(--radius-lg)] border-b border-dashboard-border px-5 text-sm font-semibold uppercase tracking-wide text-dashboard-muted lg:grid 2xl:grid-cols-[36px_minmax(260px,1.6fr)_minmax(110px,0.8fr)_minmax(126px,0.85fr)_minmax(108px,0.75fr)_minmax(128px,0.95fr)_88px]">
@@ -90,11 +148,11 @@ export function TaskDesktopTable({
           label="Select all visible tasks"
           onChange={toggleAllVisible}
         />
-        <span className="col-span-2 2xl:col-span-1">Task</span>
-        <span className="hidden 2xl:block 2xl:text-center">Project</span>
-        <span className="hidden 2xl:block 2xl:text-center">Due date</span>
-        <span className="hidden 2xl:block 2xl:text-center">Priority</span>
-        <span className="hidden 2xl:block 2xl:text-center">Status</span>
+        {columnHeader('Task', 'title')}
+        {columnHeader('Project', 'project')}
+        {columnHeader('Due date', 'due_date')}
+        {columnHeader('Priority', 'priority')}
+        {columnHeader('Status', 'status')}
         <span className="text-right">Actions</span>
       </div>
 
@@ -147,13 +205,22 @@ export function TaskDesktopTable({
                       ) : null}
                     </h2>
                     {task.subtaskProgressLabel || task.durationLabel ? (
-                      <p className="mt-1 text-sm font-medium text-dashboard-muted">
+                      <p className="mt-1 flex items-center gap-2 text-sm font-medium text-dashboard-muted">
                         {task.subtaskProgressLabel ?? (
                           <span className="inline-flex items-center gap-1.5" aria-label={`Estimated duration: ${task.durationLabel}`}>
                             <ClockIcon className="h-3.5 w-3.5 shrink-0" />
                             {task.durationLabel}
                           </span>
                         )}
+                        {task.source.subtasks.length > 0 ? (
+                          <ChevronDownIcon
+                            aria-hidden="true"
+                            className={cn(
+                              'h-4 w-4 shrink-0 text-dashboard-accent transition',
+                              !expandedTaskIds.includes(task.id) && '-rotate-90',
+                            )}
+                          />
+                        ) : null}
                       </p>
                     ) : null}
                     {task.source.schedule_locked ? (
@@ -162,14 +229,6 @@ export function TaskDesktopTable({
                       </span>
                     ) : null}
                   </div>
-                  {task.source.subtasks.length > 0 ? (
-                    <ChevronDownIcon
-                      className={cn(
-                        'h-5 w-5 shrink-0 text-dashboard-accent transition',
-                        !expandedTaskIds.includes(task.id) && '-rotate-90',
-                      )}
-                    />
-                  ) : null}
                 </div>
               </button>
 

@@ -2,7 +2,6 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
 import { type TaskPriorityValue, type TaskResponse, type TaskSortValue } from '../../lib/tasks';
 import { SearchBox } from '../layout/header';
 import {
@@ -16,6 +15,7 @@ import {
   TrashIcon,
 } from '../layout/icons';
 import { CreateTaskModal, EditTaskModal } from './create-task-modal';
+import { TaskFilterMenu, type TaskDueDateRange } from './task-filter-menu';
 
 import { TaskDesktopTable, TaskMobileList } from './task-list-views';
 import { useTaskPageData } from './use-task-page-data';
@@ -25,6 +25,7 @@ import {
   filterOrder,
   mobileFilterOrder,
   mobileGroupForTask,
+  nextTaskSort,
   priorityFilters,
   priorityFromApi,
   sortOptions,
@@ -58,6 +59,7 @@ export function TaskPage() {
   const createPriorityParam = searchParams.get('priority');
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('All');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('All');
+  const [dueDateRange, setDueDateRange] = useState<TaskDueDateRange>({ from: '', to: '' });
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showMobileStatusMenu, setShowMobileStatusMenu] = useState(false);
   const mobileStatusMenuRef = useRef<HTMLDivElement>(null);
@@ -76,10 +78,15 @@ export function TaskPage() {
   useEffect(() => {
     setPage(1);
     setSelected([]);
-    if (searchQuery || targetTaskId) {
-      setActiveFilter('All');
-    }
   }, [activeProjectId, searchQuery, targetTaskId]);
+
+  useEffect(() => {
+    if (searchQuery) setActiveFilter('All');
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (targetTaskId) setActiveFilter('All');
+  }, [targetTaskId]);
 
   useEffect(() => {
     window.dispatchEvent(
@@ -205,6 +212,8 @@ export function TaskPage() {
     targetTaskId,
     activeFilter,
     priorityFilter,
+    dueFrom: dueDateRange.from ? new Date(`${dueDateRange.from}T00:00:00`).toISOString() : undefined,
+    dueTo: dueDateRange.to ? new Date(`${dueDateRange.to}T23:59:59.999`).toISOString() : undefined,
     sortBy,
     sortAscending,
     page,
@@ -438,6 +447,30 @@ export function TaskPage() {
         <SearchBox compact showFilterButton />
       </section>
 
+      {dueDateRange.from || dueDateRange.to ? (
+        <section
+          aria-label="Active due date filter"
+          className="mb-4 flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-dashboard-border bg-dashboard-surface/55 px-4 py-3"
+        >
+          <p className="text-sm text-dashboard-muted">
+            Due date:{' '}
+            <span className="font-medium text-dashboard-text">
+              {dueDateRange.from || 'Any date'} – {dueDateRange.to || 'Any date'}
+            </span>
+          </p>
+          <button
+            className="ml-auto rounded-lg px-3 py-1.5 text-sm font-medium text-dashboard-muted hover:text-dashboard-accent"
+            onClick={() => {
+              setDueDateRange({ from: '', to: '' });
+              setPage(1);
+            }}
+            type="button"
+          >
+            Clear
+          </button>
+        </section>
+      ) : null}
+
       {selected.length ? (
         <div
           aria-live="polite"
@@ -643,35 +676,29 @@ export function TaskPage() {
         </div>
 
         <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-3">
-          <label className="relative">
-            <span className="sr-only">Filter by priority</span>
-            <select
-              className="h-11 appearance-none rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface py-0 pl-4 pr-10 text-sm font-medium text-dashboard-muted outline-none transition hover:border-dashboard-border-strong hover:text-dashboard-text"
-              onChange={(event) => {
-                setPriorityFilter(event.target.value as PriorityFilter);
-                setPage(1);
-              }}
-              value={priorityFilter}
-            >
-              {priorityFilters.map((option) => (
-                <option key={option} value={option}>
-                  {option === 'All' ? 'All priorities' : option}
-                </option>
-              ))}
-            </select>
-            <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-          </label>
-
-          <TaskSortMenu value={sortBy} onChange={setSortBy} />
-
-          <button
-            aria-label={sortAscending ? 'Sort ascending' : 'Sort descending'}
-            className="grid h-11 w-11 place-items-center rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface text-dashboard-muted transition hover:border-dashboard-border-strong hover:text-dashboard-text"
-            onClick={() => setSortAscending((current) => !current)}
-            type="button"
-          >
-            <ChevronDownIcon className={cn('h-4 w-4 transition', !sortAscending && 'rotate-180')} />
-          </button>
+          <TaskFilterMenu
+            projects={projects}
+            value={{
+              projectId: activeProjectId,
+              status: activeFilter,
+              priority: priorityFilter,
+              dueDate: dueDateRange,
+            }}
+            onApply={(filters) => {
+              setActiveFilter(filters.status);
+              setPriorityFilter(filters.priority);
+              setDueDateRange(filters.dueDate);
+              setPage(1);
+              const params = new URLSearchParams(searchParams);
+              if (filters.projectId) params.set('project_id', filters.projectId);
+              else params.delete('project_id');
+              params.delete('task_id');
+              if (params.toString() !== searchParams.toString()) {
+                const query = params.toString();
+                router.push(query ? `/tasks?${query}` : '/tasks', { scroll: false });
+              }
+            }}
+          />
 
           <button
             className="flex h-11 items-center gap-2 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-dashboard-on-accent shadow-glow transition hover:brightness-110"
@@ -704,7 +731,7 @@ export function TaskPage() {
       ) : null}
 
       <TaskMobileList
-        key={JSON.stringify([activeProjectId, searchQuery, targetTaskId, activeFilter, priorityFilter, sortBy, sortAscending])}
+        key={JSON.stringify([activeProjectId, searchQuery, targetTaskId, activeFilter, priorityFilter, dueDateRange.from, dueDateRange.to, sortBy, sortAscending])}
         mobileTaskGroups={mobileTaskGroups}
         mobileStatusFilter={mobileStatusFilter}
         selected={selected}
@@ -719,6 +746,14 @@ export function TaskPage() {
       />
 
       <TaskDesktopTable
+        sortBy={sortBy}
+        sortAscending={sortAscending}
+        onSort={(column) => {
+          const next = nextTaskSort(sortBy, sortAscending, column);
+          setSortBy(next.sortBy);
+          setSortAscending(next.sortAscending);
+          setPage(1);
+        }}
         visibleTasks={visibleTasks}
         selected={selected}
         expandedTaskIds={expandedTaskIds}
@@ -973,112 +1008,5 @@ export function TaskPage() {
           </div>
       </div>
     </div>
-  );
-}
-
-function TaskSortMenu({ value, onChange }: {
-  value: TaskSortValue;
-  onChange: (value: TaskSortValue) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const updatePosition = () => {
-      const trigger = triggerRef.current;
-      if (!trigger) return;
-      const rect = trigger.getBoundingClientRect();
-      const width = Math.max(rect.width, 184);
-      setPosition({
-        top: rect.bottom + 8,
-        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
-        width,
-      });
-    };
-    const dismissOutside = (event: PointerEvent) => {
-      const target = event.target;
-      if (target instanceof Node && !triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) {
-        setIsOpen(false);
-      }
-    };
-    const closeMenu = () => setIsOpen(false);
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-
-    updatePosition();
-    document.addEventListener('pointerdown', dismissOutside);
-    document.addEventListener('keydown', closeOnEscape);
-    window.addEventListener('resize', closeMenu);
-    window.addEventListener('scroll', closeMenu, true);
-    return () => {
-      document.removeEventListener('pointerdown', dismissOutside);
-      document.removeEventListener('keydown', closeOnEscape);
-      window.removeEventListener('resize', closeMenu);
-      window.removeEventListener('scroll', closeMenu, true);
-    };
-  }, [isOpen]);
-
-  const selectedLabel = sortOptions.find((option) => option.value === value)?.label ?? 'Due date';
-
-  return (
-    <>
-      <button
-        aria-controls="task-sort-menu"
-        aria-expanded={isOpen}
-        aria-haspopup="menu"
-        aria-label={`Sort tasks: ${selectedLabel}`}
-        className="flex h-11 shrink-0 items-center gap-3 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface px-4 text-sm font-medium text-dashboard-muted outline-none transition hover:border-dashboard-border-strong hover:text-dashboard-text focus-visible:border-dashboard-accent focus-visible:ring-2 focus-visible:ring-dashboard-accent/20"
-        onClick={() => setIsOpen((open) => !open)}
-        ref={triggerRef}
-        type="button"
-      >
-        <SortIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
-        <span>{selectedLabel}</span>
-        <ChevronDownIcon aria-hidden="true" className={`h-4 w-4 shrink-0 transition ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-      {isOpen && position ? createPortal(
-        <div
-          className="fixed z-[220] overflow-hidden rounded-xl border border-dashboard-border-strong bg-dashboard-raised p-1.5 shadow-panel"
-          id="task-sort-menu"
-          ref={menuRef}
-          role="menu"
-          style={position}
-        >
-          {sortOptions.map((option) => {
-            const selected = value === option.value;
-            return (
-              <button
-                aria-checked={selected}
-                className={cn(
-                  'flex h-10 w-full items-center justify-between rounded-lg px-3 text-left text-sm font-medium transition',
-                  selected
-                    ? 'bg-dashboard-accent-soft text-dashboard-accent'
-                    : 'text-dashboard-muted hover:bg-dashboard-surface-hover hover:text-dashboard-text',
-                )}
-                key={option.value}
-                onClick={() => {
-                  onChange(option.value);
-                  setIsOpen(false);
-                }}
-                role="menuitemradio"
-                type="button"
-              >
-                {option.label}
-                {selected ? <CheckIcon aria-hidden="true" className="h-4 w-4" /> : null}
-              </button>
-            );
-          })}
-        </div>,
-        document.body,
-      ) : null}
-    </>
   );
 }

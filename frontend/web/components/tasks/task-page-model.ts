@@ -41,10 +41,20 @@ export const sortOptions: Array<{ label: string; value: TaskSortValue }> = [
   { label: 'Due date', value: 'due_date' },
   { label: 'Priority', value: 'priority' },
   { label: 'Title', value: 'title' },
+  { label: 'Project', value: 'project' },
+  { label: 'Status', value: 'status' },
   { label: 'Created', value: 'created_at' },
   { label: 'Updated', value: 'updated_at' },
 ];
 export const pageSizeOptions = [8, 16, 24];
+
+export function nextTaskSort(
+  currentColumn: TaskSortValue,
+  ascending: boolean,
+  column: TaskSortValue,
+) {
+  return { sortBy: column, sortAscending: column === currentColumn ? !ascending : true };
+}
 
 export const statusToApi: Record<TaskStatus, TaskStatusValue> = {
   Pending: 'pending',
