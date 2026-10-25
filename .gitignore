@@ -40,3 +40,6 @@ Thumbs.db
 artifacts/
 tmp/
 submission-dist/
+
+# Local development demo data.
+/backend/api/scripts/seed_mock_data.py
