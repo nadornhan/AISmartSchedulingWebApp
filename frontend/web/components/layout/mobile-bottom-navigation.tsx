@@ -57,6 +57,7 @@ export function MobileBottomNavigation() {
             return (
               <Link
                 aria-current={active ? 'page' : undefined}
+                data-tour-nav={item.href}
                 className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent ${active ? 'text-dashboard-accent' : 'text-dashboard-muted hover:text-dashboard-text'}`}
                 href={item.href}
                 key={item.href}
@@ -69,6 +70,7 @@ export function MobileBottomNavigation() {
 
           <button
             aria-label="Create task"
+            data-tour="task-create"
             className="group flex min-h-16 flex-col items-center justify-end rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
             onClick={openCreateTask}
             type="button"
@@ -84,6 +86,7 @@ export function MobileBottomNavigation() {
             return (
               <Link
                 aria-current={active ? 'page' : undefined}
+                data-tour-nav={item.href}
                 className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent ${active ? 'text-dashboard-accent' : 'text-dashboard-muted hover:text-dashboard-text'}`}
                 href={item.href}
                 key={item.href}
@@ -96,6 +99,7 @@ export function MobileBottomNavigation() {
 
           <Link
             aria-current={accountIsActive ? 'page' : undefined}
+            data-tour-nav="/account"
             className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent ${accountIsActive ? 'text-dashboard-accent' : 'text-dashboard-muted hover:text-dashboard-text'}`}
             href="/account"
           >

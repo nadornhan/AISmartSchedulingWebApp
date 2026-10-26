@@ -213,7 +213,10 @@ export function CalendarPage() {
 
       <section className="hidden gap-5 lg:grid xl:grid-cols-[minmax(0,1.75fr)_minmax(380px,0.9fr)]">
         <div className="rounded-[var(--radius-lg)] border border-dashboard-border bg-dashboard-surface/65 shadow-panel">
-          <div className="flex flex-col gap-3 border-b border-dashboard-border p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div
+            data-tour="calendar-controls"
+            className="flex flex-col gap-3 border-b border-dashboard-border p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between"
+          >
             <div className="flex min-w-0 items-center gap-2">
               <button
                 aria-label={`Previous ${calendarView}`}

@@ -142,7 +142,7 @@ export function FocusTimerPanel({
           />
         </svg>
 
-        <div className="focus-timer-content">
+        <div data-tour="focus-timer" className="focus-timer-content">
           <Clock3 aria-hidden="true" className="focus-timer-clock text-dashboard-accent" />
           <p className="focus-timer-time font-poppins font-medium leading-none tracking-tight text-dashboard-text">
             {minutes}:{remainder}

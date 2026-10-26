@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState, type ReactNode } from 'react';
 import { getGamificationProfile, onGrowthReward } from '../../lib/gamification';
 import { CurrentUserProvider, useCurrentUser } from '../auth/current-user-provider';
 import { GrowthRewardToast } from '../gamification/growth-reward-toast';
+import { FeatureTour } from '../onboarding/feature-tour';
 import { Header, HeaderActions, SearchBox } from './header';
 import { MobileBottomNavigation } from './mobile-bottom-navigation';
 import { MobileTopHeader } from './mobile-top-header';
@@ -185,6 +186,7 @@ function DashboardShellContent({
           <MobileTopHeader title={meta.title} totalXp={totalXp} user={user} />
           <Header totalXp={totalXp} user={user} />
           <main
+            data-tour="workspace"
             className={`min-h-[calc(100dvh-7rem)] px-[18px] pb-32 sm:px-6 ${pathname === '/dashboard' ? 'pt-[max(1.25rem,env(safe-area-inset-top))]' : pathname === '/tasks' ? 'pt-3' : 'pt-5'} lg:min-h-[calc(100dvh-6rem)] lg:px-10 lg:pb-8 lg:pt-5 xl:px-12`}
           >
             {pathname !== '/gamification' ? (
@@ -200,6 +202,7 @@ function DashboardShellContent({
           </main>
           <GrowthRewardToast />
           <MobileBottomNavigation />
+          <FeatureTour key={userId} userId={userId} />
         </div>
       </div>
     </DashboardHeadingProvider>

@@ -84,7 +84,10 @@ export function MobileCalendarView({
   return (
     <section className="lg:hidden">
       <div className="mb-8">
-        <div className="mb-5 grid grid-cols-[40px_1fr_40px] items-center">
+        <div
+          data-tour="calendar-controls"
+          className="mb-5 grid grid-cols-[40px_1fr_40px] items-center"
+        >
           <button
             aria-label="Previous month"
             className="grid h-10 w-10 place-items-center rounded-full text-dashboard-muted transition hover:bg-dashboard-surface hover:text-dashboard-accent"

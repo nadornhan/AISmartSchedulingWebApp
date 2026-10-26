@@ -192,8 +192,15 @@ export function TaskPage() {
       setIsModalOpen(true);
     }
 
+    function closeTourTaskForm() {
+      setIsModalOpen(false);
+    }
     window.addEventListener('open-create-task', handleOpenCreateTask);
-    return () => window.removeEventListener('open-create-task', handleOpenCreateTask);
+    window.addEventListener('chrono:close-tour-task-form', closeTourTaskForm);
+    return () => {
+      window.removeEventListener('open-create-task', handleOpenCreateTask);
+      window.removeEventListener('chrono:close-tour-task-form', closeTourTaskForm);
+    };
   }, [activeProjectId]);
 
   const {
@@ -702,6 +709,7 @@ export function TaskPage() {
 
           <button
             className="flex h-11 items-center gap-2 rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-5 text-sm font-semibold text-dashboard-on-accent shadow-glow transition hover:brightness-110"
+            data-tour="task-create-page"
             onClick={() => {
               setCreateProjectId(activeProjectId);
               setIsModalOpen(true);

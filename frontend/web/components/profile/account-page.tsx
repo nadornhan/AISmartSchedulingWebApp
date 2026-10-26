@@ -9,6 +9,7 @@ import {
   ChartLine,
   ChevronDown,
   ChevronRight,
+  CircleQuestionMark,
   LogOut,
   Palette,
   SlidersHorizontal,
@@ -378,7 +379,10 @@ export function AccountPage() {
               aria-labelledby="account-private-information"
               className={accountSectionClassName}
             >
-              <h2 className={sectionHeadingClassName} id="account-private-information">
+              <h2
+                className={`${sectionHeadingClassName} relative isolate before:absolute before:inset-x-0 before:-inset-y-[3px] before:-z-[1] before:bg-dashboard-surface before:content-[''] md:before:hidden`}
+                id="account-private-information"
+              >
                 Private information
               </h2>
               <div className={groupClassName}>
@@ -502,11 +506,7 @@ export function AccountPage() {
               const isOpen = expandedPreference === section;
               return (
                 <div
-                  className={
-                    isOpen
-                      ? 'border-l-2 border-l-dashboard-accent bg-dashboard-surface'
-                      : 'border-l-2 border-l-transparent'
-                  }
+                  className={isOpen ? 'bg-dashboard-surface' : undefined}
                   key={section}
                 >
                   <button
@@ -557,6 +557,24 @@ export function AccountPage() {
                 </div>
               );
             })}
+            <button
+              className={`${rowClassName} w-full`}
+              onClick={() => window.dispatchEvent(new Event('chrono:start-feature-tour'))}
+              type="button"
+            >
+              <CircleQuestionMark
+                aria-hidden="true"
+                className="h-4 w-4 shrink-0 text-dashboard-muted"
+                strokeWidth={1.75}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-dashboard-text">Quick tour</span>
+                <span className="mt-1 block text-sm text-dashboard-muted">
+                  Get to know Chrono’s main features. Replay anytime.
+                </span>
+              </span>
+              <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-dashboard-muted" />
+            </button>
           </div>
         </section>
 
@@ -574,6 +592,25 @@ export function AccountPage() {
             {renderPreferencePanel(activeTab)}
           </section>
         ) : null}
+
+        <button
+          className="hidden w-full items-center gap-3 rounded-2xl border border-dashboard-border bg-dashboard-surface p-4 text-left transition hover:bg-dashboard-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent md:flex"
+          onClick={() => window.dispatchEvent(new Event('chrono:start-feature-tour'))}
+          type="button"
+        >
+          <CircleQuestionMark
+            aria-hidden="true"
+            className="h-5 w-5 shrink-0 text-dashboard-accent"
+            strokeWidth={1.75}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium text-dashboard-text">Quick tour</span>
+            <span className="mt-1 block text-sm text-dashboard-muted">
+              Get to know Chrono’s main features. Replay anytime.
+            </span>
+          </span>
+          <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-dashboard-subtle" />
+        </button>
 
         <button
           className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--red-border)] bg-[var(--red-soft)] px-4 text-sm font-semibold text-[var(--red-light)] transition hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--red-light)] md:hidden"

@@ -83,6 +83,10 @@ const controls = load(read('components/tasks/task-page-controls.tsx'), {
 });
 function loadTaskListViews(reactOverrides = {}) {
   return load(read('components/tasks/task-list-views.tsx'), {
+    'lucide-react': {
+      ArrowDown: (props) => React.createElement('svg', props),
+      ArrowUp: (props) => React.createElement('svg', props),
+    },
     react: {
       useRef: () => ({ current: null }),
       useState: (initial) => [initial, () => {}],

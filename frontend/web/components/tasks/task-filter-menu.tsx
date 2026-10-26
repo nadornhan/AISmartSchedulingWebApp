@@ -2,13 +2,13 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Filter } from 'lucide-react';
 import type { Project } from '../../lib/projects';
 import {
   CalendarIcon,
   CheckIcon,
   ChevronDownIcon,
   CloseIcon,
+  FilterIcon,
   FolderIcon,
   PriorityIcon,
   ResetIcon,
@@ -134,7 +134,7 @@ export function TaskFilterMenu({
         title="Filter tasks"
         type="button"
       >
-        <Filter aria-hidden="true" className="h-4 w-4" />
+        <FilterIcon aria-hidden="true" className="h-4 w-4" />
         {active ? (
           <span aria-hidden="true" className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-dashboard-accent" />
         ) : null}
@@ -151,7 +151,7 @@ export function TaskFilterMenu({
           <header className="mb-5 flex items-center justify-between gap-3 border-b border-dashboard-border pb-4">
             <div className="flex min-w-0 items-center gap-3">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-dashboard-accent-soft text-dashboard-accent">
-                <Filter aria-hidden="true" className="h-[18px] w-[18px]" />
+                <FilterIcon aria-hidden="true" className="h-[18px] w-[18px]" />
               </span>
               <h2 className="font-poppins text-lg font-semibold">Filters</h2>
               {activeCount > 0 ? (

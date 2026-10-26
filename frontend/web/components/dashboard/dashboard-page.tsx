@@ -152,6 +152,7 @@ export function DashboardPage() {
     <div className="flex w-full flex-col gap-8">
       <section
         aria-label="Today at a glance"
+        data-tour="dashboard-summary"
         className="order-2 grid grid-cols-2 gap-x-[clamp(0.5rem,3vw,1rem)] gap-y-4 sm:gap-x-4 sm:gap-y-5 lg:order-1 xl:grid-cols-4 xl:gap-4"
       >
         <DashboardStatCard

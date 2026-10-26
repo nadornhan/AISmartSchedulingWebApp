@@ -188,6 +188,7 @@ function NavLink({
   return (
     <Link
       aria-current={active ? 'page' : undefined}
+      data-tour-nav={item.href}
       className={cn(
         'group flex h-[52px] items-center gap-4 rounded-lg px-4 text-base font-medium transition-all duration-200 ease-out motion-reduce:transition-none',
         collapsed && 'justify-center gap-0 px-0',
@@ -348,6 +349,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         <div className="flex h-14 overflow-hidden rounded-xl border border-dashboard-accent/60 bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong text-dashboard-on-accent-inverse transition hover:brightness-110">
           <button
             aria-label="Add task"
+            data-tour="task-create"
             className={cn(
               'flex flex-1 items-center justify-center gap-3 text-[17px] font-medium',
               sidebarCollapsed ? 'px-0' : 'px-6',

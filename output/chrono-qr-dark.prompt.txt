@@ -1,4 +1,4 @@
-Tool: built-in image_gen
-Reference: C:/Users/AD/OneDrive/Tài liệu/Chrono.png
-
-Edit the supplied QR image into a minimal premium Chrono brand QR asset. The QR pattern is the essential invariant: preserve every data module and finder pattern precisely at its existing grid location, with absolutely no invented/removed/swapped modules. Apply only a flat color transformation: originally black modules become bright pale mint #5AE6C1 and originally white areas become very dark navy #06121C. Keep crisp square modules, large high contrast, no gradients or glow inside QR. Add a generous dark navy quiet zone around all 4 sides, at least 4 module widths. Preserve the encoded pattern exactly; this must remain a working scannable code. Remove the small TQRCG watermark branding at lower right, retaining the QR cells underneath as accurately as possible. Refined dark Chrono visual style, centered square composition. No other decorations, no extra icons, no text.
+Generated as a crisp QR graphic with a four-module quiet zone.
+Content: https://chronow.org/
+Chrono colors: mint #29DFB6 on navy #040C14.
+Error correction: high.

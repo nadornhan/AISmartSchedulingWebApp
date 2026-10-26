@@ -35,6 +35,7 @@ function renderShell(sessionStatus, error = null) {
       }),
     },
     '../gamification/growth-reward-toast': { GrowthRewardToast: part('rewards') },
+    '../onboarding/feature-tour': { FeatureTour: part('onboarding') },
     './header': {
       Header: part('header'),
       HeaderActions: part('notifications'),
@@ -112,6 +113,7 @@ test('authenticated: shared navigation and feature content still mount', () => {
     'mobile-header',
     'mobile-navigation',
     'rewards',
+    'onboarding',
     'protected-content',
   ]) {
     assert.ok(mounted.includes(name), `Missing ${name}`);

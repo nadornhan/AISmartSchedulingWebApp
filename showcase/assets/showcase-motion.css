@@ -74,10 +74,10 @@
   height: 242px;
 }
 .stage[data-tree='closing'] .tree-object {
-  left: 1220px;
-  top: 628px;
-  width: 238px;
-  height: 226px;
+  left: 800px;
+  top: 620px;
+  width: 145px;
+  height: 145px;
 }
 .tree-object canvas,
 .tree-fallback {

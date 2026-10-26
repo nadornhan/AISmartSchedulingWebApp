@@ -458,6 +458,7 @@ function TaskFormModal({
             {enableNaturalLanguage ? (
               shouldShowNaturalLanguageInput ? (
                 <section
+                  data-tour="ai-input"
                   className={cn(
                     !isAiOnlyView &&
                       'rounded-[var(--radius-md)] border border-dashboard-border bg-dashboard-accent-soft/15 p-3',

@@ -166,7 +166,10 @@ export function ForestPage() {
             </h1>
             <p className="max-w-2xl text-sm text-dashboard-muted">{forest.supportive_message}</p>
           </div>
-          <div className="inline-flex shrink-0 items-center gap-3 self-start rounded-lg border border-dashboard-accent/30 bg-dashboard-accent/10 px-4 py-3 lg:mt-1">
+          <div
+            data-tour="forest-growth"
+            className="inline-flex shrink-0 items-center gap-3 self-start rounded-lg border border-dashboard-accent/30 bg-dashboard-accent/10 px-4 py-3 lg:mt-1"
+          >
             <span className="text-sm font-medium text-dashboard-muted">
               Available Growth Points
             </span>

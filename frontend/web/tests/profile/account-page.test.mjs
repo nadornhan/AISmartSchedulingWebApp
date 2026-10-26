@@ -12,6 +12,7 @@ function harness() {
   const slots = [];
   let cursor = 0;
   let signOuts = 0;
+  const events = [];
   const placeholder = () => null;
   const dependencies = {
     'react/jsx-runtime': jsxRuntime,
@@ -66,6 +67,8 @@ function harness() {
     {
       module,
       exports: module.exports,
+      Event,
+      window: { dispatchEvent: (event) => events.push(event.type) },
       require(name) {
         assert.ok(name in dependencies, `Unexpected dependency: ${name}`);
         return dependencies[name];
@@ -78,6 +81,7 @@ function harness() {
       return module.exports.AccountPage();
     },
     signOuts: () => signOuts,
+    events,
   };
 }
 
@@ -105,6 +109,18 @@ function text(node) {
   if (Array.isArray(node)) return node.map(text).join('');
   return React.isValidElement(node) ? text(node.props.children) : '';
 }
+
+test('the Quick tour entry is available on desktop and mobile and starts the tour', () => {
+  const h = harness();
+  for (const desktop of [false, true]) {
+    const button = nodes(h.render(), desktop).find(
+      (node) => node.type === 'button' && text(node).startsWith('Quick tour'),
+    );
+    assert.ok(button);
+    button.props.onClick();
+  }
+  assert.deepEqual(h.events, ['chrono:start-feature-tour', 'chrono:start-feature-tour']);
+});
 
 test('mobile: account content, inline preferences and logout appear in that order', () => {
   const visible = nodes(harness().render());
