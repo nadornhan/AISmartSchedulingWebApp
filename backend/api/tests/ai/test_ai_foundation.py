@@ -166,6 +166,7 @@ def test_ai_configuration_validates_limits() -> None:
     assert settings.gemini_api_key is not None
     assert settings.gemini_api_key.get_secret_value() == "test-key"
     assert settings.ai_requests_per_user_per_minute == 12
+    assert settings.gemini_timeout_seconds == 30
     assert settings.gemini_max_retries == 2
 
 

@@ -37,7 +37,7 @@ services:
       - key: GEMINI_MODEL
         value: gemini-3.5-flash-lite
       - key: GEMINI_TIMEOUT_SECONDS
-        value: '10'
+        value: '30'
       - key: GEMINI_MAX_OUTPUT_TOKENS
         value: '1024'
       - key: GEMINI_MAX_RETRIES
