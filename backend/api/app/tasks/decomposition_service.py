@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.ai import AIInvocationContext, AIService
 from app.ai.policies import AIFeature, get_ai_feature_policy
+from app.ai.schemas import AIGenerationMetadata, StructuredGenerationResult
 from app.settings import service as settings_service
 from app.tasks import service as task_service
 from app.tasks.decomposition_schemas import (
@@ -103,6 +104,21 @@ def _deterministic_decomposition(prompt: str) -> DecomposedTaskDraft:
     )
 
 
+def _has_explicit_steps(prompt: str) -> bool:
+    sections = re.split(
+        r"\s*(?::|\bincluding\b|\bi need to\b|\bwhich includes?\b)\s*",
+        re.sub(r"\s+", " ", prompt).strip(),
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )
+    if len(sections) != 2:
+        return False
+    return sum(
+        bool(_clean_step(part))
+        for part in re.split(r"\s*(?:,|;|\band\b|\bthen\b)\s*", sections[1], flags=re.I)
+    ) >= 3
+
+
 def _prompt(user_prompt: str, context: AIInvocationContext) -> str:
     return (
         "Break the user's single, meaningful outcome into 3-8 concrete, sequential, "
@@ -135,14 +151,27 @@ def preview(
             "maximum_subtasks": 8,
         },
     )
-    result = ai_service.generate_structured(
-        user_key=str(user_id),
-        prompt=_prompt(prompt, context),
-        response_schema=DecomposedTaskDraft,
-        feature=policy.feature,
-        prompt_version=policy.prompt_version,
-        fallback=lambda: _deterministic_decomposition(prompt),
-    )
+    if _has_explicit_steps(prompt):
+        result = StructuredGenerationResult(
+            data=_deterministic_decomposition(prompt),
+            metadata=AIGenerationMetadata(
+                feature=policy.feature.value,
+                prompt_version=policy.prompt_version,
+                source="deterministic_fallback",
+                model="none",
+                latency_ms=0,
+                fallback_reason="clear_prompt_fast_path",
+            ),
+        )
+    else:
+        result = ai_service.generate_structured(
+            user_key=str(user_id),
+            prompt=_prompt(prompt, context),
+            response_schema=DecomposedTaskDraft,
+            feature=policy.feature,
+            prompt_version=policy.prompt_version,
+            fallback=lambda: _deterministic_decomposition(prompt),
+        )
     proposal_id, token, expires_at = create_token(user_id=user_id, now=now)
     return TaskDecompositionPreviewResponse(
         prompt_version=policy.prompt_version,
