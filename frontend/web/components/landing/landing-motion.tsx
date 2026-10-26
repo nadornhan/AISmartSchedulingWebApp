@@ -6,7 +6,7 @@ import { Pause, Play } from 'lucide-react';
 import styles from '../../app/landing/page.module.css';
 import 'lenis/dist/lenis.css';
 
-const SECTION_PAUSE_MS = 6_000;
+const SECTION_PAUSE_MS = 5_000;
 
 function LandingAutoScroll({ enabled }: { enabled: boolean }) {
   const lenis = useLenis();
@@ -45,12 +45,14 @@ function LandingAutoScroll({ enabled }: { enabled: boolean }) {
         }
       });
 
+      const atPageBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
       const nextSection = sections[currentIndex + 1];
-      if (!nextSection) return;
+      const scrollTarget = atPageBottom ? 0 : nextSection;
+      if (scrollTarget === undefined) return;
 
       scrollingAutomatically = true;
-      lenis.scrollTo(nextSection, {
-        offset: -24,
+      lenis.scrollTo(scrollTarget, {
+        offset: atPageBottom ? 0 : -24,
         duration: 1.2,
         lerp: 0,
         easing: (progress) => 1 - Math.pow(1 - progress, 3),
