@@ -2,27 +2,31 @@
 
 Open **chrono-showcase.html** directly in a desktop browser. The presentation and native 3D forest growth effect work offline. Keep the `assets` and `screenshots` folders beside the HTML file.
 
-Every slide stays on screen for **10 seconds**, including the opening. The current **13 pages** loop in **2 minutes 10 seconds**. The dashboard page includes the restored floating laptop and phone mockups.
+The expo loop uses individual slide timings of **5 to 12 seconds**. The current **13 pages** loop in **2 minutes**. The dashboard page includes the restored floating laptop and phone mockups.
 
-## Pages
+## Pages and timing
 
-1. Chrono introduction
-2. A clearer starting point
-3. Dashboard with laptop and phone mockups
-4. Tasks and projects
-5. AI task generation and breakdown — animated brief, context, decision and proposal flow
-6. Calendar and daily agenda
-7. Scheduling suggestions
-8. Full-screen Pomodoro scene
-9. Planting and growth — animated seedling, growing and mature trees, with plant selection, Growth Points and planting in the 3D forest
-10. Personal Forest — app tree models growing from seedling to mature, with XP gains
-11. Mobile phone mockup
-12. Dark and light themes
-13. Website invitation
+| Slide | Page | Duration |
+| --- | --- | ---: |
+| 1 | Chrono introduction | 5 sec |
+| 2 | A clearer starting point | 7 sec |
+| 3 | Dashboard with laptop and phone mockups | 9 sec |
+| 4 | Tasks and projects | 9 sec |
+| 5 | AI task assistance | 12 sec |
+| 6 | Calendar and daily agenda | 9 sec |
+| 7 | Scheduling assistance | 12 sec |
+| 8 | Pomodoro | 12 sec |
+| 9 | Plant, focus and grow | 10 sec |
+| 10 | Personal Forest | 10 sec |
+| 11 | Mobile workspace | 8 sec |
+| 12 | Dark and light themes | 7 sec |
+| 13 | Website invitation / QR | 10 sec |
+
+**Total: 120 seconds (2 minutes).**
 
 ## Pomodoro design
 
-The countdown sits in the center of a full-canvas landscape, with brief feature descriptions on the left and a softly rotating 3D tree on the right. A single clock counts down normally. At **40% of the Pomodoro slide duration** (4 seconds on this 10-second slide), the mode and clock switch to the break preview. The background, ring accent, bottom time bar and tree lighting follow with a **900 ms transition**. Subtle waves and slow scenic movement provide ambience. Reduced motion switches modes with no animated transition.
+The countdown sits in the center of a full-canvas landscape, with brief feature descriptions on the left and a softly rotating 3D tree on the right. A single clock counts down normally. At **40% of the Pomodoro slide duration** (4.8 seconds on this 12-second slide), the mode and clock switch to the break preview. The background, ring accent, bottom time bar and tree lighting follow with a **600 ms transition**. Subtle waves and slow scenic movement provide ambience. Reduced motion switches modes with no animated transition.
 
 This is a staged focus-to-break preview, so the presentation changes modes without waiting 25 real minutes. It never displays two overlapping clocks. No Pomodoro screenshot is needed for this page. Play/Pause holds the presentation timeline and countdown. The separate motion control governs ambient animation.
 

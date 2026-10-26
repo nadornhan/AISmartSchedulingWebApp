@@ -11,7 +11,7 @@
   const circumference = Math.PI * 2 * 282;
   const colors = { focus: [41, 216, 180], break: [179, 160, 230] };
   const modeSwitchAtMs = Number(scene.dataset.seconds) * 1000 * 0.4;
-  const sceneTransitionDurationMs = 900;
+  const sceneTransitionDurationMs = 600;
   let active = false;
   let phase = 'focus';
   let lastSecond = -1;

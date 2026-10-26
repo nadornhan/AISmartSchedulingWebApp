@@ -23,6 +23,12 @@
         font-weight: 600;
         font-display: swap;
       }
+      @font-face {
+        font-family: ChronoBrand;
+        src: url('assets/fonts/poppins-medium.woff2') format('woff2');
+        font-weight: 500;
+        font-display: swap;
+      }
       :root {
         color-scheme: dark;
         --ink: #040c14;
@@ -89,15 +95,35 @@
       .brand {
         display: flex;
         align-items: center;
-        gap: 12px;
-        font-size: 29px;
-        font-weight: 600;
-        letter-spacing: -0.7px;
+        gap: 5px;
+        color: #f4f7f6;
+        font-family: ChronoBrand, Poppins, sans-serif;
+        font-size: 26px;
+        font-weight: 500;
+        letter-spacing: -0.04em;
       }
       .brand img {
-        width: 43px;
-        height: 43px;
+        width: 40px;
+        height: 40px;
         object-fit: contain;
+      }
+      .brand span {
+        margin-top: 3px;
+      }
+      .mockup-logo {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        opacity: 0;
+      }
+      .capture.has-image > .mockup-logo {
+        opacity: 1;
+      }
+      .mockup-logo text {
+        font-family: ChronoBrand, Poppins, sans-serif;
+        font-weight: 500;
       }
       .chapter {
         font-size: 16px;
@@ -964,7 +990,7 @@
             class="slide cover active"
             data-title="Make time for growth"
             data-chapter="Application showcase"
-            data-seconds="10"
+            data-seconds="5"
             aria-label="Slide 1: Make time for growth"
           >
             <img class="landscape" src="assets/mountains-dark.webp" alt="" />
@@ -986,7 +1012,7 @@
             class="slide problem"
             data-title="A clearer starting point"
             data-chapter="The everyday problem"
-            data-seconds="10"
+            data-seconds="7"
             aria-label="Slide 2: A clearer starting point"
             aria-hidden="true"
             inert
@@ -1007,7 +1033,7 @@
             class="slide dashboard"
             data-title="Your day in one view"
             data-chapter="The dashboard"
-            data-seconds="10"
+            data-seconds="9"
             aria-label="Slide 3: Your day in one view"
             aria-hidden="true"
             inert
@@ -1030,6 +1056,13 @@
                   <span class="capture-number">SCREENSHOT 01</span
                   ><strong>Dashboard overview</strong><small>Screenshot pending</small>
                 </button>
+                <svg class="mockup-logo" aria-hidden="true" viewBox="0 0 3200 1990" preserveAspectRatio="xMidYMid slice">
+                  <rect x="44" y="36" width="340" height="90" fill="#040c14" />
+                  <g transform="translate(48 40) scale(2)">
+                    <image href="assets/chrono-logo.png" width="40" height="40" />
+                    <text x="45" y="30.5" fill="#f4f7f6" font-size="26" letter-spacing="-1.04">Chrono</text>
+                  </g>
+                </svg>
               </figure>
                 </div>
                 <div class="stack-phone">
@@ -1053,7 +1086,7 @@
             class="slide tasks"
             data-title="Every task has a place"
             data-chapter="Tasks and projects"
-            data-seconds="10"
+            data-seconds="9"
             aria-label="Slide 4: Every task has a place"
             aria-hidden="true"
             inert
@@ -1077,6 +1110,13 @@
                   <span class="capture-number">SCREENSHOT 02</span><strong>Task workspace</strong
                   ><small>Screenshot pending</small>
                 </button>
+                <svg class="mockup-logo" aria-hidden="true" viewBox="0 0 1452 817" preserveAspectRatio="xMidYMid meet">
+                  <rect x="20" y="15" width="155" height="48" fill="#040c14" />
+                  <g transform="translate(21.6 18) scale(0.9)">
+                    <image href="assets/chrono-logo.png" width="40" height="40" />
+                    <text x="45" y="30.5" fill="#f4f7f6" font-size="26" letter-spacing="-1.04">Chrono</text>
+                  </g>
+                </svg>
               </figure>
             </div>
           </section>
@@ -1085,7 +1125,7 @@
             class="slide ai"
             data-title="Describe the work in your own words"
             data-chapter="AI task assistance"
-            data-seconds="10"
+            data-seconds="12"
             aria-label="Slide 5: Describe the work in your own words"
             aria-hidden="true"
             inert
@@ -1254,7 +1294,7 @@
             class="slide calendar-layout"
             data-title="Your schedule, at a glance"
             data-chapter="Calendar and daily agenda"
-            data-seconds="10"
+            data-seconds="9"
             aria-label="Slide 6: Your schedule, at a glance"
             aria-hidden="true"
             inert
@@ -1272,7 +1312,7 @@
             class="slide scheduling"
             data-title="A plan you can review"
             data-chapter="Scheduling and rescheduling"
-            data-seconds="10"
+            data-seconds="12"
             aria-label="Slide 7: A plan you can review"
             aria-hidden="true"
             inert
@@ -1388,7 +1428,7 @@
             class="slide focus fullscreen-pomo" data-phase="focus"
             data-title="Space for focused work"
             data-chapter="Pomodoro focus"
-            data-seconds="10"
+            data-seconds="12"
             aria-label="Slide 8: Space for focused work"
             aria-hidden="true"
             inert
@@ -1485,7 +1525,7 @@
             class="slide mobile"
             data-title="Your workspace on a phone"
             data-chapter="Responsive design"
-            data-seconds="10"
+            data-seconds="8"
             aria-label="Slide 11: Your workspace on a phone"
             aria-hidden="true"
             inert
@@ -1518,7 +1558,7 @@
             data-title="Dark and light themes"
             data-chapter="A calm visual language"
             data-theme="split"
-            data-seconds="10"
+            data-seconds="7"
             aria-label="Slide 12: Dark and light themes"
             aria-hidden="true"
             inert
@@ -1623,8 +1663,7 @@
       </p>
       <div class="checklist" id="checklist"></div>
       <p class="help-note">
-        The final slide also needs the live website URL. Set <code>demoUrl</code> in the
-        configuration near the bottom of this HTML file. Keep <code>assets</code> and
+        The final slide links to the configured website. Keep <code>assets</code> and
         <code>screenshots</code> beside the HTML when moving the deck.
       </p>
     </dialog>
@@ -1645,14 +1684,14 @@
         <p>Last slide <kbd>End</kbd></p>
       </div>
       <p class="help-note">
-        Each slide stays on screen for 10 seconds. The full loop takes 2 minutes 10 seconds. Use the corner controls
+        Slides stay on screen for 5 to 12 seconds. The full expo loop takes 2 minutes. Use the corner controls
         to play or stop the loop. Swipe left or right on a touch screen. Browser Print can export all slides to PDF.
       </p>
     </dialog>
 
     <!-- Edit this configuration to add the public demo URL or disable automatic playback. -->
     <script id="showcase-config" type="application/json">
-      { "autoplay": true, "motion": true, "demoUrl": "" }
+      { "autoplay": true, "motion": true, "demoUrl": "https://chronow.org/" }
     </script>
     <script src="assets/deck-motion.js"></script>
     <script src="assets/pomodoro-scene.js"></script>
@@ -1691,7 +1730,7 @@
             key: 'qr',
             file: 'demo-qr.png',
             label: 'Website QR code',
-            hint: 'Slide 13. Add a square QR image for the public demo URL. Preserve a clear white margin around the code. Also set demoUrl in this HTML file.',
+            hint: 'Slide 13. Add a square QR image for https://chronow.org/. Preserve a clear white margin around the code.',
           },
         ];
         const stage = document.getElementById('stage');

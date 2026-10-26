@@ -117,14 +117,12 @@ function useScrollFeedback<T extends HTMLElement>() {
 }
 
 function BrandMark() {
-  const { theme } = useUiPreferences();
-
   return (
-    <div className="grid h-11 w-11 shrink-0 place-items-center bg-transparent">
+    <div className="grid h-11 w-10 shrink-0 place-items-center bg-transparent">
       <img
         alt="Chrono"
         className="h-10 w-10 object-contain"
-        src={theme === 'light' ? '/chrono-logo-light.png' : '/chrono-logo.png'}
+        src="/chrono-logo.png"
       />
     </div>
   );
@@ -321,13 +319,13 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       <div
         className={cn(
           'mb-8 flex items-center',
-          sidebarCollapsed ? 'justify-center' : 'gap-3',
+          sidebarCollapsed ? 'justify-center' : 'gap-[5px]',
         )}
       >
         {!sidebarCollapsed ? <BrandMark /> : null}
         <span
           className={cn(
-            'font-poppins mt-2 flex-1 text-[28px] font-medium leading-none tracking-normal',
+            'font-poppins mt-[3px] flex-1 text-[26px] font-medium leading-normal tracking-[-0.04em]',
             sidebarCollapsed && 'sr-only',
           )}
         >

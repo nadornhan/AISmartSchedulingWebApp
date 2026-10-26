@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useDashboardHeading } from './dashboard-heading-context';
-import { useUiPreferences } from './ui-preferences-provider';
 
 export function PageHeading({
   title,
@@ -19,7 +18,6 @@ export function PageHeading({
   mobileSearch?: ReactNode;
 }) {
   const { heading, setActionsTarget } = useDashboardHeading();
-  const { theme } = useUiPreferences();
   const message = heading?.message ?? subtitle;
   const greetingParts = heading?.greeting.match(/^(Good (?:morning|afternoon|evening)),\s*(.+)$/);
 
@@ -36,7 +34,7 @@ export function PageHeading({
                   <img
                     alt="Chrono"
                     className="h-11 w-11 shrink-0 object-contain"
-                    src={theme === 'light' ? '/chrono-logo-light.png' : '/chrono-logo.png'}
+                    src="/chrono-logo.png"
                   />
                   <span className="min-w-0">
                     <span className="block text-xs font-normal leading-5 text-dashboard-muted">

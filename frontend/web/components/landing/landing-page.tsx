@@ -20,7 +20,7 @@ export function LandingPage() {
       </a>
       <header className={styles.header}>
         <Link href="/" className={styles.brand} aria-label="Chrono home">
-          <img src="/chrono-logo.png" alt="" width={38} height={38} />
+          <img src="/chrono-logo.png" alt="" width={40} height={40} />
           <span>Chrono</span>
         </Link>
         <nav className={styles.navigation} aria-label="Main navigation">
@@ -111,6 +111,28 @@ export function LandingPage() {
                     height={846}
                     loading="lazy"
                   />
+                  <svg
+                    aria-hidden="true"
+                    className={styles.mockupLogo}
+                    viewBox="0 0 1372 846"
+                    preserveAspectRatio="xMidYMid slice"
+                  >
+                    <rect x="18" y="14" width="154" height="45" fill="#040c14" />
+                    <g transform="translate(20.16 16.8) scale(0.84)">
+                      <image href="/chrono-logo.png" width="40" height="40" />
+                      <text
+                        x="45"
+                        y="30.5"
+                        fill="#f4f7f6"
+                        fontFamily="var(--font-poppins), sans-serif"
+                        fontSize="26"
+                        fontWeight="500"
+                        letterSpacing="-1.04"
+                      >
+                        Chrono
+                      </text>
+                    </g>
+                  </svg>
                 </div>
               </div>
               <div className={styles.mobileMockup}>

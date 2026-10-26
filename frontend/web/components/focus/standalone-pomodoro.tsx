@@ -18,7 +18,7 @@ export function StandalonePomodoro() {
             className="flex items-center gap-[5px] font-poppins text-[26px] font-medium tracking-[-0.04em]"
             href="/"
           >
-            <img alt="" className="h-10 w-10 object-contain" height="40" src="/auth/auth-logo.png" width="40" />
+            <img alt="" className="h-10 w-10 object-contain" height="40" src="/chrono-logo.png" width="40" />
             <span className="mt-[3px]">Chrono</span>
           </Link>
           <Link
