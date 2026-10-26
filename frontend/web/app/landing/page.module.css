@@ -35,6 +35,48 @@
   outline: 2px solid var(--landing-mint);
   outline-offset: 6px;
 }
+.autoScrollToggle {
+  position: fixed;
+  right: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px 10px 8px 14px;
+  border: 1px solid #65e3b633;
+  border-radius: 999px;
+  background: #08161ee8;
+  color: #c1d0cd;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: border-color 180ms ease, background 180ms ease;
+}
+.autoScrollToggle:hover {
+  border-color: #65e3b680;
+  background: #10252c;
+}
+.autoScrollToggle:focus-visible {
+  outline: 2px solid var(--landing-mint);
+  outline-offset: 4px;
+}
+.autoScrollState {
+  min-width: 34px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #ffffff0d;
+  color: #a0b3b4;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+.autoScrollToggle[aria-pressed='true'] .autoScrollState {
+  background: #65e3b61a;
+  color: var(--landing-mint);
+}
 .page h1,
 .page h2,
 .page h3 {
