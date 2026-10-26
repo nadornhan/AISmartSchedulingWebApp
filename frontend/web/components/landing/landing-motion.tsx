@@ -6,7 +6,8 @@ import { Pause, Play } from 'lucide-react';
 import styles from '../../app/landing/page.module.css';
 import 'lenis/dist/lenis.css';
 
-const SECTION_PAUSE_MS = 5_000;
+const SECTION_PAUSE_MS = 4_000;
+const CLARITY_SECTION_PAUSE_MS = 7_000;
 
 function LandingAutoScroll({ enabled }: { enabled: boolean }) {
   const lenis = useLenis();
@@ -21,10 +22,23 @@ function LandingAutoScroll({ enabled }: { enabled: boolean }) {
     let disposed = false;
     let scrollingAutomatically = false;
 
+    function getCurrentSectionIndex() {
+      let currentIndex = 0;
+      sections.forEach((section, index) => {
+        if (section.getBoundingClientRect().top <= window.innerHeight * 0.35) {
+          currentIndex = index;
+        }
+      });
+      return currentIndex;
+    }
+
     function scheduleNextSection() {
       window.clearTimeout(timer);
       if (disposed || document.hidden) return;
-      timer = window.setTimeout(advanceSection, SECTION_PAUSE_MS);
+      const currentSection = sections[getCurrentSectionIndex()];
+      const pause =
+        currentSection?.id === 'how-it-works' ? CLARITY_SECTION_PAUSE_MS : SECTION_PAUSE_MS;
+      timer = window.setTimeout(advanceSection, pause);
     }
 
     const advanceSection = () => {
@@ -38,13 +52,7 @@ function LandingAutoScroll({ enabled }: { enabled: boolean }) {
         return;
       }
 
-      let currentIndex = 0;
-      sections.forEach((section, index) => {
-        if (section.getBoundingClientRect().top <= window.innerHeight * 0.35) {
-          currentIndex = index;
-        }
-      });
-
+      const currentIndex = getCurrentSectionIndex();
       const atPageBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
       const nextSection = sections[currentIndex + 1];
       const scrollTarget = atPageBottom ? 0 : nextSection;
