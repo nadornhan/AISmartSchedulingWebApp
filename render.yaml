@@ -37,11 +37,11 @@ services:
       - key: GEMINI_MODEL
         value: gemini-3.5-flash-lite
       - key: GEMINI_TIMEOUT_SECONDS
-        value: '10'
+        value: '8'
       - key: GEMINI_MAX_OUTPUT_TOKENS
         value: '1024'
       - key: GEMINI_MAX_RETRIES
-        value: '1'
+        value: '0'
 
 databases:
   - name: chrono-postgres-staging

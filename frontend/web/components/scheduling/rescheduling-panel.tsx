@@ -7,7 +7,6 @@ import {
   CalendarClock,
   ChevronLeft,
   ChevronRight,
-  CircleCheck,
   ClipboardList,
   RotateCcw,
   ShieldCheck,

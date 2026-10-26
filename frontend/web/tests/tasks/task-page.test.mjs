@@ -93,6 +93,7 @@ function loadTaskListViews(reactOverrides = {}) {
       ...reactOverrides,
     },
     'react/jsx-runtime': jsxRuntime,
+    'lucide-react': { ArrowDown: () => null, ArrowUp: () => null },
     '../layout/icons': icons,
     '../layout/branded-loading-screen': {
       BrandedLoadingScreen: ({ className }) =>

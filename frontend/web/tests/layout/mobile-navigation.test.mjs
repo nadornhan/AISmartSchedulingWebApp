@@ -53,33 +53,22 @@ function pageHeading(heading, props = {}) {
 }
 
 function mobileHeader(title) {
-  let searchOpen = false;
-  const SearchBox = () => null;
   const HeaderActions = () => null;
   const { MobileTopHeader } = load('mobile-top-header.tsx', {
     'next/link': { default: 'a' },
     'lucide-react': { ArrowLeft: Icon },
-    react: {
-      useEffect: () => {},
-      useState: () => [
-        searchOpen,
-        (next) => {
-          searchOpen = typeof next === 'function' ? next(searchOpen) : next;
-        },
-      ],
-    },
     './icons': icons,
-    './header': { HeaderActions, SearchBox },
+    './header': { HeaderActions },
   });
-  return { render: () => MobileTopHeader({ title }), SearchBox, HeaderActions };
+  return { render: () => MobileTopHeader({ title }), HeaderActions };
 }
 
 for (const title of ['All Tasks', 'Calendar', 'Focus Mode']) {
-  test(`${title} mobile header has a left title and only a search button on the right`, () => {
+  test(`${title} mobile header has a left title and notifications on the right`, () => {
     const h = mobileHeader(title);
     const tree = h.render();
     const items = nodes(tree);
-    assert.match(tree.props.children[0].props.className, /justify-between/);
+    assert.match(tree.props.children.props.className, /justify-between/);
     assert.equal(items.find((node) => node.type === 'h1').props.children, title);
     assert.match(items.find((node) => node.type === 'h1').props.className, /\btext-2xl\b/);
     assert.match(items.find((node) => node.type === 'h1').props.className, /font-semibold/);
@@ -87,14 +76,9 @@ for (const title of ['All Tasks', 'Calendar', 'Focus Mode']) {
       items.some((node) => node.type === h.HeaderActions),
       false,
     );
-    assert.equal(
-      items.some((node) => node.type === h.SearchBox),
-      false,
-    );
-    assert.deepEqual(
-      items.filter((node) => node.type === 'button').map((node) => node.props['aria-label']),
-      ['Search tasks'],
-    );
+    const notification = items.find((node) => node.props?.['aria-label'] === 'Notifications');
+    assert.equal(notification.type, 'a');
+    assert.equal(notification.props.href, '/notifications');
   });
 }
 
@@ -110,7 +94,7 @@ for (const title of ['Personal Forest', 'AI Insights']) {
     assert.match(heading.props.className, /font-semibold/);
     assert.equal(backLink.props.href, '/account');
     assert.equal(
-      items.some((node) => node.type === h.HeaderActions || node.type === h.SearchBox),
+      items.some((node) => node.type === h.HeaderActions),
       false,
     );
     assert.equal(
@@ -136,25 +120,6 @@ test('Profile mobile header centers its title and returns to Account', () => {
   );
 });
 
-for (const title of ['Calendar', 'All Tasks']) {
-  test(`${title} search opens a focused field and Escape closes it`, () => {
-    const h = mobileHeader(title);
-    nodes(h.render())
-      .find((node) => node.type === 'button')
-      .props.onClick();
-    const open = nodes(h.render());
-    const search = open.find((node) => node.type === h.SearchBox);
-    assert.equal(search.props.autoFocus, true);
-    assert.equal(search.props.compact, true);
-    assert.equal(search.props.showFilterButton, title === 'All Tasks');
-    open.find((node) => node.props?.id === 'mobile-page-search').props.onKeyDown({ key: 'Escape' });
-    assert.equal(
-      nodes(h.render()).some((node) => node.type === h.SearchBox),
-      false,
-    );
-  });
-}
-
 test('duplicate mobile titles are hidden without hiding page action controls', () => {
   const tree = pageHeading(null, { mobileTitleInHeader: true, title: 'AI Insights' });
   const [identity, actions] = tree.props.children;
@@ -172,9 +137,8 @@ test('mobile dashboard shows the greeting before the suggested task card', () =>
   assert.match(card.props.className, /lg:hidden/);
   assert.doesNotMatch(card.props.className, /-ml-|translate-x/);
   assert.equal(greeting.props.children[0].type, 'h1');
-  const lines = nodes(greeting.props.children[0]).filter(
-    (node) =>
-      node.type === 'span' && /text-xs|text-2xl|hidden lg:inline/.test(node.props.className ?? ''),
+  const lines = nodes(greeting.props.children[0]).filter((node) =>
+    node.type === 'span' && /text-xs|text-lg|hidden lg:inline/.test(node.props.className ?? ''),
   );
   assert.equal(
     lines[0].props.children.filter((child) => typeof child === 'string').join(''),
@@ -183,10 +147,10 @@ test('mobile dashboard shows the greeting before the suggested task card', () =>
   assert.match(lines[0].props.className, /text-xs/);
   assert.match(lines[0].props.className, /block/);
   assert.equal(lines[1].props.children, 'Minh');
-  assert.match(lines[1].props.className, /block text-2xl/);
+  assert.match(lines[1].props.className, /block text-lg/);
   assert.equal(lines[2].props.children, 'Good morning, Minh');
   assert.match(lines[2].props.className, /hidden lg:inline/);
-  assert.match(greeting.props.children[0].props.className, /\btext-2xl\b/);
+  assert.match(greeting.props.children[0].props.className, /\btext-lg\b/);
   assert.match(greeting.props.children[0].props.className, /font-normal/);
   assert.match(greeting.props.children[0].props.className, /lg:font-medium/);
   assert.match(greeting.props.children[0].props.className, /lg:text-4xl/);
@@ -358,6 +322,7 @@ function mobileNavigation(pathname = '/') {
   const { MobileBottomNavigation } = load('mobile-bottom-navigation.tsx', {
     'next/link': { default: 'a' },
     'next/navigation': { usePathname: () => pathname, useRouter: () => ({ push: () => {} }) },
+    react: { useEffect: () => {}, useState: (initial) => [initial, () => {}] },
     'lucide-react': icons,
     './icons': icons,
     '../auth/current-user-provider': { useCurrentUser: () => ({ signOut: () => {} }) },
