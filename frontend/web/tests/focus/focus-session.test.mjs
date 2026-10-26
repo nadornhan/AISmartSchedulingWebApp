@@ -205,30 +205,48 @@ test('timer controls never render reset, including restored and running states',
     for (const running of [false, true]) {
       const jsx = (type, props) => ({ type, props });
       const h = runner(
-        'components/focus/FocusMode.tsx',
-        'FocusMode',
+        'components/focus/focus-timer-panel.tsx',
+        'FocusTimerPanel',
         {
           'react/jsx-runtime': { jsx, jsxs: jsx },
-          'next/navigation': { useSearchParams: () => ({ get: () => null }) },
-          'lucide-react': { Clock3: 'clock', LoaderCircle: 'loading' },
+          'lucide-react': {
+            Clock3: 'clock',
+            LoaderCircle: 'loading',
+            Maximize: 'maximize',
+            Minimize: 'minimize',
+          },
           './FocusSettingsModal': { FocusSettingsModal: 'settings' },
           './use-focus-fullscreen': {
-            useFocusFullscreen: () => ({ panelRef: { current: null }, isFullscreen: false }),
-          },
-          './use-focus-tasks': { useFocusTasks: () => ({ tasks: [] }) },
-          './use-focus-timer': {
-            modes: ['Pomodoro', 'Short Break', 'Long Break'],
-            useFocusTimer: () => ({
-              mode: 'Pomodoro',
-              hasStarted,
-              running,
-              sessionTaskLocked: hasStarted,
-              selectedFocusTaskIds: [],
-              timerActionLabel: running ? 'Pause' : 'Start',
+            useFocusFullscreen: () => ({
+              panelRef: { current: null },
+              isFullscreen: false,
+              fullscreenError: null,
+              toggleFullscreen: () => {},
             }),
           },
         },
-        {},
+        {
+          settingsOpen: false,
+          setSettingsOpen: () => {},
+          timer: {
+            mode: 'Pomodoro',
+            durations: { focus: 25, shortBreak: 5, longBreak: 15 },
+            running,
+            progress: hasStarted ? 0.5 : 0,
+            minutes: '25',
+            remainder: '00',
+            sessionMessage: null,
+            sessionError: null,
+            isSessionMutating: false,
+            sessionTaskLocked: hasStarted,
+            timerActionLabel: running ? 'Pause' : 'Start',
+            selectMode: () => {},
+            saveDurations: () => {},
+            toggleTimer: () => {},
+            skipSession: () => {},
+            stopFocusSession: () => {},
+          },
+        },
       );
       const buttons = [];
       function visit(node) {
