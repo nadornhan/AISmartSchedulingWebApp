@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 
 from app.ai import get_ai_service
+from app.ai.exceptions import AIUpstreamError
 from app.ai.fake import FakeAIProvider
 from app.ai.limiter import AIRequestLimiter
 from app.ai.service import AIService
@@ -46,6 +47,42 @@ def _response(*, due_date: str | None = None):
 
 def _ai(*, due_date: str | None = None):
     return AIService(FakeAIProvider([_response(due_date=due_date)]), AIRequestLimiter(100))
+
+
+def test_decomposition_falls_back_to_editable_subtasks_when_gemini_fails(monkeypatch):
+    class FailingProvider:
+        source_name = "gemini"
+        model_name = "gemini-3.5-flash-lite"
+
+        def generate_structured(self, **kwargs):
+            del kwargs
+            raise AIUpstreamError("provider unavailable")
+
+    monkeypatch.setattr(
+        decomposition_service.settings_service,
+        "timezone_name_for_user",
+        lambda _db, _user_id: "UTC",
+    )
+    preview = decomposition_service.preview(
+        object(),
+        user_id=uuid.uuid4(),
+        prompt=(
+            "Prepare my final presentation. I need to review the research, build the story, "
+            "design the slides, write speaker notes, rehearse, and do a final quality check."
+        ),
+        ai_service=AIService(FailingProvider(), AIRequestLimiter(100)),
+    )
+
+    assert preview.metadata.source == "deterministic_fallback"
+    assert preview.metadata.fallback_reason == "ai_upstream_error"
+    assert [subtask.title for subtask in preview.proposal.subtasks] == [
+        "Review the research",
+        "Build the story",
+        "Design the slides",
+        "Write speaker notes",
+        "Rehearse",
+        "Do a final quality check",
+    ]
 
 
 @pytest.mark.parametrize("overdue", [False, True], ids=["future-deadline", "past-deadline"])

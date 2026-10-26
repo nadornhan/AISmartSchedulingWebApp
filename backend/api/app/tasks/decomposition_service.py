@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime, time
 from uuid import UUID
 
@@ -9,14 +10,97 @@ from app.settings import service as settings_service
 from app.tasks import service as task_service
 from app.tasks.decomposition_schemas import (
     DecomposedTaskDraft,
+    GeneratedSubtaskDraft,
     TaskDecompositionConfirmRequest,
     TaskDecompositionConfirmResponse,
     TaskDecompositionPreviewResponse,
     TaskDecompositionProposal,
 )
 from app.tasks.generation_proposal import create_token, verify_token
+from app.tasks.models import TaskPriority
 from app.tasks.schemas import SubtaskInput, TaskCreate
 from app.timezones import user_timezone
+
+
+def _clean_step(value: str) -> str:
+    step = re.sub(
+        r"^(?:and\s+)?(?:i\s+)?(?:need|have|want)\s+to\s+",
+        "",
+        value.strip(),
+        flags=re.IGNORECASE,
+    )
+    step = re.sub(r"^to\s+", "", step, flags=re.IGNORECASE)
+    step = re.sub(r"\s+", " ", step).strip(" .,:;-")
+    return step[:1].upper() + step[1:] if step else ""
+
+
+def _deterministic_decomposition(prompt: str) -> DecomposedTaskDraft:
+    """Return a useful, editable breakdown when Gemini is slow or unavailable."""
+    normalized = re.sub(r"\s+", " ", prompt).strip()
+    sections = re.split(
+        r"\s*(?::|\bincluding\b|\bi need to\b|\bwhich includes?\b)\s*",
+        normalized,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )
+    title = re.sub(
+        r"^(?:please\s+)?(?:break down|decompose)(?:\s+this task)?\s*[:.-]?\s*",
+        "",
+        sections[0],
+        flags=re.IGNORECASE,
+    ).strip(" .,:;-")
+    title = (title or normalized or "Plan the task")[:255]
+
+    explicit_steps: list[str] = []
+    if len(sections) == 2:
+        for part in re.split(r"\s*(?:,|;|\band\b|\bthen\b)\s*", sections[1], flags=re.I):
+            step = _clean_step(part)
+            if step and step.casefold() not in {item.casefold() for item in explicit_steps}:
+                explicit_steps.append(step)
+
+    if len(explicit_steps) < 3:
+        lowered = normalized.casefold()
+        if "presentation" in lowered or "slide" in lowered:
+            explicit_steps = [
+                "Review the requirements and source material",
+                "Create the presentation outline",
+                "Design the slides",
+                "Write the speaker notes",
+                "Rehearse and check the timing",
+                "Complete the final quality review",
+            ]
+        elif "report" in lowered or "essay" in lowered:
+            explicit_steps = [
+                "Review the requirements",
+                "Gather the supporting research",
+                "Create the outline",
+                "Write the first draft",
+                "Edit and verify the content",
+                "Finalize and submit the document",
+            ]
+        else:
+            explicit_steps = [
+                "Define the desired outcome",
+                "Gather the required information and materials",
+                "Create the first complete draft",
+                "Review and improve the work",
+                "Finalize and complete the task",
+            ]
+
+    priority = TaskPriority.NO_PRIORITY
+    priority_match = re.search(r"\b(low|medium|high)\s+priority\b", normalized, re.I)
+    if priority_match:
+        priority = TaskPriority(priority_match.group(1).lower())
+
+    return DecomposedTaskDraft(
+        title=title,
+        priority=priority,
+        due_date=None,
+        subtasks=[
+            GeneratedSubtaskDraft(client_id=f"subtask-{index}", title=step)
+            for index, step in enumerate(explicit_steps[:8], start=1)
+        ],
+    )
 
 
 def _prompt(user_prompt: str, context: AIInvocationContext) -> str:
@@ -57,6 +141,7 @@ def preview(
         response_schema=DecomposedTaskDraft,
         feature=policy.feature,
         prompt_version=policy.prompt_version,
+        fallback=lambda: _deterministic_decomposition(prompt),
     )
     proposal_id, token, expires_at = create_token(user_id=user_id, now=now)
     return TaskDecompositionPreviewResponse(

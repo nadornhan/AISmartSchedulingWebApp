@@ -20,12 +20,11 @@ class Settings(BaseSettings):
     ai_requests_per_user_per_minute: int = Field(default=10, ge=1, le=120)
     gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-3.5-flash-lite"
-    # Structured Gemini responses regularly take longer than ten seconds even
-    # with Flash-Lite. Keep the interactive request within the platform limit,
-    # while leaving enough time for task generation and decomposition to finish.
-    gemini_timeout_seconds: float = Field(default=30.0, gt=0, le=60)
+    # Interactive AI calls fail fast into deterministic fallbacks so the task
+    # flow remains usable when the free-tier provider is slow or unavailable.
+    gemini_timeout_seconds: float = Field(default=8.0, gt=0, le=60)
     gemini_max_output_tokens: int = Field(default=1024, ge=64, le=8192)
-    gemini_max_retries: int = Field(default=1, ge=0, le=2)
+    gemini_max_retries: int = Field(default=0, ge=0, le=2)
     upload_dir: Path = Path(__file__).resolve().parents[1] / "uploads"
     avatar_max_bytes: int = 2 * 1024 * 1024
     media_url_path: str = "/media"
