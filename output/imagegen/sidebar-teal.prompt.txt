@@ -1,0 +1,9 @@
+Generated with the built-in image_gen tool, using frontend/web/public/sidebar.png as the edit target.
+Final asset: frontend/web/public/sidebar-teal.webp (720 x 502, WebP quality 88).
+
+Use case: precise-object-edit.
+Asset type: Chrono app sidebar motivation-card background illustration, no text.
+Edit target: the referenced sidebar.png. Regenerate this artwork with the app's correct teal/mint accent instead of the current saturated emerald green.
+Preserve the original composition: wide 10:7 rounded dark navy card, large quiet empty upper-left area reserved for HTML copy, small angular mountain peaks low in the frame, and faceted ascending mountain/arrow shape rising diagonally toward the right edge. Keep the dark understated geometric style, soft shading, existing layout, and thin subtle border.
+Color palette: main app accent #35E3B5, secondary teal #20C99D and #148B70; highlights are cool mint leaning toward cyan, never pure green or lime. Dark background #050E16 and #0A151E. Recolor all emerald facets and glow to the correct cool teal family, with restrained contrast.
+Constraints: change only the background artwork colors; no lettering, logos, UI controls, rocket, extra ornaments or labels. Keep the dark navy interior fully opaque. Preserve transparency only outside the rounded outer corners. Preserve the reference's aspect ratio and clean negative space.

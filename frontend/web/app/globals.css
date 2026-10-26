@@ -103,7 +103,7 @@
     var(--dashboard-surface)
   );
   --avatar-text: var(--dashboard-bg);
-  --sidebar-artwork: url('/sidebar.png');
+  --sidebar-artwork: url('/sidebar-teal.webp');
 
   --tracking-heading: -0.025em;
   --tracking-body: -0.01em;

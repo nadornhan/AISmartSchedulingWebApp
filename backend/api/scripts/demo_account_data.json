@@ -1,0 +1,819 @@
+{
+  "projects": [
+    {
+      "name": "University",
+      "color": "#22F0B1"
+    },
+    {
+      "name": "Internship",
+      "color": "#60A5FA"
+    },
+    {
+      "name": "Personal",
+      "color": "#F59E0B"
+    },
+    {
+      "name": "Research",
+      "color": "#F472B6"
+    },
+    {
+      "name": "Health",
+      "color": "#34D399"
+    },
+    {
+      "name": "Creative",
+      "color": "#A78BFA"
+    }
+  ],
+  "tasks": [
+    {
+      "title": "Plan next study block",
+      "description": "Choose the next topic and set a clear study target.",
+      "project": "University",
+      "priority": "medium",
+      "status": "done",
+      "due_at": [
+        0,
+        8,
+        30
+      ],
+      "completed_at": [
+        0,
+        8,
+        45
+      ],
+      "estimated_duration_minutes": 45
+    },
+    {
+      "title": "Submit reflection draft",
+      "description": "Write and submit a short weekly reflection.",
+      "project": "Personal",
+      "priority": "low",
+      "status": "done",
+      "due_at": [
+        -3,
+        15,
+        0
+      ],
+      "completed_at": [
+        -3,
+        15,
+        20
+      ],
+      "estimated_duration_minutes": 25
+    },
+    {
+      "title": "Organize research notes",
+      "description": "Sort the latest paper notes into the project folders.",
+      "project": "Research",
+      "priority": "medium",
+      "status": "done",
+      "due_at": [
+        -4,
+        14,
+        0
+      ],
+      "completed_at": [
+        -4,
+        14,
+        25
+      ],
+      "estimated_duration_minutes": 35
+    },
+    {
+      "title": "Review calculus lecture notes",
+      "description": "Summarise the key formulas before tutorial.",
+      "project": "University",
+      "priority": "medium",
+      "status": "pending",
+      "due_at": [
+        -13,
+        9,
+        0
+      ],
+      "estimated_duration_minutes": 75
+    },
+    {
+      "title": "Submit database assignment",
+      "description": "Review migration notes and upload the final report.",
+      "project": "University",
+      "priority": "high",
+      "status": "pending",
+      "due_at": [
+        -9,
+        14,
+        30
+      ],
+      "estimated_duration_minutes": 120
+    },
+    {
+      "title": "Prepare systems quiz",
+      "description": "Revise process scheduling and memory paging.",
+      "project": "University",
+      "priority": "high",
+      "status": "in_progress",
+      "due_at": [
+        1,
+        11,
+        0
+      ],
+      "estimated_duration_minutes": 90,
+      "subtasks": [
+        {
+          "title": "Review process scheduling",
+          "is_completed": true
+        },
+        {
+          "title": "Revise memory paging",
+          "is_completed": false
+        },
+        {
+          "title": "Try the practice questions",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Group project retrospective",
+      "description": "Write notes for the final team reflection.",
+      "project": "University",
+      "priority": "medium",
+      "status": "done",
+      "due_at": [
+        -1,
+        16,
+        0
+      ],
+      "estimated_duration_minutes": 45
+    },
+    {
+      "title": "Update internship timesheet",
+      "description": "Log hours and add task summaries for mentor review.",
+      "project": "Internship",
+      "priority": "low",
+      "status": "pending",
+      "due_at": [
+        -12,
+        17,
+        0
+      ],
+      "estimated_duration_minutes": 20
+    },
+    {
+      "title": "Prepare sprint demo",
+      "description": "Polish the task sync flow and collect screenshots.",
+      "project": "Internship",
+      "priority": "high",
+      "status": "in_progress",
+      "due_at": [
+        -5,
+        10,
+        30
+      ],
+      "estimated_duration_minutes": 90,
+      "subtasks": [
+        {
+          "title": "Choose the demo tasks",
+          "is_completed": true
+        },
+        {
+          "title": "Capture the updated flow",
+          "is_completed": false
+        },
+        {
+          "title": "Rehearse the walkthrough",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Refactor onboarding notes",
+      "description": "Clean up setup instructions for the next intern.",
+      "project": "Internship",
+      "priority": "medium",
+      "status": "pending",
+      "due_at": [
+        6,
+        13,
+        0
+      ],
+      "estimated_duration_minutes": 60
+    },
+    {
+      "title": "Book mentor catch-up",
+      "description": "Send available times and attach sprint questions.",
+      "project": "Internship",
+      "priority": "no_priority",
+      "status": "pending",
+      "due_at": [
+        13,
+        9,
+        30
+      ],
+      "estimated_duration_minutes": 15
+    },
+    {
+      "title": "Draft portfolio case study",
+      "description": "Outline feature goals, trade-offs, and results.",
+      "project": "Internship",
+      "priority": "medium",
+      "status": "pending",
+      "due_at": [
+        16,
+        15,
+        0
+      ],
+      "estimated_duration_minutes": 100
+    },
+    {
+      "title": "Plan weekly groceries",
+      "description": "Add recurring essentials and budget notes.",
+      "project": "Personal",
+      "priority": "low",
+      "status": "done",
+      "due_at": [
+        -3,
+        18,
+        30
+      ],
+      "estimated_duration_minutes": 30
+    },
+    {
+      "title": "Renew transport card",
+      "description": "Top up and check concession expiry.",
+      "project": "Personal",
+      "priority": "medium",
+      "status": "pending",
+      "due_at": [
+        -4,
+        8,
+        15
+      ],
+      "estimated_duration_minutes": 20
+    },
+    {
+      "title": "Clean apartment desk",
+      "description": "Reset workspace before the next study block.",
+      "project": "Personal",
+      "priority": "no_priority",
+      "status": "pending",
+      "due_at": [
+        2,
+        12,
+        0
+      ],
+      "estimated_duration_minutes": 40
+    },
+    {
+      "title": "Birthday gift research",
+      "description": "Shortlist three practical gift ideas.",
+      "project": "Personal",
+      "priority": "low",
+      "status": "pending",
+      "due_at": [
+        10,
+        20,
+        0
+      ],
+      "estimated_duration_minutes": 45
+    },
+    {
+      "title": "Tax document checklist",
+      "description": "Collect receipts and payment summaries.",
+      "project": "Personal",
+      "priority": "high",
+      "status": "pending",
+      "due_at": [
+        14,
+        19,
+        0
+      ],
+      "estimated_duration_minutes": 80
+    },
+    {
+      "title": "Read scheduling paper",
+      "description": "Extract ideas for priority scoring.",
+      "project": "Research",
+      "priority": "medium",
+      "status": "pending",
+      "due_at": [
+        -10,
+        11,
+        30
+      ],
+      "estimated_duration_minutes": 60
+    },
+    {
+      "title": "Compare task ranking heuristics",
+      "description": "Create a small comparison table for the report.",
+      "project": "Research",
+      "priority": "high",
+      "status": "pending",
+      "due_at": [
+        -2,
+        14,
+        0
+      ],
+      "estimated_duration_minutes": 95
+    },
+    {
+      "title": "Annotate calendar integration article",
+      "description": "Capture notes about schedule-aware interfaces.",
+      "project": "Research",
+      "priority": "medium",
+      "status": "in_progress",
+      "due_at": [
+        7,
+        10,
+        0
+      ],
+      "estimated_duration_minutes": 70,
+      "subtasks": [
+        {
+          "title": "Mark timezone handling details",
+          "is_completed": true
+        },
+        {
+          "title": "Note the API assumptions",
+          "is_completed": false
+        },
+        {
+          "title": "Summarize useful patterns",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Draft survey questions",
+      "description": "Prepare five questions for student scheduling habits.",
+      "project": "Research",
+      "priority": "low",
+      "status": "pending",
+      "due_at": [
+        12,
+        13,
+        30
+      ],
+      "estimated_duration_minutes": 50
+    },
+    {
+      "title": "Summarise experiment results",
+      "description": "Turn raw notes into a concise result section.",
+      "project": "Research",
+      "priority": "high",
+      "status": "pending",
+      "due_at": [
+        15,
+        16,
+        30
+      ],
+      "estimated_duration_minutes": 110
+    },
+    {
+      "title": "Send research update",
+      "description": "Email progress summary and blockers.",
+      "project": "Research",
+      "priority": "no_priority",
+      "status": "pending",
+      "due_at": [
+        11,
+        9,
+        0
+      ],
+      "estimated_duration_minutes": 25
+    },
+    {
+      "title": "Morning run",
+      "description": "Easy run and stretch before class.",
+      "project": "Health",
+      "priority": "low",
+      "status": "done",
+      "due_at": [
+        -2,
+        7,
+        0
+      ],
+      "estimated_duration_minutes": 45
+    },
+    {
+      "title": "Meal prep protein bowls",
+      "description": "Cook lunches for the next three days.",
+      "project": "Health",
+      "priority": "medium",
+      "status": "pending",
+      "due_at": [
+        -1,
+        17,
+        30
+      ],
+      "estimated_duration_minutes": 75
+    },
+    {
+      "title": "Book dental appointment",
+      "description": "Find a slot around classes.",
+      "project": "Health",
+      "priority": "high",
+      "status": "pending",
+      "due_at": [
+        8,
+        12,
+        30
+      ],
+      "estimated_duration_minutes": 15
+    },
+    {
+      "title": "Review sleep routine",
+      "description": "Adjust bedtime target before exam week.",
+      "project": "Health",
+      "priority": "low",
+      "status": "pending",
+      "due_at": [
+        14,
+        21,
+        0
+      ],
+      "estimated_duration_minutes": 30
+    },
+    {
+      "title": "Sketch dashboard concepts",
+      "description": "Explore alternate empty and loading states.",
+      "project": "Creative",
+      "priority": "medium",
+      "status": "pending",
+      "due_at": [
+        -7,
+        20,
+        0
+      ],
+      "estimated_duration_minutes": 60
+    },
+    {
+      "title": "Edit project screenshots",
+      "description": "Crop dark-theme screenshots for the portfolio.",
+      "project": "Creative",
+      "priority": "low",
+      "status": "pending",
+      "due_at": [
+        3,
+        18,
+        0
+      ],
+      "estimated_duration_minutes": 50
+    },
+    {
+      "title": "Write UI case study intro",
+      "description": "Frame the problem and target user journey.",
+      "project": "Creative",
+      "priority": "high",
+      "status": "pending",
+      "due_at": [
+        9,
+        15,
+        30
+      ],
+      "estimated_duration_minutes": 90
+    },
+    {
+      "title": "Publish design notes",
+      "description": "Post a concise write-up of design decisions.",
+      "project": "Creative",
+      "priority": "medium",
+      "status": "pending",
+      "due_at": [
+        15,
+        11,
+        0
+      ],
+      "estimated_duration_minutes": 65
+    },
+    {
+      "title": "Reply to mentor feedback",
+      "description": "Send a concise update about yesterday's sprint notes.",
+      "project": "Internship",
+      "priority": "medium",
+      "status": "done",
+      "due_at": [
+        0,
+        9,
+        10
+      ],
+      "completed_at": [
+        0,
+        9,
+        18
+      ],
+      "estimated_duration_minutes": 8
+    },
+    {
+      "title": "Triage project inbox",
+      "description": "Sort new tasks into the right project folders.",
+      "project": "Personal",
+      "priority": "no_priority",
+      "status": "done",
+      "due_at": [
+        0,
+        9,
+        35
+      ],
+      "completed_at": [
+        0,
+        9,
+        48
+      ],
+      "estimated_duration_minutes": 12
+    },
+    {
+      "title": "Fix README setup typo",
+      "description": "Patch the Docker command and verify the quickstart.",
+      "project": "Internship",
+      "priority": "low",
+      "status": "pending",
+      "due_at": [
+        0,
+        10,
+        20
+      ],
+      "estimated_duration_minutes": 10,
+      "subtasks": [
+        {
+          "title": "Correct the Docker command",
+          "is_completed": true
+        },
+        {
+          "title": "Check the quickstart steps",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Write database migration notes",
+      "description": "Capture rollback steps and schema decisions.",
+      "project": "University",
+      "priority": "high",
+      "status": "in_progress",
+      "due_at": [
+        0,
+        11,
+        30
+      ],
+      "estimated_duration_minutes": 55,
+      "subtasks": [
+        {
+          "title": "List changed columns",
+          "is_completed": true
+        },
+        {
+          "title": "Add downgrade notes",
+          "is_completed": false
+        },
+        {
+          "title": "Review with assignment rubric",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Email study group agenda",
+      "description": "Confirm topics and meeting link.",
+      "project": "University",
+      "priority": "low",
+      "status": "pending",
+      "due_at": [
+        0,
+        12,
+        15
+      ],
+      "estimated_duration_minutes": 7,
+      "subtasks": [
+        {
+          "title": "Confirm discussion topics",
+          "is_completed": true
+        },
+        {
+          "title": "Add the meeting link",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Review pull request comments",
+      "description": "Check requested changes and group them by risk.",
+      "project": "Internship",
+      "priority": "medium",
+      "status": "in_progress",
+      "due_at": [
+        0,
+        14,
+        0
+      ],
+      "estimated_duration_minutes": 35,
+      "subtasks": [
+        {
+          "title": "Read unresolved threads",
+          "is_completed": true
+        },
+        {
+          "title": "Reproduce failing path",
+          "is_completed": false
+        },
+        {
+          "title": "Draft response summary",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Deep work: scheduler scoring prototype",
+      "description": "Tune priority, duration, and due-date weights.",
+      "project": "Research",
+      "priority": "high",
+      "status": "pending",
+      "due_at": [
+        0,
+        16,
+        30
+      ],
+      "estimated_duration_minutes": 120,
+      "subtasks": [
+        {
+          "title": "Create sample task set",
+          "is_completed": true
+        },
+        {
+          "title": "Run score comparison",
+          "is_completed": false
+        },
+        {
+          "title": "Document chosen weights",
+          "is_completed": false
+        },
+        {
+          "title": "Add edge-case notes",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Update weekly budget",
+      "description": "Log groceries, transport, and coffee spending.",
+      "project": "Personal",
+      "priority": "medium",
+      "status": "pending",
+      "due_at": [
+        0,
+        18,
+        0
+      ],
+      "estimated_duration_minutes": 18
+    },
+    {
+      "title": "Stretch after study block",
+      "description": "Ten-minute reset before dinner.",
+      "project": "Health",
+      "priority": "no_priority",
+      "status": "pending",
+      "due_at": [
+        0,
+        19,
+        15
+      ],
+      "estimated_duration_minutes": 10,
+      "subtasks": [
+        {
+          "title": "Do a shoulder stretch",
+          "is_completed": false
+        },
+        {
+          "title": "Take a short walk",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Draft dashboard microcopy",
+      "description": "Write labels for empty, loading, and overdue states.",
+      "project": "Creative",
+      "priority": "medium",
+      "status": "pending",
+      "due_at": [
+        1,
+        9,
+        45
+      ],
+      "estimated_duration_minutes": 40,
+      "subtasks": [
+        {
+          "title": "Empty state labels",
+          "is_completed": true
+        },
+        {
+          "title": "Overdue badge text",
+          "is_completed": false
+        },
+        {
+          "title": "Quick win button copy",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Send landlord maintenance reply",
+      "description": "Confirm preferred repair window.",
+      "project": "Personal",
+      "priority": "low",
+      "status": "pending",
+      "due_at": [
+        1,
+        10,
+        30
+      ],
+      "estimated_duration_minutes": 6,
+      "subtasks": [
+        {
+          "title": "Confirm repair availability",
+          "is_completed": false
+        },
+        {
+          "title": "Send the reply",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Prepare tutorial questions",
+      "description": "Write examples for normalization and indexing.",
+      "project": "University",
+      "priority": "high",
+      "status": "pending",
+      "due_at": [
+        1,
+        13,
+        0
+      ],
+      "estimated_duration_minutes": 50,
+      "subtasks": [
+        {
+          "title": "Review lecture slides",
+          "is_completed": false
+        },
+        {
+          "title": "Write two SQL examples",
+          "is_completed": false
+        },
+        {
+          "title": "Add one indexing question",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Clean task labels",
+      "description": "Merge duplicate labels and remove stale drafts.",
+      "project": "Internship",
+      "priority": "no_priority",
+      "status": "pending",
+      "due_at": [
+        1,
+        15,
+        20
+      ],
+      "estimated_duration_minutes": 9,
+      "subtasks": [
+        {
+          "title": "Merge duplicate labels",
+          "is_completed": true
+        },
+        {
+          "title": "Remove stale labels",
+          "is_completed": false
+        }
+      ]
+    },
+    {
+      "title": "Read paper abstract set",
+      "description": "Skim five abstracts and choose two to read deeply.",
+      "project": "Research",
+      "priority": "medium",
+      "status": "pending",
+      "due_at": [
+        1,
+        17,
+        10
+      ],
+      "estimated_duration_minutes": 25
+    },
+    {
+      "title": "Edit portfolio hero screenshot",
+      "description": "Crop, sharpen, and export the dashboard image.",
+      "project": "Creative",
+      "priority": "low",
+      "status": "pending",
+      "due_at": [
+        1,
+        20,
+        0
+      ],
+      "estimated_duration_minutes": 30
+    }
+  ]
+}
