@@ -5,8 +5,6 @@ import type { FocusDurations } from './FocusSettingsModal';
 import type { FocusTimerMode } from './focus-timer-panel';
 
 const initialDurations: FocusDurations = { focus: 25, shortBreak: 5, longBreak: 15 };
-const modes: FocusTimerMode[] = ['Pomodoro', 'Short Break', 'Long Break'];
-
 function getModeSeconds(mode: FocusTimerMode, durations: FocusDurations) {
   const minutes = mode === 'Pomodoro'
     ? durations.focus
