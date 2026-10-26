@@ -485,7 +485,7 @@ function TaskFormModal({
                     <button
                       aria-pressed={aiEntryMode === 'generate'}
                       className={cn(
-                        'h-10 rounded-lg px-3 text-sm font-semibold transition',
+                        'h-10 rounded-lg px-3 font-poppins text-sm font-semibold transition',
                         aiEntryMode === 'generate'
                           ? 'bg-dashboard-accent-soft text-dashboard-accent'
                           : 'text-dashboard-text/75 hover:text-dashboard-text',
@@ -498,7 +498,7 @@ function TaskFormModal({
                     <button
                       aria-pressed={aiEntryMode === 'decompose'}
                       className={cn(
-                        'h-10 rounded-lg px-3 text-sm font-semibold transition',
+                        'h-10 rounded-lg px-3 font-poppins text-sm font-semibold transition',
                         aiEntryMode === 'decompose'
                           ? 'bg-dashboard-accent-soft text-dashboard-accent'
                           : 'text-dashboard-text/75 hover:text-dashboard-text',

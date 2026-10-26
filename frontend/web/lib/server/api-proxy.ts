@@ -7,6 +7,7 @@ const secureCookies = process.env.NODE_ENV === 'production';
 export const SESSION_COOKIE = secureCookies ? '__Host-chrono_session' : 'chrono_session';
 const roots = new Set([
   'auth',
+  'health',
   'tasks',
   'projects',
   'folders',
@@ -76,6 +77,12 @@ export async function proxyApiRequest(request: Request, path: string[]): Promise
     return jsonError('Unknown API route', 404);
   }
   const route = path.join('/');
+  // Expose only liveness, not the database readiness check, to public auth pages.
+  const publicHealth = route === 'health/live';
+  if (path[0] === 'health' && !publicHealth) return jsonError('Unknown API route', 404);
+  if (publicHealth && !safeMethods.has(request.method)) {
+    return jsonError('Method not allowed', 405);
+  }
   const publicAuth = route === 'auth/login' || route === 'auth/register';
   const logout = route === 'auth/logout';
   if ((publicAuth || logout) && request.method !== 'POST') {
@@ -111,7 +118,8 @@ export async function proxyApiRequest(request: Request, path: string[]): Promise
 
   const token = sessionCookie(request);
   const publicMedia = path[0] === 'media' && safeMethods.has(request.method);
-  if (!publicAuth && !publicMedia && !token) return jsonError('Not authenticated', 401);
+  if (!publicAuth && !publicMedia && !publicHealth && !token)
+    return jsonError('Not authenticated', 401);
 
   try {
     const base = new URL(
@@ -126,9 +134,11 @@ export async function proxyApiRequest(request: Request, path: string[]): Promise
     const headers = new Headers({ Accept: request.headers.get('accept') ?? 'application/json' });
     const contentType = request.headers.get('content-type');
     if (contentType) headers.set('Content-Type', contentType);
-    if (token && !publicAuth && !publicMedia) headers.set('Authorization', `Bearer ${token}`);
+    if (token && !publicAuth && !publicMedia && !publicHealth)
+      headers.set('Authorization', `Bearer ${token}`);
 
     const body = safeMethods.has(request.method) ? undefined : await readBody(request);
+    const upstreamStart = Date.now();
     const upstream = await fetch(base, {
       method: request.method,
       headers,
@@ -137,6 +147,7 @@ export async function proxyApiRequest(request: Request, path: string[]): Promise
       redirect: 'manual',
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(60_000)]),
     });
+    const serverTiming = `api;dur=${Date.now() - upstreamStart}`;
     if (upstream.status >= 300 && upstream.status < 400) {
       return jsonError('Unexpected API redirect', 502);
     }
@@ -159,7 +170,7 @@ export async function proxyApiRequest(request: Request, path: string[]): Promise
         return jsonError('Expired authentication response', 502);
       const response = NextResponse.json(
         { authenticated: true, user: data.user },
-        { headers: { 'Cache-Control': 'no-store' } },
+        { headers: { 'Cache-Control': 'no-store', 'Server-Timing': serverTiming } },
       );
       response.cookies.set(SESSION_COOKIE, data.access_token, {
         httpOnly: true,
@@ -176,12 +187,16 @@ export async function proxyApiRequest(request: Request, path: string[]): Promise
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
       Vary: 'Cookie',
+      'Server-Timing': serverTiming,
     });
     if (upstream.headers.has('content-type'))
       responseHeaders.set('Content-Type', upstream.headers.get('content-type')!);
     return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
   } catch (error) {
     if (error instanceof RequestTooLarge) return jsonError('Request is too large', 413);
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'TimeoutError') {
+      return jsonError('The server is taking too long to respond. Please try again shortly.', 504);
+    }
     return jsonError('Unable to reach the API. Please try again.', 502);
   }
 }

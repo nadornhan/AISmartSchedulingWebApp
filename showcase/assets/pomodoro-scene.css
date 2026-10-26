@@ -1,0 +1,285 @@
+/* A full-canvas Pomodoro feature scene. The countdown is the visual anchor. */
+.fullscreen-pomo {
+  padding: 0;
+  --pomo-break: 0;
+  --pomo-accent: #29d8b4;
+  --pomo-text: #f0f7f5;
+  background: #03101e;
+}
+.pomo-landscape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.pomo-landscape.break-landscape {
+  opacity: var(--pomo-break);
+}
+.pomo-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, #030b1678, transparent 34%, transparent 69%, #080c1940),
+    linear-gradient(0deg, #03091a35, transparent 32%, #04091630);
+}
+.fullscreen-pomo .focus-ambient {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  fill: none;
+  pointer-events: none;
+}
+.fullscreen-pomo .ambient-bands {
+  opacity: 0.025;
+}
+.fullscreen-pomo .ambient-lines {
+  opacity: 0.14;
+}
+.fullscreen-pomo .ambient-lines path {
+  stroke: var(--pomo-accent);
+  stroke-width: 1.2;
+  animation: pomo-wave-drift 14s ease-in-out infinite alternate;
+}
+.fullscreen-pomo .ambient-lines path:nth-child(2) {
+  opacity: 0.6;
+}
+.pomo-description {
+  position: absolute;
+  left: 88px;
+  top: 271px;
+  width: 320px;
+  z-index: 2;
+}
+.pomo-description .eyebrow {
+  color: var(--pomo-accent);
+  font-size: 16px;
+  letter-spacing: 0.12em;
+  margin-bottom: 22px;
+}
+.pomo-description h2 {
+  font-size: 49px;
+  line-height: 1.2;
+  letter-spacing: -0.045em;
+}
+.pomo-description h2 em {
+  color: var(--pomo-accent);
+}
+.pomo-description .body {
+  font-size: 22px;
+  line-height: 1.65;
+  margin-top: 26px;
+  color: #a1b8c5;
+}
+.pomo-details {
+  display: grid;
+  gap: 23px;
+  margin-top: 33px;
+}
+.pomo-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+}
+.pomo-detail .feature-icon {
+  width: 24px;
+  height: 24px;
+  margin-top: 3px;
+  color: var(--pomo-accent);
+}
+.pomo-detail strong {
+  display: block;
+  font-size: 18px;
+  font-weight: 400;
+  color: #dce8ea;
+}
+.pomo-detail small {
+  display: block;
+  font-size: 15px;
+  color: #7f9caa;
+  margin-top: 5px;
+  line-height: 1.55;
+}
+.pomo-countdown {
+  position: absolute;
+  left: 490px;
+  top: 153px;
+  width: 620px;
+  height: 620px;
+  z-index: 2;
+  color: var(--pomo-text);
+}
+.pomo-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  transform: rotate(-90deg);
+}
+.pomo-ring-track {
+  stroke: var(--pomo-accent);
+  stroke-opacity: 0.1;
+  stroke-width: 2;
+}
+.pomo-ring-progress {
+  stroke: var(--pomo-accent);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-dasharray: 1772;
+}
+.pomo-ring-echo {
+  stroke: var(--pomo-accent);
+  stroke-opacity: 0.1;
+  stroke-width: 0.75;
+  transform-origin: 320px 320px;
+}
+.pomo-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.pomo-phase-label {
+  font-size: 19px;
+  color: var(--pomo-accent);
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  margin-bottom: 30px;
+}
+.pomo-clock {
+  display: block;
+  font-size: 166px;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: -0.075em;
+  font-variant-numeric: tabular-nums;
+  padding-right: 0.075em;
+}
+.pomo-state-caption {
+  font-size: 23px;
+  margin-top: 30px;
+  color: #a9c0cb;
+}
+.pomo-mode-row {
+  position: absolute;
+  top: 782px;
+  left: 492px;
+  width: 616px;
+  display: flex;
+  justify-content: center;
+  gap: 31px;
+  font-size: 18px;
+  z-index: 2;
+  color: #708e9f;
+}
+.pomo-mode-row span {
+  padding-bottom: 9px;
+  border-bottom: 2px solid transparent;
+}
+.fullscreen-pomo[data-phase='focus'] [data-mode='focus'],
+.fullscreen-pomo[data-phase='break'] [data-mode='break'] {
+  border-bottom-color: var(--pomo-accent);
+  color: var(--pomo-accent);
+}
+.pomo-preview-note {
+  position: absolute;
+  left: 492px;
+  top: 830px;
+  width: 616px;
+  text-align: center;
+  z-index: 2;
+  font-size: 12px;
+  letter-spacing: 0.07em;
+  color: #577286;
+}
+.pomo-tree-description {
+  position: absolute;
+  right: 82px;
+  top: 738px;
+  width: 292px;
+  z-index: 2;
+  text-align: center;
+}
+.pomo-tree-description strong {
+  font-size: 20px;
+  font-weight: 400;
+  color: #cbdfdf;
+}
+.pomo-tree-description p {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-top: 11px;
+  color: #7996a5;
+}
+.stage[data-tree='focus'] .tree-object {
+  left: 1222px;
+  top: 355px;
+  width: 296px;
+  height: 364px;
+  transition-delay: 0ms, 0ms, 0ms, 0ms, 0ms, 400ms;
+}
+.stage[data-mood='calm'] .morph-landscape {
+  opacity: 0;
+}
+.slide.active.fullscreen-pomo .pomo-landscape {
+  animation: pomo-scenic-drift 45s ease-in-out infinite alternate;
+}
+.slide.active .pomo-ring-echo {
+  animation: pomo-ring-breathe 10s ease-in-out infinite;
+}
+.slide.active .pomo-ring-echo.outer-echo {
+  animation-delay: -5s;
+}
+@keyframes pomo-scenic-drift {
+  from {
+    transform: scale(1.015) translateX(-4px);
+  }
+  to {
+    transform: scale(1.055) translateX(6px);
+  }
+}
+@keyframes pomo-wave-drift {
+  from {
+    transform: translate(-25px, 10px);
+  }
+  to {
+    transform: translate(25px, -10px);
+  }
+}
+@keyframes pomo-ring-breathe {
+  0%,
+  100% {
+    transform: scale(0.985);
+    stroke-opacity: 0.06;
+  }
+  50% {
+    transform: scale(1.02);
+    stroke-opacity: 0.14;
+  }
+}
+@media print {
+  .fullscreen-pomo {
+    --pomo-break: 0 !important;
+    --pomo-accent: #29d8b4 !important;
+  }
+  .pomo-print-tree {
+    display: block !important;
+    position: absolute;
+    left: 1222px;
+    top: 355px;
+    width: 296px;
+    height: 364px;
+    object-fit: contain;
+  }
+  .pomo-preview-note {
+    display: none;
+  }
+}

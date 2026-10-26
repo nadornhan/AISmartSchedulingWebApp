@@ -52,6 +52,32 @@ short smoke test but can disappear after a deploy or restart. Before production,
 attach persistent storage or move uploads to object storage. Do not store
 database files on the API filesystem.
 
+### Slow first sign-in after inactivity
+
+The committed Blueprint uses a Free API instance. Render suspends a Free web
+service after 15 minutes without inbound traffic; waking it takes about one
+minute (see [Render's idle behavior](https://render.com/docs/free#spinning-down-on-idle)).
+This can delay login even when the session cookie handling is working correctly.
+API startup also runs Alembic before starting Uvicorn, so database connectivity
+can add to the wake-up time.
+
+The sign-in and registration pages send one best-effort, credential-free
+`GET /api/health/live` on mount and prefetch the dashboard route. Neither is a
+prerequisite for submitting the form. Login returns the public user profile with
+the HttpOnly cookie, so the first dashboard mount needs no duplicate `/auth/me`
+request. There is no periodic keep-alive or automatic login retry.
+
+To distinguish hosting delay from navigation, inspect the login request in the
+browser Network panel. Its `Server-Timing: api;dur=...` response header measures
+the wait for API response headers in milliseconds. The login request's total
+duration includes reading the body, including the public profile. Compare these
+with the dashboard navigation and `/api/dashboard/summary` request.
+If the proxy reaches its 60-second API timeout, it returns a retryable HTTP 504.
+
+For consistent first-visit latency, change the API service to an always-on paid
+compute instance in Render. Changing cookie lifetime or browser token storage
+does not remove a sleeping service's startup delay.
+
 ## 1. Rotate credentials before the first deployment
 
 - Revoke any Gemini key that has been pasted into chat, source code, screenshots

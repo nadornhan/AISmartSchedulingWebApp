@@ -1,0 +1,211 @@
+/* Chrono's website palette, with motion driven by the presentation clock. */
+.ai .ai-layout {
+  grid-template-columns: 580px minmax(0, 1fr);
+  gap: 80px;
+}
+.ai .ai-layout h2 {
+  font-size: 58px;
+  letter-spacing: -0.045em;
+}
+.ai .eyebrow {
+  color: #35e3b5;
+}
+.ai .ai-layout .body {
+  max-width: 550px;
+  font-size: 23px;
+  color: #a3adb2;
+}
+.ai-prompt-preview {
+  max-width: 560px;
+  margin-top: 34px;
+  padding: 24px;
+  border: 1px solid #29404b;
+  border-radius: 8px;
+  background: #0a141d;
+  box-shadow: inset 0 1px 0 #ffffff06;
+}
+.ai-prompt-preview > p {
+  color: #f4f7f6;
+  font-size: 21px;
+  line-height: 1.6;
+  letter-spacing: -0.02em;
+}
+.ai-prompt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 36px;
+}
+.ai-prompt-sparkle {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: #148b70;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ai-prompt-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 1px solid #35e3b5;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #35e3b5, #20c99d);
+  color: #04110d;
+  font-size: 16px;
+  box-shadow: 0 8px 24px #35e3b52b, inset 0 1px 0 #ffffff40;
+}
+.ai-prompt-submit svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ai-task-flow {
+  width: 100%;
+  height: 700px;
+  transform: translateY(-10px);
+}
+.ai-task-flow svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  font-family: Poppins, 'Segoe UI', sans-serif;
+}
+.ai-flow-heading {
+  fill: #f4f7f6;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+.ai-flow-caption {
+  fill: #6e7d84;
+  font-size: 14px;
+}
+.ai-flow-box {
+  fill: #0a151e;
+  stroke: #1c2d37;
+  stroke-width: 1;
+}
+.ai-flow-label {
+  fill: #f4f7f6;
+  font-size: 18px;
+}
+.ai-flow-detail {
+  fill: #a3adb2;
+  font-size: 15px;
+}
+.ai-flow-source-icon {
+  fill: none;
+  stroke: #6e7d84;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ai-flow-core-label {
+  fill: #f4f7f6;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+}
+.ai-flow-wire {
+  fill: none;
+  stroke: #29404b;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ai-flow-trace {
+  fill: none;
+  stroke: #35e3b5;
+  stroke-width: 1.6;
+  opacity: 0.22;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ai-flow-packet {
+  fill: #b7f9e7;
+  stroke: #35e3b5;
+  stroke-width: 6px;
+  stroke-opacity: 0.16;
+  opacity: 0;
+}
+.ai-task-flow [data-flow-alternative] .ai-flow-trace {
+  display: none;
+}
+.ai-flow-choice-label {
+  fill: #a3adb2;
+  font-size: 16px;
+}
+.ai-flow-branch .ai-flow-label {
+  font-size: 18px;
+}
+.ai-flow-mode-selected .ai-flow-box {
+  fill: #0d2b29;
+  stroke: #148b70;
+}
+.ai-flow-mode-selected .ai-flow-label {
+  fill: #35e3b5;
+}
+.ai-flow-verify {
+  fill: #a3adb2;
+  font-size: 17px;
+}
+.ai-flow-proposal-label {
+  fill: #f4f7f6;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+.ai-flow-task {
+  fill: #f4f7f6;
+  font-size: 18px;
+  font-weight: 600;
+}
+.ai-flow-review {
+  fill: #35e3b5;
+  font-size: 17px;
+}
+.ai-flow-date {
+  fill: #a3adb2;
+  font-size: 16px;
+}
+.ai-flow-table-heading {
+  fill: #a3adb2;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.ai-flow-task-note {
+  fill: #6e7d84;
+  font-size: 13px;
+}
+.ai-flow-pill {
+  fill: #a3adb2;
+  font-size: 13px;
+}
+.ai-task-flow .ai-flow-mode-selected[data-flow-node].is-current > .ai-flow-box {
+  stroke: #148b70;
+}
+.ai-task-flow [data-flow-node].is-current > .ai-flow-box {
+  stroke: #29404b;
+}
+@media print {
+  .ai-task-flow [data-flow-node] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .ai-task-flow .ai-flow-trace {
+    stroke-dashoffset: 0 !important;
+  }
+  .ai-task-flow .ai-flow-packet {
+    display: none;
+  }
+}

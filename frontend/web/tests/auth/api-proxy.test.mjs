@@ -188,3 +188,36 @@ test('public avatars remain available through the same-origin media route', asyn
   assert.equal(response.headers.get('content-type'), 'image/png');
   assert.equal(h.calls[0].headers.has('authorization'), false);
 });
+
+for (const method of ['GET', 'HEAD']) {
+  test(`public API warm-up permits ${method} without forwarding credentials`, async () => {
+    const h = harness(() => new Response(null, { status: 200 }));
+    const response = await h.request(['health', 'live'], { method, cookie: null });
+    assert.equal(response.status, 200);
+    assert.equal(h.calls[0].url, 'https://api.example/health/live');
+    assert.equal(h.calls[0].headers.has('authorization'), false);
+    assert.equal(h.calls[0].headers.has('cookie'), false);
+    assert.match(response.headers.get('server-timing'), /^api;dur=\d+$/);
+    const withCookie = await h.request(['health', 'live']);
+    assert.equal(withCookie.status, 200);
+    assert.equal(h.calls[1].headers.has('authorization'), false);
+  });
+}
+
+test('public warm-up cannot expose readiness or accept writes', async () => {
+  const h = harness();
+  assert.equal((await h.request(['health', 'ready'], { cookie: null })).status, 404);
+  assert.equal((await h.request(['health', 'live'], { method: 'POST', cookie: null })).status, 405);
+  assert.equal(h.calls.length, 0);
+});
+
+test('an upstream timeout is reported clearly without retrying a login or setting a cookie', async () => {
+  const h = harness(() => {
+    throw new DOMException('Request timed out', 'TimeoutError');
+  });
+  const response = await h.request(['auth', 'login'], { method: 'POST' });
+  assert.equal(response.status, 504);
+  assert.equal(response.headers.get('set-cookie'), null);
+  assert.match((await response.json()).detail, /taking too long/);
+  assert.equal(h.calls.length, 1);
+});

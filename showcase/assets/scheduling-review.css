@@ -1,0 +1,87 @@
+/* Scheduling assistance artwork only. */
+.slide.scheduling .scheduling-review {
+  width: 100%;
+  height: 680px;
+}
+.slide.scheduling .scheduling-review svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  font-family: Poppins, 'Segoe UI', sans-serif;
+}
+.slide.scheduling .schedule-eyebrow {
+  fill: #35e3b5;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+}
+.slide.scheduling .schedule-heading {
+  fill: #f4f7f6;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+}
+.slide.scheduling .schedule-copy {
+  fill: #a3adb2;
+  font-size: 16px;
+}
+.slide.scheduling .schedule-constraint-label {
+  fill: #a3adb2;
+  font-size: 15px;
+}
+.slide.scheduling .schedule-warning-label {
+  fill: #ffb648;
+  font-size: 14px;
+  font-weight: 600;
+}
+.slide.scheduling .schedule-result-heading {
+  fill: #f4f7f6;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.25px;
+}
+.slide.scheduling .schedule-result-copy {
+  fill: #a3adb2;
+  font-size: 15px;
+}
+.slide.scheduling .schedule-task-title {
+  fill: #f4f7f6;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.15px;
+}
+.slide.scheduling .schedule-task-reason {
+  fill: #a3adb2;
+  font-size: 14px;
+}
+.slide.scheduling .schedule-button-label {
+  fill: #f4f7f6;
+  font-size: 13px;
+  font-weight: 600;
+}
+.slide.scheduling .schedule-meta {
+  fill: #6e7d84;
+  font-size: 12px;
+}
+.slide.scheduling .schedule-icon {
+  fill: none;
+  stroke: #35e3b5;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.slide.scheduling [data-schedule-checks],
+.slide.scheduling [data-schedule-progress] {
+  opacity: 0;
+}
+@media print {
+  .slide.scheduling [data-schedule-shell],
+  .slide.scheduling [data-schedule-step] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .slide.scheduling [data-schedule-checks],
+  .slide.scheduling [data-schedule-progress] {
+    display: none;
+  }
+}

@@ -18,7 +18,7 @@ export function MobileTopHeader({
 }>) {
   if (title === 'Account') {
     return (
-      <header className="bg-dashboard-bg px-6 pb-2 pt-[max(1.25rem,env(safe-area-inset-top))] lg:hidden">
+      <header className="bg-dashboard-bg px-[18px] pb-2 pt-[max(1.25rem,env(safe-area-inset-top))] lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <h1 className="font-poppins text-2xl font-semibold text-dashboard-text">Account</h1>
           <HeaderActions compact showXp totalXp={totalXp} user={user} />
@@ -29,7 +29,7 @@ export function MobileTopHeader({
 
   if (title === 'Profile') {
     return (
-      <header className="bg-dashboard-bg px-6 pb-2 pt-[max(1.25rem,env(safe-area-inset-top))] lg:hidden">
+      <header className="bg-dashboard-bg px-[18px] pb-2 pt-[max(1.25rem,env(safe-area-inset-top))] lg:hidden">
         <div className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2">
           <Link
             aria-label="Back to account"
@@ -49,7 +49,7 @@ export function MobileTopHeader({
 
   if (title === 'AI Insights' || title === 'Personal Forest') {
     return (
-      <header className="bg-dashboard-bg px-6 pb-3 pt-[max(1rem,env(safe-area-inset-top))] lg:hidden">
+      <header className="bg-dashboard-bg px-[18px] pb-3 pt-[max(1rem,env(safe-area-inset-top))] lg:hidden">
         <div className="flex min-w-0 items-center gap-3">
           <Link
             aria-label="Back to account"
@@ -68,7 +68,7 @@ export function MobileTopHeader({
 
   if (title !== 'Dashboard') {
     return (
-      <header className="relative z-[180] bg-[var(--bg-sidebar)]/95 px-6 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] backdrop-blur-xl lg:hidden">
+      <header className="relative z-[180] bg-[var(--bg-sidebar)]/95 px-[18px] pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] backdrop-blur-xl lg:hidden">
         <div className="flex min-w-0 items-center justify-between gap-4">
           <h1 className="min-w-0 font-poppins text-2xl font-semibold leading-tight tracking-normal text-dashboard-text">
             {title}

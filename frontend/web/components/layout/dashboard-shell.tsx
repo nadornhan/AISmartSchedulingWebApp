@@ -185,7 +185,7 @@ function DashboardShellContent({
           <MobileTopHeader title={meta.title} totalXp={totalXp} user={user} />
           <Header totalXp={totalXp} user={user} />
           <main
-            className={`min-h-[calc(100dvh-7rem)] px-6 pb-32 ${pathname === '/dashboard' ? 'pt-[max(1.25rem,env(safe-area-inset-top))]' : pathname === '/tasks' ? 'pt-3' : 'pt-5'} lg:min-h-[calc(100dvh-6rem)] lg:px-10 lg:pb-8 lg:pt-5 xl:px-12`}
+            className={`min-h-[calc(100dvh-7rem)] px-[18px] pb-32 sm:px-6 ${pathname === '/dashboard' ? 'pt-[max(1.25rem,env(safe-area-inset-top))]' : pathname === '/tasks' ? 'pt-3' : 'pt-5'} lg:min-h-[calc(100dvh-6rem)] lg:px-10 lg:pb-8 lg:pt-5 xl:px-12`}
           >
             {pathname !== '/gamification' ? (
               <PageHeading

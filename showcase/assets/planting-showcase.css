@@ -1,0 +1,114 @@
+/* The restored planting feature page uses the deck's original plant artwork. */
+.planting-layout {
+  display: grid;
+  grid-template-columns: 500px minmax(0, 1fr);
+  gap: 70px;
+  align-items: center;
+  height: 100%;
+}
+.planting h2 {
+  font-size: 67px;
+  line-height: 1.16;
+}
+.planting .body {
+  max-width: 470px;
+  font-size: 24px;
+}
+.planting-steps {
+  display: grid;
+  gap: 23px;
+  margin-top: 32px;
+}
+.planting-step {
+  display: flex;
+  gap: 17px;
+  align-items: flex-start;
+}
+.planting-step > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 35px;
+  height: 35px;
+  border: 1px solid #2f756950;
+  border-radius: 50%;
+  color: var(--mint);
+  font-size: 14px;
+}
+.planting-step strong {
+  display: block;
+  color: #e5f2ed;
+  font-size: 21px;
+  font-weight: 400;
+}
+.planting-step p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.55;
+}
+.planting-visual {
+  position: relative;
+  margin: 0;
+  padding-top: 45px;
+  isolation: isolate;
+}
+.planting-visual::before {
+  content: '';
+  position: absolute;
+  inset: 0 -45px;
+  z-index: -1;
+  background: radial-gradient(ellipse, #28795d30, transparent 68%);
+}
+.planting-journey {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+}
+.planting .plant-stage {
+  text-align: center;
+}
+.planting .plant-stage img {
+  display: block;
+  width: 100%;
+  height: 315px;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 24px #0005);
+}
+.planting .plant-stage span {
+  display: block;
+  margin-top: 19px;
+  color: #bdd7d1;
+  font-size: 20px;
+}
+.planting-visual figcaption {
+  margin-top: 42px;
+  padding-top: 23px;
+  border-top: 1px solid #31564c70;
+  text-align: center;
+  color: #77cbb3;
+  font-size: 18px;
+}
+.stage[data-motion='full'] .slide.active.planting .plant-stage {
+  animation: planting-growth-breathe 7s ease-in-out infinite;
+}
+.stage[data-motion='full'] .slide.active.planting .plant-stage:nth-child(2) {
+  animation-delay: -2.3s;
+}
+.stage[data-motion='full'] .slide.active.planting .plant-stage:nth-child(3) {
+  animation-delay: -4.6s;
+}
+@keyframes planting-growth-breathe {
+  0%, 100% { translate: 0 4px; opacity: 0.85; }
+  50% { translate: 0 -10px; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage[data-motion='full'] .slide.active.planting .plant-stage {
+    animation: none;
+  }
+}
+@media print {
+  .stage[data-motion='full'] .slide.active.planting .plant-stage {
+    animation: none;
+  }
+}

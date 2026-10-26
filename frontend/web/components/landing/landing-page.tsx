@@ -25,6 +25,7 @@ export function LandingPage() {
         </Link>
         <nav className={styles.navigation} aria-label="Main navigation">
           <a href="#how-it-works">How it works</a>
+          <Link href="/pomodoro">Pomodoro</Link>
           <a href="#your-forest">Your forest</a>
         </nav>
         <Link href="/login" className={styles.signIn}>
@@ -115,10 +116,10 @@ export function LandingPage() {
               <div className={styles.mobileMockup}>
                 <img
                   className={styles.deviceFrame}
-                  src="/images/landing/mockup-mobile-frame.png"
+                  src="/images/landing/iphone-16-dark.png"
                   alt=""
-                  width={438}
-                  height={798}
+                  width={383}
+                  height={785}
                   loading="lazy"
                 />
                 <div className={styles.mobileScreen}>
@@ -191,6 +192,9 @@ export function LandingPage() {
                   <small>A moment to focus</small>
                 </div>
               </div>
+              <Link className={styles.textLink} href="/pomodoro">
+                Try the Pomodoro timer <ArrowRight size={15} />
+              </Link>
             </article>
             <article className={styles.feature} data-reveal data-reveal-delay="2">
               <div className={styles.featureTop}>

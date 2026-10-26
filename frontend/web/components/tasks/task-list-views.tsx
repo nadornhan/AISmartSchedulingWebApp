@@ -490,8 +490,8 @@ export function TaskMobileList({
           const visibleCount = visibleCounts[group] ?? mobileGroupBatchSize;
           return (
             <div key={group}>
-              <div className={cn('mb-2 flex items-center gap-2', meta.color)}>
-                <CalendarIcon className="h-5 w-5" />
+              <div className={cn('mb-3 flex items-center gap-2', meta.color)}>
+                <CalendarIcon className="ml-2 h-5 w-5" />
                 <h2 className="text-sm font-medium text-dashboard-text">{meta.label}</h2>
                 <span className="grid min-w-5 place-items-center rounded-full bg-current/10 px-1.5 text-xs font-semibold">
                   {groupTasks.length}

@@ -58,7 +58,12 @@ export function SuggestedTaskCard({
             className="block rounded-[var(--radius-md)] transition hover:ring-1 hover:ring-dashboard-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent"
             href={`/tasks?task_id=${encodeURIComponent(task.id)}`}
           >
-            <DashboardTaskCard compact task={task} variant="recommendation" />
+            <DashboardTaskCard
+              compact
+              showSubtaskProgress={false}
+              task={task}
+              variant="recommendation"
+            />
           </Link>
           <Link
             className="flex min-h-12 w-full shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-dashboard-accent px-4 py-3 text-base font-semibold text-dashboard-on-accent transition hover:bg-dashboard-accent-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dashboard-accent sm:min-h-14 sm:text-lg lg:mt-auto"

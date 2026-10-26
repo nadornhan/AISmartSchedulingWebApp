@@ -1,0 +1,156 @@
+/* Growth artwork uses the same embedded Chrono models as the application. */
+.forest-growth-scene {
+  position: relative;
+  height: 545px;
+  isolation: isolate;
+}
+.forest-growth-header {
+  position: absolute;
+  top: 8px;
+  left: 40px;
+  right: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.forest-growing-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #7bd8bb;
+  font-size: 18px;
+}
+.forest-growing-status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38dfb4;
+}
+.forest-xp-counter {
+  color: #f0c96a;
+  font-size: 27px;
+  font-variant-numeric: tabular-nums;
+}
+.forest-xp-counter small {
+  font-size: 14px;
+  margin-left: 6px;
+  color: #b7a47a;
+}
+.forest-ground {
+  position: absolute;
+  bottom: 101px;
+  left: 50%;
+  width: 340px;
+  height: 46px;
+  translate: -50% 0;
+  border: 1px solid #3479654d;
+  border-radius: 50%;
+  background: #0a211a66;
+  transform: scale(calc(0.55 + var(--growth-progress, 0) * 0.45));
+}
+.forest-ground::after {
+  content: '';
+  position: absolute;
+  inset: 10px 44px;
+  border: 1px solid #62ab8b26;
+  border-radius: 50%;
+}
+.forest-xp-particle {
+  position: absolute;
+  z-index: 5;
+  top: 29%;
+  left: var(--particle-x, 60%);
+  opacity: 0;
+  color: #f5d47d;
+  font-size: 24px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 2px 8px #040c14;
+}
+.forest-growth-footer {
+  position: absolute;
+  left: 90px;
+  right: 90px;
+  bottom: 3px;
+}
+.forest-growth-stage {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  color: #c4dcd2;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.forest-growth-percent {
+  color: #698c7e;
+  font-size: 16px;
+}
+.forest-growth-bar {
+  height: 5px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #132a26;
+}
+.forest-growth-bar span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(var(--growth-progress, 0));
+  transform-origin: left;
+  background: #36d7aa;
+}
+.forest-growth-stages {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #657e74;
+}
+.forest-growth-scene figcaption {
+  position: absolute;
+  bottom: -35px;
+  width: 100%;
+  text-align: center;
+  color: #557467;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.forest-growth-tree {
+  position: absolute;
+  inset: 70px 0 70px;
+  pointer-events: none;
+}
+.forest-growth-tree canvas,
+.forest-growth-tree img {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.forest-growth-tree canvas { opacity: 0; }
+.forest-growth-tree.has-model canvas { opacity: 1; }
+.forest-growth-tree.has-model img { visibility: hidden; }
+.forest-growth-tree img {
+  transform: scale(var(--forest-tree-scale, 0.28));
+  transform-origin: 50% 90%;
+}
+.stage[data-tree='forest'] > .tree-object {
+  opacity: 0;
+}
+.forest-growth-print {
+  display: none;
+  position: absolute;
+  top: 45px;
+  left: 140px;
+  width: 560px;
+  height: 420px;
+  object-fit: contain;
+}
+@media print {
+  .forest-growth-tree { display: none; }
+  .forest-growth-print { display: block; opacity: 1 !important; visibility: visible !important; }
+  .forest-xp-particle { display: none; }
+  .forest-ground, .forest-growth-bar span { transform: none; }
+}

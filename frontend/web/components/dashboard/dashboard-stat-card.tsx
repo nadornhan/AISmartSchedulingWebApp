@@ -45,7 +45,7 @@ export function DashboardStatCard({
           </h2>
           <p
             className={cn(
-              'relative top-0.5 mt-1.5 text-[clamp(19.8px,17.6cqi,28.6px)] font-[550] leading-tight tracking-normal sm:top-px sm:mt-[10px] sm:text-[31.9px]',
+              'relative top-0.5 mt-1.5 text-[clamp(22px,19cqi,31.5px)] font-[550] leading-tight tracking-normal sm:top-px sm:mt-[10px] sm:text-[36px]',
               accent === 'danger' && 'text-[var(--red-light)]',
               accent === 'info' && 'text-[var(--blue-light)]',
               accent === 'warning' && 'text-[var(--yellow)]',
