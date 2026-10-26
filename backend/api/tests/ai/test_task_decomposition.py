@@ -49,7 +49,43 @@ def _ai(*, due_date: str | None = None):
     return AIService(FakeAIProvider([_response(due_date=due_date)]), AIRequestLimiter(100))
 
 
-def test_decomposition_falls_back_to_editable_subtasks_when_gemini_fails(monkeypatch):
+def test_clear_decomposition_uses_fast_local_path_without_calling_gemini(monkeypatch):
+    class ProviderThatMustNotBeCalled:
+        source_name = "gemini"
+        model_name = "gemini-3.5-flash-lite"
+
+        def generate_structured(self, **kwargs):
+            del kwargs
+            raise AssertionError("A clear task breakdown must not wait for Gemini")
+
+    monkeypatch.setattr(
+        decomposition_service.settings_service,
+        "timezone_name_for_user",
+        lambda _db, _user_id: "UTC",
+    )
+    preview = decomposition_service.preview(
+        object(),
+        user_id=uuid.uuid4(),
+        prompt=(
+            "Prepare my final presentation. I need to review the research, build the story, "
+            "design the slides, write speaker notes, rehearse, and do a final quality check."
+        ),
+        ai_service=AIService(ProviderThatMustNotBeCalled(), AIRequestLimiter(100)),
+    )
+
+    assert preview.metadata.source == "deterministic_fallback"
+    assert preview.metadata.fallback_reason == "clear_prompt_fast_path"
+    assert [subtask.title for subtask in preview.proposal.subtasks] == [
+        "Review the research",
+        "Build the story",
+        "Design the slides",
+        "Write speaker notes",
+        "Rehearse",
+        "Do a final quality check",
+    ]
+
+
+def test_unclear_decomposition_falls_back_when_gemini_fails(monkeypatch):
     class FailingProvider:
         source_name = "gemini"
         model_name = "gemini-3.5-flash-lite"
@@ -66,23 +102,13 @@ def test_decomposition_falls_back_to_editable_subtasks_when_gemini_fails(monkeyp
     preview = decomposition_service.preview(
         object(),
         user_id=uuid.uuid4(),
-        prompt=(
-            "Prepare my final presentation. I need to review the research, build the story, "
-            "design the slides, write speaker notes, rehearse, and do a final quality check."
-        ),
+        prompt="Organize the project",
         ai_service=AIService(FailingProvider(), AIRequestLimiter(100)),
     )
 
     assert preview.metadata.source == "deterministic_fallback"
     assert preview.metadata.fallback_reason == "ai_upstream_error"
-    assert [subtask.title for subtask in preview.proposal.subtasks] == [
-        "Review the research",
-        "Build the story",
-        "Design the slides",
-        "Write speaker notes",
-        "Rehearse",
-        "Do a final quality check",
-    ]
+    assert len(preview.proposal.subtasks) == 5
 
 
 @pytest.mark.parametrize("overdue", [False, True], ids=["future-deadline", "past-deadline"])
