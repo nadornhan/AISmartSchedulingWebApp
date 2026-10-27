@@ -22,7 +22,10 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-3.5-flash-lite"
     # Interactive AI calls fail fast into deterministic fallbacks so the task
     # flow remains usable when the free-tier provider is slow or unavailable.
-    gemini_timeout_seconds: float = Field(default=8.0, gt=0, le=60)
+    # google-genai rejects manually configured deadlines below 10 seconds.
+    # Keep a small buffer so normal structured responses can complete without
+    # silently falling back before the provider is ever called.
+    gemini_timeout_seconds: float = Field(default=12.0, ge=10, le=60)
     gemini_max_output_tokens: int = Field(default=1024, ge=64, le=8192)
     gemini_max_retries: int = Field(default=0, ge=0, le=2)
     upload_dir: Path = Path(__file__).resolve().parents[1] / "uploads"

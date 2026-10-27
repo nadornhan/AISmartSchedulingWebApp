@@ -4,7 +4,7 @@ import logging
 from types import SimpleNamespace
 
 import pytest
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, SecretStr, ValidationError
 
 from app.ai.exceptions import (
     AIConfigurationError,
@@ -166,8 +166,17 @@ def test_ai_configuration_validates_limits() -> None:
     assert settings.gemini_api_key is not None
     assert settings.gemini_api_key.get_secret_value() == "test-key"
     assert settings.ai_requests_per_user_per_minute == 12
-    assert settings.gemini_timeout_seconds == 8
+    assert settings.gemini_timeout_seconds == 12
     assert settings.gemini_max_retries == 2
+
+
+def test_ai_configuration_rejects_timeout_below_gemini_sdk_minimum() -> None:
+    with pytest.raises(ValidationError, match="gemini_timeout_seconds"):
+        Settings(
+            database_url="postgresql+psycopg://example",
+            jwt_secret_key="secret",
+            gemini_timeout_seconds=8,
+        )
 
 
 def test_gemini_provider_requires_an_api_key() -> None:
