@@ -110,11 +110,13 @@ def get_profile(db: Session, user_id: uuid.UUID) -> GamificationProfileResponse:
 
 
 def get_forest(db: Session, user_id: uuid.UUID) -> ForestResponse:
+    profile = get_or_create_profile(db, user_id)
+    metrics: dict[str, int] = {}
     plant = _growing_plant(db, user_id)
     completed = [
-        _plant_response(item, user_id=user_id, db=db) for item in _completed_plants(db, user_id)
+        _plant_response(item, user_id=user_id, db=db, profile=profile, metrics=metrics)
+        for item in _completed_plants(db, user_id)
     ]
-    profile = get_or_create_profile(db, user_id)
     if plant is None and not completed:
         message = "Your forest starts here. Complete tasks and focus sessions to help your first plant grow."
     elif plant is None:
@@ -127,7 +129,10 @@ def get_forest(db: Session, user_id: uuid.UUID) -> ForestResponse:
     return ForestResponse(
         forest_name=_forest_display_name(profile),
         unassigned_growth_points=profile.unassigned_growth_points,
-        current_plant=_plant_response(plant, user_id=user_id, db=db) if plant else None,
+        current_plant=(
+            _plant_response(plant, user_id=user_id, db=db, profile=profile, metrics=metrics)
+            if plant else None
+        ),
         completed_plants=completed,
         needs_plant_selection=plant is None,
         total_trees_grown=profile.total_trees_grown,
@@ -136,10 +141,12 @@ def get_forest(db: Session, user_id: uuid.UUID) -> ForestResponse:
 
 
 def get_forest_scene(db: Session, user_id: uuid.UUID) -> ForestSceneResponse:
-    trees = [
-        _plant_response(item, user_id=user_id, db=db) for item in _forest_scene_plants(db, user_id)
-    ]
     profile = get_or_create_profile(db, user_id)
+    metrics: dict[str, int] = {}
+    trees = [
+        _plant_response(item, user_id=user_id, db=db, profile=profile, metrics=metrics)
+        for item in _forest_scene_plants(db, user_id)
+    ]
     if not trees:
         message = (
             "Your forest is waiting. Choose a plant, place the seedling, "
@@ -159,9 +166,13 @@ def get_forest_scene(db: Session, user_id: uuid.UUID) -> ForestSceneResponse:
 
 def get_plant_catalog(db: Session, user_id: uuid.UUID) -> PlantCatalogResponse:
     profile = get_or_create_profile(db, user_id)
+    metrics: dict[str, int] = {}
     species = list(db.scalars(select(PlantSpecies).order_by(PlantSpecies.sort_order.asc())).all())
     return PlantCatalogResponse(
-        plants=[_species_summary(db, user_id, item, profile=profile) for item in species]
+        plants=[
+            _species_summary(db, user_id, item, profile=profile, metrics=metrics)
+            for item in species
+        ]
     )
 
 
@@ -467,6 +478,7 @@ def _apply_points_to_plant(
 
 
 def _achievement_progress(db: Session, user_id: uuid.UUID) -> list[AchievementProgress]:
+    metrics: dict[str, int] = {}
     achievements = list(
         db.scalars(select(Achievement).order_by(Achievement.sort_order.asc())).all()
     )
@@ -490,7 +502,7 @@ def _achievement_progress(db: Session, user_id: uuid.UUID) -> list[AchievementPr
         claimed = unlocked is not None and unlocked.claimed_at is not None
         if not claimed and first_unclaimed_by_category.get(category) != item.id:
             continue
-        progress_value = _metric_value(db, user_id, item.requirement_type)
+        progress_value = _metric_value(db, user_id, item.requirement_type, metrics=metrics)
         if item.requirement_type in {"first_task", "first_focus"}:
             requirement_value = 1
         else:

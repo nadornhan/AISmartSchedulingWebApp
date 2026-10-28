@@ -1,4 +1,5 @@
-import { apiRequest } from './api';
+import { apiRequest, getSessionKey } from './api';
+import { cachedReadWithSignal, invalidateReadCache, peekReadCache } from './read-cache';
 
 export const GROWTH_REWARD_EVENT = 'chrono:growth-reward';
 
@@ -165,8 +166,26 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
+function readGamification<T>(key: string, path: string, options: RequestOptions) {
+  return cachedReadWithSignal(
+    getSessionKey(),
+    'gamification',
+    key,
+    () => apiRequest<T>(path),
+    60_000,
+    options.signal,
+  );
+}
+
+function invalidateGamificationCache<T>(value: T): T {
+  invalidateReadCache('gamification');
+  return value;
+}
+
 export function emitGrowthReward(reward: RewardFeedback | null | undefined) {
   if (typeof window === 'undefined' || !reward?.awarded) return;
+  invalidateReadCache('gamification');
+  invalidateReadCache('analytics');
   window.dispatchEvent(
     new CustomEvent(GROWTH_REWARD_EVENT, {
       detail: reward,
@@ -189,27 +208,31 @@ export function onGrowthReward(listener: (reward: RewardFeedback) => void) {
 }
 
 export function getGamificationProfile(options: RequestOptions = {}) {
-  return apiRequest<GamificationProfile>('/gamification/profile', {
-    signal: options.signal,
-  });
+  return readGamification<GamificationProfile>('profile', '/gamification/profile', options);
 }
 
 export function getForest(options: RequestOptions = {}) {
-  return apiRequest<ForestResponse>('/gamification/forest', {
-    signal: options.signal,
-  });
+  return readGamification<ForestResponse>('forest', '/gamification/forest', options);
+}
+
+export function getCachedForest() {
+  return peekReadCache<ForestResponse>(getSessionKey(), 'gamification', 'forest');
 }
 
 export function getForestScene(options: RequestOptions = {}) {
-  return apiRequest<ForestSceneResponse>('/gamification/forest/scene', {
-    signal: options.signal,
-  });
+  return readGamification<ForestSceneResponse>('scene', '/gamification/forest/scene', options);
+}
+
+export function getCachedForestScene() {
+  return peekReadCache<ForestSceneResponse>(getSessionKey(), 'gamification', 'scene');
 }
 
 export function getPlantCatalog(options: RequestOptions = {}) {
-  return apiRequest<PlantCatalogResponse>('/gamification/plants', {
-    signal: options.signal,
-  });
+  return readGamification<PlantCatalogResponse>('catalog', '/gamification/plants', options);
+}
+
+export function getCachedPlantCatalog() {
+  return peekReadCache<PlantCatalogResponse>(getSessionKey(), 'gamification', 'catalog');
 }
 
 export function selectPlant(speciesId: string, options: RequestOptions = {}) {
@@ -217,19 +240,15 @@ export function selectPlant(speciesId: string, options: RequestOptions = {}) {
     method: 'POST',
     body: JSON.stringify({ species_id: speciesId }),
     signal: options.signal,
-  });
+  }).then(invalidateGamificationCache);
 }
 
-export function renamePlant(
-  plantId: string,
-  customName: string,
-  options: RequestOptions = {},
-) {
+export function renamePlant(plantId: string, customName: string, options: RequestOptions = {}) {
   return apiRequest<UserPlant>(`/gamification/plants/${plantId}`, {
     method: 'PATCH',
     body: JSON.stringify({ custom_name: customName }),
     signal: options.signal,
-  });
+  }).then(invalidateGamificationCache);
 }
 
 export function renameForest(forestName: string, options: RequestOptions = {}) {
@@ -237,14 +256,10 @@ export function renameForest(forestName: string, options: RequestOptions = {}) {
     method: 'PATCH',
     body: JSON.stringify({ forest_name: forestName }),
     signal: options.signal,
-  });
+  }).then(invalidateGamificationCache);
 }
 
-export function placePlant(
-  plantId: string,
-  input: PlacePlantInput,
-  options: RequestOptions = {},
-) {
+export function placePlant(plantId: string, input: PlacePlantInput, options: RequestOptions = {}) {
   return apiRequest<UserPlant>(`/gamification/forest/${plantId}/position`, {
     method: 'PATCH',
     body: JSON.stringify({
@@ -255,21 +270,24 @@ export function placePlant(
       rotation_y: input.rotation_y ?? 0,
     }),
     signal: options.signal,
-  });
+  }).then(invalidateGamificationCache);
 }
 
 export function getAchievements(options: RequestOptions = {}) {
-  return apiRequest<AchievementsResponse>('/gamification/achievements', {
-    signal: options.signal,
-  });
+  return readGamification<AchievementsResponse>(
+    'achievements',
+    '/gamification/achievements',
+    options,
+  );
+}
+
+export function getCachedAchievements() {
+  return peekReadCache<AchievementsResponse>(getSessionKey(), 'gamification', 'achievements');
 }
 
 export function claimAchievement(achievementId: string, options: RequestOptions = {}) {
-  return apiRequest<AchievementClaimResponse>(
-    `/gamification/achievements/${achievementId}/claim`,
-    {
-      method: 'POST',
-      signal: options.signal,
-    },
-  );
+  return apiRequest<AchievementClaimResponse>(`/gamification/achievements/${achievementId}/claim`, {
+    method: 'POST',
+    signal: options.signal,
+  }).then(invalidateGamificationCache);
 }

@@ -13,20 +13,27 @@ function emitDataChanged(eventName: string) {
 export function emitTaskDataChanged() {
   invalidateReadCache('tasks');
   invalidateReadCache('projects');
+  invalidateReadCache('analytics');
+  invalidateReadCache('gamification');
   emitDataChanged(TASK_DATA_CHANGED_EVENT);
 }
 
 export function emitProjectDataChanged() {
   invalidateReadCache('projects');
   invalidateReadCache('tasks');
+  invalidateReadCache('analytics');
   emitDataChanged(PROJECT_DATA_CHANGED_EVENT);
 }
 
 export function emitSettingsDataChanged() {
+  invalidateReadCache('analytics');
+  invalidateReadCache('gamification');
   emitDataChanged(SETTINGS_DATA_CHANGED_EVENT);
 }
 
 export function emitFocusDataChanged() {
+  invalidateReadCache('analytics');
+  invalidateReadCache('gamification');
   emitDataChanged(FOCUS_DATA_CHANGED_EVENT);
 }
 

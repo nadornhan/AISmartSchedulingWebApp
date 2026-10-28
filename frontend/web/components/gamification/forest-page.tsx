@@ -1,12 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { onTaskDataChanged } from '../../lib/data-events';
 import {
   claimAchievement,
   emitGrowthReward,
+  getCachedAchievements,
+  getCachedForest,
+  getCachedPlantCatalog,
   getAchievements,
   getForest,
   getPlantCatalog,
@@ -29,44 +32,62 @@ function progressPercent(plant: UserPlant) {
 }
 
 export function ForestPage() {
-  const [forest, setForest] = useState<ForestResponse | null>(null);
-  const [catalog, setCatalog] = useState<PlantSpeciesSummary[]>([]);
-  const [achievements, setAchievements] = useState<AchievementsResponse | null>(null);
+  const [forest, setForest] = useState<ForestResponse | null>(() => getCachedForest() ?? null);
+  const [catalog, setCatalog] = useState<PlantSpeciesSummary[]>(
+    () => getCachedPlantCatalog()?.plants ?? [],
+  );
+  const [achievements, setAchievements] = useState<AchievementsResponse | null>(
+    () => getCachedAchievements() ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !getCachedForest());
   const [selectingId, setSelectingId] = useState<string | null>(null);
   const [claimingAchievementId, setClaimingAchievementId] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(false);
+  const loadRevision = useRef(0);
 
   const loadAll = useCallback(async (signal?: AbortSignal) => {
-    setIsLoading(true);
+    const revision = ++loadRevision.current;
+    const isCurrent = () => !signal?.aborted && revision === loadRevision.current;
+    setIsLoading(!getCachedForest());
     setError(null);
-    try {
-      const [forestData, catalogData, achievementsData] = await Promise.all([
-        getForest({ signal }),
-        getPlantCatalog({ signal }),
-        getAchievements({ signal }),
-      ]);
-      if (signal?.aborted) return;
-      setForest(forestData);
-      setCatalog(catalogData.plants);
-      setAchievements(achievementsData);
-    } catch (requestError) {
-      if (signal?.aborted) return;
-      setError(
-        requestError instanceof Error ? requestError.message : 'Unable to load your forest.',
-      );
-    } finally {
-      if (!signal?.aborted) {
-        setIsLoading(false);
+
+    async function update<T>(request: Promise<T>, commit: (data: T) => void) {
+      try {
+        const data = await request;
+        if (isCurrent()) commit(data);
+      } catch (requestError) {
+        if (isCurrent()) {
+          setError(
+            (current) =>
+              current ??
+              (requestError instanceof Error
+                ? requestError.message
+                : 'Unable to load your forest.'),
+          );
+        }
       }
     }
+
+    // Render the growing plant as soon as it is ready; optional sections can
+    // finish independently instead of holding the whole page behind a spinner.
+    const forestRequest = update(getForest({ signal }), setForest).finally(() => {
+      if (isCurrent()) setIsLoading(false);
+    });
+    await Promise.all([
+      forestRequest,
+      update(getPlantCatalog({ signal }), (data) => setCatalog(data.plants)),
+      update(getAchievements({ signal }), setAchievements),
+    ]);
   }, []);
 
   useEffect(() => {
     const controller = new AbortController();
     void loadAll(controller.signal);
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      loadRevision.current += 1;
+    };
   }, [loadAll]);
 
   useEffect(
@@ -232,6 +253,7 @@ export function ForestPage() {
                         }
                       : current,
                   );
+                  void loadAll();
                 }}
                 plantId={plant.id}
               />

@@ -126,6 +126,7 @@ def get_insights_summary(
     user: User,
     *,
     client_timezone_name: str | None = None,
+    include_schedule: bool = True,
 ) -> InsightsSummaryResponse:
     now = _utc_now()
     timezone_name = settings_service.timezone_name_for_user(
@@ -208,14 +209,18 @@ def get_insights_summary(
 
     first_name = (user.first_name or "").strip() or "there"
     greeting = f"You're doing great, {first_name}!"
-    scheduling_plan = scheduling_service.generate_plan(db, user.id, force=False)
+    # The review page only displays metrics; avoid rebuilding a full schedule
+    # unless the caller actually needs the optional scheduling payload.
+    scheduling_plan = (
+        scheduling_service.generate_plan(db, user.id, force=False) if include_schedule else None
+    )
     recommendations = _build_recommendations(
         streak_days=streak_days,
         this_week_completed=this_week,
         high_priority_open=high_priority_open,
         estimated_work_minutes=estimated_work_minutes,
     )
-    if scheduling_plan.recommendation is not None:
+    if scheduling_plan is not None and scheduling_plan.recommendation is not None:
         recommendations.insert(
             0,
             InsightRecommendation(

@@ -21,7 +21,7 @@ class FixedDate extends Date {
   }
 }
 
-function load(code, dependencies = {}) {
+function load(code, dependencies = {}, globals = {}) {
   const module = { exports: {} };
   vm.runInNewContext(
     ts.transpileModule(code, {
@@ -40,6 +40,7 @@ function load(code, dependencies = {}) {
       Intl,
       setTimeout,
       clearTimeout,
+      ...globals,
       require: (name) => {
         assert.ok(name in dependencies, `Unexpected dependency: ${name}`);
         return dependencies[name];
@@ -362,47 +363,94 @@ function elements(element) {
   return [element, ...elements(element.props?.children)];
 }
 
-function taskModalHarness() {
+function taskModalHarness({ confirmationError } = {}) {
   const slots = [];
   let cursor = 0;
+  let aiOptions;
+  let preview = null;
+  const state = { confirmations: [], closed: false };
   const placeholder = () => null;
-  const taskModal = load(read('components/tasks/create-task-modal.tsx'), {
-    react: {
-      useState(initial) {
-        const index = cursor++;
-        if (!(index in slots)) slots[index] = initial;
-        return [
-          slots[index],
-          (value) => {
-            slots[index] = typeof value === 'function' ? value(slots[index]) : value;
-          },
-        ];
+  const taskModal = load(
+    read('components/tasks/create-task-modal.tsx'),
+    {
+      react: {
+        useState(initial) {
+          const index = cursor++;
+          if (!(index in slots)) slots[index] = initial;
+          return [
+            slots[index],
+            (value) => {
+              slots[index] = typeof value === 'function' ? value(slots[index]) : value;
+            },
+          ];
+        },
+        useMemo: (callback) => callback(),
+        useRef: () => ({ current: null }),
       },
-      useMemo: (callback) => callback(),
-      useRef: () => ({ current: null }),
+      'react/jsx-runtime': jsxRuntime,
+      'lucide-react': { ArrowDown: placeholder, Sparkles: placeholder },
+      './use-task-ai-entry': {
+        getErrorMessage: (error) => error.message,
+        useTaskAiEntry: (options) => {
+          aiOptions = options;
+          return {
+            naturalLanguageInput: '',
+            aiEntryMode: 'generate',
+            generationPreview: preview,
+            clearAiPreview: () => {
+              preview = null;
+            },
+          };
+        },
+      },
+      '../../lib/tasks': {
+        confirmGeneratedTasks: async (...args) => {
+          state.confirmations.push(args);
+          if (confirmationError) throw new Error(confirmationError);
+        },
+      },
+      './priority-suggestion': { PrioritySuggestion: placeholder },
+      '../../lib/duration': duration,
+      '../folders/create-folder-modal': { CreateFolderModal: placeholder },
+      './duration-estimate-panel': { DurationEstimatePanel: placeholder },
+      '../layout/icons': icons,
     },
-    'react/jsx-runtime': jsxRuntime,
-    'lucide-react': { ArrowDown: placeholder, Sparkles: placeholder },
-    './use-task-ai-entry': {
-      getErrorMessage: (error) => error.message,
-      useTaskAiEntry: () => ({
-        naturalLanguageInput: '',
-        aiEntryMode: 'generate',
-        setParseFeedback: () => {},
-      }),
+    {
+      FormData: class {
+        constructor(values) {
+          this.values = values;
+        }
+        get(name) {
+          return this.values[name] ?? '';
+        }
+      },
     },
-    './priority-suggestion': { PrioritySuggestion: placeholder },
-    '../../lib/duration': duration,
-    '../folders/create-folder-modal': { CreateFolderModal: placeholder },
-    './duration-estimate-panel': { DurationEstimatePanel: placeholder },
-    '../layout/icons': icons,
-  });
+  );
   return {
+    state,
+    generate(result) {
+      preview = result;
+      aiOptions.onGenerated(result);
+    },
+    async submit() {
+      const nodes = this.render();
+      const values = Object.fromEntries(
+        nodes.filter((node) => node.props?.name).map((node) => [node.props.name, node.props.value]),
+      );
+      await nodes
+        .find((node) => node.type === 'form')
+        .props.onSubmit({
+          preventDefault() {},
+          currentTarget: values,
+        });
+    },
     render() {
       cursor = 0;
       const entry = taskModal.CreateTaskModal({
         isSubmitting: false,
-        onClose: () => {},
+        onClose: () => {
+          state.closed = true;
+        },
         onCreate: async () => {},
         projects: [],
       });
@@ -410,6 +458,134 @@ function taskModalHarness() {
     },
   };
 }
+
+const generatedFormPreview = {
+  metadata: { source: 'gemini', fallback_reason: null },
+  proposal: {
+    proposal_token: 'test-proposal',
+    tasks: [
+      { client_id: 'task-1', title: 'Go supermarket', priority: 'high', due_date: '2026-11-02' },
+      { client_id: 'task-2', title: 'Prepare slides', priority: 'medium', due_date: '2026-11-03' },
+    ],
+  },
+};
+
+test('generated task details fill the full manual form without saving or rendering compact rows', () => {
+  const h = taskModalHarness();
+  h.render();
+  h.generate({
+    ...generatedFormPreview,
+    proposal: {
+      ...generatedFormPreview.proposal,
+      tasks: generatedFormPreview.proposal.tasks.slice(0, 1),
+    },
+  });
+  const nodes = h.render();
+  assert.equal(nodes.find((node) => node.props?.id === 'task-title').props.value, 'Go supermarket');
+  assert.equal(nodes.find((node) => node.props?.name === 'dueDate').props.value, '2026-11-02');
+  assert.ok(nodes.find((node) => node.props?.name === 'dueTime'));
+  assert.ok(nodes.find((node) => node.props?.name === 'description'));
+  assert.equal(nodes.filter((node) => node.type === 'article').length, 0);
+  assert.equal(
+    nodes.find((node) => node.props?.id === 'task-form-title').props.children,
+    'Create New Task',
+  );
+  assert.deepEqual(h.state.confirmations, []);
+  assert.equal(h.state.closed, false);
+});
+
+test('generated Sunday appointment fills and saves the requested date and five pm time', async () => {
+  const h = taskModalHarness();
+  h.render();
+  h.generate({
+    ...generatedFormPreview,
+    proposal: {
+      ...generatedFormPreview.proposal,
+      tasks: [{
+        client_id: 'task-1', title: 'Go to hospital', priority: 'no_priority',
+        due_date: '2026-11-01', due_time: '17:00',
+      }],
+    },
+  });
+  const nodes = h.render();
+  assert.equal(nodes.find((node) => node.props?.name === 'dueDate').props.value, '2026-11-01');
+  assert.equal(nodes.find((node) => node.props?.name === 'dueTime').props.value, '17:00');
+  await h.submit();
+  const [, tasks, details] = h.state.confirmations[0];
+  const saved = new Date(details[0].due_date);
+  assert.equal(saved.getFullYear(), 2026);
+  assert.equal(saved.getMonth(), 10);
+  assert.equal(saved.getDate(), 1);
+  assert.equal(saved.getHours(), 17);
+  assert.equal(tasks[0].due_time, '17:00');
+});
+
+test('generated batch retains each full form edit and confirms all details only on submit', async () => {
+  const h = taskModalHarness();
+  h.render();
+  h.generate(generatedFormPreview);
+  let nodes = h.render();
+  const change = (name, value) => {
+    h.render()
+      .find((node) => node.props?.name === name)
+      .props.onChange({ target: { value } });
+  };
+  change('description', 'Bring a shopping bag');
+  change('dueTime', '22:00');
+  nodes = h.render();
+  nodes
+    .find((node) => node.props?.['aria-label'] === 'Generated task to review')
+    .props.onChange({ target: { value: '1' } });
+  change('title', 'Review presentation slides');
+  h.render()
+    .find((node) => node.props?.['aria-label'] === 'Generated task to review')
+    .props.onChange({ target: { value: '0' } });
+  nodes = h.render();
+  assert.equal(
+    nodes.find((node) => node.props?.name === 'description').props.value,
+    'Bring a shopping bag',
+  );
+  assert.equal(nodes.find((node) => node.props?.name === 'dueTime').props.value, '22:00');
+  assert.deepEqual(h.state.confirmations, []);
+  await h.submit();
+  const [, tasks, details] = h.state.confirmations[0];
+  assert.equal(tasks.length, 2);
+  assert.equal(details[0].description, 'Bring a shopping bag');
+  assert.equal(details[0].priority, 'high');
+  assert.equal(new Date(details[0].due_date).getHours(), 22);
+  assert.equal(details[1].title, 'Review presentation slides');
+  assert.equal(h.state.closed, true);
+});
+
+test('removing a generated task leaves the remaining full form ready to confirm', async () => {
+  const h = taskModalHarness();
+  h.render();
+  h.generate(generatedFormPreview);
+  h.render()
+    .find((node) => node.props?.children === 'Remove this task')
+    .props.onClick();
+  assert.equal(
+    h.render().find((node) => node.props?.name === 'title').props.value,
+    'Prepare slides',
+  );
+  await h.submit();
+  assert.equal(h.state.confirmations[0][2].length, 1);
+  assert.equal(h.state.confirmations[0][2][0].title, 'Prepare slides');
+});
+
+test('failed generated confirmation keeps full form edits open for retry', async () => {
+  const h = taskModalHarness({ confirmationError: 'Could not save tasks' });
+  h.render();
+  h.generate(generatedFormPreview);
+  await h.submit();
+  assert.equal(h.state.closed, false);
+  const nodes = h.render();
+  assert.equal(
+    nodes.find((node) => node.props?.role === 'alert').props.children,
+    'Could not save tasks',
+  );
+  assert.equal(nodes.find((node) => node.props?.name === 'title').props.value, 'Go supermarket');
+});
 
 test('AI task dialog uses the app heading font and inherited control typography', () => {
   const nodes = taskModalHarness().render();

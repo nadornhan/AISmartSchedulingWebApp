@@ -19,6 +19,8 @@ import {
 import { PageHeadingActions } from '../layout/page-heading';
 
 import {
+  getCachedInsightsSummary,
+  getCachedWeeklyInsight,
   getInsightsSummary,
   getWeeklyInsight,
   type WeeklyInsight,
@@ -256,24 +258,31 @@ function TrendChart({
 
 export function InsightsDashboard() {
   const [selectedWeek, setSelectedWeek] = useState<'this-week' | 'last-week'>('this-week');
-  const [summary, setSummary] = useState<InsightsSummary | null>(null);
-  const [weekly, setWeekly] = useState<WeeklyInsight | null>(null);
+  const [summary, setSummary] = useState<InsightsSummary | null>(
+    () => getCachedInsightsSummary() ?? null,
+  );
+  const [weekly, setWeekly] = useState<WeeklyInsight | null>(
+    () => getCachedWeeklyInsight() ?? null,
+  );
   const [weeklyError, setWeeklyError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !getCachedInsightsSummary());
+  const loadRevision = useRef(0);
 
   async function load(signal?: AbortSignal) {
-    setIsLoading(true);
+    const revision = ++loadRevision.current;
+    setIsLoading(!getCachedInsightsSummary());
     setError(null);
 
     try {
       const data = await getInsightsSummary(signal);
+      if (signal?.aborted || revision !== loadRevision.current) return;
       setSummary(data);
     } catch (requestError) {
-      if (signal?.aborted) return;
+      if (signal?.aborted || revision !== loadRevision.current) return;
       setError(requestError instanceof Error ? requestError.message : 'Could not load insights.');
     } finally {
-      if (!signal?.aborted) {
+      if (!signal?.aborted && revision === loadRevision.current) {
         setIsLoading(false);
       }
     }
@@ -282,6 +291,28 @@ export function InsightsDashboard() {
   useEffect(() => {
     const controller = new AbortController();
     void load(controller.signal);
+    const unsubscribeTasks = onTaskDataChanged(() => {
+      void load(controller.signal);
+    });
+    const unsubscribeSettings = onSettingsDataChanged(() => {
+      void load(controller.signal);
+    });
+    const unsubscribeFocus = onFocusDataChanged(() => {
+      void load(controller.signal);
+    });
+
+    return () => {
+      controller.abort();
+      unsubscribeTasks();
+      unsubscribeSettings();
+      unsubscribeFocus();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedWeek !== 'last-week') return;
+    const controller = new AbortController();
+    setWeeklyError(null);
     void getWeeklyInsight(controller.signal)
       .then((insight) => {
         if (!controller.signal.aborted) setWeekly(insight);
@@ -292,23 +323,8 @@ export function InsightsDashboard() {
             requestError instanceof Error ? requestError.message : 'Could not load weekly insight.',
           );
       });
-    const unsubscribeTasks = onTaskDataChanged(() => {
-      void load();
-    });
-    const unsubscribeSettings = onSettingsDataChanged(() => {
-      void load();
-    });
-    const unsubscribeFocus = onFocusDataChanged(() => {
-      void load();
-    });
-
-    return () => {
-      controller.abort();
-      unsubscribeTasks();
-      unsubscribeSettings();
-      unsubscribeFocus();
-    };
-  }, []);
+    return () => controller.abort();
+  }, [selectedWeek]);
 
   return (
     <div className="space-y-6">

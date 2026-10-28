@@ -4,12 +4,10 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 import { ApiError } from '../../lib/api';
 import {
   confirmTaskDecomposition,
-  confirmGeneratedTasks,
   previewTaskDecomposition,
   previewGeneratedTasks,
   type DecomposedTaskDraft,
   type GeneratedSubtaskDraft,
-  type GeneratedTaskDraft,
   type TaskGenerationPreview,
   type TaskDecompositionPreview,
 } from '../../lib/tasks';
@@ -28,15 +26,15 @@ export function getErrorMessage(error: unknown) {
 
 type TaskAiEntryOptions = {
   onClose: () => void;
+  onGenerated: (preview: TaskGenerationPreview) => void;
   setSubmitError: Dispatch<SetStateAction<string | null>>;
 };
 
-export function useTaskAiEntry({ onClose, setSubmitError }: TaskAiEntryOptions) {
+export function useTaskAiEntry({ onClose, onGenerated, setSubmitError }: TaskAiEntryOptions) {
   const [naturalLanguageInput, setNaturalLanguageInput] = useState('');
   const [aiEntryMode, setAiEntryMode] = useState<AiEntryMode>('generate');
   const [parseFeedback, setParseFeedback] = useState<string | null>(null);
   const [generationPreview, setGenerationPreview] = useState<TaskGenerationPreview | null>(null);
-  const [generatedTasks, setGeneratedTasks] = useState<GeneratedTaskDraft[]>([]);
   const [decompositionPreview, setDecompositionPreview] = useState<TaskDecompositionPreview | null>(
     null,
   );
@@ -47,7 +45,6 @@ export function useTaskAiEntry({ onClose, setSubmitError }: TaskAiEntryOptions) 
   function clearAiPreview() {
     setParseFeedback(null);
     setGenerationPreview(null);
-    setGeneratedTasks([]);
     setDecompositionPreview(null);
     setDecomposedTask(null);
     setDecomposedSubtasks([]);
@@ -80,7 +77,6 @@ export function useTaskAiEntry({ onClose, setSubmitError }: TaskAiEntryOptions) 
           preview.proposal.subtasks.map((subtask) => ({ ...subtask, selected: true })),
         );
         setGenerationPreview(null);
-        setGeneratedTasks([]);
         setParseFeedback(
           `${preview.proposal.subtasks.length} steps suggested. Choose and edit them before creating the task.`,
         );
@@ -88,36 +84,10 @@ export function useTaskAiEntry({ onClose, setSubmitError }: TaskAiEntryOptions) 
       }
       const preview = await previewGeneratedTasks(naturalLanguageInput.trim());
       setGenerationPreview(preview);
-      setGeneratedTasks(preview.proposal.tasks);
       setDecompositionPreview(null);
       setDecomposedTask(null);
       setDecomposedSubtasks([]);
-      setParseFeedback(
-        `${preview.proposal.tasks.length} task${preview.proposal.tasks.length === 1 ? '' : 's'} found. Review before creating.`,
-      );
-    } catch (requestError) {
-      setParseFeedback(getErrorMessage(requestError));
-    } finally {
-      setGenerationBusy(false);
-    }
-  }
-
-  function updateGeneratedTask(index: number, patch: Partial<GeneratedTaskDraft>) {
-    setGeneratedTasks((current) =>
-      current.map((task, taskIndex) => (taskIndex === index ? { ...task, ...patch } : task)),
-    );
-  }
-
-  async function createGeneratedTasks() {
-    if (!generationPreview) return;
-    if (generatedTasks.some((task) => !task.title.trim())) {
-      setParseFeedback('Every task needs a title.');
-      return;
-    }
-    setGenerationBusy(true);
-    try {
-      await confirmGeneratedTasks(generationPreview, generatedTasks);
-      onClose();
+      onGenerated(preview);
     } catch (requestError) {
       setParseFeedback(getErrorMessage(requestError));
     } finally {
@@ -162,8 +132,6 @@ export function useTaskAiEntry({ onClose, setSubmitError }: TaskAiEntryOptions) 
     parseFeedback,
     setParseFeedback,
     generationPreview,
-    generatedTasks,
-    setGeneratedTasks,
     decompositionPreview,
     decomposedTask,
     setDecomposedTask,
@@ -173,8 +141,6 @@ export function useTaskAiEntry({ onClose, setSubmitError }: TaskAiEntryOptions) 
     clearAiPreview,
     selectAiEntryMode,
     createFromNaturalLanguage,
-    updateGeneratedTask,
-    createGeneratedTasks,
     createDecomposedTask,
   };
 }

@@ -11,7 +11,15 @@ import {
   parseCustomDuration,
 } from '../../lib/duration';
 import type { Project } from '../../lib/projects';
-import { TaskCreateInput, TaskPriorityValue, TaskResponse, TaskUpdateInput } from '../../lib/tasks';
+import {
+  confirmGeneratedTasks,
+  type GeneratedTaskDraft,
+  type TaskCreateInput,
+  type TaskGenerationPreview,
+  type TaskPriorityValue,
+  type TaskResponse,
+  type TaskUpdateInput,
+} from '../../lib/tasks';
 import { CreateFolderModal } from '../folders/create-folder-modal';
 import { DurationEstimatePanel } from './duration-estimate-panel';
 import {
@@ -56,6 +64,36 @@ type TaskFormSubtask = {
   title: string;
   isCompleted: boolean;
 };
+
+type GeneratedTaskFormDraft = {
+  task: GeneratedTaskDraft;
+  values: TaskFormInitialValues;
+};
+
+function taskInputFromFormValues(values: TaskFormInitialValues): TaskCreateInput {
+  if (!values.title.trim()) throw new Error('Please enter a task title.');
+  let dueDateTime: string | null = null;
+  if (values.dueDate) {
+    const parsed = new Date(`${values.dueDate}T${values.dueTime || '23:59:00'}`);
+    if (Number.isNaN(parsed.getTime())) throw new Error('Please enter a valid due date and time.');
+    dueDateTime = parsed.toISOString();
+  }
+  return {
+    title: values.title.trim(),
+    description: values.description.trim() || null,
+    project_id: values.projectId || null,
+    priority: priorityToApi[values.priority],
+    due_date: dueDateTime,
+    estimated_duration_minutes: values.estimatedDurationMinutes,
+    subtasks: values.subtasks
+      .map((subtask, position) => ({
+        title: subtask.title.trim(),
+        is_completed: subtask.isCompleted,
+        position,
+      }))
+      .filter((subtask) => subtask.title),
+  };
+}
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
@@ -220,7 +258,9 @@ function TaskFormModal({
   const [projectId, setProjectId] = useState(initialValues.projectId);
   const [isNaturalLanguageExpanded, setIsNaturalLanguageExpanded] = useState(true);
   const [isManualFormVisible, setIsManualFormVisible] = useState(!enableNaturalLanguage);
-  const [recentlyGeneratedDetails] = useState(false);
+  const [generatedFormDrafts, setGeneratedFormDrafts] = useState<GeneratedTaskFormDraft[]>([]);
+  const [activeGeneratedTaskIndex, setActiveGeneratedTaskIndex] = useState(0);
+  const [generatedSaveBusy, setGeneratedSaveBusy] = useState(false);
   const [availableProjects, setAvailableProjects] = useState(projects);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDetailsElement>(null);
@@ -244,10 +284,7 @@ function TaskFormModal({
     setNaturalLanguageInput,
     aiEntryMode,
     parseFeedback,
-    setParseFeedback,
     generationPreview,
-    generatedTasks,
-    setGeneratedTasks,
     decompositionPreview,
     decomposedTask,
     setDecomposedTask,
@@ -257,10 +294,8 @@ function TaskFormModal({
     clearAiPreview,
     selectAiEntryMode,
     createFromNaturalLanguage,
-    updateGeneratedTask,
-    createGeneratedTasks,
     createDecomposedTask,
-  } = useTaskAiEntry({ onClose, setSubmitError });
+  } = useTaskAiEntry({ onClose, onGenerated: fillGeneratedTasks, setSubmitError });
   const [savedDuration, setSavedDuration] = useState(initialDuration);
   const [durationBusy, setDurationBusy] = useState(false);
   const [durationPending, setDurationPending] = useState(false);
@@ -282,6 +317,7 @@ function TaskFormModal({
     (durationOption === 'custom' && selectedMinutes === null);
 
   function closeForm() {
+    if (generatedSaveBusy) return;
     if (durationBusy) return;
     if (durationPending) {
       setSubmitError('Apply or dismiss the duration estimate before closing.');
@@ -292,6 +328,84 @@ function TaskFormModal({
   const hasNaturalLanguageInput = Boolean(naturalLanguageInput.trim());
   const shouldShowNaturalLanguageInput = !isManualFormVisible || isNaturalLanguageExpanded;
   const isAiOnlyView = enableNaturalLanguage && !isManualFormVisible;
+
+  function loadFormValues(values: TaskFormInitialValues) {
+    setTitleValue(values.title);
+    setDescriptionValue(values.description);
+    setProjectId(values.projectId);
+    setPriority(values.priority);
+    setDueDateValue(values.dueDate);
+    setDueTimeValue(values.dueTime);
+    setDurationOption(durationOptionFromMinutes(values.estimatedDurationMinutes));
+    setCustomDuration(
+      values.estimatedDurationMinutes === null ? '' : String(values.estimatedDurationMinutes),
+    );
+    setSubtasks(values.subtasks);
+    setSubtaskDraft('');
+  }
+
+  function currentFormValues(): TaskFormInitialValues {
+    if (durationOption === 'custom' && selectedMinutes === null) {
+      throw new Error('Custom duration must be a positive whole number of minutes.');
+    }
+    return {
+      title: titleValue,
+      description: descriptionValue,
+      projectId,
+      priority,
+      dueDate: dueDateValue,
+      dueTime: dueTimeValue,
+      estimatedDurationMinutes: selectedMinutes,
+      subtasks,
+    };
+  }
+
+  function fillGeneratedTasks(preview: TaskGenerationPreview) {
+    const drafts = preview.proposal.tasks.map((task) => ({
+      task,
+      values: {
+        title: task.title,
+        description: '',
+        projectId,
+        priority: priorityFromApi[task.priority],
+        dueDate: task.due_date ?? '',
+        dueTime: task.due_time ?? '',
+        estimatedDurationMinutes: null,
+        subtasks: [],
+      },
+    }));
+    if (!drafts.length) return;
+    setGeneratedFormDrafts(drafts);
+    setActiveGeneratedTaskIndex(0);
+    loadFormValues(drafts[0].values);
+    setIsManualFormVisible(true);
+    setIsNaturalLanguageExpanded(false);
+  }
+
+  function selectGeneratedTask(index: number) {
+    try {
+      const values = currentFormValues();
+      setGeneratedFormDrafts((current) =>
+        current.map((draft, draftIndex) =>
+          draftIndex === activeGeneratedTaskIndex ? { ...draft, values } : draft,
+        ),
+      );
+      loadFormValues(generatedFormDrafts[index].values);
+      setActiveGeneratedTaskIndex(index);
+      setSubmitError(null);
+    } catch (error) {
+      setSubmitError(getErrorMessage(error));
+    }
+  }
+
+  function removeGeneratedTask() {
+    const remaining = generatedFormDrafts.filter((_, index) => index !== activeGeneratedTaskIndex);
+    const nextIndex = Math.min(activeGeneratedTaskIndex, remaining.length - 1);
+    setGeneratedFormDrafts(remaining);
+    setActiveGeneratedTaskIndex(nextIndex);
+    loadFormValues(remaining[nextIndex].values);
+    setSubmitError(null);
+  }
 
   function addSubtask() {
     const titleValue = subtaskDraft.trim();
@@ -324,6 +438,7 @@ function TaskFormModal({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (generatedSaveBusy || isSubmitting || generationBusy) return;
     if (durationBusy || durationPending) {
       setSubmitError('Apply or dismiss the duration estimate before saving task changes.');
       return;
@@ -377,7 +492,7 @@ function TaskFormModal({
         }))
         .filter((subtask) => subtask.title);
 
-      await onSubmit({
+      const input: TaskCreateInput = {
         title: titleValue,
         description: notes || null,
         project_id: projectId || null,
@@ -385,9 +500,38 @@ function TaskFormModal({
         priority: priorityToApi[priority],
         estimated_duration_minutes: estimatedDurationMinutes,
         subtasks: normalizedSubtasks,
-      });
+      };
+      if (generationPreview && generatedFormDrafts.length) {
+        const taskDetails = generatedFormDrafts.map((draft, index) => {
+          if (index === activeGeneratedTaskIndex) return input;
+          try {
+            return taskInputFromFormValues(draft.values);
+          } catch (error) {
+            throw new Error(`Task ${index + 1}: ${getErrorMessage(error)}`);
+          }
+        });
+        setGeneratedSaveBusy(true);
+        await confirmGeneratedTasks(
+          generationPreview,
+          generatedFormDrafts.map((draft, index) => ({
+            ...draft.task,
+            title: taskDetails[index].title,
+            priority: taskDetails[index].priority ?? 'no_priority',
+            due_date:
+              index === activeGeneratedTaskIndex ? dueDate || null : draft.values.dueDate || null,
+            due_time:
+              index === activeGeneratedTaskIndex ? dueTime || null : draft.values.dueTime || null,
+          })),
+          taskDetails,
+        );
+        onClose();
+      } else {
+        await onSubmit(input);
+      }
     } catch (requestError) {
       setSubmitError(getErrorMessage(requestError));
+    } finally {
+      setGeneratedSaveBusy(false);
     }
   }
 
@@ -413,7 +557,7 @@ function TaskFormModal({
         }}
         onSubmit={submit}
       >
-        <fieldset disabled={durationBusy} className="contents">
+        <fieldset disabled={durationBusy || generatedSaveBusy} className="contents">
           {isAiOnlyView ? (
             <div className="grid min-h-10 grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center">
               <span aria-hidden="true" className="h-10 w-10" />
@@ -441,7 +585,11 @@ function TaskFormModal({
                 >
                   {title}
                 </h2>
-                <p className="mt-1 text-base text-dashboard-muted">{description}</p>
+                <p className="mt-1 text-base text-dashboard-muted">
+                  {generationPreview && generatedFormDrafts.length
+                    ? 'Review and edit the generated details before creating your tasks.'
+                    : description}
+                </p>
               </div>
               <button
                 aria-label="Close task dialog"
@@ -573,83 +721,6 @@ function TaskFormModal({
                     <p className="mt-3 text-sm leading-5 text-dashboard-accent" role="status">
                       {parseFeedback}
                     </p>
-                  ) : null}
-                  {generationPreview ? (
-                    <div className="mt-4 space-y-3">
-                      {generatedTasks.map((task, index) => (
-                        <article
-                          className="grid gap-3 rounded-[var(--radius-sm)] border border-dashboard-border bg-dashboard-surface p-4 sm:grid-cols-[1fr_150px_150px_auto]"
-                          key={task.client_id}
-                        >
-                          <input
-                            aria-label={`Task ${index + 1} title`}
-                            className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-dashboard-text"
-                            onChange={(event) =>
-                              updateGeneratedTask(index, { title: event.target.value })
-                            }
-                            value={task.title}
-                          />
-                          <select
-                            aria-label={`Task ${index + 1} priority`}
-                            className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-dashboard-text"
-                            onChange={(event) =>
-                              updateGeneratedTask(index, {
-                                priority: event.target.value as TaskPriorityValue,
-                              })
-                            }
-                            value={task.priority}
-                          >
-                            <option value="no_priority">No priority</option>
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                          </select>
-                          <input
-                            aria-label={`Task ${index + 1} due date`}
-                            className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-dashboard-text [color-scheme:dark]"
-                            onChange={(event) =>
-                              updateGeneratedTask(index, { due_date: event.target.value })
-                            }
-                            type="date"
-                            value={task.due_date}
-                          />
-                          <button
-                            aria-label={`Remove task ${index + 1}`}
-                            className="h-10 rounded-lg border border-[var(--red-border)] px-3 text-[var(--red-light)]"
-                            onClick={() =>
-                              setGeneratedTasks((current) =>
-                                current.filter((_task, taskIndex) => taskIndex !== index),
-                              )
-                            }
-                            type="button"
-                          >
-                            X
-                          </button>
-                        </article>
-                      ))}
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs text-dashboard-muted">
-                          {generationPreview.metadata.source === 'gemini'
-                            ? 'Generated with Gemini'
-                            : generationPreview.metadata.fallback_reason ===
-                                'ai_configuration_error'
-                              ? 'Gemini API key is not configured · parser fallback used'
-                              : generationPreview.metadata.fallback_reason === 'ai_disabled'
-                                ? 'Gemini is disabled · parser fallback used'
-                                : 'Gemini was unavailable · parser fallback used'}
-                        </span>
-                        <button
-                          className="h-11 rounded-[var(--radius-sm)] bg-dashboard-accent px-5 font-semibold text-dashboard-on-accent disabled:opacity-50"
-                          disabled={generationBusy || generatedTasks.length === 0}
-                          onClick={() => void createGeneratedTasks()}
-                          type="button"
-                        >
-                          {generationBusy
-                            ? 'Creating…'
-                            : `Create ${generatedTasks.length} task${generatedTasks.length === 1 ? '' : 's'}`}
-                        </button>
-                      </div>
-                    </div>
                   ) : null}
                   {decompositionPreview && decomposedTask ? (
                     <div className="mt-4 space-y-3 rounded-[var(--radius-md)] border border-dashboard-border bg-dashboard-surface p-4">
@@ -804,7 +875,8 @@ function TaskFormModal({
                         onClick={() => {
                           setIsManualFormVisible(true);
                           setIsNaturalLanguageExpanded(false);
-                          setParseFeedback(null);
+                          clearAiPreview();
+                          setGeneratedFormDrafts([]);
                         }}
                         type="button"
                       >
@@ -817,6 +889,41 @@ function TaskFormModal({
             ) : null}
 
             <div className={cn('min-w-0 space-y-5', !isManualFormVisible && 'hidden')}>
+              {generationPreview && generatedFormDrafts.length ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-dashboard-muted" role="status">
+                    {generationPreview.metadata.source === 'gemini'
+                      ? 'Generated with Gemini · review before creating'
+                      : 'Task details filled using the parser fallback · review before creating'}
+                  </p>
+                  {generatedFormDrafts.length > 1 ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <label className="flex items-center gap-3 text-sm text-dashboard-text">
+                        Review task
+                        <select
+                          aria-label="Generated task to review"
+                          className="h-10 rounded-lg border border-dashboard-border bg-[var(--bg-input)] px-3 text-dashboard-text"
+                          onChange={(event) => selectGeneratedTask(Number(event.target.value))}
+                          value={activeGeneratedTaskIndex}
+                        >
+                          {generatedFormDrafts.map((draft, index) => (
+                            <option key={draft.task.client_id} value={index}>
+                              {index + 1} of {generatedFormDrafts.length}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        className="rounded-lg bg-[var(--red)] px-3 py-2 text-sm font-medium text-white transition hover:brightness-110"
+                        onClick={removeGeneratedTask}
+                        type="button"
+                      >
+                        Remove this task
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <label className="text-base font-medium text-dashboard-text" htmlFor="task-title">
@@ -839,7 +946,6 @@ function TaskFormModal({
                 <input
                   className={cn(
                     'h-[var(--input-height-desktop)] w-full rounded-[var(--radius-sm)] border border-dashboard-accent bg-[var(--bg-input)] px-4 text-base text-dashboard-text outline-none placeholder:text-[var(--text-placeholder)] focus:shadow-[0_0_0_3px_rgba(53,227,181,.1)]',
-                    recentlyGeneratedDetails && 'bg-dashboard-accent-soft/40 shadow-glow',
                   )}
                   id="task-title"
                   name="title"
@@ -1191,7 +1297,7 @@ function TaskFormModal({
                     ? 'text-[var(--red-light)] hover:border-[var(--red-border)] hover:bg-[var(--red-soft)]'
                     : 'text-dashboard-text hover:border-dashboard-border-strong',
                 )}
-                disabled={isSubmitting}
+                disabled={isSubmitting || generatedSaveBusy}
                 onClick={async () => {
                   if (durationBusy || durationPending) {
                     setSubmitError(
@@ -1216,10 +1322,14 @@ function TaskFormModal({
               </button>
               <button
                 className="flex h-12 items-center justify-center rounded-[var(--radius-sm)] bg-gradient-to-r from-dashboard-accent to-dashboard-accent-strong px-6 text-base font-semibold text-dashboard-on-accent shadow-glow transition hover:brightness-110"
-                disabled={isSubmitting}
+                disabled={isSubmitting || generatedSaveBusy || generationBusy}
                 type="submit"
               >
-                {isSubmitting ? submittingLabel : submitLabel}
+                {isSubmitting || generatedSaveBusy
+                  ? submittingLabel
+                  : generationPreview && generatedFormDrafts.length > 1
+                    ? `Create ${generatedFormDrafts.length} tasks`
+                    : submitLabel}
               </button>
             </div>
           ) : null}

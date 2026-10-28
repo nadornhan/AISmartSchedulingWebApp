@@ -219,6 +219,7 @@ def _is_species_unlocked(
     species: PlantSpecies,
     *,
     profile: UserGamificationProfile | None = None,
+    metrics: dict[str, int] | None = None,
 ) -> bool:
     requirement = species.unlock_requirement or {"type": "default"}
     kind = requirement.get("type", "default")
@@ -226,11 +227,11 @@ def _is_species_unlocked(
     if kind == "default" or species.is_default:
         return True
     if kind == "tasks_completed":
-        return _count_completed_tasks(db, user_id) >= value
+        return _metric_value(db, user_id, kind, metrics=metrics) >= value
     if kind == "focus_sessions":
-        return _count_focus_sessions(db, user_id) >= value
+        return _metric_value(db, user_id, kind, metrics=metrics) >= value
     if kind == "active_weeks":
-        return _count_active_weeks(db, user_id) >= value
+        return _metric_value(db, user_id, kind, metrics=metrics) >= value
     if kind == "trees_grown":
         profile = profile or get_or_create_profile(db, user_id)
         return profile.total_trees_grown >= value
@@ -238,9 +239,12 @@ def _is_species_unlocked(
         profile = profile or get_or_create_profile(db, user_id)
         return (
             profile.total_trees_grown >= int(requirement.get("trees_grown", 10))
-            and _count_completed_tasks(db, user_id) >= int(requirement.get("tasks_completed", 250))
-            and _count_focus_sessions(db, user_id) >= int(requirement.get("focus_sessions", 100))
-            and _count_active_weeks(db, user_id) >= int(requirement.get("active_weeks", 12))
+            and _metric_value(db, user_id, "tasks_completed", metrics=metrics)
+            >= int(requirement.get("tasks_completed", 250))
+            and _metric_value(db, user_id, "focus_sessions", metrics=metrics)
+            >= int(requirement.get("focus_sessions", 100))
+            and _metric_value(db, user_id, "active_weeks", metrics=metrics)
+            >= int(requirement.get("active_weeks", 12))
         )
     return False
 
@@ -251,8 +255,9 @@ def _species_summary(
     species: PlantSpecies,
     *,
     profile: UserGamificationProfile | None = None,
+    metrics: dict[str, int] | None = None,
 ) -> PlantSpeciesSummary:
-    unlocked = _is_species_unlocked(db, user_id, species, profile=profile)
+    unlocked = _is_species_unlocked(db, user_id, species, profile=profile, metrics=metrics)
     return PlantSpeciesSummary(
         id=species.id,
         name=species.name,
@@ -280,7 +285,14 @@ def _forest_display_name(profile: UserGamificationProfile) -> str:
     return DEFAULT_FOREST_NAME
 
 
-def _plant_response(plant: UserPlant, *, user_id: uuid.UUID, db: Session) -> UserPlantResponse:
+def _plant_response(
+    plant: UserPlant,
+    *,
+    user_id: uuid.UUID,
+    db: Session,
+    profile: UserGamificationProfile | None = None,
+    metrics: dict[str, int] | None = None,
+) -> UserPlantResponse:
     mature_at = plant.species.required_growth_points or DEFAULT_MATURE_GP
     stage, points, nxt, ratio = stage_progress(
         plant.current_growth_points,
@@ -298,7 +310,7 @@ def _plant_response(plant: UserPlant, *, user_id: uuid.UUID, db: Session) -> Use
         )
     return UserPlantResponse(
         id=plant.id,
-        species=_species_summary(db, user_id, plant.species),
+        species=_species_summary(db, user_id, plant.species, profile=profile, metrics=metrics),
         display_name=_display_name(plant),
         custom_name=plant.custom_name,
         current_growth_points=points,
@@ -381,25 +393,43 @@ def _achievement_title_summary(
     )
 
 
-def _metric_value(db: Session, user_id: uuid.UUID, requirement_type: str) -> int:
-    profile = get_or_create_profile(db, user_id)
-    if requirement_type == "tasks_completed":
-        return _count_completed_tasks(db, user_id)
-    if requirement_type == "focus_sessions":
-        return _count_focus_sessions(db, user_id)
-    if requirement_type == "focus_minutes":
-        return _count_focus_minutes(db, user_id)
-    if requirement_type == "active_days":
-        return _count_active_days(db, user_id)
-    if requirement_type == "trees_grown":
-        return profile.total_trees_grown
-    if requirement_type == "species_unlocked":
-        species = list(db.scalars(select(PlantSpecies)).all())
-        return sum(
-            1 for item in species if _is_species_unlocked(db, user_id, item, profile=profile)
-        )
+def _metric_value(
+    db: Session,
+    user_id: uuid.UUID,
+    requirement_type: str,
+    *,
+    metrics: dict[str, int] | None = None,
+) -> int:
+    # A read builds many plants/achievement tiers from the same user totals.
+    # Keep this memo local to that operation so mutations never reuse stale totals.
+    values = metrics if metrics is not None else {}
     if requirement_type == "first_task":
-        return 1 if _count_completed_tasks(db, user_id) >= 1 else 0
+        return min(1, _metric_value(db, user_id, "tasks_completed", metrics=values))
     if requirement_type == "first_focus":
-        return 1 if _count_focus_sessions(db, user_id) >= 1 else 0
-    return 0
+        return min(1, _metric_value(db, user_id, "focus_sessions", metrics=values))
+    if requirement_type in values:
+        return values[requirement_type]
+
+    if requirement_type == "tasks_completed":
+        value = _count_completed_tasks(db, user_id)
+    elif requirement_type == "focus_sessions":
+        value = _count_focus_sessions(db, user_id)
+    elif requirement_type == "focus_minutes":
+        value = _count_focus_minutes(db, user_id)
+    elif requirement_type == "active_days":
+        value = _count_active_days(db, user_id)
+    elif requirement_type == "active_weeks":
+        value = _count_active_weeks(db, user_id)
+    elif requirement_type == "trees_grown":
+        value = get_or_create_profile(db, user_id).total_trees_grown
+    elif requirement_type == "species_unlocked":
+        profile = get_or_create_profile(db, user_id)
+        species = list(db.scalars(select(PlantSpecies)).all())
+        value = sum(
+            1 for item in species
+            if _is_species_unlocked(db, user_id, item, profile=profile, metrics=values)
+        )
+    else:
+        value = 0
+    values[requirement_type] = value
+    return value

@@ -13,6 +13,7 @@ def get_insights_summary(
     db: DatabaseSession,
     current_user: CurrentUser,
     client_timezone: str | None = Header(default=None, alias="X-Client-Timezone"),
+    include_schedule: bool = True,
 ) -> InsightsSummaryResponse:
     """Return personalized productivity insights for the current user."""
     if client_timezone is not None:
@@ -28,6 +29,7 @@ def get_insights_summary(
         db,
         current_user,
         client_timezone_name=client_timezone,
+        include_schedule=include_schedule,
     )
 
 

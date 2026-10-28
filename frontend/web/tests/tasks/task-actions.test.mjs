@@ -310,6 +310,9 @@ function aiHarness(overrides = {}) {
       onClose: () => {
         state.closed = true;
       },
+      onGenerated: (preview) => {
+        state.generated = preview;
+      },
       setSubmitError: (value) => {
         state.submitError = value;
       },
@@ -326,16 +329,15 @@ test('AI entry rejects empty input before making a request', async () => {
   assert.equal(h.render().parseFeedback, 'Add a task description before generating details.');
 });
 
-test('generated previews remain editable before confirmation', async () => {
+test('generated previews populate the form through the callback without saving', async () => {
   const h = aiHarness();
   h.render().setNaturalLanguageInput('  Prepare slides  ');
   await h.render().createFromNaturalLanguage();
   assert.deepEqual(h.calls[0], ['previewGeneratedTasks', 'Prepare slides']);
   assert.equal(h.state.submitError, null);
-  h.render().updateGeneratedTask(0, { title: 'Edited slides' });
-  await h.render().createGeneratedTasks();
-  assert.equal(h.calls[1][2][0].title, 'Edited slides');
-  assert.equal(h.state.closed, true);
+  assert.equal(h.state.generated.proposal.tasks[0].title, 'Generated');
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.state.closed, false);
   assert.equal(h.render().generationBusy, false);
 });
 
@@ -360,23 +362,20 @@ test('changing AI mode clears the previous preview and confirmation drafts', asy
   await h.render().createFromNaturalLanguage();
   h.render().selectAiEntryMode('decompose');
   assert.equal(h.render().generationPreview, null);
-  assert.deepEqual(plain(h.render().generatedTasks), []);
   assert.equal(h.render().parseFeedback, null);
-  await h.render().createGeneratedTasks();
   assert.equal(h.calls.length, 1);
 });
 
-test('failed AI confirmation keeps the preview open for retry', async () => {
+test('failed task generation keeps the AI entry open for retry', async () => {
   const h = aiHarness({
-    confirmGeneratedTasks: async () => {
-      throw new ApiError('AI confirmation failed');
+    previewGeneratedTasks: async () => {
+      throw new ApiError('AI generation failed');
     },
   });
   h.render().setNaturalLanguageInput('Prepare slides');
   await h.render().createFromNaturalLanguage();
-  await h.render().createGeneratedTasks();
   assert.equal(h.state.closed, false);
-  assert.equal(h.render().parseFeedback, 'AI confirmation failed');
+  assert.equal(h.render().parseFeedback, 'AI generation failed');
   assert.equal(h.render().generationBusy, false);
-  assert.equal(h.render().generatedTasks.length, 1);
+  assert.equal(h.render().generationPreview, null);
 });

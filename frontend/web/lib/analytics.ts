@@ -1,4 +1,5 @@
-import { apiRequest } from './api';
+import { apiRequest, getSessionKey } from './api';
+import { cachedReadWithSignal, peekReadCache } from './read-cache';
 import type { SchedulingPlan } from './scheduling';
 import { getBrowserTimezone } from './settings';
 
@@ -41,13 +42,26 @@ export type InsightsSummary = {
 };
 
 export function getInsightsSummary(signal?: AbortSignal) {
-  return apiRequest<InsightsSummary>('/analytics/insights', {
-    method: 'GET',
-    headers: {
-      'X-Client-Timezone': getBrowserTimezone(),
-    },
+  const timezone = getBrowserTimezone();
+  return cachedReadWithSignal(
+    getSessionKey(),
+    'analytics',
+    `summary:${timezone}`,
+    () =>
+      apiRequest<InsightsSummary>('/analytics/insights?include_schedule=false', {
+        headers: { 'X-Client-Timezone': timezone },
+      }),
+    60_000,
     signal,
-  });
+  );
+}
+
+export function getCachedInsightsSummary() {
+  return peekReadCache<InsightsSummary>(
+    getSessionKey(),
+    'analytics',
+    `summary:${getBrowserTimezone()}`,
+  );
 }
 
 export type WeeklyInsight = {
@@ -79,11 +93,24 @@ export type WeeklyInsight = {
 };
 
 export function getWeeklyInsight(signal?: AbortSignal) {
-  return apiRequest<WeeklyInsight>('/analytics/weekly-insight', {
-    method: 'GET',
-    headers: {
-      'X-Client-Timezone': getBrowserTimezone(),
-    },
+  const timezone = getBrowserTimezone();
+  return cachedReadWithSignal(
+    getSessionKey(),
+    'analytics',
+    `weekly:${timezone}`,
+    () =>
+      apiRequest<WeeklyInsight>('/analytics/weekly-insight', {
+        headers: { 'X-Client-Timezone': timezone },
+      }),
+    5 * 60_000,
     signal,
-  });
+  );
+}
+
+export function getCachedWeeklyInsight() {
+  return peekReadCache<WeeklyInsight>(
+    getSessionKey(),
+    'analytics',
+    `weekly:${getBrowserTimezone()}`,
+  );
 }

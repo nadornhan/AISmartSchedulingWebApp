@@ -130,7 +130,8 @@ export type GeneratedTaskDraft = {
   client_id: string;
   title: string;
   priority: TaskPriorityValue;
-  due_date: string;
+  due_date: string | null;
+  due_time?: string | null;
 };
 
 export type TaskGenerationPreview = {
@@ -376,12 +377,17 @@ export function previewGeneratedTasks(prompt: string) {
   });
 }
 
-export function confirmGeneratedTasks(preview: TaskGenerationPreview, tasks: GeneratedTaskDraft[]) {
+export function confirmGeneratedTasks(
+  preview: TaskGenerationPreview,
+  tasks: GeneratedTaskDraft[],
+  taskDetails?: TaskCreateInput[],
+) {
   return apiRequest<{ created: TaskResponse[] }>('/tasks/generate/confirm', {
     method: 'POST',
     body: JSON.stringify({
       proposal_token: preview.proposal.proposal_token,
       tasks,
+      ...(taskDetails ? { task_details: taskDetails } : {}),
     }),
   }).then((result) => {
     emitTaskDataChanged();

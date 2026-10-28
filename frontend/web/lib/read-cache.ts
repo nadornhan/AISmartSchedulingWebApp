@@ -69,3 +69,33 @@ export function cachedRead<T>(
   target.pending = pending;
   return pending;
 }
+
+// Cancellation belongs to the caller, so leaving a page does not cancel the
+// shared read needed by another view or prevent it from warming the cache.
+export function cachedReadWithSignal<T>(
+  scope: string | null,
+  group: string,
+  key: string,
+  load: () => Promise<T>,
+  maxAgeMs: number,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (signal?.aborted) return Promise.reject(signal.reason);
+  const pending = cachedRead(scope, group, key, load, maxAgeMs);
+  if (!signal) return pending;
+
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(signal.reason);
+    signal.addEventListener('abort', abort, { once: true });
+    pending.then(
+      (value) => {
+        signal.removeEventListener('abort', abort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener('abort', abort);
+        reject(error);
+      },
+    );
+  });
+}

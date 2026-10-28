@@ -3,9 +3,10 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { RotateCcw } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  getCachedForestScene,
   getForestScene,
   onGrowthReward,
   placePlant,
@@ -18,7 +19,8 @@ import { ForestAmbientAudio } from './forest-ambient-audio';
 import { PlantVisual } from './plant-visual';
 import { BrandedLoadingScreen } from '../layout/branded-loading-screen';
 
-const ForestScene3D = dynamic(() => import('./forest-scene-3d').then((mod) => mod.ForestScene3D), {
+const loadForestScene3D = () => import('./forest-scene-3d').then((mod) => mod.ForestScene3D);
+const ForestScene3D = dynamic(loadForestScene3D, {
   ssr: false,
   loading: () => (
     <BrandedLoadingScreen className="h-[min(70vh,640px)] rounded-xl border border-dashboard-border bg-[#87c7f5]" />
@@ -26,29 +28,33 @@ const ForestScene3D = dynamic(() => import('./forest-scene-3d').then((mod) => mo
 });
 
 export function ForestWorldPage() {
-  const [scene, setScene] = useState<ForestSceneResponse | null>(null);
+  const [scene, setScene] = useState<ForestSceneResponse | null>(
+    () => getCachedForestScene() ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !getCachedForestScene());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placingPlantId, setPlacingPlantId] = useState<string | null>(null);
   const [cameraResetKey, setCameraResetKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [rotationDraft, setRotationDraft] = useState(0);
+  const loadRevision = useRef(0);
 
   const loadScene = useCallback(async (signal?: AbortSignal) => {
-    setIsLoading(true);
+    const revision = ++loadRevision.current;
+    setIsLoading(!getCachedForestScene());
     setError(null);
     try {
       const data = await getForestScene({ signal });
-      if (signal?.aborted) return;
+      if (signal?.aborted || revision !== loadRevision.current) return;
       setScene(data);
     } catch (requestError) {
-      if (signal?.aborted) return;
+      if (signal?.aborted || revision !== loadRevision.current) return;
       setError(
         requestError instanceof Error ? requestError.message : 'Unable to load forest scene.',
       );
     } finally {
-      if (!signal?.aborted) {
+      if (!signal?.aborted && revision === loadRevision.current) {
         setIsLoading(false);
       }
     }
@@ -56,8 +62,13 @@ export function ForestWorldPage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    // Download the scene code alongside its data, rather than afterwards.
+    void loadForestScene3D().catch(() => undefined);
     void loadScene(controller.signal);
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      loadRevision.current += 1;
+    };
   }, [loadScene]);
 
   useEffect(
@@ -99,6 +110,8 @@ export function ForestWorldPage() {
         rotation_x: position.rotation_x ?? 0,
         rotation_y: position.rotation_y ?? rotationDraft,
       });
+      loadRevision.current += 1;
+      setIsLoading(false);
       setScene((current) =>
         current
           ? {
@@ -180,6 +193,8 @@ export function ForestWorldPage() {
             className="mt-2"
             name={scene.forest_name}
             onRenamed={(next) => {
+              loadRevision.current += 1;
+              setIsLoading(false);
               setScene((current) => (current ? { ...current, forest_name: next } : current));
             }}
           />
@@ -251,6 +266,8 @@ export function ForestWorldPage() {
                   <EditablePlantName
                     name={selectedTree.display_name}
                     onRenamed={(next) => {
+                      loadRevision.current += 1;
+                      setIsLoading(false);
                       setScene((current) =>
                         current
                           ? {
